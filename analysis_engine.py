@@ -238,6 +238,17 @@ class TechnicalAnalyzer:
              score -= 1
              details.append(f"🔻 週線 EFI 主力調節 (EFI={efi_week:,.0f}) (-1)")
 
+        # 5. 形態度 (W底/M頭) - 週線級別威力更大
+        try:
+             morph_score, morph_msgs = self._detect_morphology(df)
+             score += morph_score
+             if morph_score != 0:
+                 # 修改訊息以標示這是週線
+                 morph_msgs = [f"📅 週線{m}" for m in morph_msgs]
+             details.extend(morph_msgs)
+        except Exception as e:
+             pass
+
         return score, details
 
     def _calculate_trigger_score(self, df):
