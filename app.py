@@ -32,7 +32,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 標題
-st.markdown('<div class="main-header">📈 全方位股票技術分析系統</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>', unsafe_allow_html=True)
 
 # 側邊欄
 with st.sidebar:
@@ -301,3 +301,4 @@ if run_btn:
 else:
     # 初始歡迎畫面
     st.info("👈 請在左測試欄輸入代號並點擊「開始分析」")
+
