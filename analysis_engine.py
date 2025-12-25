@@ -487,73 +487,199 @@ class TechnicalAnalyzer:
 
         return score, msgs
 
+        return score, msgs
+
     def _detect_morphology(self, df):
         """
-        高階形態學偵測 (Chart Patterns) - 使用 Scipy 尋找極值
-        偵測 W底 (Double Bottom) 與 M頭 (Double Top)
+        高階形態學偵測 (Chart Patterns) - 總成
+        包含: W底/M頭, 頭肩頂/底, 三角收斂
         """
-        if len(df) < 50:
+        if len(df) < 60:
             return 0, []
         
-        from scipy.signal import argrelextrema
+        score = 0
+        msgs = []
         
+        # 1. 基礎 W底 / M頭
+        s1, m1 = self._detect_double_patterns(df)
+        score += s1
+        msgs.extend(m1)
+        
+        # 2. 進階 頭肩頂 / 頭肩底
+        s2, m2 = self._detect_head_and_shoulders(df)
+        score += s2
+        msgs.extend(m2)
+        
+        # 3. 三角收斂
+        s3, m3 = self._detect_triangle_convergence(df)
+        score += s3
+        msgs.extend(m3)
+        
+        return score, msgs
+
+    def _detect_double_patterns(self, df):
+        """
+        W底 (Double Bottom) 與 M頭 (Double Top) - 這裡保留原邏輯但抽離出來
+        """
+        from scipy.signal import argrelextrema
         score = 0
         msgs = []
         prices = df['Close'].values
         
-        # 1. 尋找局部極值 (Local Extrema) - 視窗 5 (左右各5根)
-        # order=5 代表該點必須是這 11 根當中的極值
+        # 尋找極值 (左右各5根)
         max_idx = argrelextrema(prices, np.greater, order=5)[0]
         min_idx = argrelextrema(prices, np.less, order=5)[0]
         
-        # 只需要看最近的極值 (例如最近 60 天內)
-        recent_boundary = len(df) - 60
-        recent_max = max_idx[max_idx > recent_boundary]
-        recent_min = min_idx[min_idx > recent_boundary]
-        
+        recent_max = max_idx[max_idx > len(df) - 60]
+        recent_min = min_idx[min_idx > len(df) - 60]
         current_price = prices[-1]
 
-        # ------------------------------------
-        # 2. W底 (Double Bottom) 偵測
-        # 邏輯: 最近有兩個低點 (L1, L2)，且兩者價格接近 (差距 < 3%)
-        # ------------------------------------
+        # W底
         if len(recent_min) >= 2:
-            l2 = prices[recent_min[-1]] # 最近的一個低點
-            l1 = prices[recent_min[-2]] # 前一個低點
-            l2_idx = recent_min[-1]
-            l1_idx = recent_min[-2]
-            
-            # 時間間隔要足夠 (至少間隔 5 天，避免太密集)
-            if (l2_idx - l1_idx) > 5:
-                # 檢查兩隻腳的平整度
+            l2 = prices[recent_min[-1]]
+            l1 = prices[recent_min[-2]]
+            if (recent_min[-1] - recent_min[-2]) > 5:
                 diff_pct = abs(l1 - l2) / l1
-                if diff_pct < 0.03: # 誤差 3% 以內
-                    # 檢查是否為右腳 (目前價格雖漲但離 L2 不遠) 或是 突破頸線
-                    # 假設立場: 現在在右腳反彈階段
+                if diff_pct < 0.03:
                     if current_price > l2 and current_price < l2 * 1.15:
                         score += 2
                         msgs.append(f"🦋 形態學: 潛在【W底 (雙重底)】成形中 (+2)")
-                        msgs.append(f"   (左腳 {l1:.2f} | 右腳 {l2:.2f} | 誤差 {diff_pct*100:.1f}%)")
 
-        # ------------------------------------
-        # 3. M頭 (Double Top) 偵測
-        # 邏輯: 最近有兩個高點 (H1, H2)，且兩者價格接近
-        # ------------------------------------
+        # M頭
         if len(recent_max) >= 2:
             h2 = prices[recent_max[-1]]
             h1 = prices[recent_max[-2]]
-            h2_idx = recent_max[-1]
-            h1_idx = recent_max[-2]
-            
-            if (h2_idx - h1_idx) > 5:
+            if (recent_max[-1] - recent_max[-2]) > 5:
                 diff_pct = abs(h1 - h2) / h1
                 if diff_pct < 0.03:
-                    # 假設立場: 現在在右肩下跌階段
                     if current_price < h2 and current_price > h2 * 0.85:
                         score -= 2
                         msgs.append(f"🦇 形態學: 潛在【M頭 (雙重頂)】成形中 (-2)")
-                        msgs.append(f"   (左頭 {h1:.2f} | 右頭 {h2:.2f} | 誤差 {diff_pct*100:.1f}%)")
+                        
+        return score, msgs
 
+    def _detect_head_and_shoulders(self, df):
+        """
+        偵測 頭肩頂 / 頭肩底 (Head and Shoulders)
+        並且【嚴格要求成交量】驗證
+        """
+        from scipy.signal import argrelextrema
+        score = 0
+        msgs = []
+        prices = df['Close'].values
+        volumes = df['Volume'].values
+        
+        # 尋找極值 (左右各4根，稍微寬鬆一點找點)
+        # 注意: 這裡我們需要找最近的三個極值點
+        max_idx = argrelextrema(prices, np.greater, order=4)[0]
+        min_idx = argrelextrema(prices, np.less, order=4)[0]
+        
+        # --- A. 頭肩底 (Bottom) ---
+        # 形態: 左肩(L) - 頭(H) - 右肩(R)
+        # 價格關係: H < L, H < R
+        # 成交量關係: 頭部量大(恐慌), 右肩量縮(沉澱) 
+        recent_min = min_idx[min_idx > len(df) - 80] # 看近80根
+        
+        if len(recent_min) >= 3:
+            # 取得最近三個谷底 idx
+            i_ls, i_h, i_rs = recent_min[-3], recent_min[-2], recent_min[-1]
+            p_ls, p_h, p_rs = prices[i_ls], prices[i_h], prices[i_rs]
+            
+            # 幾何驗證
+            is_head_lowest = (p_h < p_ls) and (p_h < p_rs)
+            is_shoulder_level = abs(p_ls - p_rs) / p_ls < 0.10 # 左右肩高度差 10% 內
+            
+            if is_head_lowest and is_shoulder_level:
+                # 成交量驗證 (Volume Confirmation)
+                # 右肩量 < 左肩量 OR 右肩量明顯小於均量 (量縮整理)
+                v_ls = volumes[i_ls-2:i_ls+3].mean() # 區間均量
+                v_rs = volumes[i_rs-2:i_rs+3].mean()
+                
+                if v_rs < v_ls * 1.2: # 寬鬆一點，只要右肩沒有爆量失控即可
+                     # 檢查目前價格是否在頸線附近準備突破
+                     neckline = max(prices[i_h:i_rs].max(), prices[i_ls:i_h].max()) 
+                     current = prices[-1]
+                     
+                     if current > p_rs: # 價格要在右肩底之上
+                         score += 3
+                         msg = f"👑 形態學: 潛在【頭肩底】右肩成形 (+3)"
+                         if v_rs < v_ls:
+                             msg += " (量縮價穩✅)"
+                         else:
+                             msg += " (留意量能)"
+                         msgs.append(msg)
+
+        # --- B. 頭肩頂 (Top) ---
+        # 價格關係: H > L, H > R
+        # 成交量關係: 右肩量縮 (買盤無力)
+        recent_max = max_idx[max_idx > len(df) - 80]
+        
+        if len(recent_max) >= 3:
+            i_ls, i_h, i_rs = recent_max[-3], recent_max[-2], recent_max[-1]
+            p_ls, p_h, p_rs = prices[i_ls], prices[i_h], prices[i_rs]
+            
+            is_head_highest = (p_h > p_ls) and (p_h > p_rs)
+            is_shoulder_level = abs(p_ls - p_rs) / p_ls < 0.10
+            
+            if is_head_highest and is_shoulder_level:
+                # 成交量驗證: 右肩量縮 (Buyer exhaustion)
+                v_ls = volumes[i_ls-2:i_ls+3].mean()
+                v_rs = volumes[i_rs-2:i_rs+3].mean()
+                
+                if v_rs < v_ls:
+                     score -= 3
+                     msgs.append(f"💀 形態學: 潛在【頭肩頂】右肩成形 (量縮無力) (-3)")
+
+        return score, msgs
+
+    def _detect_triangle_convergence(self, df):
+        """
+        偵測 三角收斂 (Triangle Convergence / Squeeze)
+        邏輯: 高點越來越低 + 低點越來越高 + 成交量萎縮
+        """
+        score = 0
+        msgs = []
+        
+        # 至少要有一些數據來計算趨勢
+        if len(df) < 30: return 0, []
+        
+        recent = df.iloc[-30:] # 近30根
+        
+        # 1. 價格壓縮偵測 (High Lower, Low Higher)
+        # 簡單做法：切兩半，比較前半與後半的 High/Low 區間
+        mid = len(recent) // 2
+        part1 = recent.iloc[:mid]
+        part2 = recent.iloc[mid:]
+        
+        h1 = part1['High'].max()
+        l1 = part1['Low'].min()
+        h2 = part2['High'].max()
+        l2 = part2['Low'].min()
+        
+        # 區間 1 高度
+        range1 = h1 - l1
+        # 區間 2 高度
+        range2 = h2 - l2
+        
+        # 條件: 波動率下降 (壓縮)
+        is_squeezing = range2 < range1 * 0.8 # 後半段波動 < 前半段 80%
+        
+        # 條件: 形態 (高不過高，低不破低)
+        is_triangle = (h2 < h1) and (l2 > l1)
+        
+        if is_triangle and is_squeezing:
+            # 2. 成交量驗證 (Volume Squeeze)
+            # 檢查最近 5 天均量 vs 20 天均量
+            vol_ma5 = recent['Volume'].rolling(5).mean().iloc[-1]
+            vol_ma20 = recent['Volume'].rolling(20).mean().iloc[-1]
+            
+            if vol_ma5 < vol_ma20 * 0.8:
+                score += 1 # 中性偏多 (視為即將變盤，給予關注分，但不一定是多空)
+                # 這裡給正分是因為通常這是在尋找機會，提示使用者關注
+                msgs.append(f"📐 形態學: 【三角收斂】末端 (量縮極致) 等待變盤 (+1)")
+            else:
+                msgs.append(f"📐 形態學: 【三角收斂】整理中 (量能未縮) (Monitor)")
+                
         return score, msgs
 
     def _detect_divergence(self, df, indicator_name, window=20):
