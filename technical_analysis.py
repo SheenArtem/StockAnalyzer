@@ -179,34 +179,41 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     plot_df = df.tail(bars).copy()
 
     # 設定面板 (Subplots)
-    apds = [
-        # Panel 0: 主圖 (MA + BB + Ichimoku + ATR)
-        mpf.make_addplot(plot_df[['MA5', 'MA10', 'MA20']], width=1.0),
-        mpf.make_addplot(plot_df['MA60'], color='black', width=1.5), 
-        mpf.make_addplot(plot_df['BB_Up'], color='gray', linestyle='--', alpha=0.5),
-        mpf.make_addplot(plot_df['BB_Lo'], color='gray', linestyle='--', alpha=0.5),
-        mpf.make_addplot(plot_df['Tenkan'], color='cyan', linestyle=':', width=0.8),
-        mpf.make_addplot(plot_df['Kijun'], color='brown', linestyle=':', width=0.8),
-        mpf.make_addplot(plot_df['ATR_Stop'], color='purple', type='scatter', markersize=6, marker='_'),
-        
-        # Panel 1: OBV (與成交量分開，看趨勢)
-        mpf.make_addplot(plot_df['OBV'], panel=1, color='blue', width=1.2, ylabel='OBV'),
+    # 設定面板 (Subplots)
+    apds = []
 
-        # Panel 2: MACD
-        mpf.make_addplot(plot_df['Hist'], type='bar', panel=2, color='dimgray', alpha=0.5, ylabel='MACD'),
-        mpf.make_addplot(plot_df['MACD'], panel=2, color='fuchsia'),
-        mpf.make_addplot(plot_df['Signal'], panel=2, color='c'),
+    # Helper: 安全添加 plot 的小函數
+    def add_plot_safe(series, **kwargs):
+        # 檢查是否全為 NaN
+        if not series.isna().all():
+            apds.append(mpf.make_addplot(series, **kwargs))
 
-        # Panel 3: KD & RSI
-        mpf.make_addplot(plot_df['K'], panel=3, color='orange', ylabel='KD & RSI'),
-        mpf.make_addplot(plot_df['D'], panel=3, color='blue'),
-        mpf.make_addplot(plot_df['RSI'], panel=3, color='green', linestyle='--', width=1),
-        
-        # Panel 4: DMI
-        mpf.make_addplot(plot_df['ADX'], panel=4, color='black', width=1.5, ylabel='DMI'),
-        mpf.make_addplot(plot_df['+DI'], panel=4, color='red', width=0.8),
-        mpf.make_addplot(plot_df['-DI'], panel=4, color='green', width=0.8),
-    ]
+    # Panel 0: 主圖
+    add_plot_safe(plot_df[['MA5', 'MA10', 'MA20']], width=1.0)
+    add_plot_safe(plot_df['MA60'], color='black', width=1.5)
+    add_plot_safe(plot_df['BB_Up'], color='gray', linestyle='--', alpha=0.5)
+    add_plot_safe(plot_df['BB_Lo'], color='gray', linestyle='--', alpha=0.5)
+    add_plot_safe(plot_df['Tenkan'], color='cyan', linestyle=':', width=0.8)
+    add_plot_safe(plot_df['Kijun'], color='brown', linestyle=':', width=0.8)
+    add_plot_safe(plot_df['ATR_Stop'], color='purple', type='scatter', markersize=6, marker='_')
+
+    # Panel 1: OBV
+    add_plot_safe(plot_df['OBV'], panel=1, color='blue', width=1.2, ylabel='OBV')
+
+    # Panel 2: MACD
+    add_plot_safe(plot_df['Hist'], type='bar', panel=2, color='dimgray', alpha=0.5, ylabel='MACD')
+    add_plot_safe(plot_df['MACD'], panel=2, color='fuchsia')
+    add_plot_safe(plot_df['Signal'], panel=2, color='c')
+
+    # Panel 3: KD & RSI
+    add_plot_safe(plot_df['K'], panel=3, color='orange', ylabel='KD & RSI')
+    add_plot_safe(plot_df['D'], panel=3, color='blue')
+    add_plot_safe(plot_df['RSI'], panel=3, color='green', linestyle='--', width=1)
+
+    # Panel 4: DMI
+    add_plot_safe(plot_df['ADX'], panel=4, color='black', width=1.5, ylabel='DMI')
+    add_plot_safe(plot_df['+DI'], panel=4, color='red', width=0.8)
+    add_plot_safe(plot_df['-DI'], panel=4, color='green', width=0.8)
 
     print(f"📊 正在繪製 {timeframe_label} 全方位分析圖...")
     
