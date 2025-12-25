@@ -70,74 +70,89 @@ class TechnicalAnalyzer:
         ma240 = current.get('MA240', 0)
         bb_up = current.get('BB_Up', 0)
         
-        # 計算籌碼大量區 (Volume Profile - 簡易版: 抓近 60 日最大量 K 棒的高點)
+        # 計算籌碼大量區
         recent_60 = df.iloc[-60:]
         max_vol_idx = recent_60['Volume'].idxmax()
         vol_pressure = df.loc[max_vol_idx]['High']
         
-        tp_price = 0
-        tp_method = ""
+        # 建立所有可能的停利目標清單
+        tp_candidates = []
+        
+        # 1. 測距法 (Projection)
+        tp_candidates.append({"method": "🚀 費波南希擴張 (1.618)", "price": close_price + (wave_height * 1.618), "desc": "強勢噴出目標"})
+        tp_candidates.append({"method": "📈 N 字測量 (1.0)", "price": close_price + wave_height, "desc": "等幅測距滿足點"})
+        tp_candidates.append({"method": "📦 箱型突破 (Pattern)", "price": close_price + wave_height, "desc": "型態突破滿足點"})
+        
+        # 2. 壓力法 (Resistance)
+        if ma60 > close_price: tp_candidates.append({"method": "📉 MA60 季線", "price": ma60, "desc": "生命線反壓"})
+        if ma120 > close_price: tp_candidates.append({"method": "📉 MA120 半年線", "price": ma120, "desc": "長線反壓"})
+        if ma240 > close_price: tp_candidates.append({"method": "📉 MA240 年線", "price": ma240, "desc": "超級反壓"})
+        if vol_pressure > close_price * 1.02: tp_candidates.append({"method": "📊 籌碼大量區", "price": vol_pressure, "desc": "套牢冤魂反壓"})
+        if recent_high_60 > close_price * 1.02: tp_candidates.append({"method": "🎢 前波高點", "price": recent_high_60, "desc": "解套賣壓區"})
+        if bb_up > close_price: tp_candidates.append({"method": "🎢 布林上緣", "price": bb_up, "desc": "通道超漲壓力"})
         
         code = scenario['code']
+        rec_method_name = ""
         
-        # 根據劇本與突破狀況，決定停利演算法 (依照優先順序 check)
-        
+        # 選擇 "推薦" 的邏輯
         if code == 'A':
-            # === 劇本 A: 強勢攻擊 ===
-            # 策略 1: 是否為箱型突破? (Close > 近 20 日高點)
+            # 強勢股: 優先看 1.618 或 N 字
             if close_price >= recent_high_20 * 0.99:
-                 # 突破！目標看型態測幅 (箱型高度)
-                 tp_pattern = close_price + wave_height
-                 tp_price = tp_pattern
-                 tp_method = "📦 箱型突破測幅 (1.0x)"
-                 
-                 # 若突破太強，看 Fib 1.618
                  if close_price > recent_high_20 * 1.05:
-                      tp_price = close_price + (wave_height * 1.618)
-                      tp_method = "🚀 費波南希擴張 (1.618x)"
+                      rec_method_name = "🚀 費波南希擴張 (1.618)"
+                 else:
+                      rec_method_name = "📦 箱型突破 (Pattern)"
             else:
-                 # 還在整理或剛起漲，看 N 字
-                 tp_price = close_price + wave_height
-                 tp_method = "📈 N 字測量 (等幅)"
-
+                 rec_method_name = "📈 N 字測量 (1.0)"
+                 
         elif code == 'C':
-             # === 劇本 C: 反彈 ===
-             # 策略: 找上方最近的壓力 (Dynamic Resistance)
-             # 收集所有可能的壓力點
-             pressures = []
-             if ma60 > close_price: pressures.append((ma60, "MA60 季線"))
-             if ma120 > close_price: pressures.append((ma120, "MA120 半年線"))
-             if ma240 > close_price: pressures.append((ma240, "MA240 年線"))
-             if vol_pressure > close_price: pressures.append((vol_pressure, "籌碼大量套牢區"))
-             if recent_high_60 > close_price: pressures.append((recent_high_60, "前波高點"))
-
-             # 找出"最接近"但大於股價的壓力 (至少要有 2% 空間，不然看下一個)
-             valid_pressures = [p for p in pressures if p[0] > close_price * 1.02]
-             
-             if valid_pressures:
-                 # 取最小值 (最近的壓力)
-                 target = min(valid_pressures, key=lambda x: x[0])
-                 tp_price = target[0]
-                 tp_method = f"📉 {target[1]}反壓"
+             # 反彈股: 優先看均線或籌碼壓力 (找最小值但 > close)
+             resistances = [t for t in tp_candidates if "反壓" in t["desc"] or "賣壓" in t["desc"] or "MA" in t["method"]]
+             if resistances:
+                 # 找出大於現價且最小的壓力
+                 valid_res = [r for r in resistances if r['price'] > close_price * 1.02]
+                 if valid_res:
+                     best_res = min(valid_res, key=lambda x: x['price'])
+                     rec_method_name = best_res['method']
+                 else:
+                     rec_method_name = "📈 N 字測量 (1.0)" # 只有這條路
              else:
-                 # 上方無均線壓力，看波段 0.5
-                 tp_price = close_price + (wave_height * 0.5)
-                 tp_method = "⚠️ 反彈 0.5 倍滿足點"
+                  rec_method_name = "📈 N 字測量 (1.0)"
 
         elif code == 'B':
-             # === 劇本 B: 整理 ===
-             # 區間操作，看前高或布林上緣
-             if bb_up > close_price:
-                 tp_price = bb_up
-                 tp_method = "🎢 布林通道上緣"
-             else:
-                 tp_price = recent_high_20
-                 tp_method = "🎢 前波高點壓力"
-                 
-        else:
-             # 其他：短打
-             tp_price = close_price * 1.05
-             tp_method = "🛡️ 短線 5% 停利"
+             rec_method_name = "🎢 布林上緣" if bb_up > close_price else "🎢 前波高點"
+             
+        else: # D or N
+             rec_method_name = "🛡️ 短線 5% 停利" # Fallback
+             tp_candidates.append({"method": "🛡️ 短線 5% 停利", "price": close_price * 1.05, "desc": "搶反彈快跑"})
+
+        # 整理輸出列表 (標記推薦)
+        final_tp_list = []
+        rec_price = 0
+        
+        # 為了表格整潔，我們只選出幾個有代表性的，或全部列出？
+        # 這裡過濾掉價格 <= close 的無效壓力
+        valid_candidates = [t for t in tp_candidates if t['price'] > close_price]
+        
+        # 排序: 價格由低到高
+        valid_candidates.sort(key=lambda x: x['price'])
+        
+        for item in valid_candidates:
+            is_rec = (item['method'] == rec_method_name)
+            # 如果是反彈劇本，卻推薦了 N 字/Fib，這裡要做防呆校正
+            if is_rec: rec_price = item['price']
+            
+            final_tp_list.append({
+                "method": item['method'],
+                "price": item['price'],
+                "desc": item['desc'],
+                "is_rec": is_rec
+            })
+            
+        # 如果沒有選到 (例如推薦的壓力已經被突破)，則預設選第一個
+        if not any(item['is_rec'] for item in final_tp_list) and final_tp_list:
+            final_tp_list[0]['is_rec'] = True
+            rec_price = final_tp_list[0]['price']
 
         # 3. 進場策略建議 (Entry Strategy)
         strategy_text = "觀望"
@@ -147,7 +162,7 @@ class TechnicalAnalyzer:
         elif code == 'B':
             strategy_text = "⏳ **等待訊號**：多頭休息中。等待突破「下降壓力線」或「前波高點」再介入。"
         elif code == 'C':
-            strategy_text = "⚠️ **搶反彈**：逆勢操作風險高。目標設在季線或前波跌幅一半，嚴設停損。"
+            strategy_text = "⚠️ **搶反彈**：逆勢操作風險高。優先參考上方均線反壓，有獲利即跑。"
         elif code == 'D':
             strategy_text = "🛑 **空手**：下方無支撐。若反彈無力 (量縮過不去 MA10) 可嘗試放空。"
         else:
@@ -159,8 +174,8 @@ class TechnicalAnalyzer:
             "sl_ma": sl_ma,
             "sl_key_candle": sl_key_candle,
             "sl_low": sl_low,
-            "tp_price": tp_price,
-            "tp_method": tp_method,
+            "tp_list": final_tp_list, # List of dicts
+            "rec_tp_price": rec_price, # 方便 header 顯示
             "strategy": strategy_text
         }
 
