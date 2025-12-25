@@ -417,6 +417,22 @@ class TechnicalAnalyzer:
         score += pv_score
         details.extend(pv_msgs)
 
+        # 12. 神奇九轉 (Magic Nine Turns)
+        td_buy = current.get('TD_Buy_Setup', 0)
+        td_sell = current.get('TD_Sell_Setup', 0)
+        
+        if td_buy == 9:
+             score += 2
+             details.append("9️⃣ 神奇九轉【買進訊號】(低檔鈍化轉折) (+2)")
+        elif td_buy == 8:
+             details.append("8️⃣ 神奇九轉【買進前夕】(數到 8 了) (+0.5)")
+             
+        if td_sell == 9:
+             score -= 2
+             details.append("9️⃣ 神奇九轉【賣出訊號】(高檔鈍化轉折) (-2)")
+        elif td_sell == 8:
+             details.append("8️⃣ 神奇九轉【賣出前夕】(數到 8 了) (-0.5)")
+
         return score, details
 
     def _determine_scenario(self, trend_score, daily_details):
