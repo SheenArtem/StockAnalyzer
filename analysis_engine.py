@@ -249,6 +249,11 @@ class TechnicalAnalyzer:
         except Exception as e:
              pass
 
+        # 6. 量價關係 (Price-Volume)
+        pv_score, pv_msgs = self._analyze_price_volume(df)
+        score += pv_score
+        details.extend(pv_msgs)
+
         return score, details
 
     def _calculate_trigger_score(self, df):
@@ -371,6 +376,11 @@ class TechnicalAnalyzer:
              details.extend(morph_msgs)
         except Exception as e:
              pass # 防止 scipy 運算錯誤影響整體
+
+        # 11. 量價關係 (Price-Volume)
+        pv_score, pv_msgs = self._analyze_price_volume(df)
+        score += pv_score
+        details.extend(pv_msgs)
 
         return score, details
 
@@ -585,3 +595,57 @@ class TechnicalAnalyzer:
                 return 'bear'
                 
         return None
+        return None
+
+    def _analyze_price_volume(self, df):
+        """
+        量價關係分析 (Price-Volume Analysis)
+        邏輯:
+          - 價漲量增 (+): 多頭健康攻擊
+          - 價漲量縮 (-): 量價背離 (惜售 or 買盤力竭)
+          - 價跌量增 (-): 恐慌殺盤 (出貨)
+          - 價跌量縮 (+): 籌碼沉澱 (洗盤)
+        """
+        if len(df) < 20: 
+            return 0, []
+            
+        score = 0
+        msgs = []
+        
+        c = df.iloc[-1]
+        p = df.iloc[-2]
+        
+        # 計算 5MA / 20MA 成交量
+        vol_ma5 = df['Volume'].rolling(5).mean().iloc[-1]
+        vol_ma20 = df['Volume'].rolling(20).mean().iloc[-1]
+        
+        # 判斷當日/當週 價漲跌
+        price_up = c['Close'] > p['Close']
+        price_down = c['Close'] < p['Close']
+        
+        # 判斷成交量相對強弱 (比 MA5 大算增，比 MA5 小算縮)
+        # 也可以比昨天 (c['Volume'] > p['Volume'])，這裡採用比均量較客觀
+        vol_up = c['Volume'] > vol_ma5
+        vol_down = c['Volume'] < vol_ma5
+        
+        # 1. 價漲量增 (Healthy Uptrend)
+        if price_up and vol_up:
+            score += 1
+            msgs.append(f"📈 量價配合：價漲量增 (Vol > 5MA) 多方攻擊 (+1)")
+            
+        # 2. 價漲量縮 (Divergence / Warning)
+        elif price_up and vol_down:
+            score -= 0.5
+            msgs.append(f"⚠️ 量價背離：價漲量縮 (追價意願不足) (-0.5)")
+            
+        # 3. 價跌量增 (Panic Selling / Heavy Pressure)
+        elif price_down and vol_up:
+            score -= 1
+            msgs.append(f"🔻 賣壓湧現：價跌量增 (恐慌殺盤) (-1)")
+            
+        # 4. 價跌量縮 (Healthy Correction / Washout)
+        elif price_down and vol_down:
+            score += 0.5
+            msgs.append(f"♻️ 籌碼沉澱：價跌量縮 (惜售/洗盤) (+0.5)")
+            
+        return score, msgs
