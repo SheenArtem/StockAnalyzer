@@ -408,6 +408,9 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     add_plot_safe("TD_Buy_9", td_buy_vals, type='scatter', markersize=100, marker='^', color='red')
     add_plot_safe("TD_Sell_9", td_sell_vals, type='scatter', markersize=100, marker='v', color='green')
 
+    add_plot_safe("TD_Buy_9", td_buy_vals, type='scatter', markersize=100, marker='^', color='red')
+    add_plot_safe("TD_Sell_9", td_sell_vals, type='scatter', markersize=100, marker='v', color='green')
+
     # Panel 1: OBV
     add_plot_safe("OBV", plot_df['OBV'], panel=1, color='blue', width=1.2, ylabel='OBV')
 
@@ -445,6 +448,40 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
              volume=use_volume, 
              returnfig=True)
              
+    # --------------------------------------------------------
+    # 手動標註 Magic Nine 數字 (6, 7, 8, 9)
+    # mplfinance 的 x 軸在 candle 模式下是 0, 1, 2... 的整數序列
+    # --------------------------------------------------------
+    ax_main = axes[0]
+    
+    # 預先取得欄位以免一直 access
+    td_buys = plot_df['TD_Buy_Setup'].values
+    td_sells = plot_df['TD_Sell_Setup'].values
+    lows = plot_df['Low'].values
+    highs = plot_df['High'].values
+    
+    for i in range(len(plot_df)):
+        # Buy Setup >= 6
+        b_val = td_buys[i]
+        if b_val >= 6:
+            # 畫在 Low 下方一點點
+            label = str(int(b_val))
+            # 微調位置: Low * 0.98 (如果是 9 號有三角形，避開一下)
+            pos_y = lows[i] * 0.98 if b_val != 9 else lows[i] * 0.96 
+            ax_main.text(i, pos_y, label, 
+                         color='red', fontsize=10, 
+                         ha='center', va='top', fontweight='bold')
+                         
+        # Sell Setup >= 6
+        s_val = td_sells[i]
+        if s_val >= 6:
+            # 畫在 High 上方一點點
+            label = str(int(s_val))
+            pos_y = highs[i] * 1.02 if s_val != 9 else highs[i] * 1.04
+            ax_main.text(i, pos_y, label, 
+                         color='green', fontsize=10, 
+                         ha='center', va='bottom', fontweight='bold')
+
     return fig
 
 if __name__ == "__main__":

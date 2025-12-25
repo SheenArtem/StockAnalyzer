@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.33")
+    st.caption("Version: v2025.12.25.34")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -266,6 +266,14 @@ if run_btn:
             if 'Daily' in figures:
                 st.pyplot(figures['Daily'])
                 
+                # 圖例說明
+                st.info("""
+                **圖表符號說明：**
+                - 🔺 紅色三角形 + 數字 9：**神奇九轉 (買進)** - 股價連續 9 天低於前 4 天收盤，短線超賣，隨時可能反彈。
+                - 🔻 綠色倒三角 + 數字 9：**神奇九轉 (賣出)** - 股價連續 9 天高於前 4 天收盤，短線超漲，隨時可能回檔。
+                - 🔢 數字 6~8：代表趨勢正在累積中，即將出現轉折訊號。
+                """)
+
                 # 新增: EFI 能量圖 (獨立顯示)
                 if not df_day.empty and 'EFI_EMA13' in df_day.columns:
                     st.markdown("### ⚡ 埃爾德強力指標 (EFI - Elder's Force Index)")
