@@ -299,7 +299,7 @@ def plot_dual_timeframe(ticker_symbol):
         errors['Daily'] = f"日線錯誤: {str(e)}"
         print(f"❌ 日線下載錯誤: {e}")
         
-    return figures, errors
+    return figures, errors, df_week, df_day
 
 if __name__ == "__main__":
     # 測試用

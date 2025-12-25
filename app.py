@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 全方位股票技術分析系統</di
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.11")
+    st.caption("Version: v2025.12.25.12")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -94,7 +94,7 @@ def run_analysis(source_data):
         except Exception as e:
             errors['Daily'] = str(e)
             
-    return figures, errors
+    return figures, errors, df_week, df_day
 
 # 主程式邏輯
 if run_btn:
@@ -132,7 +132,11 @@ if run_btn:
     
     try:
         # 呼叫有快取的函數
-        figures, errors = run_analysis(source)
+        figures, errors, df_week, df_day = run_analysis(source)
+        
+        # 暫存給 Analyzer 用 (Hack: 把變數掛在函式上，或者直接傳變數)
+        run_analysis.df_week_cache = df_week
+        run_analysis.df_day_cache = df_day
 
         status_text.success("✅ 分析完成！")
         
@@ -141,6 +145,51 @@ if run_btn:
             with st.expander("⚠️ 部分圖表產生失敗原因", expanded=True):
                 for k, v in errors.items():
                     st.error(f"{k}: {v}")
+
+        # ==========================================
+        # 新增 AI 分析報告 (Analysis Report)
+        # ==========================================
+        from analysis_engine import TechnicalAnalyzer
+        
+        # 只有當兩者都有數據時才進行完整分析
+        if 'Weekly' in figures and 'Daily' in figures:
+            # 注意: 這裡需要傳入原始 DataFrame，而不是 Figure
+            # run_analysis 回傳的是 dict
+            analyzer = TechnicalAnalyzer(display_ticker, run_analysis.df_week_cache, run_analysis.df_day_cache)
+            report = analyzer.run_analysis()
+            
+            st.markdown("---")
+            st.subheader("📝 AI 智能分析報告 (Beta)")
+            
+            # 1. 劇本卡片 (Scenario Card)
+            sc = report['scenario']
+            if sc['color'] == 'red':
+                st.error(f"### {sc['title']}\n{sc['desc']}") # Streamlit red is error
+            elif sc['color'] == 'orange':
+                st.warning(f"### {sc['title']}\n{sc['desc']}")
+            elif sc['color'] == 'green':
+                st.success(f"### {sc['title']}\n{sc['desc']}")
+            else:
+                st.info(f"### {sc['title']}\n{sc['desc']}")
+                
+            # 2. 關鍵指標 (Metrics)
+            m1, m2, m3 = st.columns(3)
+            m1.metric("長期趨勢分數 (Trend)", f"{report['trend_score']}/5", delta_color="normal")
+            m2.metric("短期操作分數 (Trigger)", f"{report['trigger_score']}/5", delta_color="normal")
+            m3.metric("目前劇本代碼", sc['code'])
+            
+            # 3. 詳細因子 (Details Expander)
+            with st.expander("🔍 查看詳細評分因子 (點擊展開)"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("#### 📅 週線趨勢因子")
+                    for item in report['trend_details']:
+                        st.write(item)
+                with c2:
+                    st.markdown("#### ⚡ 日線訊號因子")
+                    for item in report['trigger_details']:
+                        st.write(item)
+            st.markdown("---")
 
         # 顯示圖表
         col1, col2 = st.columns(2)
