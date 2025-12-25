@@ -180,7 +180,7 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     # 設定面板 (Subplots)
     apds = [
         # Panel 0: 主圖 (MA + BB + Ichimoku + ATR)
-        mpf.make_addplot(plot_df[['MA5', 'MA10', 'MA20']], ax=None, width=1.0),
+        mpf.make_addplot(plot_df[['MA5', 'MA10', 'MA20']], width=1.0),
         mpf.make_addplot(plot_df['MA60'], color='black', width=1.5), 
         mpf.make_addplot(plot_df['BB_Up'], color='gray', linestyle='--', alpha=0.5),
         mpf.make_addplot(plot_df['BB_Lo'], color='gray', linestyle='--', alpha=0.5),
