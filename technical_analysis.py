@@ -123,14 +123,74 @@ def calculate_all_indicators(df):
             
         # 只要是 1~9 都記錄，方便作圖
         if buy_count > 0:
-            buy_setups[i] = buy_count if buy_count <= 9 else buy_count # 超過9繼續數，但作圖只畫到9
+            # 只保留 1-9，超過 9 就歸零 (避免圖上出現 10, 11...)
+            buy_setups[i] = buy_count if buy_count <= 9 else 0 
         if sell_count > 0:
-            sell_setups[i] = sell_count if sell_count <= 9 else sell_count
+            sell_setups[i] = sell_count if sell_count <= 9 else 0
             
     df['TD_Buy_Setup'] = buy_setups
     df['TD_Sell_Setup'] = sell_setups
 
     return df
+
+# ... (omitted code) ...
+
+    # Magic Nine (TD Sequential) Markers
+    # 只標示 "9" 轉折點
+    # Buy Setup 9: 出現在低檔，提示買進 (marker='^', color='red')
+    # Sell Setup 9: 出現在高檔，提示賣出 (marker='v', color='green')
+    
+    # 製作只包含 9 的 Series，其餘 NaN
+    td_buy_9 = plot_df['TD_Buy_Setup'].apply(lambda x: x if x == 9 else np.nan) # Strict 9
+    td_sell_9 = plot_df['TD_Sell_Setup'].apply(lambda x: x if x == 9 else np.nan)
+    
+    # 為了位置好看，Buy 9 畫在 Low 下方，Sell 9 畫在 High 上方
+    td_buy_vals = plot_df['Low'] * 0.99
+    td_buy_vals = td_buy_vals.where(td_buy_9.notna(), np.nan)
+    
+    td_sell_vals = plot_df['High'] * 1.01
+    td_sell_vals = td_sell_vals.where(td_sell_9.notna(), np.nan)
+    
+    add_plot_safe("TD_Buy_9", td_buy_vals, type='scatter', markersize=30, marker='^', color='red')
+    add_plot_safe("TD_Sell_9", td_sell_vals, type='scatter', markersize=30, marker='v', color='green')
+
+    # ... (omitted code) ...
+
+    # --------------------------------------------------------
+    # 手動標註 Magic Nine 數字 (6, 7, 8, 9)
+    # mplfinance 的 x 軸在 candle 模式下是 0, 1, 2... 的整數序列
+    # --------------------------------------------------------
+    ax_main = axes[0]
+    
+    # 預先取得欄位以免一直 access
+    td_buys = plot_df['TD_Buy_Setup'].values
+    td_sells = plot_df['TD_Sell_Setup'].values
+    lows = plot_df['Low'].values
+    highs = plot_df['High'].values
+    
+    for i in range(len(plot_df)):
+        # Buy Setup >= 6
+        b_val = td_buys[i]
+        if b_val >= 6:
+            # 畫在 Low 下方一點點
+            label = str(int(b_val))
+            # 微調位置: Low * 0.98 (如果是 9 號有三角形，避開一下)
+            pos_y = lows[i] * 0.99 if b_val != 9 else lows[i] * 0.97 
+            ax_main.text(i, pos_y, label, 
+                         color='red', fontsize=8, 
+                         ha='center', va='top', fontweight='bold')
+                         
+        # Sell Setup >= 6
+        s_val = td_sells[i]
+        if s_val >= 6:
+            # 畫在 High 上方一點點
+            label = str(int(s_val))
+            pos_y = highs[i] * 1.01 if s_val != 9 else highs[i] * 1.03
+            ax_main.text(i, pos_y, label, 
+                         color='green', fontsize=8, 
+                         ha='center', va='bottom', fontweight='bold')
+
+    return fig
 
 # ==========================================
 # 新增模組：數據載入與重採樣 (Data Loader & Resampler)
