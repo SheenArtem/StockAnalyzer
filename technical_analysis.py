@@ -80,6 +80,13 @@ def calculate_all_indicators(df):
     df['DX'] = 100 * abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])
     df['ADX'] = df['DX'].rolling(window=14).mean()
 
+    # 6. 埃爾德強力指標 (Elder's Force Index)
+    # EFI = (Close - PrevClose) * Volume
+    change = df['Close'].diff()
+    df['EFI'] = change * df['Volume']
+    df['EFI_EMA13'] = df['EFI'].ewm(span=13, adjust=False).mean() # 長期趨勢 (歸零軸判斷)
+    df['EFI_EMA2'] = df['EFI'].ewm(span=2, adjust=False).mean()   # 短期力道 (抓轉折)
+
     return df
 # ==========================================
 # 新增模組：數據載入與重採樣 (Data Loader & Resampler)
