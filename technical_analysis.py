@@ -10,7 +10,7 @@ def calculate_all_indicators(df):
     核心運算引擎：計算所有技術指標
     包含：MA, BB, ATR, Ichimoku, RSI, KD, MACD, OBV, DMI
     """
-    print("DEBUG: VERSION v2025.12.25.06 - CHECKING CODE UPDATE")
+    print("DEBUG: VERSION v2025.12.25.07 - CHECKING CODE UPDATE")
     # 1. 基礎數據清洗
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -218,10 +218,16 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     print(f"📊 正在繪製 {timeframe_label} 全方位分析圖...")
     
     # 檢查成交量是否有效 (全部為 0 或 NaN 則不畫成交量)
+    # 檢查成交量是否有效 (全部為 0 或 NaN 則不畫成交量)
     use_volume = True
-    if 'Volume' not in plot_df.columns or plot_df['Volume'].sum() == 0 or plot_df['Volume'].isna().all():
-        print("⚠️ 偵測到無效成交量，將隱藏 Volume 面板")
+    if 'Volume' not in plot_df.columns:
         use_volume = False
+    else:
+        # 先把 NaN 填 0，避免 sum() 出錯，並檢查是否有任何非零值
+        vol_clean = plot_df['Volume'].fillna(0)
+        if (vol_clean == 0).all():
+            print("⚠️ 偵測到無效成交量 (全為0)，將隱藏 Volume 面板")
+            use_volume = False
 
     # 最後防線: 檢查 plot_df 是否太少
     if len(plot_df) < 2:
