@@ -10,7 +10,7 @@ def calculate_all_indicators(df):
     核心運算引擎：計算所有技術指標
     包含：MA, BB, ATR, Ichimoku, RSI, KD, MACD, OBV, DMI
     """
-    print("DEBUG: VERSION v2025.12.25.11 - PRODUCTION READY")
+    print("DEBUG: VERSION v2025.12.25.13 - ADDING ADVANCED SIGNALS")
     # 1. 基礎數據清洗
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -25,6 +25,9 @@ def calculate_all_indicators(df):
     df['std20'] = df['Close'].rolling(window=20).std()
     df['BB_Up'] = df['MA20'] + (2 * df['std20'])
     df['BB_Lo'] = df['MA20'] - (2 * df['std20'])
+    
+    # 3.5 乖離率 (BIAS)
+    df['BIAS'] = (df['Close'] - df['MA20']) / df['MA20'] * 100
 
     # 4. ATR 與 停損線 (Chandelier Exit)
     prev_close = df['Close'].shift(1)
