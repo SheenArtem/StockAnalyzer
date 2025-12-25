@@ -60,10 +60,47 @@ with st.sidebar:
     - **MACD / RSI / KD / OBV / DMI**
     """)
 
+# 封裝分析函數以加入快取 (Cache)
+@st.cache_data(ttl=3600)  # 快取 1 小時
+def run_analysis(source_data):
+    # 這裡的邏輯與原本 main 當中的一樣，但搬進來做 cache
+    
+    # 1. 股票代號情況
+    if isinstance(source_data, str):
+        return plot_dual_timeframe(source_data)
+        
+    # 2. CSV 資料情況 (DataFrame 無法直接 hash，需注意 cache 機制，這裡簡化處理)
+    # Streamlit 對 DataFrame 有支援 hashing，所以通常可以直接傳
+    ticker_name, df_day, df_week = load_and_resample(source_data)
+    
+    figures = {}
+    errors = {}
+    
+    # 手動計算
+    if not df_week.empty:
+        try:
+            df_week = calculate_all_indicators(df_week)
+            fig_week = plot_single_chart(ticker_name, df_week, "Trend (Long)", "Weekly")
+            figures['Weekly'] = fig_week
+        except Exception as e:
+            errors['Weekly'] = str(e)
+            
+    if not df_day.empty:
+        try:
+            df_day = calculate_all_indicators(df_day)
+            fig_day = plot_single_chart(ticker_name, df_day, "Action (Short)", "Daily")
+            figures['Daily'] = fig_day
+        except Exception as e:
+            errors['Daily'] = str(e)
+            
+    return figures, errors
+
 # 主程式邏輯
 if run_btn:
     # 決定資料來源
     source = None
+    display_ticker = ""
+    
     if input_method == "股票代號 (Ticker)":
         if target_ticker:
             # 簡單判斷台股
@@ -71,6 +108,7 @@ if run_btn:
                 source = f"{target_ticker}.TW"
             else:
                 source = target_ticker.upper()
+            display_ticker = source
         else:
             st.error("❌ 請輸入有效的股票代號")
             st.stop()
@@ -79,6 +117,7 @@ if run_btn:
             # 讀取 CSV
             try:
                 source = pd.read_csv(uploaded_file)
+                display_ticker = "Uploaded File"
             except Exception as e:
                 st.error(f"❌ 讀取 CSV 失敗: {e}")
                 st.stop()
@@ -88,56 +127,39 @@ if run_btn:
 
     # 執行分析
     status_text = st.empty()
-    status_text.info(f"⏳ 正在分析 {target_ticker if isinstance(source, str) else 'Uploaded File'} ...")
+    status_text.info(f"⏳ 正在分析 {display_ticker} ...")
     
     try:
-        # 重接 output 以捕捉 print (Optional, Streamlit 通常直接顯示圖表)
-        # 這裡我們直接呼叫修改後的函數取得 Figure
-        
-        # 1. 直接呼叫 plot_dual_timeframe (已修改為回傳 dict)
-        if isinstance(source, str):
-            figures = plot_dual_timeframe(source)
-            ticker_display = source.replace('.TW', '')
-        else:
-            # 針對 CSV 的邏輯需手動處理，因為 plot_dual_timeframe 主要設計給 Ticker
-            # 我們稍微改寫一下邏輯重用 load_and_resample
-            ticker_name, df_day, df_week = load_and_resample(source)
-            ticker_display = ticker_name
-            figures = {}
-            
-            # 手動計算與繪圖 (複製 plot_dual_timeframe 的邏輯)
-            if not df_week.empty:
-                df_week = calculate_all_indicators(df_week)
-                fig_week = plot_single_chart(ticker_name, df_week, "Trend (Long)", "Weekly")
-                figures['Weekly'] = fig_week
-            
-            if not df_day.empty:
-                df_day = calculate_all_indicators(df_day)
-                fig_day = plot_single_chart(ticker_name, df_day, "Action (Short)", "Daily")
-                figures['Daily'] = fig_day
+        # 呼叫有快取的函數
+        figures, errors = run_analysis(source)
 
         status_text.success("✅ 分析完成！")
+        
+        # 顯示如果有錯誤
+        if errors:
+            with st.expander("⚠️ 部分圖表產生失敗原因", expanded=True):
+                for k, v in errors.items():
+                    st.error(f"{k}: {v}")
 
         # 顯示圖表
         col1, col2 = st.columns(2)
         
-        # 為了更好的手機體驗，改為上下排列或根據 User 需求，這裡先用 Tabs
         tab1, tab2 = st.tabs(["📅 週線趨勢 (Trend)", "🌞 日線操作 (Action)"])
         
         with tab1:
             if 'Weekly' in figures:
                 st.pyplot(figures['Weekly'])
             else:
-                st.warning("⚠️ 無法產生週線圖表")
+                st.warning("⚠️ 無法產生週線圖表 (請查看上方錯誤訊息)")
         
         with tab2:
             if 'Daily' in figures:
                 st.pyplot(figures['Daily'])
             else:
-                st.warning("⚠️ 無法產生日線圖表")
+                st.warning("⚠️ 無法產生日線圖表 (請查看上方錯誤訊息)")
 
     except Exception as e:
-        status_text.error(f"❌ 發生錯誤: {e}")
+        status_text.error(f"❌ 發生未預期錯誤: {e}")
         st.exception(e)
 
 else:

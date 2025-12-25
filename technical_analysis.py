@@ -236,8 +236,9 @@ def plot_dual_timeframe(ticker_symbol):
 
     print(f"🚀 啟動雙週期全方位分析引擎: {ticker}")
 
-    # 儲存圖表物件
+    # 儲存圖表物件與錯誤訊息
     figures = {}
+    errors = {}
 
     # 1. 週線 (Weekly) - 抓 3 年
     try:
@@ -247,8 +248,10 @@ def plot_dual_timeframe(ticker_symbol):
             fig_week = plot_single_chart(ticker, df_week, "Trend (Long)", "Weekly")
             figures['Weekly'] = fig_week
         else:
+            errors['Weekly'] = "無法下載週線數據 (Data Empty)"
             print("❌ 無法下載週線數據")
     except Exception as e:
+        errors['Weekly'] = f"週線錯誤: {str(e)}"
         print(f"❌ 週線下載錯誤: {e}")
 
     # 2. 日線 (Daily) - 抓 1 年
@@ -259,11 +262,13 @@ def plot_dual_timeframe(ticker_symbol):
             fig_day = plot_single_chart(ticker, df_day, "Action (Short)", "Daily")
             figures['Daily'] = fig_day
         else:
+            errors['Daily'] = "無法下載日線數據 (Data Empty)"
             print("❌ 無法下載日線數據")
     except Exception as e:
+        errors['Daily'] = f"日線錯誤: {str(e)}"
         print(f"❌ 日線下載錯誤: {e}")
         
-    return figures
+    return figures, errors
 
 if __name__ == "__main__":
     # 測試用
