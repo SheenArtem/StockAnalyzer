@@ -10,7 +10,7 @@ def calculate_all_indicators(df):
     核心運算引擎：計算所有技術指標
     包含：MA, BB, ATR, Ichimoku, RSI, KD, MACD, OBV, DMI
     """
-    print("DEBUG: VERSION v2025.12.25.10 - CHECKING CODE UPDATE")
+    print("DEBUG: VERSION v2025.12.25.11 - PRODUCTION READY")
     # 1. 基礎數據清洗
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -287,14 +287,7 @@ def plot_dual_timeframe(ticker_symbol):
     # 2. 日線 (Daily) - 抓 1 年
     try:
         df_day = yf.download(ticker, period='1y', interval='1d', progress=False)
-        
-        # DEBUG: 檢查抓到的資料
-        print(f"DEBUG: Daily Data Shape: {df_day.shape}")
-        if df_day.empty:
-            print("DEBUG: Daily Data is EMPTY")
-        else:
-            print(f"DEBUG: Daily Data Head:\n{df_day.head()}")
-            
+
         if not df_day.empty:
             df_day = calculate_all_indicators(df_day)
             fig_day = plot_single_chart(ticker, df_day, "Action (Short)", "Daily")
