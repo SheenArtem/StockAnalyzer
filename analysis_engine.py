@@ -395,12 +395,18 @@ class TechnicalAnalyzer:
         # 空頭吞噬: 昨陽 今陰, 今實體包覆昨實體
         if dir_p == 1 and dir_c == -1:
             if c['Open'] >= p['Close'] and c['Close'] <= p['Open']:
-                score -= 2
-                msgs.append("🕯️ 出現【空頭吞噬】高檔反轉訊號 (-2)")
+                # 量能輔助確認: 下殺出量
+                if c['Volume'] > p['Volume']:
+                    score -= 2
+                    msgs.append("🕯️ 出現【空頭吞噬】+【量增】高檔出貨訊號 (-2)")
+                else:
+                    score -= 1.5
+                    msgs.append("🕯️ 出現【空頭吞噬】高檔反轉訊號 (-1.5)")
                 
         # 2. 爆量長紅 (Explosive Volume Attack)
         # 成交量 > 5日均量 * 2 且 收長紅
         vol_ma5 = df['Volume'].rolling(5).mean().iloc[-1]
+        
         if c['Volume'] > 2.0 * vol_ma5 and dir_c == 1 and is_long_c:
              score += 2
              msgs.append(f"💣 出現【爆量長紅】攻擊訊號 (量增{c['Volume']/vol_ma5:.1f}倍) (+2)")
@@ -422,7 +428,11 @@ class TechnicalAnalyzer:
         # 4. 十字變盤線 (Doji)
         # 開收盤極度接近
         if body_c < 0.1 * avg_body:
-            msgs.append("⚠️ 出現【十字線】多空變盤訊號 (Info)")
+            # 判斷量能：爆量十字 vs 量縮十字
+            if c['Volume'] > 2.0 * vol_ma5:
+                 msgs.append("⚠️ 出現【爆量十字線】多空劇烈交戰，留意變盤 (Info)")
+            else:
+                 msgs.append("⚠️ 出現【量縮十字線】多空觀望 (Info)")
 
         return score, msgs
 
