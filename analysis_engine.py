@@ -157,6 +157,39 @@ class TechnicalAnalyzer:
         # 3. 進場策略建議 (Entry Strategy)
         strategy_text = "觀望"
         
+        # 4. 智慧停損推薦 (Smart Stop Loss)
+        # 根據劇本與價格位置，推薦最適合的防守點
+        # 預設
+        rec_sl_method = "A. ATR 波動停損 (科學)"
+        rec_sl_price = sl_atr
+        
+        if code == 'A':
+            # 強勢股: 守 MA20 或 關鍵K低 (比較貼近價格者，避免回吐太多)
+            # 如果 MA20 離太遠 (> 10%)，改守關鍵K
+            dist_ma = (close_price - sl_ma) / close_price
+            if dist_ma > 0.1:
+                rec_sl_method = "C. 關鍵 K 線停損 (積極)"
+                rec_sl_price = sl_key_candle
+            else:
+                rec_sl_method = "B. 均線停損 (趨勢)"
+                rec_sl_price = sl_ma
+                
+        elif code == 'B':
+            # 震盪整理: 容易洗盤，用 ATR 過濾雜訊
+            rec_sl_method = "A. ATR 波動停損 (科學)"
+            rec_sl_price = sl_atr
+            
+        elif code == 'C':
+             # 搶反彈: 絕對不能破底，守波段低點
+             rec_sl_method = "D. 波段低點停損 (形態)"
+             rec_sl_price = sl_low
+
+        elif code == 'D':
+             # 做空或觀望，守均線
+             rec_sl_method = "B. 均線停損 (趨勢)"
+             rec_sl_price = sl_ma
+
+        # Strategy Text Generation
         if code == 'A':
             strategy_text = "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。若回測不破 5MA 可加碼。"
         elif code == 'B':
@@ -174,8 +207,10 @@ class TechnicalAnalyzer:
             "sl_ma": sl_ma,
             "sl_key_candle": sl_key_candle,
             "sl_low": sl_low,
-            "tp_list": final_tp_list, # List of dicts
-            "rec_tp_price": rec_price, # 方便 header 顯示
+            "rec_sl_method": rec_sl_method, # New
+            "rec_sl_price": rec_sl_price,   # New
+            "tp_list": final_tp_list, 
+            "rec_tp_price": rec_price, 
             "strategy": strategy_text
         }
 
