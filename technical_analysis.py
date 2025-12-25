@@ -10,7 +10,7 @@ def calculate_all_indicators(df):
     核心運算引擎：計算所有技術指標
     包含：MA, BB, ATR, Ichimoku, RSI, KD, MACD, OBV, DMI
     """
-    print("DEBUG: VERSION v2025.12.25.04 - CHECKING CODE UPDATE")
+    print("DEBUG: VERSION v2025.12.25.06 - CHECKING CODE UPDATE")
     # 1. 基礎數據清洗
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -217,10 +217,20 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
 
     print(f"📊 正在繪製 {timeframe_label} 全方位分析圖...")
     
+    # 檢查成交量是否有效 (全部為 0 或 NaN 則不畫成交量)
+    use_volume = True
+    if 'Volume' not in plot_df.columns or plot_df['Volume'].sum() == 0 or plot_df['Volume'].isna().all():
+        print("⚠️ 偵測到無效成交量，將隱藏 Volume 面板")
+        use_volume = False
+
+    # 最後防線: 檢查 plot_df 是否太少
+    if len(plot_df) < 2:
+        raise ValueError("數據行數不足，無法繪圖 (Less than 2 rows)")
+
     # 如果要回傳 figure 給 Streamlit，需要 returnfig=True
     # 注意: mpf.plot 的 returnfig=True 會回傳 (fig, axes)
     fig, axes = mpf.plot(plot_df, type='candle', addplot=apds, 
-             volume=True, 
+             volume=use_volume, 
              returnfig=True)
              
     return fig
