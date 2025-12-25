@@ -81,12 +81,12 @@ class TechnicalAnalyzer:
 
     def _calculate_trigger_score(self, df):
         """
-        計算日線進場訊號 (Trigger Score) -3 ~ +3
+        計算日線進場訊號 (Trigger Score) -5 ~ +5 (擴大範圍)
         """
         score = 0
         details = []
 
-        if df.empty or len(df) < 5:
+        if df.empty or len(df) < 20:
             return 0, ["數據不足"]
 
         current = df.iloc[-1]
@@ -100,27 +100,81 @@ class TechnicalAnalyzer:
             score -= 1
             details.append("🔻 跌破日線 20MA (-1)")
 
-        # 2. MACD 動能
+        # 2. 乖離率 (BIAS)
+        # 假設: 正乖離 > 10% 過熱, 負乖離 < -10% 超賣
+        bias = current.get('BIAS', 0)
+        if 0 < bias < 10:
+            score += 1
+            details.append(f"✅ 乖離率健康 ({bias:.1f}%) (+1)")
+        elif bias > 10:
+            score -= 1
+            details.append(f"⚠️ 正乖離過大 ({bias:.1f}%) 慎防回檔 (-1)")
+        elif bias < -10:
+            score += 1
+            details.append(f"🟢 負乖離過大 ({bias:.1f}%) 醞釀反彈 (+1)")
+        
+        # 3. MACD 動能與背離
         if current['Hist'] > 0:
             score += 1
             details.append("✅ MACD 柱狀體翻紅 (+1)")
             if current['Hist'] > prev['Hist']:
-                score += 0.5 # 動能增強
+                score += 0.5
                 details.append("🔥 MACD 動能持續增強 (+0.5)")
         else:
             score -= 1
             details.append("🔻 MACD 柱狀體翻綠 (-1)")
+            
+        # MACD 背離偵測
+        div_macd = self._detect_divergence(df, 'MACD')
+        if div_macd == 'bull':
+            score += 2
+            details.append("💎 MACD 出現【底背離】訊號 (+2)")
+        elif div_macd == 'bear':
+            score -= 2
+            details.append("💀 MACD 出現【頂背離】訊號 (-2)")
 
-        # 3. KD指標
-        # 黃金交叉: K > D 且 前一天 K < D (或是單純看 K > D 判斷多方優勢)
+        # 4. KD指標
         if current['K'] > current['D']:
             score += 1
-            details.append("✅ KD 黃金交叉/呈現多方排列 (+1)")
+            details.append("✅ KD 黃金交叉/多方排列 (+1)")
         else:
             score -= 1
-            details.append("🔻 KD 死亡交叉/呈現空方排列 (-1)")
+            details.append("🔻 KD 死亡交叉/空方排列 (-1)")
 
-        # 4. 布林通道 (輔助)
+        # 5. OBV 籌碼與背離
+        # 日線 OBV 趨勢 (簡單看近3日)
+        if len(df) >= 3 and current['OBV'] > df['OBV'].iloc[-3]:
+            score += 1
+            details.append("✅ 短線 OBV 資金進駐 (+1)")
+            
+        # OBV 背離偵測
+        div_obv = self._detect_divergence(df, 'OBV')
+        if div_obv == 'bull':
+            score += 2
+            details.append("💎 OBV 出現【量價底背離】(主力吃貨) (+2)")
+        elif div_obv == 'bear':
+            score -= 2
+            details.append("💀 OBV 出現【量價頂背離】(主力出貨) (-2)")
+
+        # 6. DMI 短線趨勢
+        if current['ADX'] > 25:
+             if current['+DI'] > current['-DI']:
+                 score += 1
+                 details.append(f"✅ 日線 DMI 多方攻擊 (ADX={current['ADX']:.1f}) (+1)")
+             else:
+                 score -= 1
+                 details.append(f"🔻 日線 DMI 空方下殺 (ADX={current['ADX']:.1f}) (-1)")
+
+        # 7. RSI 背離 (輔助)
+        div_rsi = self._detect_divergence(df, 'RSI')
+        if div_rsi == 'bull':
+            score += 1
+            details.append("✅ RSI 出現底背離 (+1)")
+        elif div_rsi == 'bear':
+            score -= 1
+            details.append("🔻 RSI 出現頂背離 (-1)")
+
+        # 8. 布林通道 (輔助)
         bandwidth = (current['BB_Up'] - current['BB_Lo']) / current['MA20']
         details.append(f"ℹ️ 布林通道帶寬: {bandwidth*100:.1f}%")
 
@@ -130,47 +184,61 @@ class TechnicalAnalyzer:
         """
         判斷劇本 Scenario A/B/C/D
         """
-        # 0. 先檢查是否為盤整 (ADX 在 daily_details 裡不好拿，改用 trend_score 判斷)
-        # 這裡簡化邏輯，直接用 Trend Score 分類
+        # 這裡的邏輯可以再根據新分數範圍微調
+        # 目前 Trend (-3~+3), Trigger (-5~+10)
         
-        scenario = {
-            "code": "N",
-            "title": "觀察中 (Neutral)",
-            "color": "gray",
-            "desc": "多空不明，建議觀望。"
-        }
+        # 暫時維持原邏輯，但考慮 Trigger Score 的權重
+        # 如果 Trigger Score 很高 (例如 > 3)，即使趨勢普通，也可能是強力反彈
+        
+        scenario = {"code": "N", "title": "觀察中 (Neutral)", "color": "gray", "desc": "多空不明，建議觀望。"}
 
-        # 劇本 A: 週線強多 (>=3)
         if trend_score >= 3:
-            scenario = {
-                "code": "A",
-                "title": "🔥 劇本 A：強力進攻 (Aggressive Buy)",
-                "color": "red", # 台股紅漲綠跌
-                "desc": "週線趨勢強勁，日線若有買訊應順勢重倉。"
-            }
-        # 劇本 B: 週線偏多 (1~2)
+            scenario = {"code": "A", "title": "🔥 劇本 A：強力進攻", "color": "red", "desc": "週線強多 + 日線訊號佳，順勢重倉。"}
         elif 1 <= trend_score < 3:
-            scenario = {
-                "code": "B",
-                "title": "⏳ 劇本 B：拉回關注 (Pullback Watch)",
-                "color": "orange",
-                "desc": "長線多頭保護，但力道未全開。等待日線回檔止穩後進場。"
-            }
-        # 劇本 C: 週線偏空 (-2~0)
+            scenario = {"code": "B", "title": "⏳ 劇本 B：拉回關注", "color": "orange", "desc": "長線多頭，短線震盪。等待止穩。"}
         elif -2 <= trend_score <= 0:
-            scenario = {
-                "code": "C",
-                "title": "⚠️ 劇本 C：反彈搶短 (Rebound)",
-                "color": "blue", # 偏冷色調
-                "desc": "逆勢操作，僅適合短線高手，嚴設停損。"
-            }
-        # 劇本 D: 週線強空 (<-2)
+            scenario = {"code": "C", "title": "⚠️ 劇本 C：反彈搶短", "color": "blue", "desc": "逆勢操作，嚴設停損。"}
         else:
-            scenario = {
-                "code": "D",
-                "title": "🛑 劇本 D：空手/做空 (Avoid)",
-                "color": "green", # 台股綠跌
-                "desc": "趨勢顯著向下，切勿隨意摸底。"
-            }
+            scenario = {"code": "D", "title": "🛑 劇本 D：空手/做空", "color": "green", "desc": "趨勢向下，切勿摸底。"}
             
         return scenario
+
+    def _detect_divergence(self, df, indicator_name, window=20):
+        """
+        簡易背離偵測引擎
+        window: 觀察最近 N 根 K 棒
+        邏輯:
+           - 底背離 (Bull): 股價創新低 (Price < Price_min)，但指標沒創新低 (Ind > Ind_min)
+           - 頂背離 (Bear): 股價創新高 (Price > Price_max)，但指標沒創新高 (Ind < Ind_max)
+        注意：這只是極簡版偵測，標準背離需要找 Pivot Points，這裡用區間極值比較法。
+        """
+        if len(df) < window + 5:
+            return None
+            
+        recent = df.iloc[-5:] # 最近 5 天
+        past = df.iloc[-window:-5] # 過去 5~20 天
+        
+        # 指標數據
+        ind_recent = recent[indicator_name]
+        ind_past = past[indicator_name]
+        
+        # 股價數據 (通常看 Close 或 Low/High)
+        price_recent_low = recent['Low'].min()
+        price_past_low = past['Low'].min()
+        
+        price_recent_high = recent['High'].max()
+        price_past_high = past['High'].max()
+        
+        # 底背離判定:
+        # 最近股價破新低, 但最近指標最低點 > 過去指標最低點
+        if price_recent_low < price_past_low:
+             if ind_recent.min() > ind_past.min():
+                 return 'bull'
+                 
+        # 頂背離判定:
+        # 最近股價創新高, 但最近指標最高點 < 過去指標最高點
+        if price_recent_high > price_past_high:
+            if ind_recent.max() < ind_past.max():
+                return 'bear'
+                
+        return None
