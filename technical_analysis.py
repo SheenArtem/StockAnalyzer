@@ -463,73 +463,14 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     td_buy_vals = td_buy_vals.where(td_buy_9.notna(), np.nan)
     
     td_sell_vals = plot_df['High'] * 1.01
-    td_sell_vals = td_sell_vals.where(td_sell_9.notna(), np.nan)
-    
-    add_plot_safe("TD_Buy_9", td_buy_vals, type='scatter', markersize=100, marker='^', color='red')
-    add_plot_safe("TD_Sell_9", td_sell_vals, type='scatter', markersize=100, marker='v', color='green')
-
-    add_plot_safe("TD_Buy_9", td_buy_vals, type='scatter', markersize=100, marker='^', color='red')
-    add_plot_safe("TD_Sell_9", td_sell_vals, type='scatter', markersize=100, marker='v', color='green')
-
-    # Panel 1: OBV
-    add_plot_safe("OBV", plot_df['OBV'], panel=1, color='blue', width=1.2, ylabel='OBV')
-
-    # Panel 2: MACD
-    add_plot_safe("MACD_Hist", plot_df['Hist'], type='bar', panel=2, color='dimgray', alpha=0.5, ylabel='MACD')
-    add_plot_safe("MACD_Line", plot_df['MACD'], panel=2, color='fuchsia')
-    add_plot_safe("MACD_Signal", plot_df['Signal'], panel=2, color='c')
-
-    # Panel 3: KD & RSI
-    add_plot_safe("K", plot_df['K'], panel=3, color='orange', ylabel='KD & RSI')
-    add_plot_safe("D", plot_df['D'], panel=3, color='blue')
-    add_plot_safe("RSI", plot_df['RSI'], panel=3, color='green', linestyle='--', width=1)
-
-    # Panel 4: DMI
-    add_plot_safe("ADX", plot_df['ADX'], panel=4, color='black', width=1.5, ylabel='DMI')
-    add_plot_safe("+DI", plot_df['+DI'], panel=4, color='red', width=0.8)
-    add_plot_safe("-DI", plot_df['-DI'], panel=4, color='green', width=0.8)
-
-    print(f"📊 正在繪製 {timeframe_label} 全方位分析圖...")
-    
-    # 檢查成交量是否有效
-    use_volume = True
-    if 'Volume' not in plot_df.columns:
-        use_volume = False
-    else:
-        vol_clean = plot_df['Volume'].fillna(0)
-        if (vol_clean == 0).all():
-            print("⚠️ 偵測到無效成交量 (全為0)，將隱藏 Volume 面板")
-            use_volume = False
-
-    if len(plot_df) < 2:
-        raise ValueError("數據行數不足，無法繪圖 (Less than 2 rows)")
-
-    fig, axes = mpf.plot(plot_df, type='candle', addplot=apds, 
-             volume=use_volume, 
-             returnfig=True)
-             
-    # --------------------------------------------------------
-    # 手動標註 Magic Nine 數字 (6, 7, 8, 9)
-    # mplfinance 的 x 軸在 candle 模式下是 0, 1, 2... 的整數序列
-    # --------------------------------------------------------
-    ax_main = axes[0]
-    
-    # 預先取得欄位以免一直 access
-    td_buys = plot_df['TD_Buy_Setup'].values
-    td_sells = plot_df['TD_Sell_Setup'].values
-    lows = plot_df['Low'].values
-    highs = plot_df['High'].values
-    
-    for i in range(len(plot_df)):
-        # Buy Setup >= 6
         b_val = td_buys[i]
         if b_val >= 6:
             # 畫在 Low 下方一點點
             label = str(int(b_val))
             # 微調位置: Low * 0.98 (如果是 9 號有三角形，避開一下)
-            pos_y = lows[i] * 0.98 if b_val != 9 else lows[i] * 0.96 
+            pos_y = lows[i] * 0.995 if b_val != 9 else lows[i] * 0.98 
             ax_main.text(i, pos_y, label, 
-                         color='red', fontsize=10, 
+                         color='red', fontsize=6, 
                          ha='center', va='top', fontweight='bold')
                          
         # Sell Setup >= 6
@@ -537,9 +478,9 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
         if s_val >= 6:
             # 畫在 High 上方一點點
             label = str(int(s_val))
-            pos_y = highs[i] * 1.02 if s_val != 9 else highs[i] * 1.04
+            pos_y = highs[i] * 1.005 if s_val != 9 else highs[i] * 1.02
             ax_main.text(i, pos_y, label, 
-                         color='green', fontsize=10, 
+                         color='green', fontsize=6, 
                          ha='center', va='bottom', fontweight='bold')
 
     return fig
