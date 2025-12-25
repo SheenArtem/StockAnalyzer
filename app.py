@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 全方位股票技術分析系統</di
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.15")
+    st.caption("Version: v2025.12.25.16")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -172,7 +172,6 @@ if run_btn:
             else:
                 st.info(f"### {sc['title']}\n{sc['desc']}")
                 
-            # 2. 詳細因子 (直接顯示，不隱藏)
             st.markdown("---")
             c1, c2 = st.columns(2)
             with c1:
@@ -183,6 +182,39 @@ if run_btn:
                 st.markdown("#### ⚡ 日線訊號因子")
                 for item in report['trigger_details']:
                     st.write(item)
+            
+            # 3. 操作劇本與風控 (Action Plan)
+            st.markdown("---")
+            st.subheader("🛡️ 操作劇本與風控建議 (Action Plan)")
+            if report.get('action_plan'):
+                ap = report['action_plan']
+                
+                # 進場與停利
+                col_strat, col_tp = st.columns(2)
+                col_strat.info(f"**進場策略**：\n\n{ap['strategy']}")
+                col_tp.success(f"**停利目標 (波段壓力)**：\n\n🎯 **{ap['tp_high']:.2f}**")
+                
+                # 停損矩陣
+                st.markdown("#### 🛑 停損防守價位 (建議 4 選 1)")
+                sl_data = {
+                    "策略類型": ["A. ATR 波動停損 (科學)", "B. 均線停損 (趨勢)", "C. 關鍵 K 線停損 (積極)", "D. 波段低點停損 (形態)"],
+                    "防守價位": [
+                        f"{ap['sl_atr']:.2f} (Close - 2*ATR)",
+                        f"{ap['sl_ma']:.2f} (MA20)",
+                        f"{ap['sl_key_candle']:.2f} (爆量低點)",
+                        f"{ap['sl_low']:.2f} (近期低點)"
+                    ],
+                    "說明": [
+                        "依據市場波動率動態調整，適合一般交易者。",
+                        "依據月線支撐，適合波段順勢操作。",
+                        "跌破主力攻擊發起點即停損，適合短線積極者。",
+                        "跌破箱型或波段最低點，最後防線。"
+                    ]
+                }
+                st.table(pd.DataFrame(sl_data))
+            else:
+                st.warning("⚠️ 數據不足，無法生成風控建議")
+
             st.markdown("---")
 
         # 顯示圖表
