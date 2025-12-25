@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.34")
+    st.caption("Version: v2025.12.25.35")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -259,6 +259,13 @@ if run_btn:
         with tab1:
             if 'Weekly' in figures:
                 st.pyplot(figures['Weekly'])
+                
+                # 新增: Weekly EFI
+                if not df_week.empty and 'EFI_EMA13' in df_week.columns:
+                    st.markdown("### ⚡ 週線能量 (Weekly EFI)")
+                    st.caption("週線 EFI 能夠過濾短期雜訊，更準確判斷主力長線資金動向。")
+                    st.line_chart(df_week[['EFI_EMA13']].iloc[-100:])
+                    
             else:
                 st.warning("⚠️ 無法產生週線圖表 (請查看上方錯誤訊息)")
         
