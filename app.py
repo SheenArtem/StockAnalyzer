@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.27")
+    st.caption("Version: v2025.12.25.28")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
