@@ -269,6 +269,77 @@ def plot_dual_timeframe(source):
         
     return figures, errors, df_week, df_day
 
+def plot_single_chart(ticker, df, title_suffix, timeframe_label):
+    """繪製單張圖表 (包含 5 個面板)"""
+    
+    # 裁切數據: 週線看 100 根 (約2年), 日線看 120 根 (約半年)
+    bars = 100 if timeframe_label == 'Weekly' else 120
+    plot_df = df.tail(bars).copy()
+
+    # 設定面板 (Subplots)
+    apds = []
+
+    # Helper: 安全添加 plot 的小函數
+    def add_plot_safe(name, series, **kwargs):
+        try:
+            # 檢查是否全為 NaN
+            vals = series.values
+            if pd.isna(vals).all():
+                # print(f"DEBUG: Skipping {name} (All NaN)")
+                return
+
+            apds.append(mpf.make_addplot(series, **kwargs))
+        except Exception as e:
+            print(f"❌ Error adding plot {name}: {e}")
+            
+    # Panel 0: 主圖
+    add_plot_safe("MA_Lines", plot_df[['MA5', 'MA10', 'MA20']], width=1.0)
+    add_plot_safe("MA60", plot_df['MA60'], color='black', width=1.5)
+    add_plot_safe("BB_Up", plot_df['BB_Up'], color='gray', linestyle='--', alpha=0.5)
+    add_plot_safe("BB_Lo", plot_df['BB_Lo'], color='gray', linestyle='--', alpha=0.5)
+    add_plot_safe("Tenkan", plot_df['Tenkan'], color='cyan', linestyle=':', width=0.8)
+    add_plot_safe("Kijun", plot_df['Kijun'], color='brown', linestyle=':', width=0.8)
+    add_plot_safe("ATR_Stop", plot_df['ATR_Stop'], color='purple', type='scatter', markersize=6, marker='_')
+
+    # Panel 1: OBV
+    add_plot_safe("OBV", plot_df['OBV'], panel=1, color='blue', width=1.2, ylabel='OBV')
+
+    # Panel 2: MACD
+    add_plot_safe("MACD_Hist", plot_df['Hist'], type='bar', panel=2, color='dimgray', alpha=0.5, ylabel='MACD')
+    add_plot_safe("MACD_Line", plot_df['MACD'], panel=2, color='fuchsia')
+    add_plot_safe("MACD_Signal", plot_df['Signal'], panel=2, color='c')
+
+    # Panel 3: KD & RSI
+    add_plot_safe("K", plot_df['K'], panel=3, color='orange', ylabel='KD & RSI')
+    add_plot_safe("D", plot_df['D'], panel=3, color='blue')
+    add_plot_safe("RSI", plot_df['RSI'], panel=3, color='green', linestyle='--', width=1)
+
+    # Panel 4: DMI
+    add_plot_safe("ADX", plot_df['ADX'], panel=4, color='black', width=1.5, ylabel='DMI')
+    add_plot_safe("+DI", plot_df['+DI'], panel=4, color='red', width=0.8)
+    add_plot_safe("-DI", plot_df['-DI'], panel=4, color='green', width=0.8)
+
+    print(f"📊 正在繪製 {timeframe_label} 全方位分析圖...")
+    
+    # 檢查成交量是否有效
+    use_volume = True
+    if 'Volume' not in plot_df.columns:
+        use_volume = False
+    else:
+        vol_clean = plot_df['Volume'].fillna(0)
+        if (vol_clean == 0).all():
+            print("⚠️ 偵測到無效成交量 (全為0)，將隱藏 Volume 面板")
+            use_volume = False
+
+    if len(plot_df) < 2:
+        raise ValueError("數據行數不足，無法繪圖 (Less than 2 rows)")
+
+    fig, axes = mpf.plot(plot_df, type='candle', addplot=apds, 
+             volume=use_volume, 
+             returnfig=True)
+             
+    return fig
+
 if __name__ == "__main__":
     # 測試用
     plot_dual_timeframe('2330')
