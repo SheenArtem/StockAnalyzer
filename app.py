@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 全方位股票技術分析系統</di
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.16")
+    st.caption("Version: v2025.12.25.17")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -52,14 +52,6 @@ with st.sidebar:
     run_btn = st.button("🚀 開始分析", type="primary")
 
     st.markdown("---")
-    st.markdown("### 📊 支援指標")
-    st.info("""
-    - **MA**: 5, 10, 20, 60
-    - **Bollinger Bands**
-    - **Ichimoku (一目均衡表)**
-    - **ATR Stop Loss**
-    - **MACD / RSI / KD / OBV / DMI**
-    """)
 
 # 封裝分析函數以加入快取 (Cache)
 @st.cache_data(ttl=3600)  # 快取 1 小時
