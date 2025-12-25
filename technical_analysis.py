@@ -216,10 +216,6 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     # 注意: mpf.plot 的 returnfig=True 會回傳 (fig, axes)
     fig, axes = mpf.plot(plot_df, type='candle', style=s, addplot=apds, 
              volume=True, 
-             panel_ratios=(4, 1, 1, 1, 1, 1), # 調整比例以容納更多面板
-             title=f"{ticker} {title_suffix} ({timeframe_label})", 
-             figsize=(12, 14), # 長條形圖表，方便手機滑動觀看
-             tight_layout=True,
              returnfig=True)
              
     return fig
