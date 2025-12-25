@@ -174,9 +174,10 @@ class TechnicalAnalyzer:
             score -= 1
             details.append("🔻 RSI 出現頂背離 (-1)")
 
-        # 8. 布林通道 (輔助)
-        bandwidth = (current['BB_Up'] - current['BB_Lo']) / current['MA20']
-        details.append(f"ℹ️ 布林通道帶寬: {bandwidth*100:.1f}%")
+        # 9. K線形態學 (K-Line Patterns)
+        kline_score, kline_msgs = self._detect_kline_patterns(df)
+        score += kline_score
+        details.extend(kline_msgs)
 
         return score, details
 
@@ -184,12 +185,6 @@ class TechnicalAnalyzer:
         """
         判斷劇本 Scenario A/B/C/D
         """
-        # 這裡的邏輯可以再根據新分數範圍微調
-        # 目前 Trend (-3~+3), Trigger (-5~+10)
-        
-        # 暫時維持原邏輯，但考慮 Trigger Score 的權重
-        # 如果 Trigger Score 很高 (例如 > 3)，即使趨勢普通，也可能是強力反彈
-        
         scenario = {"code": "N", "title": "觀察中 (Neutral)", "color": "gray", "desc": "多空不明，建議觀望。"}
 
         if trend_score >= 3:
@@ -202,6 +197,73 @@ class TechnicalAnalyzer:
             scenario = {"code": "D", "title": "🛑 劇本 D：空手/做空", "color": "green", "desc": "趨勢向下，切勿摸底。"}
             
         return scenario
+
+    def _detect_kline_patterns(self, df):
+        """
+        K線形態偵測 (K-Line Patterns)
+        回傳: (score_delta, list_of_messages)
+        """
+        if len(df) < 5:
+            return 0, []
+        
+        score = 0
+        msgs = []
+        
+        # 取得最後 3 根 K 線
+        c = df.iloc[-1]  # 今天 (Current)
+        p = df.iloc[-2]  # 昨天 (Previous)
+        pp = df.iloc[-3] # 前天 (Pre-Previous)
+        
+        # 基礎數據計算
+        # 實體長度 (Body)
+        body_c = abs(c['Close'] - c['Open'])
+        body_p = abs(p['Close'] - p['Open'])
+        
+        # K棒方向 (1:陽, -1:陰)
+        dir_c = 1 if c['Close'] > c['Open'] else -1
+        dir_p = 1 if p['Close'] > p['Open'] else -1
+        dir_pp = 1 if pp['Close'] > pp['Open'] else -1
+        
+        # 平均實體長度 (用來判斷是否為長紅/長黑)
+        avg_body = (abs(df['Close'] - df['Open']).rolling(10).mean().iloc[-1])
+        is_long_c = body_c > 1.5 * avg_body
+        
+        # 1. 吞噬形態 (Engulfing)
+        # 多頭吞噬: 昨陰 今陽, 今實體完全包覆昨實體
+        if dir_p == -1 and dir_c == 1:
+            if c['Open'] <= p['Close'] and c['Close'] >= p['Open']: # 寬鬆定義
+                score += 2
+                msgs.append("🕯️ 出現【多頭吞噬】強力反轉訊號 (+2)")
+        
+        # 空頭吞噬: 昨陽 今陰, 今實體包覆昨實體
+        if dir_p == 1 and dir_c == -1:
+            if c['Open'] >= p['Close'] and c['Close'] <= p['Open']:
+                score -= 2
+                msgs.append("🕯️ 出現【空頭吞噬】高檔反轉訊號 (-2)")
+                
+        # 2. 爆量長紅 (Explosive Volume Attack)
+        # 成交量 > 5日均量 * 2 且 收長紅
+        vol_ma5 = df['Volume'].rolling(5).mean().iloc[-1]
+        if c['Volume'] > 2.0 * vol_ma5 and dir_c == 1 and is_long_c:
+             score += 2
+             msgs.append(f"💣 出現【爆量長紅】攻擊訊號 (量增{c['Volume']/vol_ma5:.1f}倍) (+2)")
+
+        # 3. 晨星 (Morning Star) - 簡化版
+        # 跌 -> 小十字 -> 漲
+        # 定義: 前日跌, 昨日實體小(十字/紡錘), 今日漲且收盤高於前日實體的一半
+        is_star_p = body_p < 0.5 * avg_body # 昨日是小黑或十字
+        if dir_pp == -1 and is_star_p and dir_c == 1:
+            midpoint_pp = (pp['Open'] + pp['Close']) / 2
+            if c['Close'] > midpoint_pp:
+                score += 2
+                msgs.append("✨ 出現【晨星】底部轉折訊號 (+2)")
+                
+        # 4. 十字變盤線 (Doji)
+        # 開收盤極度接近
+        if body_c < 0.1 * avg_body:
+            msgs.append("⚠️ 出現【十字線】多空變盤訊號 (Info)")
+
+        return score, msgs
 
     def _detect_divergence(self, df, indicator_name, window=20):
         """
