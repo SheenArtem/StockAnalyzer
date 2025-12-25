@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.25")
+    st.caption("Version: v2025.12.25.26")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -96,11 +96,8 @@ if run_btn:
     
     if input_method == "股票代號 (Ticker)":
         if target_ticker:
-            # 簡單判斷台股
-            if target_ticker.isdigit():
-                source = f"{target_ticker}.TW"
-            else:
-                source = target_ticker.upper()
+            # 簡單判斷台股 - 讓 technical_analysis 自動處理後綴 (.TW/.TWO/FinMind)
+            source = target_ticker.upper()
             display_ticker = source
         else:
             st.error("❌ 請輸入有效的股票代號")
