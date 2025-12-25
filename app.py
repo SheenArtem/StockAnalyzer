@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 全方位股票技術分析系統</di
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.19")
+    st.caption("Version: v2025.12.25.20")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -184,8 +184,22 @@ if run_btn:
                 # 進場與停利
                 col_strat, col_tp = st.columns(2)
                 col_strat.info(f"**進場策略**：\n\n{ap['strategy']}")
-                col_tp.success(f"**停利目標 ({ap['tp_method']})**：\n\n🎯 **{ap['tp_price']:.2f}**")
+                col_tp.success(f"**推薦停利 (第一目標)**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
                 
+                # 停利目標清單
+                if ap.get('tp_list'):
+                    st.markdown("#### 🔭 停利目標預估清單 (依價格排序)")
+                    tp_data = []
+                    for t in ap['tp_list']:
+                        mark = "⭐️" if t['is_rec'] else ""
+                        tp_data.append({
+                            "推薦": mark,
+                            "測幅方法": t['method'],
+                            "目標價格": f"{t['price']:.2f}",
+                            "說明": t['desc']
+                        })
+                    st.table(pd.DataFrame(tp_data))
+
                 # 停損矩陣
                 st.markdown("#### 🛑 停損防守價位 (建議 4 選 1)")
                 sl_data = {
