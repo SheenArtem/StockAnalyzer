@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.23")
+    st.caption("Version: v2025.12.25.24")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -240,6 +240,20 @@ if run_btn:
         with tab2:
             if 'Daily' in figures:
                 st.pyplot(figures['Daily'])
+                
+                # 新增: EFI 能量圖 (獨立顯示)
+                if not df_day.empty and 'EFI_EMA13' in df_day.columns:
+                    st.markdown("### ⚡ 埃爾德強力指標 (EFI - Elder's Force Index)")
+                    st.caption("原理：結合「價格變動」與「成交量」。EFI > 0 代表多方有力，EFI < 0 代表空方有力。")
+                    
+                    st.line_chart(df_day[['EFI_EMA13', 'EFI_EMA2']].iloc[-60:])
+                    
+                    # 簡易解讀
+                    last_efi = df_day['EFI_EMA13'].iloc[-1]
+                    if last_efi > 0:
+                        st.success(f"🔥 主力力道：多方控盤 (EFI_13={last_efi:,.0f})")
+                    else:
+                        st.error(f"❄️ 主力力道：空方控盤 (EFI_13={last_efi:,.0f})")
             else:
                 st.warning("⚠️ 無法產生日線圖表 (請查看上方錯誤訊息)")
 
@@ -266,12 +280,8 @@ if run_btn:
                          if not df_inst.empty:
                              # 只顯示最近 60 天以保持圖表清晰
                              df_inst_recent = df_inst.iloc[-60:]
-                             # 排除 '三大法人合計' 畫個別，或者畫合計
-                             # 這裡畫個別法人
                              cols_to_plot = [c for c in df_inst_recent.columns if c != '三大法人合計' and c != 'stock_id']
                              st.bar_chart(df_inst_recent[cols_to_plot])
-                             
-                             # 累計買賣超 (簡單趨勢)
                              st.caption("三大法人近期動向 (Foreign/Trust/Dealer)")
                          else:
                              st.warning("⚠️ 查無法人數據")
@@ -282,11 +292,15 @@ if run_btn:
                          st.markdown("### 🎢 融資融券餘額 (Margin Trading)")
                          df_margin = chip_data['margin']
                          if not df_margin.empty:
-                             df_margin_recent = df_margin.iloc[-120:] # 看半年
+                             df_margin_recent = df_margin.iloc[-120:]
                              st.line_chart(df_margin_recent)
                              st.caption("融資(Margin Buy) vs 融券(Short Sell) 餘額走勢")
                          else:
                              st.warning("⚠️ 查無融資券數據")
+
+                         st.markdown("---")
+                         st.info("💡 **集保股權分散 (Shareholding Distribution)**：因 API 限制為付費數據，暫無法顯示詳細大戶/散戶比例。建議搭配「三大法人」與「EFI 指標」判斷主力動向。")
+                         
                      else:
                          st.error(f"❌ 籌碼讀取失敗: {err}")
                  except Exception as e:
