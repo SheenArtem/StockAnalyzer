@@ -189,20 +189,20 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
         mpf.make_addplot(plot_df['ATR_Stop'], color='purple', type='scatter', markersize=6, marker='_'),
         
         # Panel 1: OBV (與成交量分開，看趨勢)
-        mpf.make_addplot(plot_df['OBV'], panel=1, color='blue', title='OBV', width=1.2),
+        mpf.make_addplot(plot_df['OBV'], panel=1, color='blue', width=1.2, ylabel='OBV'),
 
         # Panel 2: MACD
-        mpf.make_addplot(plot_df['Hist'], type='bar', panel=2, color='dimgray', alpha=0.5, title='MACD'),
+        mpf.make_addplot(plot_df['Hist'], type='bar', panel=2, color='dimgray', alpha=0.5, ylabel='MACD'),
         mpf.make_addplot(plot_df['MACD'], panel=2, color='fuchsia'),
         mpf.make_addplot(plot_df['Signal'], panel=2, color='c'),
 
         # Panel 3: KD & RSI
-        mpf.make_addplot(plot_df['K'], panel=3, color='orange', title='KD & RSI'),
+        mpf.make_addplot(plot_df['K'], panel=3, color='orange', ylabel='KD & RSI'),
         mpf.make_addplot(plot_df['D'], panel=3, color='blue'),
         mpf.make_addplot(plot_df['RSI'], panel=3, color='green', linestyle='--', width=1),
         
         # Panel 4: DMI
-        mpf.make_addplot(plot_df['ADX'], panel=4, color='black', width=1.5, title='DMI (ADX)'),
+        mpf.make_addplot(plot_df['ADX'], panel=4, color='black', width=1.5, ylabel='DMI'),
         mpf.make_addplot(plot_df['+DI'], panel=4, color='red', width=0.8),
         mpf.make_addplot(plot_df['-DI'], panel=4, color='green', width=0.8),
     ]
