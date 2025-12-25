@@ -384,8 +384,13 @@ class TechnicalAnalyzer:
         # 多頭吞噬: 昨陰 今陽, 今實體完全包覆昨實體
         if dir_p == -1 and dir_c == 1:
             if c['Open'] <= p['Close'] and c['Close'] >= p['Open']: # 寬鬆定義
-                score += 2
-                msgs.append("🕯️ 出現【多頭吞噬】強力反轉訊號 (+2)")
+                # 量能輔助確認: 成交量放大
+                if c['Volume'] > p['Volume']:
+                    score += 2
+                    msgs.append("🕯️ 出現【多頭吞噬】+【量增】強力反轉訊號 (+2)")
+                else:
+                    score += 1
+                    msgs.append("🕯️ 出現【多頭吞噬】反轉訊號 (量能未出) (+1)")
         
         # 空頭吞噬: 昨陽 今陰, 今實體包覆昨實體
         if dir_p == 1 and dir_c == -1:
@@ -407,8 +412,12 @@ class TechnicalAnalyzer:
         if dir_pp == -1 and is_star_p and dir_c == 1:
             midpoint_pp = (pp['Open'] + pp['Close']) / 2
             if c['Close'] > midpoint_pp:
-                score += 2
-                msgs.append("✨ 出現【晨星】底部轉折訊號 (+2)")
+                if c['Volume'] > p['Volume']:
+                     score += 2
+                     msgs.append("✨ 出現【晨星】+【量增】底部轉折訊號 (+2)")
+                else:
+                     score += 1.5
+                     msgs.append("✨ 出現【晨星】底部轉折訊號 (+1.5)")
                 
         # 4. 十字變盤線 (Doji)
         # 開收盤極度接近
