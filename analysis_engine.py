@@ -57,25 +57,60 @@ class TechnicalAnalyzer:
         # D. 前波低點停損 (近 20 日最低點)
         sl_low = df['Low'].iloc[-20:].min()
         
-        # 2. 停利目標預估 (Take Profit) - 簡單抓近 60 日高點壓力
-        tp_high = df['High'].iloc[-60:].max()
-        if tp_high <= close_price * 1.02: # 如果壓力太近，抓 1.5 倍 ATR 風險報酬
-            tp_high = close_price + (3.0 * atr_val)
+        # 2. 停利目標預估 (Take Profit) - 智慧動態測幅
+        # 計算波段慣性 (Wave Amplitude)
+        recent_high_20 = df['High'].iloc[-20:].max()
+        recent_low_20 = df['Low'].iloc[-20:].min()
+        wave_height = recent_high_20 - recent_low_20
+        
+        tp_price = 0
+        tp_method = ""
+        
+        code = scenario['code']
+        
+        # 根據劇本決定停利演算法
+        if code == 'A':
+            # 強勢股：採用 N 字測量或費波南希擴張
+            # 如果已過高，看 1.618；還沒過高，先看 N 字 (1.0)
+            if close_price >= recent_high_20 * 0.98:
+                tp_price = close_price + (wave_height * 1.618)
+                tp_method = "🚀 費波南希擴張 (1.618倍)"
+            else:
+                tp_price = close_price + wave_height
+                tp_method = "📈 N 字測量 (等幅測距)"
+                
+        elif code == 'B':
+             # 整理股：以上緣壓力為主
+             tp_price = recent_high_20
+             tp_method = "🎢 前波高點壓力"
+             
+        elif code == 'C':
+             # 反彈股：抓 MA60 或波段 0.5 位置
+             ma60 = current.get('MA60', 0)
+             if ma60 > close_price:
+                 tp_price = ma60
+                 tp_method = "📉 MA60 季線反壓"
+             else:
+                 tp_price = close_price + (wave_height * 0.5)
+                 tp_method = "⚠️ 反彈 0.5 倍滿足點"
+                 
+        else: # Scenario D or N
+             tp_price = close_price * 1.05
+             tp_method = "🛡️ 短線 5% 停利"
 
         # 3. 進場策略建議 (Entry Strategy)
         strategy_text = "觀望"
-        code = scenario['code']
         
         if code == 'A':
-            strategy_text = "🚀 **積極進場**：可考慮市價建立基本部位，若拉回測 5MA 不破加碼。"
+            strategy_text = "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。若回測不破 5MA 可加碼。"
         elif code == 'B':
-            strategy_text = "⏳ **等待訊號**：建議列入觀察名單，等待突破下降趨勢線或回測支撐出紅棒再進場。"
+            strategy_text = "⏳ **等待訊號**：多頭休息中。等待突破「下降壓力線」或「前波高點」再介入。"
         elif code == 'C':
-            strategy_text = "⚠️ **短線搶反彈**：僅適合積極交易者。務必嚴守停損，有獲利即跑。"
+            strategy_text = "⚠️ **搶反彈**：逆勢操作風險高。目標設在季線或前波跌幅一半，嚴設停損。"
         elif code == 'D':
-            strategy_text = "🛑 **空手/做空**：趨勢向下，不宜做多。可尋找反彈無力空點。"
+            strategy_text = "🛑 **空手**：下方無支撐。若反彈無力 (量縮過不去 MA10) 可嘗試放空。"
         else:
-            strategy_text = "💤 **觀望**：多空不明，等待趨勢明朗。"
+            strategy_text = "💤 **觀望**：多空分歧，等待方向明確。"
 
         return {
             "current_price": close_price,
@@ -83,7 +118,8 @@ class TechnicalAnalyzer:
             "sl_ma": sl_ma,
             "sl_key_candle": sl_key_candle,
             "sl_low": sl_low,
-            "tp_high": tp_high,
+            "tp_price": tp_price,
+            "tp_method": tp_method,
             "strategy": strategy_text
         }
 
