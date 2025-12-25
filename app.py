@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.26")
+    st.caption("Version: v2025.12.25.27")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -64,7 +64,7 @@ def run_analysis(source_data):
         
     # 2. CSV 資料情況 (DataFrame 無法直接 hash，需注意 cache 機制，這裡簡化處理)
     # Streamlit 對 DataFrame 有支援 hashing，所以通常可以直接傳
-    ticker_name, df_day, df_week = load_and_resample(source_data)
+    ticker_name, df_day, df_week, stock_meta = load_and_resample(source_data)
     
     figures = {}
     errors = {}
@@ -86,7 +86,7 @@ def run_analysis(source_data):
         except Exception as e:
             errors['Daily'] = str(e)
             
-    return figures, errors, df_week, df_day
+    return figures, errors, df_week, df_day, stock_meta
 
 # 主程式邏輯
 if run_btn:
@@ -121,7 +121,7 @@ if run_btn:
     
     try:
         # 呼叫有快取的函數
-        figures, errors, df_week, df_day = run_analysis(source)
+        figures, errors, df_week, df_day, stock_meta = run_analysis(source)
         
         # 暫存給 Analyzer 用 (Hack: 把變數掛在函式上，或者直接傳變數)
         run_analysis.df_week_cache = df_week
@@ -129,6 +129,23 @@ if run_btn:
 
         status_text.success("✅ 分析完成！")
         
+        # ==========================================
+        # 顯示股票基本資訊 (Header)
+        # ==========================================
+        if stock_meta and 'name' in stock_meta:
+             st.markdown(f"## 🏢 {display_ticker} {stock_meta.get('name', '')}")
+             if not df_day.empty:
+                 last_price = df_day['Close'].iloc[-1]
+                 prev_price = df_day['Close'].iloc[-2]
+                 chg = last_price - prev_price
+                 pct = (chg / prev_price) * 100
+                 color = "red" if chg > 0 else "green" # 台股紅漲綠跌
+                 
+                 cols = st.columns(4)
+                 cols[0].metric("最新收盤價", f"{last_price:.2f}", f"{chg:.2f} ({pct:.2f}%)", delta_color="inverse")
+                 cols[1].metric("產業類別", stock_meta.get('sector', 'N/A'))
+                 cols[2].metric("幣別", stock_meta.get('currency', 'TWD'))
+                 
         # 顯示如果有錯誤
         if errors:
             with st.expander("⚠️ 部分圖表產生失敗原因", expanded=True):

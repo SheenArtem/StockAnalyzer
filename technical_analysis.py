@@ -99,6 +99,46 @@ import datetime
 # 新增模組：數據載入與重採樣 (Data Loader & Resampler)
 # ==========================================
 
+from FinMind.data import DataLoader
+import datetime
+import functools
+
+# Global Cache for Stock Info
+_TW_STOCK_INFO_CACHE = None
+
+def get_stock_info_smart(ticker):
+    """
+    取得股票資訊 (名稱、產業類別)
+    回傳: dict {'name': '台積電', 'sector': '半導體', ...}
+    """
+    global _TW_STOCK_INFO_CACHE
+    meta = {'name': ticker, 'sector': '', 'currency': 'TWD'}
+    
+    # 清洗 Ticker 取得純數字代號
+    stock_id = ticker.split('.')[0] if '.' in ticker else ticker
+    
+    # 1. 如果是台股 (數字)，嘗試從 FinMind 取得中文名稱
+    if stock_id.isdigit():
+        try:
+            if _TW_STOCK_INFO_CACHE is None:
+                print("📥 下載台股清單 (Cache)...")
+                dl = DataLoader()
+                _TW_STOCK_INFO_CACHE = dl.taiwan_stock_info()
+            
+            # 搜尋
+            row = _TW_STOCK_INFO_CACHE[_TW_STOCK_INFO_CACHE['stock_id'] == stock_id]
+            if not row.empty:
+                meta['name'] = row.iloc[0]['stock_name']
+                meta['sector'] = row.iloc[0]['industry_category']
+        except Exception as e:
+            print(f"❌ 無法取得台股資訊: {e}")
+
+    # 2. 如果是美股 (英文)，嘗試用 yfinance (但比較慢，暫時略過或簡單處理)
+    else:
+        meta['currency'] = 'USD'
+    
+    return meta
+
 def fetch_from_finmind(stock_id):
     """
     從 FinMind 抓取股價資料 (Fallback)
@@ -144,6 +184,7 @@ def load_and_resample(source):
     df_day = pd.DataFrame()
     df_week = pd.DataFrame()
     ticker_name = "Unknown"
+    stock_meta = {'name': 'Unknown', 'sector': '', 'currency': ''}
 
     # 情境 A: 傳入的是股票代號 (字串)
     if isinstance(source, str):
@@ -170,17 +211,22 @@ def load_and_resample(source):
             else:
                 ticker_name = try_ticker
                 
+            # 取得台股中文資訊
+            stock_meta = get_stock_info_smart(ticker_name)
+
         else:
             # 2. 非純數字 (如 TSM, AAPL)，直接透過 yfinance
             ticker_name = raw_input
             print(f"📥 正在下載 {ticker_name} (yfinance)...")
             df_day = yf.download(ticker_name, period='3y', interval='1d', progress=False)
+            stock_meta['name'] = ticker_name
 
     # 情境 B: 傳入的是 CSV 資料 (DataFrame)
     elif isinstance(source, pd.DataFrame):
         print(f"📂 正在處理上傳的 CSV 數據...")
         ticker_name = "Uploaded_Data"
         df_day = source.copy()
+        stock_meta['name'] = "CSV Data"
         
         # 確保 Index 是 Datetime
         if not isinstance(df_day.index, pd.DatetimeIndex):
@@ -196,8 +242,6 @@ def load_and_resample(source):
     # -----------------------------------------------
     # 統一處理週線生成 (Resample)
     # -----------------------------------------------
-    # yfinance 雖然可以抓 1wk，但為了與 FinMind/CSV 邏輯一致且確保能 fallback，
-    # 這裡統一用日線 resample 出週線 (如果原本下載的是3年日線)
     
     if not df_day.empty:
         # 清洗 MultiIndex
@@ -211,14 +255,8 @@ def load_and_resample(source):
         agg_logic = {k: v for k, v in logic.items() if k in df_day.columns}
         
         df_week = df_day.resample('W-FRI').agg(agg_logic)
-        
-        # 切分長度: 日線只留近 1 年，週線留 3 年 (已在下載時抓了3年)
-        # 注意: 為了顯示流暢，這裡只裁切 df_day 顯示用，df_week 保持完整
-        # 但回傳時通常 df_day for chart 是近期的
-        # 我們這裏不做破壞性裁切，只在繪圖時 tail()
-        pass
 
-    return ticker_name, df_day, df_week
+    return ticker_name, df_day, df_week, stock_meta
 
 # ==========================================
 # 修改後的主程式：支援 CSV 與 Ticker
@@ -228,13 +266,19 @@ def plot_dual_timeframe(source):
     """
     主程式：接受 '代號' 或 'DataFrame' 進行雙週期分析
     """
+    return figures, errors, df_week, df_day, stock_meta
+
+def plot_dual_timeframe(source):
+    """
+    主程式：接受 '代號' 或 'DataFrame' 進行雙週期分析
+    """
     # 1. 呼叫智慧載入器
-    ticker, df_day, df_week = load_and_resample(source)
+    ticker, df_day, df_week, stock_meta = load_and_resample(source)
     
     # 檢查是否有數據
     if df_day.empty:
         print("❌ 錯誤: 無法取得任何股價數據 (所有來源皆失敗)")
-        return {}, {'Error': '無法取得數據，請確認代號或網路狀態'}, pd.DataFrame(), pd.DataFrame()
+        return {}, {'Error': '無法取得數據，請確認代號或網路狀態'}, pd.DataFrame(), pd.DataFrame(), {}
 
     print(f"🚀 啟動雙週期全方位分析引擎: {ticker}")
     
@@ -267,7 +311,7 @@ def plot_dual_timeframe(source):
     else:
         errors['Daily'] = "無日線數據"
         
-    return figures, errors, df_week, df_day
+    return figures, errors, df_week, df_day, stock_meta
 
 def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     """繪製單張圖表 (包含 5 個面板)"""
