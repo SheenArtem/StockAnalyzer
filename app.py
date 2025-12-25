@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 全方位股票技術分析系統</di
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.22")
+    st.caption("Version: v2025.12.25.23")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -226,7 +226,10 @@ if run_btn:
         # 顯示圖表
         col1, col2 = st.columns(2)
         
-        tab1, tab2 = st.tabs(["📅 週線趨勢 (Trend)", "🌞 日線操作 (Action)"])
+        # 顯示圖表
+        col1, col2 = st.columns(2)
+        
+        tab1, tab2, tab3 = st.tabs(["📅 週線趨勢 (Trend)", "🌞 日線操作 (Action)", "💰 籌碼分佈 (Chips)"])
         
         with tab1:
             if 'Weekly' in figures:
@@ -239,6 +242,57 @@ if run_btn:
                 st.pyplot(figures['Daily'])
             else:
                 st.warning("⚠️ 無法產生日線圖表 (請查看上方錯誤訊息)")
+
+        with tab3:
+            if source and isinstance(source, str) and "TW" in source:
+                 # 嘗試抓取籌碼數據
+                 try:
+                     st.info(f"⏳ 正在抓取 {display_ticker} 近一年籌碼數據 (FinMind)...")
+                     from chip_analysis import ChipAnalyzer
+                     
+                     @st.cache_data(ttl=3600)
+                     def get_chip_data_cached(ticker):
+                         analyzer = ChipAnalyzer()
+                         return analyzer.get_chip_data(ticker)
+
+                     chip_data, err = get_chip_data_cached(source)
+                     
+                     if chip_data:
+                         st.success(f"✅ {display_ticker} 籌碼數據讀取成功")
+                         
+                         # 1. 三大法人買賣超 (Bar Chart)
+                         st.markdown("### 🏛️ 三大法人買賣超 (Institutional Investors)")
+                         df_inst = chip_data['institutional']
+                         if not df_inst.empty:
+                             # 只顯示最近 60 天以保持圖表清晰
+                             df_inst_recent = df_inst.iloc[-60:]
+                             # 排除 '三大法人合計' 畫個別，或者畫合計
+                             # 這裡畫個別法人
+                             cols_to_plot = [c for c in df_inst_recent.columns if c != '三大法人合計' and c != 'stock_id']
+                             st.bar_chart(df_inst_recent[cols_to_plot])
+                             
+                             # 累計買賣超 (簡單趨勢)
+                             st.caption("三大法人近期動向 (Foreign/Trust/Dealer)")
+                         else:
+                             st.warning("⚠️ 查無法人數據")
+
+                         st.markdown("---")
+
+                         # 2. 融資融券 (Line Chart)
+                         st.markdown("### 🎢 融資融券餘額 (Margin Trading)")
+                         df_margin = chip_data['margin']
+                         if not df_margin.empty:
+                             df_margin_recent = df_margin.iloc[-120:] # 看半年
+                             st.line_chart(df_margin_recent)
+                             st.caption("融資(Margin Buy) vs 融券(Short Sell) 餘額走勢")
+                         else:
+                             st.warning("⚠️ 查無融資券數據")
+                     else:
+                         st.error(f"❌ 籌碼讀取失敗: {err}")
+                 except Exception as e:
+                     st.error(f"❌ 發生錯誤: {e}")
+            else:
+                 st.info("💡 籌碼分析目前僅支援台股代號 (如 2330.TW)，CSV 模式不支援。")
 
     except Exception as e:
         status_text.error(f"❌ 發生未預期錯誤: {e}")

@@ -1,5 +1,7 @@
 streamlit
 yfinance
 mplfinance
+FinMind
+tqdm
 pandas
 numpy
