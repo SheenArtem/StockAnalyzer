@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.31")
+    st.caption("Version: v2025.12.25.32")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -215,8 +215,19 @@ if run_btn:
                     st.table(pd.DataFrame(tp_data))
 
                 # 停損矩陣
-                st.markdown("#### 🛑 停損防守價位 (建議 4 選 1)")
+                st.markdown(f"#### 🛑 停損防守價位 (建議: {ap['rec_sl_method'].split(' ')[0]})")
+                
+                # 簡單標記推薦
+                def get_mark(name):
+                    return "⭐️" if name == ap['rec_sl_method'] else ""
+                    
                 sl_data = {
+                    "推薦": [
+                        get_mark("A. ATR 波動停損 (科學)"),
+                        get_mark("B. 均線停損 (趨勢)"),
+                        get_mark("C. 關鍵 K 線停損 (積極)"),
+                        get_mark("D. 波段低點停損 (形態)"),
+                    ],
                     "策略類型": ["A. ATR 波動停損 (科學)", "B. 均線停損 (趨勢)", "C. 關鍵 K 線停損 (積極)", "D. 波段低點停損 (形態)"],
                     "防守價位": [
                         f"{ap['sl_atr']:.2f} (Close - 2*ATR)",
