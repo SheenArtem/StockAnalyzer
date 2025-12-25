@@ -208,14 +208,11 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
         mpf.make_addplot(plot_df['-DI'], panel=4, color='green', width=0.8),
     ]
 
-    mc = mpf.make_marketcolors(up='r', down='g', inherit=True)
-    s = mpf.make_mpf_style(marketcolors=mc, style='yahoo', grid_style=':')
-
     print(f"📊 正在繪製 {timeframe_label} 全方位分析圖...")
     
     # 如果要回傳 figure 給 Streamlit，需要 returnfig=True
     # 注意: mpf.plot 的 returnfig=True 會回傳 (fig, axes)
-    fig, axes = mpf.plot(plot_df, type='candle', style=s, addplot=apds, 
+    fig, axes = mpf.plot(plot_df, type='candle', addplot=apds, 
              volume=True, 
              returnfig=True)
              
