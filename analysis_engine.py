@@ -58,43 +58,84 @@ class TechnicalAnalyzer:
         sl_low = df['Low'].iloc[-20:].min()
         
         # 2. 停利目標預估 (Take Profit) - 智慧動態測幅
-        # 計算波段慣性 (Wave Amplitude)
+        # 準備數據
         recent_high_20 = df['High'].iloc[-20:].max()
         recent_low_20 = df['Low'].iloc[-20:].min()
+        recent_high_60 = df['High'].iloc[-60:].max()
         wave_height = recent_high_20 - recent_low_20
+        
+        # 取得長天期均線與布林
+        ma60 = current.get('MA60', 0)
+        ma120 = current.get('MA120', 0)
+        ma240 = current.get('MA240', 0)
+        bb_up = current.get('BB_Up', 0)
+        
+        # 計算籌碼大量區 (Volume Profile - 簡易版: 抓近 60 日最大量 K 棒的高點)
+        recent_60 = df.iloc[-60:]
+        max_vol_idx = recent_60['Volume'].idxmax()
+        vol_pressure = df.loc[max_vol_idx]['High']
         
         tp_price = 0
         tp_method = ""
         
         code = scenario['code']
         
-        # 根據劇本決定停利演算法
+        # 根據劇本與突破狀況，決定停利演算法 (依照優先順序 check)
+        
         if code == 'A':
-            # 強勢股：採用 N 字測量或費波南希擴張
-            # 如果已過高，看 1.618；還沒過高，先看 N 字 (1.0)
-            if close_price >= recent_high_20 * 0.98:
-                tp_price = close_price + (wave_height * 1.618)
-                tp_method = "🚀 費波南希擴張 (1.618倍)"
+            # === 劇本 A: 強勢攻擊 ===
+            # 策略 1: 是否為箱型突破? (Close > 近 20 日高點)
+            if close_price >= recent_high_20 * 0.99:
+                 # 突破！目標看型態測幅 (箱型高度)
+                 tp_pattern = close_price + wave_height
+                 tp_price = tp_pattern
+                 tp_method = "📦 箱型突破測幅 (1.0x)"
+                 
+                 # 若突破太強，看 Fib 1.618
+                 if close_price > recent_high_20 * 1.05:
+                      tp_price = close_price + (wave_height * 1.618)
+                      tp_method = "🚀 費波南希擴張 (1.618x)"
             else:
-                tp_price = close_price + wave_height
-                tp_method = "📈 N 字測量 (等幅測距)"
-                
-        elif code == 'B':
-             # 整理股：以上緣壓力為主
-             tp_price = recent_high_20
-             tp_method = "🎢 前波高點壓力"
-             
+                 # 還在整理或剛起漲，看 N 字
+                 tp_price = close_price + wave_height
+                 tp_method = "📈 N 字測量 (等幅)"
+
         elif code == 'C':
-             # 反彈股：抓 MA60 或波段 0.5 位置
-             ma60 = current.get('MA60', 0)
-             if ma60 > close_price:
-                 tp_price = ma60
-                 tp_method = "📉 MA60 季線反壓"
+             # === 劇本 C: 反彈 ===
+             # 策略: 找上方最近的壓力 (Dynamic Resistance)
+             # 收集所有可能的壓力點
+             pressures = []
+             if ma60 > close_price: pressures.append((ma60, "MA60 季線"))
+             if ma120 > close_price: pressures.append((ma120, "MA120 半年線"))
+             if ma240 > close_price: pressures.append((ma240, "MA240 年線"))
+             if vol_pressure > close_price: pressures.append((vol_pressure, "籌碼大量套牢區"))
+             if recent_high_60 > close_price: pressures.append((recent_high_60, "前波高點"))
+
+             # 找出"最接近"但大於股價的壓力 (至少要有 2% 空間，不然看下一個)
+             valid_pressures = [p for p in pressures if p[0] > close_price * 1.02]
+             
+             if valid_pressures:
+                 # 取最小值 (最近的壓力)
+                 target = min(valid_pressures, key=lambda x: x[0])
+                 tp_price = target[0]
+                 tp_method = f"📉 {target[1]}反壓"
              else:
+                 # 上方無均線壓力，看波段 0.5
                  tp_price = close_price + (wave_height * 0.5)
                  tp_method = "⚠️ 反彈 0.5 倍滿足點"
+
+        elif code == 'B':
+             # === 劇本 B: 整理 ===
+             # 區間操作，看前高或布林上緣
+             if bb_up > close_price:
+                 tp_price = bb_up
+                 tp_method = "🎢 布林通道上緣"
+             else:
+                 tp_price = recent_high_20
+                 tp_method = "🎢 前波高點壓力"
                  
-        else: # Scenario D or N
+        else:
+             # 其他：短打
              tp_price = close_price * 1.05
              tp_method = "🛡️ 短線 5% 停利"
 

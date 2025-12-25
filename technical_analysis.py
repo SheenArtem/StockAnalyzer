@@ -10,7 +10,7 @@ def calculate_all_indicators(df):
     核心運算引擎：計算所有技術指標
     包含：MA, BB, ATR, Ichimoku, RSI, KD, MACD, OBV, DMI
     """
-    print("DEBUG: VERSION v2025.12.25.14 - ADDING K-LINE PATTERNS")
+    print("DEBUG: VERSION v2025.12.25.19 - ADDING MA120/MA240 & ADVANCED TARGETS")
     # 1. 基礎數據清洗
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -20,6 +20,8 @@ def calculate_all_indicators(df):
     df['MA10'] = df['Close'].rolling(window=10).mean()
     df['MA20'] = df['Close'].rolling(window=20).mean()
     df['MA60'] = df['Close'].rolling(window=60).mean()
+    df['MA120'] = df['Close'].rolling(window=120).mean()
+    df['MA240'] = df['Close'].rolling(window=240).mean()
 
     # 3. 布林通道 (Bollinger Bands)
     df['std20'] = df['Close'].rolling(window=20).std()
