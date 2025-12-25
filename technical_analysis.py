@@ -87,7 +87,51 @@ def calculate_all_indicators(df):
     df['EFI_EMA13'] = df['EFI'].ewm(span=13, adjust=False).mean() # 長期趨勢 (歸零軸判斷)
     df['EFI_EMA2'] = df['EFI'].ewm(span=2, adjust=False).mean()   # 短期力道 (抓轉折)
 
+    # 11. 神奇九轉 (Magic Nine / TD Sequential Setup)
+    # Logic: 
+    #  - Buy Setup: Close < Close[4] for 9 consecutive days
+    #  - Sell Setup: Close > Close[4] for 9 consecutive days
+    df['TD_Buy_Setup'] = 0
+    df['TD_Sell_Setup'] = 0
+    
+    # Vectorized approach or Loop? Loop is safer for consecutive logic.
+    # Since df is typically small (< 3 years), loop is fast enough.
+    buy_count = 0
+    sell_count = 0
+    
+    # Pre-calculate Close shift 4
+    close_shift_4 = df['Close'].shift(4)
+    
+    # 轉成 numpy 加速
+    closes = df['Close'].values
+    shifts = close_shift_4.values
+    buy_setups = np.zeros(len(df), dtype=int)
+    sell_setups = np.zeros(len(df), dtype=int)
+    
+    for i in range(4, len(df)):
+        # Buy Setup
+        if closes[i] < shifts[i]:
+            buy_count += 1
+        else:
+            buy_count = 0
+        
+        # Sell Setup
+        if closes[i] > shifts[i]:
+            sell_count += 1
+        else:
+            sell_count = 0
+            
+        # 只要是 1~9 都記錄，方便作圖
+        if buy_count > 0:
+            buy_setups[i] = buy_count if buy_count <= 9 else buy_count # 超過9繼續數，但作圖只畫到9
+        if sell_count > 0:
+            sell_setups[i] = sell_count if sell_count <= 9 else sell_count
+            
+    df['TD_Buy_Setup'] = buy_setups
+    df['TD_Sell_Setup'] = sell_setups
+
     return df
+
 # ==========================================
 # 新增模組：數據載入與重採樣 (Data Loader & Resampler)
 # ==========================================
@@ -344,6 +388,25 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     add_plot_safe("Tenkan", plot_df['Tenkan'], color='cyan', linestyle=':', width=0.8)
     add_plot_safe("Kijun", plot_df['Kijun'], color='brown', linestyle=':', width=0.8)
     add_plot_safe("ATR_Stop", plot_df['ATR_Stop'], color='purple', type='scatter', markersize=6, marker='_')
+
+    # Magic Nine (TD Sequential) Markers
+    # 只標示 "9" 轉折點
+    # Buy Setup 9: 出現在低檔，提示買進 (marker='^', color='red')
+    # Sell Setup 9: 出現在高檔，提示賣出 (marker='v', color='green')
+    
+    # 製作只包含 9 的 Series，其餘 NaN
+    td_buy_9 = plot_df['TD_Buy_Setup'].apply(lambda x: x if x == 9 or x == 13 else np.nan) # 9 or 13
+    td_sell_9 = plot_df['TD_Sell_Setup'].apply(lambda x: x if x == 9 or x == 13 else np.nan)
+    
+    # 為了位置好看，Buy 9 畫在 Low 下方，Sell 9 畫在 High 上方
+    td_buy_vals = plot_df['Low'] * 0.99
+    td_buy_vals = td_buy_vals.where(td_buy_9.notna(), np.nan)
+    
+    td_sell_vals = plot_df['High'] * 1.01
+    td_sell_vals = td_sell_vals.where(td_sell_9.notna(), np.nan)
+    
+    add_plot_safe("TD_Buy_9", td_buy_vals, type='scatter', markersize=100, marker='^', color='red')
+    add_plot_safe("TD_Sell_9", td_sell_vals, type='scatter', markersize=100, marker='v', color='green')
 
     # Panel 1: OBV
     add_plot_safe("OBV", plot_df['OBV'], panel=1, color='blue', width=1.2, ylabel='OBV')
