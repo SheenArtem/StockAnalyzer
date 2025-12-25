@@ -10,7 +10,7 @@ def calculate_all_indicators(df):
     核心運算引擎：計算所有技術指標
     包含：MA, BB, ATR, Ichimoku, RSI, KD, MACD, OBV, DMI
     """
-    print("DEBUG: VERSION v2025.12.25.07 - CHECKING CODE UPDATE")
+    print("DEBUG: VERSION v2025.12.25.08 - CHECKING CODE UPDATE")
     # 1. 基礎數據清洗
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -185,7 +185,9 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     # Helper: 安全添加 plot 的小函數
     def add_plot_safe(series, **kwargs):
         # 檢查是否全為 NaN
-        if not series.isna().all():
+        # 注意: 如果 series 是 DataFrame (例如 MA5, MA10 畫在一起), isna().all() 會回傳 Series 導致錯誤
+        # 解法: 轉成 numpy array 再檢查是否全部為 True
+        if not series.isna().values.all():
             apds.append(mpf.make_addplot(series, **kwargs))
 
     # Panel 0: 主圖
