@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 全方位股票技術分析系統</di
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.14")
+    st.caption("Version: v2025.12.25.15")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -172,23 +172,17 @@ if run_btn:
             else:
                 st.info(f"### {sc['title']}\n{sc['desc']}")
                 
-            # 2. 關鍵指標 (Metrics)
-            m1, m2, m3 = st.columns(3)
-            m1.metric("長期趨勢分數 (Trend)", f"{report['trend_score']}/5", delta_color="normal")
-            m2.metric("短期操作分數 (Trigger)", f"{report['trigger_score']}/5", delta_color="normal")
-            m3.metric("目前劇本代碼", sc['code'])
-            
-            # 3. 詳細因子 (Details Expander)
-            with st.expander("🔍 查看詳細評分因子 (點擊展開)"):
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.markdown("#### 📅 週線趨勢因子")
-                    for item in report['trend_details']:
-                        st.write(item)
-                with c2:
-                    st.markdown("#### ⚡ 日線訊號因子")
-                    for item in report['trigger_details']:
-                        st.write(item)
+            # 2. 詳細因子 (直接顯示，不隱藏)
+            st.markdown("---")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("#### 📅 週線趨勢因子")
+                for item in report['trend_details']:
+                    st.write(item)
+            with c2:
+                st.markdown("#### ⚡ 日線訊號因子")
+                for item in report['trigger_details']:
+                    st.write(item)
             st.markdown("---")
 
         # 顯示圖表
