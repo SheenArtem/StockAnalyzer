@@ -212,12 +212,17 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
 
     print(f"📊 正在繪製 {timeframe_label} 全方位分析圖...")
     
-    mpf.plot(plot_df, type='candle', style=s, addplot=apds, 
+    # 如果要回傳 figure 給 Streamlit，需要 returnfig=True
+    # 注意: mpf.plot 的 returnfig=True 會回傳 (fig, axes)
+    fig, axes = mpf.plot(plot_df, type='candle', style=s, addplot=apds, 
              volume=True, 
              panel_ratios=(4, 1, 1, 1, 1, 1), # 調整比例以容納更多面板
              title=f"{ticker} {title_suffix} ({timeframe_label})", 
              figsize=(12, 14), # 長條形圖表，方便手機滑動觀看
-             tight_layout=True)
+             tight_layout=True,
+             returnfig=True)
+             
+    return fig
 
 def plot_dual_timeframe(ticker_symbol):
     """
@@ -231,12 +236,16 @@ def plot_dual_timeframe(ticker_symbol):
 
     print(f"🚀 啟動雙週期全方位分析引擎: {ticker}")
 
+    # 儲存圖表物件
+    figures = {}
+
     # 1. 週線 (Weekly) - 抓 3 年
     try:
         df_week = yf.download(ticker, period='3y', interval='1wk', progress=False)
         if not df_week.empty:
             df_week = calculate_all_indicators(df_week)
-            plot_single_chart(ticker, df_week, "Trend (Long)", "Weekly")
+            fig_week = plot_single_chart(ticker, df_week, "Trend (Long)", "Weekly")
+            figures['Weekly'] = fig_week
         else:
             print("❌ 無法下載週線數據")
     except Exception as e:
@@ -247,11 +256,14 @@ def plot_dual_timeframe(ticker_symbol):
         df_day = yf.download(ticker, period='1y', interval='1d', progress=False)
         if not df_day.empty:
             df_day = calculate_all_indicators(df_day)
-            plot_single_chart(ticker, df_day, "Action (Short)", "Daily")
+            fig_day = plot_single_chart(ticker, df_day, "Action (Short)", "Daily")
+            figures['Daily'] = fig_day
         else:
             print("❌ 無法下載日線數據")
     except Exception as e:
         print(f"❌ 日線下載錯誤: {e}")
+        
+    return figures
 
 if __name__ == "__main__":
     # 測試用
