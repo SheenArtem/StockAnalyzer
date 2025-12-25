@@ -463,6 +463,20 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     td_buy_vals = td_buy_vals.where(td_buy_9.notna(), np.nan)
     
     td_sell_vals = plot_df['High'] * 1.01
+    
+    # --------------------------------------------------------
+    # 手動標註 Magic Nine 數字 (6, 7, 8, 9)
+    # mplfinance 的 x 軸在 candle 模式下是 0, 1, 2... 的整數序列
+    # --------------------------------------------------------
+    ax_main = axes[0]
+    
+    # 預先取得欄位以免一直 access
+    td_buys = plot_df['TD_Buy_Setup'].values
+    td_sells = plot_df['TD_Sell_Setup'].values
+    lows = plot_df['Low'].values
+    highs = plot_df['High'].values
+    
+    for i in range(len(plot_df)):
         b_val = td_buys[i]
         if b_val >= 6:
             # 畫在 Low 下方一點點
