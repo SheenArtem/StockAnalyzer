@@ -18,13 +18,73 @@ class TechnicalAnalyzer:
         
         scenario = self._determine_scenario(trend_score, trigger_details) # Check details for ADX special case
         
+        # 4. 操作劇本與風控 (Action Plan & Risk)
+        action_plan = self._generate_action_plan(self.df_day, scenario)
+        
         return {
             "ticker": self.ticker,
             "trend_score": trend_score,
             "trend_details": trend_details,
             "trigger_score": trigger_score,
             "trigger_details": trigger_details,
-            "scenario": scenario
+            "scenario": scenario,
+            "action_plan": action_plan
+        }
+
+    def _generate_action_plan(self, df, scenario):
+        """
+        生成操作建議與風控數值
+        """
+        if df.empty or len(df) < 20:
+            return None
+            
+        current = df.iloc[-1]
+        close_price = current['Close']
+        
+        # 1. 停損價位計算 (Stop Loss Levels)
+        # A. ATR 波動停損 (Close - 2*ATR)
+        atr_val = current.get('ATR', 0)
+        sl_atr = close_price - (2.0 * atr_val) if atr_val > 0 else 0
+        
+        # B. 均線停損 (MA20)
+        sl_ma = current.get('MA20', 0)
+        
+        # C. 關鍵 K 線停損 (近 10 日最大量 K 線之低點)
+        recent_10 = df.iloc[-10:]
+        max_vol_idx = recent_10['Volume'].idxmax()
+        sl_key_candle = df.loc[max_vol_idx]['Low']
+        
+        # D. 前波低點停損 (近 20 日最低點)
+        sl_low = df['Low'].iloc[-20:].min()
+        
+        # 2. 停利目標預估 (Take Profit) - 簡單抓近 60 日高點壓力
+        tp_high = df['High'].iloc[-60:].max()
+        if tp_high <= close_price * 1.02: # 如果壓力太近，抓 1.5 倍 ATR 風險報酬
+            tp_high = close_price + (3.0 * atr_val)
+
+        # 3. 進場策略建議 (Entry Strategy)
+        strategy_text = "觀望"
+        code = scenario['code']
+        
+        if code == 'A':
+            strategy_text = "🚀 **積極進場**：可考慮市價建立基本部位，若拉回測 5MA 不破加碼。"
+        elif code == 'B':
+            strategy_text = "⏳ **等待訊號**：建議列入觀察名單，等待突破下降趨勢線或回測支撐出紅棒再進場。"
+        elif code == 'C':
+            strategy_text = "⚠️ **短線搶反彈**：僅適合積極交易者。務必嚴守停損，有獲利即跑。"
+        elif code == 'D':
+            strategy_text = "🛑 **空手/做空**：趨勢向下，不宜做多。可尋找反彈無力空點。"
+        else:
+            strategy_text = "💤 **觀望**：多空不明，等待趨勢明朗。"
+
+        return {
+            "current_price": close_price,
+            "sl_atr": sl_atr,
+            "sl_ma": sl_ma,
+            "sl_key_candle": sl_key_candle,
+            "sl_low": sl_low,
+            "tp_high": tp_high,
+            "strategy": strategy_text
         }
 
     def _calculate_trend_score(self, df):
