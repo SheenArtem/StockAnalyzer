@@ -228,6 +228,15 @@ class TechnicalAnalyzer:
                 details.append("🔻 OBV 能量潮下降 (0)")
         except:
             pass
+            
+        # 4. EFI 強力指標 (每週資金流向)
+        efi_week = current.get('EFI_EMA13', 0)
+        if efi_week > 0:
+             score += 1
+             details.append(f"✅ 週線 EFI 主力作多 (EFI={efi_week:,.0f}) (+1)")
+        else:
+             score -= 1
+             details.append(f"🔻 週線 EFI 主力調節 (EFI={efi_week:,.0f}) (-1)")
 
         return score, details
 
@@ -265,7 +274,20 @@ class TechnicalAnalyzer:
             score += 1
             details.append(f"🟢 負乖離過大 ({bias:.1f}%) 醞釀反彈 (+1)")
         
-        # 3. MACD 動能與背離
+        # 3. EFI 埃爾德強力指標 (主力力度)
+        efi_day = current.get('EFI_EMA13', 0)
+        if efi_day > 0:
+             score += 1
+             details.append(f"✅ EFI 主力資金控盤 (EFI>0) (+1)")
+             # 輔助：力道增強中
+             if efi_day > prev.get('EFI_EMA13', 0):
+                 score += 0.5
+                 details.append("🔥 EFI 買盤力道增強 (+0.5)")
+        else:
+             score -= 1
+             details.append(f"🔻 EFI 空方資金控盤 (EFI<0) (-1)")
+
+        # 4. MACD 動能與背離
         if current['Hist'] > 0:
             score += 1
             details.append("✅ MACD 柱狀體翻紅 (+1)")
@@ -285,7 +307,7 @@ class TechnicalAnalyzer:
             score -= 2
             details.append("💀 MACD 出現【頂背離】訊號 (-2)")
 
-        # 4. KD指標
+        # 5. KD指標
         if current['K'] > current['D']:
             score += 1
             details.append("✅ KD 黃金交叉/多方排列 (+1)")
@@ -293,7 +315,7 @@ class TechnicalAnalyzer:
             score -= 1
             details.append("🔻 KD 死亡交叉/空方排列 (-1)")
 
-        # 5. OBV 籌碼與背離
+        # 6. OBV 籌碼與背離
         # 日線 OBV 趨勢 (簡單看近3日)
         if len(df) >= 3 and current['OBV'] > df['OBV'].iloc[-3]:
             score += 1
