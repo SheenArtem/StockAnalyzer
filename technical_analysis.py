@@ -398,6 +398,10 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     td_buy_vals = td_buy_vals.where(td_buy_9.notna(), np.nan)
     
     td_sell_vals = plot_df['High'] * 1.01
+
+    # Restore missing plot calls
+    add_plot_safe("TD_Buy_9", td_buy_vals, type='scatter', markersize=15, marker='^', color='red')
+    add_plot_safe("TD_Sell_9", td_sell_vals, type='scatter', markersize=15, marker='v', color='green')
     
     # 檢查成交量是否有效
     use_volume = True
