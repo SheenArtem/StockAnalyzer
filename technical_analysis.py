@@ -399,6 +399,23 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     
     td_sell_vals = plot_df['High'] * 1.01
     
+    # 檢查成交量是否有效
+    use_volume = True
+    if 'Volume' not in plot_df.columns:
+        use_volume = False
+    else:
+        vol_clean = plot_df['Volume'].fillna(0)
+        if (vol_clean == 0).all():
+            print("⚠️ 偵測到無效成交量 (全為0)，將隱藏 Volume 面板")
+            use_volume = False
+
+    if len(plot_df) < 2:
+        raise ValueError("數據行數不足，無法繪圖 (Less than 2 rows)")
+
+    fig, axes = mpf.plot(plot_df, type='candle', addplot=apds, 
+             volume=use_volume, 
+             returnfig=True)
+    
     # --------------------------------------------------------
     # 手動標註 Magic Nine 數字 (6, 7, 8, 9)
     # mplfinance 的 x 軸在 candle 模式下是 0, 1, 2... 的整數序列
