@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.39")
+    st.caption("Version: v2025.12.25.40")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -267,6 +267,14 @@ if run_btn:
         with tab1:
             if 'Weekly' in figures:
                 st.pyplot(figures['Weekly'])
+                
+                # 圖例說明 (新增)
+                st.info("""
+                **圖表符號說明：**
+                - 🔺 紅色三角形 + 數字 9：**神奇九轉 (買進)** - 股價連續 9 天低於前 4 天收盤，短線超賣，隨時可能反彈。
+                - 🔻 綠色倒三角 + 數字 9：**神奇九轉 (賣出)** - 股價連續 9 天高於前 4 天收盤，短線超漲，隨時可能回檔。
+                - 🔢 數字 6~8：代表趨勢正在累積中，即將出現轉折訊號。
+                """)
                 
                 # 新增: Weekly EFI
                 if not df_week.empty and 'EFI_EMA13' in df_week.columns:
