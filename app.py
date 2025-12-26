@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.38")
+    st.caption("Version: v2025.12.25.39")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -182,21 +182,23 @@ if run_btn:
             if report.get('action_plan'):
                 ap = report['action_plan']
                 
-                # 第一排：策略、進場、停利
-                c1, c2, c3 = st.columns(3)
+                # 第一排：策略、進場、停利、停損 (4欄)
+                c1, c2, c3, c4 = st.columns(4)
+                
+                # 1. 策略
                 c1.info(f"**操作策略**：\n\n{ap['strategy']}")
                 
-                # 進場
+                # 2. 進場
                 if ap.get('rec_entry_low', 0) > 0:
-                     c2.warning(f"**建議進場區間**：\n\n📉 **{ap['rec_entry_low']:.2f} ~ {ap['rec_entry_high']:.2f}**")
+                     c2.warning(f"**建議進場**：\n\n📉 **{ap['rec_entry_low']:.2f}~{ap['rec_entry_high']:.2f}**")
                 else:
-                     c2.warning(f"**建議進場區間**：\n\n(暫無建議)")
+                     c2.warning(f"**建議進場**：\n\n(暫無建議)")
 
-                # 停利
-                c3.success(f"**推薦停利 (第一目標)**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
+                # 3. 停利
+                c3.success(f"**推薦停利**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
                 
-                # 第二排：推薦停損 (獨立一行顯示重點)
-                st.error(f"**🛡️ 推薦停損防守點 ({ap['rec_sl_method'].split(' ')[0]})**： **{ap['rec_sl_price']:.2f}**")
+                # 4. 停損
+                c4.error(f"**推薦停損**：\n\n🛑 **{ap['rec_sl_price']:.2f}**\n\n({ap['rec_sl_method'].split(' ')[0]})")
                 
             st.markdown("---")
 
