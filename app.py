@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.41 (Cache Cleared)")
+    st.caption("Version: v2025.12.25.42")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -198,7 +198,7 @@ if run_btn:
                 c3.success(f"**推薦停利**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
                 
                 # 4. 停損
-                c4.error(f"**推薦停損**：\n\n🛑 **{ap['rec_sl_price']:.2f}**\n\n({ap['rec_sl_method'].split(' ')[0]})")
+                c4.error(f"**推薦停損**：\n\n🛑 **{ap['rec_sl_price']:.2f}** ({ap['rec_sl_method'].split(' ')[0]})")
                 
             st.markdown("---")
 
