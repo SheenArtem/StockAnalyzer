@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.36")
+    st.caption("Version: v2025.12.25.37")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -196,8 +196,16 @@ if run_btn:
                 ap = report['action_plan']
                 
                 # 進場與停利
-                col_strat, col_tp = st.columns(2)
-                col_strat.info(f"**進場策略**：\n\n{ap['strategy']}")
+                col_strat, col_entry, col_tp = st.columns(3)
+                
+                col_strat.info(f"**操作策略**：\n\n{ap['strategy']}")
+                
+                # 顯示進場區間
+                if ap.get('rec_entry_low', 0) > 0:
+                     col_entry.warning(f"**建議進場區間**：\n\n📉 **{ap['rec_entry_low']:.2f} ~ {ap['rec_entry_high']:.2f}**\n\n({ap['rec_entry_desc']})")
+                else:
+                     col_entry.warning(f"**建議進場區間**：\n\n(暫無建議)")
+
                 col_tp.success(f"**推薦停利 (第一目標)**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
                 
                 # 停利目標清單

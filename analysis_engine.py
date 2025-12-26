@@ -196,10 +196,51 @@ class TechnicalAnalyzer:
             strategy_text = "⏳ **等待訊號**：多頭休息中。等待突破「下降壓力線」或「前波高點」再介入。"
         elif code == 'C':
             strategy_text = "⚠️ **搶反彈**：逆勢操作風險高。優先參考上方均線反壓，有獲利即跑。"
-        elif code == 'D':
+        if code == 'D':
             strategy_text = "🛑 **空手**：下方無支撐。若反彈無力 (量縮過不去 MA10) 可嘗試放空。"
         else:
             strategy_text = "💤 **觀望**：多空分歧，等待方向明確。"
+
+        # 5. 建議進場區間 (Recommended Entry Zone) - New!
+        # 根據這是一個 "範圍": Low ~ High
+        rec_entry_low = 0
+        rec_entry_high = 0
+        rec_entry_desc = "觀望"
+        
+        if code == 'A':
+            # A 強勢股: 
+            # 策略: 沿著 5MA 操作，但不追高超過 2-3%。
+            # 區間: 5MA ~ 現價 (若現價離5MA太遠，則建議 5MA~10MA)
+            ma5 = current.get('MA5', 0)
+            ma10 = current.get('MA10', 0)
+            
+            # 檢查乖離
+            if close_price > ma5 * 1.05: # 乖離過大
+                rec_entry_low = ma10
+                rec_entry_high = ma5
+                rec_entry_desc = "等待拉回 (5MA-10MA)"
+            else:
+                rec_entry_low = ma5
+                rec_entry_high = close_price
+                rec_entry_desc = "積極操作 (5MA-現價)"
+                
+        elif code == 'B':
+            # B 整理股:
+            # 策略: 拉回支撐買進。支撐通常是 20MA (月線) 或 60MA (季線)
+            # 這裡假設多頭回檔守月線
+            ma20 = current.get('MA20', 0)
+            ma60 = current.get('MA60', 0)
+            rec_entry_low = ma60 if ma60 < ma20 else ma20 * 0.98 # 往下抓一點緩衝
+            rec_entry_high = ma20
+            rec_entry_desc = "回測支撐 (月季線)"
+            
+        elif code == 'C':
+            # C 搶反彈:
+            # 策略: 接近波段低點或布林下緣
+            bb_lo = current.get('BB_Lo', 0)
+            rec_entry_low = sl_low # 波段低點
+            rec_entry_high = bb_lo if bb_lo > sl_low else sl_low * 1.02
+            rec_entry_desc = "抄底區間 (前低-布林下)"
 
         return {
             "current_price": close_price,
@@ -207,10 +248,13 @@ class TechnicalAnalyzer:
             "sl_ma": sl_ma,
             "sl_key_candle": sl_key_candle,
             "sl_low": sl_low,
-            "rec_sl_method": rec_sl_method, # New
-            "rec_sl_price": rec_sl_price,   # New
+            "rec_sl_method": rec_sl_method, 
+            "rec_sl_price": rec_sl_price,   
             "tp_list": final_tp_list, 
             "rec_tp_price": rec_price, 
+            "rec_entry_low": rec_entry_low,    # New
+            "rec_entry_high": rec_entry_high,  # New
+            "rec_entry_desc": rec_entry_desc,  # New
             "strategy": strategy_text
         }
 
