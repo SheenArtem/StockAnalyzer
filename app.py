@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.40")
+    st.caption("Version: v2025.12.25.41 (Cache Cleared)")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -53,8 +53,8 @@ with st.sidebar:
 
     st.markdown("---")
 
-# 封裝分析函數以加入快取 (Cache)
-@st.cache_data(ttl=3600)  # 快取 1 小時
+# 封裝分析函數 (暫時移除 Cache 以確保代碼更新生效)
+# @st.cache_data(ttl=3600) 
 def run_analysis(source_data):
     # 這裡的邏輯與原本 main 當中的一樣，但搬進來做 cache
     
