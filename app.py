@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.37")
+    st.caption("Version: v2025.12.25.38")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -170,7 +170,7 @@ if run_btn:
             # 1. 劇本卡片 (Scenario Card)
             sc = report['scenario']
             if sc['color'] == 'red':
-                st.error(f"### {sc['title']}\n{sc['desc']}") # Streamlit red is error
+                st.error(f"### {sc['title']}\n{sc['desc']}")
             elif sc['color'] == 'orange':
                 st.warning(f"### {sc['title']}\n{sc['desc']}")
             elif sc['color'] == 'green':
@@ -178,7 +178,29 @@ if run_btn:
             else:
                 st.info(f"### {sc['title']}\n{sc['desc']}")
                 
+            # 2. 核心操作建議 (Key Actionables) - Moved to Top
+            if report.get('action_plan'):
+                ap = report['action_plan']
+                
+                # 第一排：策略、進場、停利
+                c1, c2, c3 = st.columns(3)
+                c1.info(f"**操作策略**：\n\n{ap['strategy']}")
+                
+                # 進場
+                if ap.get('rec_entry_low', 0) > 0:
+                     c2.warning(f"**建議進場區間**：\n\n📉 **{ap['rec_entry_low']:.2f} ~ {ap['rec_entry_high']:.2f}**")
+                else:
+                     c2.warning(f"**建議進場區間**：\n\n(暫無建議)")
+
+                # 停利
+                c3.success(f"**推薦停利 (第一目標)**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
+                
+                # 第二排：推薦停損 (獨立一行顯示重點)
+                st.error(f"**🛡️ 推薦停損防守點 ({ap['rec_sl_method'].split(' ')[0]})**： **{ap['rec_sl_price']:.2f}**")
+                
             st.markdown("---")
+
+            # 3. 詳細因子分析 (Detailed Breakdown)
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("#### 📅 週線趨勢因子")
@@ -189,70 +211,46 @@ if run_btn:
                 for item in report['trigger_details']:
                     st.write(item)
             
-            # 3. 操作劇本與風控 (Action Plan)
-            st.markdown("---")
-            st.subheader("🛡️ 操作劇本與風控建議 (Action Plan)")
-            if report.get('action_plan'):
-                ap = report['action_plan']
-                
-                # 進場與停利
-                col_strat, col_entry, col_tp = st.columns(3)
-                
-                col_strat.info(f"**操作策略**：\n\n{ap['strategy']}")
-                
-                # 顯示進場區間
-                if ap.get('rec_entry_low', 0) > 0:
-                     col_entry.warning(f"**建議進場區間**：\n\n📉 **{ap['rec_entry_low']:.2f} ~ {ap['rec_entry_high']:.2f}**\n\n({ap['rec_entry_desc']})")
-                else:
-                     col_entry.warning(f"**建議進場區間**：\n\n(暫無建議)")
+            # 4. 完整價位規劃表 (Detailed Price Levels)
+            with st.expander("📊 查看完整支撐壓力與停損清單", expanded=False):
+                if report.get('action_plan'):
+                    ap = report['action_plan']
+                    # 停利目標清單
+                    if ap.get('tp_list'):
+                        st.markdown("#### 🔭 停利目標預估清單")
+                        tp_data = []
+                        for t in ap['tp_list']:
+                            mark = "⭐️" if t['is_rec'] else ""
+                            tp_data.append({
+                                "推薦": mark,
+                                "測幅方法": t['method'],
+                                "目標價格": f"{t['price']:.2f}",
+                                "說明": t['desc']
+                            })
+                        st.table(pd.DataFrame(tp_data))
 
-                col_tp.success(f"**推薦停利 (第一目標)**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
-                
-                # 停利目標清單
-                if ap.get('tp_list'):
-                    st.markdown("#### 🔭 停利目標預估清單 (依價格排序)")
-                    tp_data = []
-                    for t in ap['tp_list']:
-                        mark = "⭐️" if t['is_rec'] else ""
-                        tp_data.append({
-                            "推薦": mark,
-                            "測幅方法": t['method'],
-                            "目標價格": f"{t['price']:.2f}",
-                            "說明": t['desc']
-                        })
-                    st.table(pd.DataFrame(tp_data))
-
-                # 停損矩陣
-                st.markdown(f"#### 🛑 停損防守價位 (建議: {ap['rec_sl_method'].split(' ')[0]})")
-                
-                # 簡單標記推薦
-                def get_mark(name):
-                    return "⭐️" if name == ap['rec_sl_method'] else ""
+                    # 停損矩陣
+                    st.markdown(f"#### 🛑 停損防守價位")
                     
-                sl_data = {
-                    "推薦": [
-                        get_mark("A. ATR 波動停損 (科學)"),
-                        get_mark("B. 均線停損 (趨勢)"),
-                        get_mark("C. 關鍵 K 線停損 (積極)"),
-                        get_mark("D. 波段低點停損 (形態)"),
-                    ],
-                    "策略類型": ["A. ATR 波動停損 (科學)", "B. 均線停損 (趨勢)", "C. 關鍵 K 線停損 (積極)", "D. 波段低點停損 (形態)"],
-                    "防守價位": [
-                        f"{ap['sl_atr']:.2f} (Close - 2*ATR)",
-                        f"{ap['sl_ma']:.2f} (MA20)",
-                        f"{ap['sl_key_candle']:.2f} (爆量低點)",
-                        f"{ap['sl_low']:.2f} (近期低點)"
-                    ],
-                    "說明": [
-                        "依據市場波動率動態調整，適合一般交易者。",
-                        "依據月線支撐，適合波段順勢操作。",
-                        "跌破主力攻擊發起點即停損，適合短線積極者。",
-                        "跌破箱型或波段最低點，最後防線。"
-                    ]
-                }
-                st.table(pd.DataFrame(sl_data))
-            else:
-                st.warning("⚠️ 數據不足，無法生成風控建議")
+                    def get_mark(name):
+                        return "⭐️" if name == ap['rec_sl_method'] else ""
+                        
+                    sl_data = {
+                        "推薦": [
+                            get_mark("A. ATR 波動停損 (科學)"),
+                            get_mark("B. 均線停損 (趨勢)"),
+                            get_mark("C. 關鍵 K 線停損 (積極)"),
+                            get_mark("D. 波段低點停損 (形態)"),
+                        ],
+                        "策略類型": ["A. ATR 波動停損 (科學)", "B. 均線停損 (趨勢)", "C. 關鍵 K 線停損 (積極)", "D. 波段低點停損 (形態)"],
+                        "防守價位": [
+                            f"{ap['sl_atr']:.2f}",
+                            f"{ap['sl_ma']:.2f}",
+                            f"{ap['sl_key_candle']:.2f}",
+                            f"{ap['sl_low']:.2f}"
+                        ]
+                    }
+                    st.table(pd.DataFrame(sl_data))
 
             st.markdown("---")
 
