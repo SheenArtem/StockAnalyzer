@@ -108,3 +108,28 @@ class CacheManager:
                 tickers.add(ticker)
                 
         return sorted(list(tickers))
+
+    def delete_ticker_cache(self, ticker):
+        """
+        Delete cache files for a specific ticker.
+        """
+        deleted = False
+        # Try delete price
+        price_path = self._get_path(ticker, 'price')
+        if os.path.exists(price_path):
+            os.remove(price_path)
+            deleted = True
+            
+        # Try delete chip (inst & margin)
+        # Chip keys were like {ticker}_inst, {ticker}_margin
+        inst_path = self._get_path(f"{ticker}_inst", 'chip')
+        if os.path.exists(inst_path):
+            os.remove(inst_path)
+            deleted = True
+
+        margin_path = self._get_path(f"{ticker}_margin", 'chip')
+        if os.path.exists(margin_path):
+            os.remove(margin_path)
+            deleted = True
+            
+        return deleted
