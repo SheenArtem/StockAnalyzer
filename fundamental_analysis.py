@@ -1,5 +1,7 @@
 import yfinance as yf
 import pandas as pd
+import datetime
+from FinMind.data import DataLoader
 
 def get_fundamentals(ticker):
     """
@@ -7,8 +9,21 @@ def get_fundamentals(ticker):
     Returns a dictionary of metrics.
     """
     try:
+    try:
         stock = yf.Ticker(ticker)
         info = stock.info
+        
+        # 判斷是否為台股 (FinMind 支援)
+        is_tw_stock = False
+        stock_id = ""
+        
+        if ticker.isdigit(): # e.g. 2330
+            is_tw_stock = True
+            stock_id = ticker
+        elif ".TW" in ticker.upper(): # e.g. 2330.TW
+            stock_id = ticker.split('.')[0]
+            if stock_id.isdigit():
+                 is_tw_stock = True
         
         # Helper to safely get value or 'N/A'
         def get_val(key, fmt="{:.2f}"):
@@ -33,6 +48,27 @@ def get_fundamentals(ticker):
             'Business Summary': info.get('longBusinessSummary', 'No summary available.')
         }
 
+        # [PATCH] 如果是台股，嘗試用 FinMind 覆蓋數據
+        if is_tw_stock:
+             tw_data = get_taiwan_stock_fundamentals(stock_id)
+             if tw_data:
+                 print(f"✅ 使用 FinMind 數據覆蓋台股基本面: {stock_id}")
+                 if tw_data.get('PE Ratio') != 'N/A': data['PE Ratio'] = tw_data['PE Ratio']
+                 if tw_data.get('PB Ratio') != 'N/A': data['PB Ratio'] = tw_data['PB Ratio']
+                 if tw_data.get('Dividend Yield') != 'N/A': data['Dividend Yield'] = tw_data['Dividend Yield']
+                 
+                 # 嘗試計算 EPS (Close / PE)
+                 try:
+                     close_price = info.get('currentPrice') or info.get('previousClose')
+                     pe_val = float(tw_data['PE Ratio'])
+                     if close_price and pe_val > 0:
+                         eps_est = close_price / pe_val
+                         data['EPS (TTM)'] = f"{eps_est:.2f} (Est.)"
+                 except:
+                     pass
+
+        # Handle Dividend Yield (yfinance returns decimal like 0.015 for 1.5%)
+
         # Handle Dividend Yield (yfinance returns decimal like 0.015 for 1.5%)
         dy = info.get('dividendYield')
         if dy is not None:
@@ -56,3 +92,29 @@ def get_fundamentals(ticker):
     except Exception as e:
         print(f"Error fetching fundamentals for {ticker}: {e}")
         return None
+
+def get_taiwan_stock_fundamentals(stock_id):
+    """
+    從 FinMind 取得台股基本面數據 (PER, PBR, Yield)
+    """
+    try:
+        dl = DataLoader()
+        # 取最近 10 天數據確保有最新值
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=10)).strftime('%Y-%m-%d')
+        
+        df = dl.taiwan_stock_per_pbr(stock_id=stock_id, start_date=start_date)
+        
+        if df.empty:
+            return {}
+            
+        # 取最新一筆
+        latest = df.iloc[-1]
+        
+        return {
+            'PE Ratio': f"{latest['PER']:.2f}" if latest['PER'] > 0 else "N/A",
+            'PB Ratio': f"{latest['PBR']:.2f}" if latest['PBR'] > 0 else "N/A",
+            'Dividend Yield': f"{latest['dividend_yield']:.2f}%" if latest['dividend_yield'] > 0 else "N/A"
+        }
+    except Exception as e:
+        print(f"FinMind Error: {e}")
+        return {}
