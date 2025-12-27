@@ -702,7 +702,7 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         hovermode='x unified', # This creates the "all info at top/unified box" effect
         height=600 if use_volume else 450,
         margin=dict(l=50, r=50, t=50, b=50),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
     )
 
     # Y-axis formatting

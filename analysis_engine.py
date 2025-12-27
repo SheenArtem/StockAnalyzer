@@ -557,19 +557,35 @@ class TechnicalAnalyzer:
              score += 2
              msgs.append(f"💣 出現【爆量長紅】攻擊訊號 (量增{c['Volume']/vol_ma5:.1f}倍) (+2)")
 
-        # 3. 晨星 (Morning Star) - 簡化版
-        # 跌 -> 小十字 -> 漲
-        # 定義: 前日跌, 昨日實體小(十字/紡錘), 今日漲且收盤高於前日實體的一半
-        is_star_p = body_p < 0.5 * avg_body # 昨日是小黑或十字
-        if dir_pp == -1 and is_star_p and dir_c == 1:
-            midpoint_pp = (pp['Open'] + pp['Close']) / 2
-            if c['Close'] > midpoint_pp:
-                if c['Volume'] > p['Volume']:
-                     score += 2
-                     msgs.append("✨ 出現【晨星】+【量增】底部轉折訊號 (+2)")
-                else:
-                     score += 1.5
-                     msgs.append("✨ 出現【晨星】底部轉折訊號 (+1.5)")
+        # 3. 晨星 (Morning Star) - 嚴格版
+        # 定義: 
+        # 1. 第一根長黑 (pp)
+        # 2. 第二根跳空低開，收小實體 (p)，且實體在第一根實體之下 (Gap check)
+        # 3. 第三根長紅 (c)，收盤攻入第一根實體一半以上
+        
+        # 1. 前天長黑
+        is_long_pp = abs(pp['Close'] - pp['Open']) > avg_body
+        
+        # 2. 昨天星線 (實體小 + 實體部分與前天有缺口 或 極低)
+        # 簡單判定: 昨天最高價(或實體上緣) < 前天收盤價 (Gap Down) 或是 昨天收盤 < 前天收盤
+        # 這裡用較寬鬆的 Gap: 昨天實體上緣 < 前天實體下緣 (Body Gap)
+        p_body_top = max(p['Open'], p['Close'])
+        pp_body_bottom = min(pp['Open'], pp['Close'])
+        is_gap_down = p_body_top < pp_body_bottom
+        
+        # 3. 今天長紅反擊
+        micpoint_pp = (pp['Open'] + pp['Close']) / 2
+        
+        if (dir_pp == -1 and is_long_pp) and \
+           (is_star_p and is_gap_down) and \
+           (dir_c == 1 and c['Close'] > micpoint_pp):
+           
+             if c['Volume'] > p['Volume']:
+                  score += 2
+                  msgs.append("✨ 出現【晨星】+【量增】標準底部轉折訊號 (+2)")
+             else:
+                  score += 1.5
+                  msgs.append("✨ 出現【晨星】標準底部轉折訊號 (+1.5)")
                 
         # 4. 十字變盤線 (Doji)
         # 開收盤極度接近
