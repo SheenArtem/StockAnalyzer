@@ -48,60 +48,28 @@ with st.sidebar:
     # [NEW] Search History
     from cache_manager import CacheManager
     cm = CacheManager()
+    cached_list = cm.list_cached_tickers()
     
-    # Use empty container for dynamic update
-    history_container = st.empty()
-    
-    def render_history_list(suffix=""):
-        cached_list = cm.list_cached_tickers()
-        # Add current ticker if not in list (Immediate Feedback)
-        current_input = st.session_state.get('ticker_input', '').upper()
-        if current_input and current_input not in cached_list:
-             # Check if we are actually running analysis on it
-             if st.session_state.get('is_running', False):
-                 cached_list.insert(0, current_input)
-        
-        # Dedupe and Sort? Keep user input at top if new?
-        # distinct list
-        display_list = []
-        seen = set()
-        for t in cached_list:
-            if t not in seen:
-                display_list.append(t)
-                seen.add(t)
+    # 使用 Expander 管理歷史紀錄 (取代 Selectbox)
+    with st.expander("🕒 歷史紀錄管理", expanded=False):
+        if not cached_list:
+            st.info("尚無歷史紀錄")
+        else:
+            for past_ticker in cached_list:
+                c1, c2, c3 = st.columns([3, 2, 2])
+                with c1:
+                    st.write(f"**{past_ticker}**")
                 
-        # Clear container before rendering (though .container() appends, st.empty() allows replacing the whole block)
-        # But here we want to replace the *content* of the container.
-        # Actually with st.empty(), calling .container() creates a context. 
-        # Writing multiple times to the *same* container context appends.
-        # Writing to the *same placeholder* replaces.
-        # So we should use `with history_container:` instead of `with history_container.container():` if we want replacement behavior?
-        # Actually, let's just Stick to the suffix fix which solves the Key Error.
-        
-        with history_container.container():
-            with st.expander("🕒 歷史紀錄管理", expanded=False):
-                if not display_list:
-                    st.info("尚無歷史紀錄")
-                else:
-                    for past_ticker in display_list:
-                        c1, c2, c3 = st.columns([3, 2, 2])
-                        with c1:
-                            st.write(f"**{past_ticker}**")
-                        
-                        with c2:
-                            # Use suffix to avoid DuplicateKeyID
-                            if st.button("載入", key=f"load_{past_ticker}_{suffix}"):
-                                st.session_state['ticker_input'] = past_ticker
-                                st.rerun() 
-                        
-                        with c3:
-                            if st.button("刪除", key=f"del_{past_ticker}_{suffix}"):
-                                cm.delete_ticker_cache(past_ticker)
-                                st.toast(f"🗑️ 已刪除 {past_ticker}", icon="🗑️")
-                                st.rerun()
-
-    # Initial Render
-    render_history_list("init")
+                with c2:
+                    if st.button("載入", key=f"load_{past_ticker}"):
+                        st.session_state['ticker_input'] = past_ticker
+                        st.rerun() # Rerun to update the input box immediately
+                
+                with c3:
+                    if st.button("刪除", key=f"del_{past_ticker}"):
+                        cm.delete_ticker_cache(past_ticker)
+                        st.toast(f"🗑️ 已刪除 {past_ticker}", icon="🗑️")
+                        st.rerun()
 
     if input_method == "股票代號 (Ticker)":
         # 如果 session_state 有值 (剛按了載入)，就用它
@@ -200,11 +168,7 @@ if run_btn or force_btn:
 
     # 執行分析
     
-    # [NEW] Immediate History Update
-    st.session_state['is_running'] = True
-    # Re-render history list to include the current ticker immediately
-    render_history_list("run")
-    
+    # 執行分析
     status_text = st.empty()
     action_text = "強制下載" if is_force else "分析"
     status_text.info(f"⏳ 正在{action_text} {display_ticker} ...")
@@ -212,9 +176,6 @@ if run_btn or force_btn:
     try:
         # 呼叫有快取的函數
         figures, errors, df_week, df_day, stock_meta = run_analysis(source, force_update=is_force)
-        
-        # Reset running state
-        st.session_state['is_running'] = False
         
         # 暫存給 Analyzer 用 (Hack: 把變數掛在函式上，或者直接傳變數)
         run_analysis.df_week_cache = df_week
@@ -227,9 +188,6 @@ if run_btn or force_btn:
         # ==========================================
         # 顯示股票基本資訊 (Header)
         # ==========================================
-        
-        # [NEW] Re-render again to confirm file is saved (since run_analysis saves cache)
-        render_history_list("done")
 
         # ==========================================
         # 顯示基本面資訊 (Fundamentals) - Moved to Header Area
