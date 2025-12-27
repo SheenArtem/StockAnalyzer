@@ -315,6 +315,13 @@ def load_and_resample(source):
         if isinstance(df_day.columns, pd.MultiIndex):
             df_day.columns = df_day.columns.get_level_values(0)
 
+        # [Defensive] Ensure Index is DatetimeIndex (Crucial for Cache Loaded Data)
+        if not isinstance(df_day.index, pd.DatetimeIndex):
+            try:
+                df_day.index = pd.to_datetime(df_day.index)
+            except Exception as e:
+                print(f"⚠️ Index conversion failed: {e}")
+
         # 自動生成週線
         logic = {
             'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'
