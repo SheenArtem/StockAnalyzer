@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import mplfinance as mpf
-from technical_analysis import plot_dual_timeframe, load_and_resample, calculate_all_indicators, plot_single_chart
+from technical_analysis import plot_dual_timeframe, load_and_resample, calculate_all_indicators, plot_interactive_chart
 
 # 設定頁面配置
 st.set_page_config(
@@ -122,7 +122,7 @@ def run_analysis(source_data, force_update=False):
     if not df_week.empty:
         try:
             df_week = calculate_all_indicators(df_week)
-            fig_week = plot_single_chart(ticker_name, df_week, "Trend (Long)", "Weekly")
+            fig_week = plot_interactive_chart(ticker_name, df_week, "Trend (Long)", "Weekly")
             figures['Weekly'] = fig_week
         except Exception as e:
             errors['Weekly'] = str(e)
@@ -130,7 +130,7 @@ def run_analysis(source_data, force_update=False):
     if not df_day.empty:
         try:
             df_day = calculate_all_indicators(df_day)
-            fig_day = plot_single_chart(ticker_name, df_day, "Action (Short)", "Daily")
+            fig_day = plot_interactive_chart(ticker_name, df_day, "Action (Short)", "Daily")
             figures['Daily'] = fig_day
         except Exception as e:
             errors['Daily'] = str(e)
@@ -319,7 +319,7 @@ if run_btn or force_btn:
         
         with tab1:
             if 'Weekly' in figures:
-                st.pyplot(figures['Weekly'])
+                st.plotly_chart(figures['Weekly'], use_container_width=True)
                 
                 # 圖例說明 (新增)
                 st.info("""
@@ -340,7 +340,7 @@ if run_btn or force_btn:
         
         with tab2:
             if 'Daily' in figures:
-                st.pyplot(figures['Daily'])
+                st.plotly_chart(figures['Daily'], use_container_width=True)
                 
                 # 圖例說明
                 st.info("""
