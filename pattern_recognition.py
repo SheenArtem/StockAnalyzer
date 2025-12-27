@@ -27,6 +27,17 @@ def identify_patterns(df):
     data['Body_Abs_Rolling'] = data['Body_Abs'].rolling(20).mean()
     avg_body = data['Body_Abs_Rolling'] # Series
 
+    # 0. Trend Identification (Simple)
+    # Use MA20 if available, else simple lookback
+    if 'MA20' in data.columns:
+        # Trend is Up if Close > MA20, Down if Close < MA20
+        is_uptrend = data['Close'] > data['MA20']
+    else:
+        # Fallback: Compare with 10 days ago
+        is_uptrend = data['Close'] > data['Close'].shift(10)
+    
+    is_downtrend = ~is_uptrend
+
     # Initialize Pattern Columns
     data['Pattern'] = None # Stores the name of the strongest pattern found
     data['Pattern_Type'] = None # 'Bullish' or 'Bearish'
@@ -134,61 +145,121 @@ def identify_patterns(df):
         (data['Close'] < data['Close'].shift(1)) & (data['Close'].shift(1) < data['Close'].shift(2))
     )
 
+    # 11. Morning Star (Bullish Reversal)
+    # 1. Long Black (Prev-Prev)
+    # 2. Star/Spinning Top (Prev) - Gap Down (Body Gap)
+    # 3. Long Red (Curr) - Piercing > 50% of 1st Black
+    pp_body = data['Body'].shift(2)
+    pp_close = data['Close'].shift(2)
+    pp_open = data['Open'].shift(2)
+    pp_mid = (pp_open + pp_close) / 2
+    
+    # Body Gap Down: Max(Open1, Close1) < Min(Open2, Close2)
+    prev_top = data[['Open', 'Close']].shift(1).max(axis=1)
+    pp_bottom = data[['Open', 'Close']].shift(2).min(axis=1)
+    
+    is_morning_star = (
+        (pp_body < 0) & (pp_body.abs() > avg_body) & # 1. Long Black
+        (prev_body.abs() < avg_body * 0.5) & # 2. Small Body (Star)
+        (prev_top < pp_bottom) & # Gap Down (Strict)
+        (data['Body'] > 0) & # 3. Red
+        (data['Close'] > pp_mid) # Penetrate > 50%
+    )
+
+    # 12. Evening Star (Bearish Reversal)
+    # 1. Long Red
+    # 2. Star/Top - Gap Up
+    # 3. Long Black - Penetrate > 50%
+    prev_bottom = data[['Open', 'Close']].shift(1).min(axis=1)
+    pp_top = data[['Open', 'Close']].shift(2).max(axis=1)
+
+    is_evening_star = (
+        (pp_body > 0) & (pp_body.abs() > avg_body) & # 1. Long Red
+        (prev_body.abs() < avg_body * 0.5) & # 2. Small Body
+        (prev_bottom > pp_top) & # Gap Up (Strict)
+        (data['Body'] < 0) & # 3. Black
+        (data['Close'] < pp_mid) # Penetrate > 50%
+    )
+
     # Assign priority (Specific/Stronger overwrites Generic/Weaker)
     # Multi-candle > Single-candle
     
     # --- Single Candle ---
     mask_doji = is_doji
-    data.loc[mask_doji, 'Pattern'] = 'Doji'
+    data.loc[mask_doji, 'Pattern'] = '十字線 (Doji)'
     data.loc[mask_doji, 'Pattern_Type'] = 'Neutral' # Special type
     
     mask_maru_bull = is_maru_bull
-    data.loc[mask_maru_bull, 'Pattern'] = 'Marubozu (Bull)'
+    data.loc[mask_maru_bull, 'Pattern'] = '大陽線 (Marubozu)'
     data.loc[mask_maru_bull, 'Pattern_Type'] = 'Bullish'
     
     mask_maru_bear = is_maru_bear
-    data.loc[mask_maru_bear, 'Pattern'] = 'Marubozu (Bear)'
+    data.loc[mask_maru_bear, 'Pattern'] = '大陰線 (Marubozu)'
     data.loc[mask_maru_bear, 'Pattern_Type'] = 'Bearish'
 
-    mask_hammer = is_hammer
-    data.loc[mask_hammer, 'Pattern'] = 'Hammer'
+    # Hammer vs Hanging Man
+    # Hammer: Downtrend
+    # Hanging Man: Uptrend
+    mask_hammer = is_hammer & is_downtrend # Classic Hammer
+    mask_hanging = is_hammer & is_uptrend # Hanging Man (Same shape)
+    
+    data.loc[mask_hammer, 'Pattern'] = '槌子線 (Hammer)'
     data.loc[mask_hammer, 'Pattern_Type'] = 'Bullish'
     
-    mask_shoot = is_shooting_star
-    data.loc[mask_shoot, 'Pattern'] = 'Shooting Star'
+    data.loc[mask_hanging, 'Pattern'] = '吊人線 (Hanging Man)'
+    data.loc[mask_hanging, 'Pattern_Type'] = 'Bearish' # Reversal from Top
+    
+    # Shooting Star vs Inverted Hammer
+    # Shooting Star: Uptrend
+    # Inverted Hammer: Downtrend
+    mask_shoot = is_shooting_star & is_uptrend
+    mask_inv_hammer = is_shooting_star & is_downtrend
+    
+    data.loc[mask_shoot, 'Pattern'] = '流星線 (Shooting Star)'
     data.loc[mask_shoot, 'Pattern_Type'] = 'Bearish'
+    
+    data.loc[mask_inv_hammer, 'Pattern'] = '倒狀槌子 (Inverted Hammer)'
+    data.loc[mask_inv_hammer, 'Pattern_Type'] = 'Bullish' # Reversal from Bottom
     
     # --- Multi Candle (Overwrites Single) ---
     mask_harami_bull = is_harami_bull
-    data.loc[mask_harami_bull, 'Pattern'] = 'Harami (Bull)'
+    data.loc[mask_harami_bull, 'Pattern'] = '多頭母子 (Harami)'
     data.loc[mask_harami_bull, 'Pattern_Type'] = 'Bullish'
     
     mask_harami_bear = is_harami_bear
-    data.loc[mask_harami_bear, 'Pattern'] = 'Harami (Bear)'
+    data.loc[mask_harami_bear, 'Pattern'] = '空頭母子 (Harami)'
     data.loc[mask_harami_bear, 'Pattern_Type'] = 'Bearish'
 
     mask_piercing = is_piercing
-    data.loc[mask_piercing, 'Pattern'] = 'Piercing Line'
+    data.loc[mask_piercing, 'Pattern'] = '貫穿線 (Piercing)'
     data.loc[mask_piercing, 'Pattern_Type'] = 'Bullish'
     
     mask_dark_cloud = is_dark_cloud
-    data.loc[mask_dark_cloud, 'Pattern'] = 'Dark Cloud'
+    data.loc[mask_dark_cloud, 'Pattern'] = '烏雲蓋頂 (Dark Cloud)'
     data.loc[mask_dark_cloud, 'Pattern_Type'] = 'Bearish'
 
     mask_bull_eng = is_bullish_engulfing
-    data.loc[mask_bull_eng, 'Pattern'] = 'Engulfing (Bull)'
+    data.loc[mask_bull_eng, 'Pattern'] = '多頭吞噬 (Engulfing)'
     data.loc[mask_bull_eng, 'Pattern_Type'] = 'Bullish'
     
     mask_bear_eng = is_bearish_engulfing
-    data.loc[mask_bear_eng, 'Pattern'] = 'Engulfing (Bear)'
+    data.loc[mask_bear_eng, 'Pattern'] = '空頭吞噬 (Engulfing)'
     data.loc[mask_bear_eng, 'Pattern_Type'] = 'Bearish'
     
     mask_3sol = is_3_soldiers
-    data.loc[mask_3sol, 'Pattern'] = '3 Red Soldiers'
+    data.loc[mask_3sol, 'Pattern'] = '紅三兵 (3 Soldiers)'
     data.loc[mask_3sol, 'Pattern_Type'] = 'Bullish'
     
     mask_3crows = is_3_crows
-    data.loc[mask_3crows, 'Pattern'] = '3 Black Crows'
+    data.loc[mask_3crows, 'Pattern'] = '黑三兵 (3 Crows)'
     data.loc[mask_3crows, 'Pattern_Type'] = 'Bearish'
+
+    mask_morn = is_morning_star
+    data.loc[mask_morn, 'Pattern'] = '晨星 (Morning Star)'
+    data.loc[mask_morn, 'Pattern_Type'] = 'Bullish'
+
+    mask_eve = is_evening_star
+    data.loc[mask_eve, 'Pattern'] = '夜星 (Evening Star)'
+    data.loc[mask_eve, 'Pattern_Type'] = 'Bearish'
 
     return data[['Pattern', 'Pattern_Type']]

@@ -568,7 +568,8 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
             fig.add_trace(go.Scatter(
                 x=plot_df.index, y=plot_df[ma_name],
                 mode='lines', name=ma_name,
-                line=dict(color=color, width=1)
+                line=dict(color=color, width=1),
+                hovertemplate=f'{ma_name}: %{{y:.2f}}<extra></extra>'
             ), row=1, col=1)
 
     # Bollinger Bands
@@ -577,7 +578,8 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
             x=plot_df.index, y=plot_df['BB_Up'],
             mode='lines', name='BB_Up',
             line=dict(color='gray', width=1, dash='dash'),
-            showlegend=False
+            hovertemplate='BB_Up: %{y:.2f}<extra></extra>',
+            showlegend=True
         ), row=1, col=1)
         fig.add_trace(go.Scatter(
             x=plot_df.index, y=plot_df['BB_Lo'],
@@ -588,7 +590,8 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
             # Simplified: Just lines or explicitly fill. 
             # To fill properly: add Lo first, then Up with fill='tonexty'
             # Let's just show lines to avoid clutter
-            showlegend=False
+            hovertemplate='BB_Lo: %{y:.2f}<extra></extra>',
+            showlegend=True
         ), row=1, col=1)
 
     # Ichimoku (Tenkan/Kijun)
@@ -596,13 +599,15 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         fig.add_trace(go.Scatter(
             x=plot_df.index, y=plot_df['Tenkan'],
             mode='lines', name='Tenkan',
-            line=dict(color='cyan', width=1, dash='dot')
+            line=dict(color='cyan', width=1, dash='dot'),
+            hovertemplate='Tenkan: %{y:.2f}<extra></extra>'
         ), row=1, col=1)
     if 'Kijun' in plot_df.columns:
         fig.add_trace(go.Scatter(
             x=plot_df.index, y=plot_df['Kijun'],
             mode='lines', name='Kijun',
-            line=dict(color='brown', width=1, dash='dot')
+            line=dict(color='brown', width=1, dash='dot'),
+            hovertemplate='Kijun: %{y:.2f}<extra></extra>'
         ), row=1, col=1)
 
     # ATR Stop
@@ -610,7 +615,8 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         fig.add_trace(go.Scatter(
             x=plot_df.index, y=plot_df['ATR_Stop'],
             mode='markers', name='ATR_Stop',
-            marker=dict(symbol='line-ew', color='purple', size=10, line=dict(width=2))
+            marker=dict(symbol='line-ew', color='purple', size=10, line=dict(width=2)),
+            hovertemplate='ATR_Stop: %{y:.2f}<extra></extra>'
         ), row=1, col=1)
     
     # 3. Magic Nine Markers

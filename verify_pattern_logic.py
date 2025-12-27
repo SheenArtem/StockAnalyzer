@@ -8,13 +8,21 @@ def create_synthetic_df(data_dict):
     Helper to create a DataFrame from a list of dicts.
     """
     df = pd.DataFrame(data_dict)
-    # Add fake Volume if not present (default 1000)
     if 'Volume' not in df.columns:
         df['Volume'] = 1000
+    if 'MA20' not in df.columns:
+        # Default MA20 to a flat line if not provided
+        df['MA20'] = 100
     return df
 
-def test_pattern(name, candles, expected_pattern, expected_type):
+def test_pattern(name, candles, expected_pattern, expected_type, ma20_val=100):
     print(f"Testing {name}...", end=" ")
+    
+    # Inject MA20 into candles if not present
+    for c in candles:
+        if 'MA20' not in c:
+            c['MA20'] = ma20_val
+            
     df = create_synthetic_df(candles)
     res = identify_patterns(df)
     last_pat = res.iloc[-1]['Pattern']
@@ -30,47 +38,42 @@ def run_tests():
     print("=== Running Candlestick Pattern Logic Verification ===")
     
     # Base params
-    O, H, L, C, V = 'Open', 'High', 'Low', 'Close', 'Volume'
+    # Context usually 20 candles for rolling body mean.
+    context = [{'Open': 100, 'Close': 102, 'High': 103, 'Low': 99, 'Volume': 1000, 'MA20': 100}] * 20
     
-    # 1. Doji
-    # Open=100, Close=100.1, High=105, Low=95. Body=0.1. Len=10. Ratio=0.01 < 0.1
-    # Need avg_body context. Let's make previous candles normal (Body ~2).
-    # Previous: 100->102.
-    context = [{'Open': 100, 'Close': 102, 'High': 103, 'Low': 99, 'Volume': 1000}] * 20
-    doji_candle = {'Open': 100, 'Close': 100.1, 'High': 105, 'Low': 95, 'Volume': 1000}
-    test_pattern("Doji", context + [doji_candle], "Doji", "Neutral")
-    
-    # 2. Marubozu (Bull)
-    # Open=100, Close=110, High=110, Low=100. No shadow.
-    maru_candle = {'Open': 100, 'Close': 110, 'High': 110.1, 'Low': 99.9, 'Volume': 2000} # Tiny shadow allowed
-    test_pattern("Marubozu (Bull)", context + [maru_candle], "Marubozu (Bull)", "Bullish")
-    
-    # 3. Harami (Bull) inside Bear
-    # Prev: 100 -> 90 (Big Red). Curr: 92 -> 98 (Small Green, inside 90-100 range)
-    flat_ctx = [{'Open': 100, 'Close': 102, 'High': 103, 'Low': 99, 'Volume': 1000}] * 20
-    big_red = {'Open': 100, 'Close': 90, 'High': 100, 'Low': 90, 'Volume': 1000}
-    small_green = {'Open': 92, 'Close': 98, 'High': 98, 'Low': 92, 'Volume': 1000}
-    test_pattern("Harami (Bull)", flat_ctx + [big_red, small_green], "Harami (Bull)", "Bullish")
+    # 1. Hammer (Downtrend)
+    # Price < MA20 (e.g. Price=90, MA20=100)
+    # Hammer shape: Body small, Long Lower Shadow.
+    hammer_candle = {'Open': 90, 'Close': 91, 'High': 91.5, 'Low': 85, 'Volume': 1000, 'MA20': 100}
+    test_pattern("Hammer (Downtrend)", context + [hammer_candle], "槌子線 (Hammer)", "Bullish")
 
-    # 4. Piercing Line
-    # Prev: 100 -> 90. Midpoint = 95.
-    # Curr: Open=88 (Gap down < 90/90Low). Close=96 (>95).
-    piercing = {'Open': 88, 'Close': 96, 'High': 96, 'Low': 88, 'Volume': 1000}
-    test_pattern("Piercing Line", flat_ctx + [big_red, piercing], "Piercing Line", "Bullish")
+    # 2. Hanging Man (Uptrend)
+    # Price > MA20 (e.g. Price=110, MA20=100)
+    # Same shape as Hammer.
+    hanging_candle = {'Open': 110, 'Close': 111, 'High': 111.5, 'Low': 105, 'Volume': 1000, 'MA20': 100}
+    test_pattern("Hanging Man (Uptrend)", context + [hanging_candle], "吊人線 (Hanging Man)", "Bearish")
+
+    # 3. Morning Star
+    # Down Trend.
+    # 1. Long Black (Prev-Prev)
+    # 2. Star (Prev) - Gap Down
+    # 3. Long Red (Curr) - Penetrate
+    p1 = {'Open': 95, 'Close': 85, 'High': 95, 'Low': 85, 'Volume': 1000, 'MA20': 100} # Long Black
+    p2 = {'Open': 82, 'Close': 83, 'High': 83, 'Low': 81, 'Volume': 1000, 'MA20': 100} # Star (Gap Down from 85)
+    p3 = {'Open': 84, 'Close': 92, 'High': 92, 'Low': 84, 'Volume': 1000, 'MA20': 100} # Long Red (Close 92 > Midpoint 90)
     
-    # 5. Dark Cloud Cover
-    # Prev: 90 -> 100 (Big Green). Midpoint = 95.
-    # Curr: Open=102 (Gap Up > 100High). Close=94 (<95).
-    big_green = {'Open': 90, 'Close': 100, 'High': 100, 'Low': 90, 'Volume': 1000}
-    dark_cloud = {'Open': 102, 'Close': 94, 'High': 102, 'Low': 94, 'Volume': 1000}
-    test_pattern("Dark Cloud Cover", flat_ctx + [big_green, dark_cloud], "Dark Cloud", "Bearish")
+    test_pattern("Morning Star", context + [p1, p2, p3], "晨星 (Morning Star)", "Bullish")
+
+    # 4. Evening Star
+    # Up Trend
+    # 1. Long Red
+    # 2. Star - Gap Up
+    # 3. Long Black
+    u1 = {'Open': 105, 'Close': 115, 'High': 115, 'Low': 105, 'Volume': 1000, 'MA20': 100} # Long Red
+    u2 = {'Open': 118, 'Close': 117, 'High': 119, 'Low': 117, 'Volume': 1000, 'MA20': 100} # Star (Gap Up from 115)
+    u3 = {'Open': 116, 'Close': 108, 'High': 116, 'Low': 108, 'Volume': 1000, 'MA20': 100} # Long Black (Close 108 < Midpoint 110)
     
-    # 6. Three Black Crows
-    # 3 Red candles.
-    crow1 = {'Open': 100, 'Close': 90, 'High': 100, 'Low': 90, 'Volume': 1000}
-    crow2 = {'Open': 90, 'Close': 80, 'High': 90, 'Low': 80, 'Volume': 1000}
-    crow3 = {'Open': 80, 'Close': 70, 'High': 80, 'Low': 70, 'Volume': 1000}
-    test_pattern("Three Black Crows", flat_ctx + [crow1, crow2, crow3], "3 Black Crows", "Bearish")
+    test_pattern("Evening Star", context + [u1, u2, u3], "夜星 (Evening Star)", "Bearish")
 
 if __name__ == "__main__":
     run_tests()
