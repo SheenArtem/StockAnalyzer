@@ -567,12 +567,24 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         low=plot_df['Low'],
         close=plot_df['Close'],
         name='K線',
-        text=custom_hover_text, # [FIX] Pass custom localized text
         increasing_line_color='red', 
         decreasing_line_color='green',
         increasing_fillcolor='red', # Optional: fill body
         decreasing_fillcolor='green',
-        hovertemplate="%{text}<extra></extra>" # [FIX] Override default unified content
+        hoverinfo='skip' # [FIX] Hide default English labels completely
+    ), row=1, col=1)
+
+    # [FIX] Add invisible Scatter trace to provide the custom localized hover info
+    # This works better with 'unified' hovermode than trying to override Candlestick
+    fig.add_trace(go.Scatter(
+        x=plot_df.index,
+        y=plot_df['Close'], # Follow Close price for position
+        mode='markers',
+        marker=dict(opacity=0), # Invisible
+        name='K線', # Header in unified box
+        text=custom_hover_text,
+        hovertemplate="%{text}<extra></extra>", # Only show custom text
+        showlegend=False
     ), row=1, col=1)
 
     # 2. Indicators (MA, BB, etc.) - Only add if they exist
