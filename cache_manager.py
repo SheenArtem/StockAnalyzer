@@ -32,15 +32,17 @@ class CacheManager:
     def load_cache(self, ticker, data_type, force_reload=False):
         """
         Attempt to load data from cache.
-        Returns: (DataFrame, bool_is_hit)
+        Returns: (DataFrame, status, last_date)
+        status: "hit", "miss", "partial"
+        last_date: datetime or None (only for partial)
         """
         if force_reload:
-            return pd.DataFrame(), False
+            return pd.DataFrame(), "miss", None
             
         file_path = self._get_path(ticker, data_type)
         
         if not os.path.exists(file_path):
-            return pd.DataFrame(), False
+            return pd.DataFrame(), "miss", None
             
         # Check timestamp
         mtime = os.path.getmtime(file_path)
@@ -49,10 +51,10 @@ class CacheManager:
         
         # Logic:
         # 1. If file is from yesterday or older -> Stale (Need new daily candle)
-        if file_time.date() < now.date():
-            # Special case: If today is weekend, Friday's data is still valid?
-            # Simpler: Just expire at midnight.
-            return pd.DataFrame(), False
+        # 1. If file is from yesterday or older -> Stale (Need new daily candle)
+        # However, we now want to support partial load, so we don't just return False.
+        # We proceed to load it and let the logic inside try decide if it's partial or hit.
+        pass
             
         # 2. If file is from today
         # If today is trading day and time is < 13:30, data might be incomplete.
@@ -64,13 +66,32 @@ class CacheManager:
             print(f"📂 Loading {data_type} cache for {ticker}...")
             if data_type == 'price':
                 df = pd.read_csv(file_path, index_col=0, parse_dates=True)
+                # Ensure index is datetime
+                if not isinstance(df.index, pd.DatetimeIndex):
+                     df.index = pd.to_datetime(df.index)
             else:
-                df = pd.read_csv(file_path) # Chip data might not have date index
+                df = pd.read_csv(file_path)
+                # Chip data usually has 'date' column
+                if 'date' in df.columns:
+                    df['date'] = pd.to_datetime(df['date'])
+                    df.set_index('date', inplace=True)
+
+            # Check if stale
+            # 1. If file is from yesterday or older -> Stale (Need new daily candle)
+            if file_time.date() < now.date() and not df.empty:
+                # Return partial hit with last date
+                last_date = df.index[-1] if isinstance(df.index, pd.DatetimeIndex) else None
+                # If last_date is today or later, it's actually fresh
+                if last_date and last_date.date() >= now.date():
+                     return df, "hit", None
                 
-            return df, True
+                return df, "partial", last_date
+
+            return df, "hit", None
+            
         except Exception as e:
             print(f"❌ Corrupt cache: {e}")
-            return pd.DataFrame(), False
+            return pd.DataFrame(), "miss", None
 
     def save_cache(self, ticker, df, data_type):
         """

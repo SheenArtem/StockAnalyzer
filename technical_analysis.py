@@ -194,8 +194,8 @@ def fetch_from_finmind(stock_id):
     try:
         print(f"🔄 嘗試從 FinMind 抓取 {stock_id} ...")
         dl = DataLoader()
-        # 抓取近 3 年 (涵蓋週線需求)
-        start_date = (datetime.datetime.now() - datetime.timedelta(days=365*3 + 30)).strftime('%Y-%m-%d')
+        # 抓取近 10 年 (涵蓋週線需求)
+        start_date = '2016-01-01'
         
         df = dl.taiwan_stock_daily(stock_id=stock_id, start_date=start_date)
         
@@ -243,31 +243,87 @@ def load_and_resample(source, force_update=False):
         cm = CacheManager()
         
         # 1. 嘗試讀取快取 (Price Data)
-        # Note: We use 'raw_input' as key for simplicity first
-        cached_df, is_hit = cm.load_cache(raw_input, 'price', force_reload=force_update)
+        cached_df, status, last_date = cm.load_cache(raw_input, 'price', force_reload=force_update)
         
-        if is_hit and not cached_df.empty:
+        if status == "hit" and not cached_df.empty:
             print(f"⚡ [Cache Hit] 讀取 {raw_input} 本地快取")
             df_day = cached_df
             ticker_name = raw_input
-            # Meta data might be missing in cache-only mode, so we might need to re-fetch meta or cache meta too.
-            # Simple fix: Re-fetch meta only (fast) or stick to basic meta.
             stock_meta = get_stock_info_smart(ticker_name)
             
-        else:
+        elif status == "partial" and not cached_df.empty:
+            print(f"🔄 [Incremental] 發現舊資料 (至 {last_date.date()})，正在更新缺少部分...")
+            ticker_name = raw_input
+            
+            # Start from next day
+            start_date_new = (last_date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+            
+            # Download only new data
+            new_df = pd.DataFrame()
+            try:
+                if raw_input.isdigit():
+                     try_ticker = f"{raw_input}.TW"
+                     new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
+                     if new_df.empty:
+                         try_ticker = f"{raw_input}.TWO"
+                         new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
+                     if new_df.empty:
+                          # Fallback FinMind
+                          dl = DataLoader()
+                          new_df = dl.taiwan_stock_daily(stock_id=raw_input, start_date=start_date_new)
+                          # Normalize FinMind if needed (reuse fetch implementation logic or just trust yf for now)
+                          # To be safe, let's just use the full fetch logic if yf fails, or assume yf works.
+                          # Limitation: FinMind fetcher here returns different columns, need standardization.
+                          # Simplification: If yfinance works, use it.
+                else:
+                     new_df = yf.download(raw_input, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
+            except Exception as e:
+                print(f"⚠️ 增量更新失敗 ({e})，將嘗試完整重抓...")
+                status = "miss" # Toggle to miss to trigger full re-download
+            
+            if not new_df.empty:
+                 # Standardize Index Name
+                 # yf download might have timezone, cache usually doesn't.
+                 # Ensure consistency?
+                 if isinstance(new_df.columns, pd.MultiIndex):
+                     new_df.columns = new_df.columns.get_level_values(0)
+                 
+                 # Concat
+                 # Ensure no duplicates
+                 df_day = pd.concat([cached_df, new_df])
+                 df_day = df_day[~df_day.index.duplicated(keep='last')]
+                 df_day.sort_index(inplace=True)
+                 
+                 print(f"✅ 增量更新完成，新增 {len(new_df)} 筆資料")
+                 ticker_name = raw_input if raw_input.isdigit() else raw_input # Simple fix
+                 if raw_input.isdigit():
+                      stock_meta = get_stock_info_smart(raw_input) 
+                 else:
+                      stock_meta['name'] = ticker_name
+
+                 # Save merged Cache
+                 cm.save_cache(raw_input, df_day, 'price')
+            else:
+                 # No new data found (maybe holiday), trust cache
+                 print(f"✅ 無新資料 (可能是假日)，使用快取數據")
+                 df_day = cached_df
+                 ticker_name = raw_input
+                 stock_meta = get_stock_info_smart(ticker_name)
+                 
+        if df_day.empty: # Either status="miss" or partial failed catastrophically
             # Cache Miss - Start Download
             # 1. 如果是純數字，啟動智慧判斷序列
             if raw_input.isdigit():
                 # 嘗試 1: .TW (上市)
                 try_ticker = f"{raw_input}.TW"
                 print(f"📥 嘗試下載 {try_ticker} (yfinance)...")
-                df_day = yf.download(try_ticker, period='3y', interval='1d', progress=False, auto_adjust=False)
+                df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False)
                 
                 if df_day.empty:
                     # 嘗試 2: .TWO (上櫃)
                     try_ticker = f"{raw_input}.TWO"
                     print(f"📥 嘗試下載 {try_ticker} (yfinance)...")
-                    df_day = yf.download(try_ticker, period='3y', interval='1d', progress=False, auto_adjust=False)
+                    df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False)
                     
                 if df_day.empty:
                     # 嘗試 3: FinMind (Fallback)
@@ -284,7 +340,7 @@ def load_and_resample(source, force_update=False):
                 # 2. 非純數字 (如 TSM, AAPL)，直接透過 yfinance
                 ticker_name = raw_input
                 print(f"📥 正在下載 {ticker_name} (yfinance)...")
-                df_day = yf.download(ticker_name, period='3y', interval='1d', progress=False, auto_adjust=False)
+                df_day = yf.download(ticker_name, period='10y', interval='1d', progress=False, auto_adjust=False)
                 stock_meta['name'] = ticker_name
             
             # [CACHE] Save to Cache
