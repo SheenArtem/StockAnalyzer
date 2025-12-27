@@ -79,10 +79,11 @@ def get_fundamentals(ticker):
 
         # Handle Dividend Yield (yfinance returns decimal like 0.015 for 1.5%)
 
-        # Handle Dividend Yield (yfinance returns decimal like 0.015 for 1.5%)
+        # Handle Dividend Yield (yfinance returns percentage e.g. 1.36 for 1.36%)
+        # Note: Previous assumption of decimal (0.0136) was wrong based on debug.
         dy = info.get('dividendYield')
         if dy is not None:
-             data['Dividend Yield'] = f"{dy*100:.2f}%"
+             data['Dividend Yield'] = f"{dy:.2f}%"
 
         # Handle ROE (Return on Equity)
         roe = info.get('returnOnEquity')
