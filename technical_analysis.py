@@ -4,6 +4,8 @@ import yfinance as yf
 import mplfinance as mpf
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 def calculate_all_indicators(df):
     """
@@ -381,7 +383,7 @@ def plot_dual_timeframe(source, force_update=False):
     if not df_week.empty:
         try:
             df_week = calculate_all_indicators(df_week)
-            fig_week = plot_single_chart(ticker, df_week, "Trend (Long)", "Weekly")
+            fig_week = plot_interactive_chart(ticker, df_week, "Trend (Long)", "Weekly")
             figures['Weekly'] = fig_week
         except Exception as e:
             errors['Weekly'] = f"週線計算錯誤: {e}"
@@ -395,7 +397,7 @@ def plot_dual_timeframe(source, force_update=False):
             # 為了運算指標精確，先算全部，再切最近1年繪圖? No, plot_single_chart handles tail.
             # But calculating indicators on 3 years of daily data is fine.
             df_day = calculate_all_indicators(df_day)
-            fig_day = plot_single_chart(ticker, df_day, "Action (Short)", "Daily")
+            fig_day = plot_interactive_chart(ticker, df_day, "Action (Short)", "Daily")
             figures['Daily'] = fig_day
         except Exception as e:
             errors['Daily'] = f"日線計算錯誤: {e}"
@@ -506,6 +508,180 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
             ax_main.text(i, pos_y, label, 
                          color='green', fontsize=6, 
                          ha='center', va='bottom', fontweight='bold')
+
+    return fig
+
+def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
+    """
+    使用 Plotly 繪製互動式 K 線圖 (含成交量、指標)
+    """
+    # 裁切數據
+    bars = 100 if timeframe_label == 'Weekly' else 120
+    plot_df = df.tail(bars).copy()
+    
+    # Check volume
+    use_volume = True
+    if 'Volume' not in plot_df.columns:
+        use_volume = False
+    else:
+        vol_check = plot_df['Volume'].fillna(0)
+        if (vol_check == 0).all():
+            use_volume = False
+
+    # Create Subplots
+    rows = 2 if use_volume else 1
+    row_heights = [0.7, 0.3] if use_volume else [1.0]
+    vertical_spacing = 0.03
+
+    fig = make_subplots(
+        rows=rows, cols=1, 
+        shared_xaxes=True, 
+        vertical_spacing=vertical_spacing,
+        row_heights=row_heights,
+        specs=[[{"secondary_y": False}], [{"secondary_y": False}]] if use_volume else [[{"secondary_y": False}]]
+    )
+
+    # 1. Candlestick (K線)
+    # Colors: Up=Red, Down=Green (Taiwan Style)
+    # Plotly default: increasing.line.color, decreasing.line.color
+    
+    fig.add_trace(go.Candlestick(
+        x=plot_df.index,
+        open=plot_df['Open'],
+        high=plot_df['High'],
+        low=plot_df['Low'],
+        close=plot_df['Close'],
+        name='K線',
+        increasing_line_color='red', 
+        decreasing_line_color='green',
+        increasing_fillcolor='red', # Optional: fill body
+        decreasing_fillcolor='green'
+    ), row=1, col=1)
+
+    # 2. Indicators (MA, BB, etc.) - Only add if they exist
+    
+    # MA Lines
+    colors = {'MA5': 'blue', 'MA10': 'orange', 'MA20': 'purple', 'MA60': 'black', 'MA120': 'gray', 'MA240': 'brown'}
+    for ma_name, color in colors.items():
+        if ma_name in plot_df.columns:
+            fig.add_trace(go.Scatter(
+                x=plot_df.index, y=plot_df[ma_name],
+                mode='lines', name=ma_name,
+                line=dict(color=color, width=1)
+            ), row=1, col=1)
+
+    # Bollinger Bands
+    if 'BB_Up' in plot_df.columns and 'BB_Lo' in plot_df.columns:
+        fig.add_trace(go.Scatter(
+            x=plot_df.index, y=plot_df['BB_Up'],
+            mode='lines', name='BB_Up',
+            line=dict(color='gray', width=1, dash='dash'),
+            showlegend=False
+        ), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=plot_df.index, y=plot_df['BB_Lo'],
+            mode='lines', name='BB_Lo',
+            line=dict(color='gray', width=1, dash='dash'),
+            fill='tonexty', # Fill area between BB_Up and BB_Lo? No, need order.
+            # Plotly fills to previous trace. 
+            # Simplified: Just lines or explicitly fill. 
+            # To fill properly: add Lo first, then Up with fill='tonexty'
+            # Let's just show lines to avoid clutter
+            showlegend=False
+        ), row=1, col=1)
+
+    # Ichimoku (Tenkan/Kijun)
+    if 'Tenkan' in plot_df.columns:
+        fig.add_trace(go.Scatter(
+            x=plot_df.index, y=plot_df['Tenkan'],
+            mode='lines', name='Tenkan',
+            line=dict(color='cyan', width=1, dash='dot')
+        ), row=1, col=1)
+    if 'Kijun' in plot_df.columns:
+        fig.add_trace(go.Scatter(
+            x=plot_df.index, y=plot_df['Kijun'],
+            mode='lines', name='Kijun',
+            line=dict(color='brown', width=1, dash='dot')
+        ), row=1, col=1)
+
+    # ATR Stop
+    if 'ATR_Stop' in plot_df.columns:
+        fig.add_trace(go.Scatter(
+            x=plot_df.index, y=plot_df['ATR_Stop'],
+            mode='markers', name='ATR_Stop',
+            marker=dict(symbol='line-ew', color='purple', size=10, line=dict(width=2))
+        ), row=1, col=1)
+    
+    # 3. Magic Nine Markers
+    if 'TD_Buy_Setup' in plot_df.columns:
+        # Buy 9 (Triangle Up, Red)
+        buy_mask = (plot_df['TD_Buy_Setup'] == 9) | (plot_df['TD_Buy_Setup'] == 13)
+        buy_pts = plot_df[buy_mask]
+        if not buy_pts.empty:
+            fig.add_trace(go.Scatter(
+                x=buy_pts.index, y=buy_pts['Low'] * 0.99,
+                mode='markers+text', name='TD Buy 9',
+                marker=dict(symbol='triangle-up', color='red', size=10),
+                text=buy_pts['TD_Buy_Setup'].astype(str),
+                textposition="bottom center"
+            ), row=1, col=1)
+
+    if 'TD_Sell_Setup' in plot_df.columns:
+        # Sell 9 (Triangle Down, Green)
+        sell_mask = (plot_df['TD_Sell_Setup'] == 9) | (plot_df['TD_Sell_Setup'] == 13)
+        sell_pts = plot_df[sell_mask]
+        if not sell_pts.empty:
+            fig.add_trace(go.Scatter(
+                x=sell_pts.index, y=sell_pts['High'] * 1.01,
+                mode='markers+text', name='TD Sell 9',
+                marker=dict(symbol='triangle-down', color='green', size=10),
+                text=sell_pts['TD_Sell_Setup'].astype(str),
+                textposition="top center"
+            ), row=1, col=1)
+
+    # 4. Volume Chart
+    if use_volume:
+        # Color based on Close change (Standard Taiwan: Red if Close > Open, Green otherwise. 
+        # Actually usually Close > PrevClose, but candlestick convention is often Close > Open)
+        # Check standard: usually matches candle color.
+        colors_vol = ['red' if row['Close'] >= row['Open'] else 'green' for i, row in plot_df.iterrows()]
+        
+        fig.add_trace(go.Bar(
+            x=plot_df.index, 
+            y=plot_df['Volume'],
+            name='成交量',
+            marker_color=colors_vol
+        ), row=2, col=1)
+
+    # Layout Configuration
+    fig.update_layout(
+        title=dict(text=f"{ticker} - {title_suffix} ({timeframe_label})", x=0.5), # Centered title
+        xaxis_rangeslider_visible=False,
+        hovermode='x unified', # This creates the "all info at top/unified box" effect
+        height=600 if use_volume else 450,
+        margin=dict(l=50, r=50, t=50, b=50),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    # Y-axis formatting
+    fig.update_yaxes(title_text="Price", row=1, col=1)
+    if use_volume:
+        fig.update_yaxes(title_text="Volume", row=2, col=1)
+    
+    # Remove weekends gaps (Optional - Plotly default treats x as continuous time if it detects dates)
+    # Depending on preference, one might want to treat it as category to remove gaps.
+    # But that messes up ticks sometimes. 
+    # Providing a rangebreaks arg is the standard Plotly way for stocks.
+    
+    # Simple logic to hide weekends/holidays if gaps are large:
+    # fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])]) 
+    # But Taiwanese market has specific holidays, sticking to default timedate axis is safer unless requested.
+    # To strictly follow "Equal Spacing" like mplfinance (removing gaps):
+    # We can use type='category' for x-axis, BUT we need to format tick labels carefully.
+    
+    # Let's try type='date' first (default). 
+    # If the user complains about gaps, we fix it later. 
+    # Usually "hover date" is requested, so keeping real dates is good.
 
     return fig
 
