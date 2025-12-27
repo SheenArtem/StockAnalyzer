@@ -662,6 +662,7 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         # Filter where patterns are found
         bullish_pats = pat_df[pat_df['Pattern_Type'] == 'Bullish']
         bearish_pats = pat_df[pat_df['Pattern_Type'] == 'Bearish']
+        neutral_pats = pat_df[pat_df['Pattern_Type'] == 'Neutral']
         
         # Bullish Markers (Purple Triangle Up)
         if not bullish_pats.empty:
@@ -689,6 +690,22 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
                 marker=dict(symbol='triangle-down', size=8, color='orange'),
                 name='Bearish Pattern',
                 text=bearish_pats['Pattern'],
+                hovertemplate='%{x}<br>Pattern: %{text}<extra></extra>'
+            ), row=1, col=1)
+
+        # Neutral Markers (Yellow Diamond)
+        if not neutral_pats.empty:
+             neutral_marker_y = plot_df.loc[neutral_pats.index, 'High'] * 1.01 # Slightly above high like bearish? or on top?
+             # Let's put equal to High * 1.005
+             neutral_marker_y = plot_df.loc[neutral_pats.index, 'High'] * 1.005
+             
+             fig.add_trace(go.Scatter(
+                x=neutral_pats.index,
+                y=neutral_marker_y,
+                mode='markers',
+                marker=dict(symbol='diamond', size=6, color='yellow'),
+                name='Neutral Pattern',
+                text=neutral_pats['Pattern'],
                 hovertemplate='%{x}<br>Pattern: %{text}<extra></extra>'
             ), row=1, col=1)
             

@@ -573,6 +573,9 @@ class TechnicalAnalyzer:
         pp_body_bottom = min(pp['Open'], pp['Close'])
         is_gap_down = p_body_top < pp_body_bottom
         
+        # Define is_star_p (missing in previous edit)
+        is_star_p = body_p < 0.5 * avg_body
+
         # 3. 今天長紅反擊
         micpoint_pp = (pp['Open'] + pp['Close']) / 2
         
