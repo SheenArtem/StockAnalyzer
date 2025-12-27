@@ -553,6 +553,13 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     # Colors: Up=Red, Down=Green (Taiwan Style)
     # Plotly default: increasing.line.color, decreasing.line.color
     
+    # Create Custom Hover Text (to force Chinese labels in Unified Mode)
+    # Unified mode usually ignores hovertemplate header/labels, so we pass the whole block as 'text'
+    custom_hover_text = [
+        f"日期: {idx}<br>開盤: {o:.2f}<br>最高: {h:.2f}<br>最低: {l:.2f}<br>收盤: {c:.2f}"
+        for idx, o, h, l, c in zip(plot_df.index, plot_df['Open'], plot_df['High'], plot_df['Low'], plot_df['Close'])
+    ]
+
     fig.add_trace(go.Candlestick(
         x=plot_df.index,
         open=plot_df['Open'],
@@ -560,18 +567,12 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         low=plot_df['Low'],
         close=plot_df['Close'],
         name='K線',
+        text=custom_hover_text, # [FIX] Pass custom localized text
         increasing_line_color='red', 
         decreasing_line_color='green',
         increasing_fillcolor='red', # Optional: fill body
         decreasing_fillcolor='green',
-        hovertemplate=(
-            "<b>日期: %{x}</b><br>"
-            "開盤: %{open:.2f}<br>"
-            "最高: %{high:.2f}<br>"
-            "最低: %{low:.2f}<br>"
-            "收盤: %{close:.2f}<br>"
-            "<extra></extra>"
-        )
+        hovertemplate="%{text}<extra></extra>" # [FIX] Override default unified content
     ), row=1, col=1)
 
     # 2. Indicators (MA, BB, etc.) - Only add if they exist
@@ -723,7 +724,7 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     fig.update_layout(
         title=dict(text=f"{ticker} - {title_suffix} ({timeframe_label})", x=0.5), # Centered title
         xaxis_rangeslider_visible=False,
-        hovermode='x', # Changed from 'x unified' to 'x' to respect custom hovertemplate and language
+        hovermode='x unified', # Reverted to unified for single-box UI
         height=600 if use_volume else 450,
         margin=dict(l=50, r=50, t=50, b=50),
         legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
