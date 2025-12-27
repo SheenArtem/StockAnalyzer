@@ -50,7 +50,13 @@ def get_fundamentals(ticker):
             'Sector': info.get('sector', 'N/A'),
             'Industry': info.get('industry', 'N/A'),
             'Website': info.get('website', 'N/A'),
-            'Business Summary': info.get('longBusinessSummary', 'No summary available.')
+            'Business Summary': info.get('longBusinessSummary', 'No summary available.'),
+            # Placeholder for new fields
+            'Revenue YoY': 'N/A',
+            'Monthly Revenue': 'N/A',
+            'Cash Dividend': 'N/A', 
+            'Stock Dividend': 'N/A',
+            'Payout Ratio': 'N/A'
         }
 
         # [PATCH] 如果是台股，嘗試用 FinMind 覆蓋數據
@@ -59,7 +65,10 @@ def get_fundamentals(ticker):
              if tw_data:
                  print(f"✅ 使用 FinMind 數據覆蓋台股基本面: {stock_id}")
                  if tw_data.get('PE Ratio') != 'N/A': data['PE Ratio'] = tw_data['PE Ratio']
+                 if tw_data.get('PE Ratio') != 'N/A': data['PE Ratio'] = tw_data['PE Ratio']
                  if tw_data.get('PB Ratio') != 'N/A': data['PB Ratio'] = tw_data['PB Ratio']
+                 if tw_data.get('Dividend Yield') != 'N/A': 
+                     data['Dividend Yield'] = f"{tw_data['Dividend Yield']:.2f}%" # Format here
                  # 嘗試計算 EPS (Close / PE)
                  try:
                      close_price = info.get('currentPrice') or info.get('previousClose')
@@ -76,6 +85,27 @@ def get_fundamentals(ticker):
                       if profile:
                           data['Sector'] = profile.get('sector', 'N/A')
                           data['Industry'] = profile.get('industry', 'N/A')
+                          
+                 # [PATCH] 新增：月營收成長率
+                 rev_data = get_taiwan_stock_revenue(stock_id)
+                 if rev_data:
+                     data['Monthly Revenue'] = f"{rev_data['revenue']:,.0f} (M)"
+                     data['Revenue YoY'] = f"{rev_data['yoy']:.2f}%"
+                     
+                 # [PATCH] 新增：股利政策詳情
+                 div_data = get_taiwan_stock_dividend_policy(stock_id)
+                 if div_data:
+                     data['Cash Dividend'] = f"{div_data['cash']:.2f}"
+                     data['Stock Dividend'] = f"{div_data['stock']:.2f}"
+                     # Payout Ratio? Need EPS.
+                     try:
+                         eps_val = float(data['EPS (TTM)'].split()[0])
+                         total_div = div_data['cash'] + div_data['stock']
+                         if eps_val > 0:
+                             payout = (total_div / eps_val) * 100
+                             data['Payout Ratio'] = f"{payout:.1f}%"
+                     except:
+                         pass
 
         # Handle Dividend Yield (yfinance returns decimal like 0.015 for 1.5%)
 
@@ -110,8 +140,8 @@ def get_taiwan_stock_fundamentals(stock_id):
     """
     try:
         dl = DataLoader()
-        # 取最近 10 天數據確保有最新值
-        start_date = (datetime.datetime.now() - datetime.timedelta(days=10)).strftime('%Y-%m-%d')
+        # 取最近 365 天數據確保有收盤與殖利率資料 (有些冷門股可能交易少)
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=365)).strftime('%Y-%m-%d')
         
         df = dl.taiwan_stock_per_pbr(stock_id=stock_id, start_date=start_date)
         
@@ -124,7 +154,7 @@ def get_taiwan_stock_fundamentals(stock_id):
         return {
             'PE Ratio': f"{latest['PER']:.2f}" if latest['PER'] > 0 else "N/A",
             'PB Ratio': f"{latest['PBR']:.2f}" if latest['PBR'] > 0 else "N/A",
-            'Dividend Yield': f"{latest['dividend_yield']:.2f}%" if latest['dividend_yield'] > 0 else "N/A"
+            'Dividend Yield': latest['dividend_yield'] # Return raw float for formatting
         }
     except Exception as e:
         print(f"FinMind Error: {e}")
@@ -145,4 +175,50 @@ def get_taiwan_stock_profile(stock_id):
             }
     except:
         pass
+    return None
+
+def get_taiwan_stock_revenue(stock_id):
+    """
+    從 FinMind 取得最近一月營收與年增率 (taiwan_stock_month_revenue)
+    """
+    try:
+        dl = DataLoader()
+        # 抓取近 90 天 (確保有上個月資料)
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=90)).strftime('%Y-%m-%d')
+        df = dl.taiwan_stock_month_revenue(stock_id=stock_id, start_date=start_date)
+        
+        if not df.empty:
+            latest = df.iloc[-1]
+            # rev in millions? No, unit is usually raw int
+            rev_val = latest['revenue'] / 1_000_000 # Convert to Millions
+            return {
+                'revenue': rev_val,
+                'yoy': latest['revenue_year_growth']
+            }
+    except Exception as e:
+        print(f"Revenue Error: {e}")
+    return None
+
+def get_taiwan_stock_dividend_policy(stock_id):
+    """
+    從 FinMind 取得最近一年股利政策 (taiwan_stock_dividend)
+    """
+    try:
+        dl = DataLoader()
+        # 股利通常一年一次，抓 2 年確保有資料
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=730)).strftime('%Y-%m-%d')
+        df = dl.taiwan_stock_dividend(stock_id=stock_id, start_date=start_date)
+        
+        if not df.empty:
+            # Sort by date
+            df['date'] = pd.to_datetime(df['date'])
+            df.sort_values('date', inplace=True)
+            latest = df.iloc[-1]
+            
+            return {
+                'cash': latest.get('CashEarningsDistribution', 0),
+                'stock': latest.get('StockEarningsDistribution', 0)
+            }
+    except Exception as e:
+        print(f"Dividend Error: {e}")
     return None
