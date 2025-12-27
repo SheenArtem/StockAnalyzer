@@ -60,6 +60,7 @@ class TechnicalAnalyzer:
         sl_low = df['Low'].iloc[-20:].min()
         sl_ma = ma20
         sl_key = sl_low # fallback
+        sl_atr = close_price - (2.0 * atr_val) if atr_val > 0 else close_price * 0.9
         
         # Determine Scenario Intent
         if code == 'A': # Active
@@ -181,7 +182,11 @@ class TechnicalAnalyzer:
             "rec_sl_method": rec_sl_method,
             "rec_sl_price": rec_sl_price,
             "rec_tp_price": rec_tp_price,
-            "tp_list": final_tp_list
+            "tp_list": final_tp_list,
+            "sl_atr": sl_atr,
+            "sl_ma": sl_ma,
+            "sl_key_candle": sl_key, # Variable name check needed
+            "sl_low": sl_low
         }
         
 
