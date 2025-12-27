@@ -317,10 +317,34 @@ def load_and_resample(source):
 
         # [Defensive] Ensure Index is DatetimeIndex (Crucial for Cache Loaded Data)
         if not isinstance(df_day.index, pd.DatetimeIndex):
+            print("⚠️ Index is NOT DatetimeIndex. Attempting conversion...")
             try:
-                df_day.index = pd.to_datetime(df_day.index)
+                # Force Coerce
+                df_day.index = pd.to_datetime(df_day.index, errors='coerce')
+                print(f"✅ Conversion Result: {type(df_day.index)}")
+                
+                # Drop NaT (invalid dates)
+                if df_day.index.isna().any():
+                     print("⚠️ Found NaT in index after conversion. Dropping...")
+                     df_day = df_day[df_day.index.notna()]
+                     
             except Exception as e:
-                print(f"⚠️ Index conversion failed: {e}")
+                print(f"❌ Index conversion failed: {e}")
+                raise ValueError(f"Index conversion failed: {e}")
+
+        # [Defensive] Ensure Columns are Numeric
+        cols_to_numeric = ['Open', 'High', 'Low', 'Close', 'Volume']
+        for col in cols_to_numeric:
+            if col in df_day.columns:
+                try:
+                    df_day[col] = pd.to_numeric(df_day[col], errors='coerce')
+                except Exception as e:
+                    print(f"⚠️ Column {col} conversion failed: {e}")
+        
+        # Clean up any rows that became NaN after coercion
+        if df_day[cols_to_numeric].isna().any().any():
+            print("⚠️ Found NaN values after numeric conversion. Dropping...")
+            df_day = df_day.dropna(subset=cols_to_numeric)
 
         # 自動生成週線
         logic = {
