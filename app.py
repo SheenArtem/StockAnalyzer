@@ -73,11 +73,11 @@ with st.sidebar:
                         st.rerun()
 
     if input_method == "股票代號 (Ticker)":
-        # 如果 session_state 有值 (剛按了載入)，就用它
-        default_val = st.session_state.get('ticker_input', '2330')
-        
+        # Initialize session state if not present
+        if 'ticker_input' not in st.session_state:
+            st.session_state['ticker_input'] = '2330'
+            
         target_ticker = st.text_input("輸入股票代號 (台股請加 .TW)", 
-                                      value=default_val, 
                                       key='ticker_input', # Bind to session state
                                       help="例如: 2330, TSM, AAPL")
     else:
