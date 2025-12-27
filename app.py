@@ -52,7 +52,7 @@ with st.sidebar:
     # Use empty container for dynamic update
     history_container = st.empty()
     
-    def render_history_list():
+    def render_history_list(suffix=""):
         cached_list = cm.list_cached_tickers()
         # Add current ticker if not in list (Immediate Feedback)
         current_input = st.session_state.get('ticker_input', '').upper()
@@ -70,6 +70,14 @@ with st.sidebar:
                 display_list.append(t)
                 seen.add(t)
                 
+        # Clear container before rendering (though .container() appends, st.empty() allows replacing the whole block)
+        # But here we want to replace the *content* of the container.
+        # Actually with st.empty(), calling .container() creates a context. 
+        # Writing multiple times to the *same* container context appends.
+        # Writing to the *same placeholder* replaces.
+        # So we should use `with history_container:` instead of `with history_container.container():` if we want replacement behavior?
+        # Actually, let's just Stick to the suffix fix which solves the Key Error.
+        
         with history_container.container():
             with st.expander("🕒 歷史紀錄管理", expanded=False):
                 if not display_list:
@@ -81,18 +89,19 @@ with st.sidebar:
                             st.write(f"**{past_ticker}**")
                         
                         with c2:
-                            if st.button("載入", key=f"load_{past_ticker}"):
+                            # Use suffix to avoid DuplicateKeyID
+                            if st.button("載入", key=f"load_{past_ticker}_{suffix}"):
                                 st.session_state['ticker_input'] = past_ticker
-                                st.rerun() # Rerun to update the input box immediately
+                                st.rerun() 
                         
                         with c3:
-                            if st.button("刪除", key=f"del_{past_ticker}"):
+                            if st.button("刪除", key=f"del_{past_ticker}_{suffix}"):
                                 cm.delete_ticker_cache(past_ticker)
                                 st.toast(f"🗑️ 已刪除 {past_ticker}", icon="🗑️")
                                 st.rerun()
 
     # Initial Render
-    render_history_list()
+    render_history_list("init")
 
     if input_method == "股票代號 (Ticker)":
         # 如果 session_state 有值 (剛按了載入)，就用它
@@ -194,7 +203,7 @@ if run_btn or force_btn:
     # [NEW] Immediate History Update
     st.session_state['is_running'] = True
     # Re-render history list to include the current ticker immediately
-    render_history_list()
+    render_history_list("run")
     
     status_text = st.empty()
     action_text = "強制下載" if is_force else "分析"
@@ -220,7 +229,7 @@ if run_btn or force_btn:
         # ==========================================
         
         # [NEW] Re-render again to confirm file is saved (since run_analysis saves cache)
-        render_history_list()
+        render_history_list("done")
 
         # ==========================================
         # 顯示基本面資訊 (Fundamentals) - Moved to Header Area
