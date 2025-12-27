@@ -520,6 +520,13 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     bars = 100 if timeframe_label == 'Weekly' else 120
     plot_df = df.tail(bars).copy()
     
+    # [FIX] 1. Remove empty rows (essential for Weekly resampled data) to prevents gaps
+    plot_df = plot_df.dropna(subset=['Close'])
+    
+    # [FIX] 2. Format Date Index to String (YYYY-MM-DD) removes HH:MM:SS
+    if isinstance(plot_df.index, pd.DatetimeIndex):
+        plot_df.index = plot_df.index.strftime('%Y-%m-%d')
+
     # Check volume
     use_volume = True
     if 'Volume' not in plot_df.columns:
