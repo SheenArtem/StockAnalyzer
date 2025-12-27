@@ -261,13 +261,13 @@ def load_and_resample(source, force_update=False):
                 # 嘗試 1: .TW (上市)
                 try_ticker = f"{raw_input}.TW"
                 print(f"📥 嘗試下載 {try_ticker} (yfinance)...")
-                df_day = yf.download(try_ticker, period='3y', interval='1d', progress=False)
+                df_day = yf.download(try_ticker, period='3y', interval='1d', progress=False, auto_adjust=False)
                 
                 if df_day.empty:
                     # 嘗試 2: .TWO (上櫃)
                     try_ticker = f"{raw_input}.TWO"
                     print(f"📥 嘗試下載 {try_ticker} (yfinance)...")
-                    df_day = yf.download(try_ticker, period='3y', interval='1d', progress=False)
+                    df_day = yf.download(try_ticker, period='3y', interval='1d', progress=False, auto_adjust=False)
                     
                 if df_day.empty:
                     # 嘗試 3: FinMind (Fallback)
@@ -284,7 +284,7 @@ def load_and_resample(source, force_update=False):
                 # 2. 非純數字 (如 TSM, AAPL)，直接透過 yfinance
                 ticker_name = raw_input
                 print(f"📥 正在下載 {ticker_name} (yfinance)...")
-                df_day = yf.download(ticker_name, period='3y', interval='1d', progress=False)
+                df_day = yf.download(ticker_name, period='3y', interval='1d', progress=False, auto_adjust=False)
                 stock_meta['name'] = ticker_name
             
             # [CACHE] Save to Cache
@@ -584,7 +584,8 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
                 x=plot_df.index, y=plot_df[ma_name],
                 mode='lines', name=ma_name,
                 line=dict(color=color, width=1),
-                hovertemplate=f'{ma_name}: %{{y:.2f}}<extra></extra>'
+                hovertemplate=f'{ma_name}: %{{y:.2f}}<extra></extra>',
+                connectgaps=True # [FIX] Bridge gaps
             ), row=1, col=1)
 
     # Bollinger Bands
@@ -594,14 +595,16 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
             mode='lines', name='BB_Up',
             line=dict(color='red', width=1.5), # Solid, Red, Thicker
             hovertemplate='BB_Up: %{y:.2f}<extra></extra>',
-            showlegend=True
+            showlegend=True,
+            connectgaps=True # [FIX] Bridge gaps
         ), row=1, col=1)
         fig.add_trace(go.Scatter(
             x=plot_df.index, y=plot_df['BB_Lo'],
             mode='lines', name='BB_Lo',
             line=dict(color='green', width=1.5), # Solid, Green, Thicker
             hovertemplate='BB_Lo: %{y:.2f}<extra></extra>',
-            showlegend=True
+            showlegend=True,
+            connectgaps=True # [FIX] Bridge gaps
         ), row=1, col=1)
 
     # Ichimoku Removed per user request
@@ -720,11 +723,14 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     fig.update_layout(
         title=dict(text=f"{ticker} - {title_suffix} ({timeframe_label})", x=0.5), # Centered title
         xaxis_rangeslider_visible=False,
-        hovermode='x unified', # This creates the "all info at top/unified box" effect
+        hovermode='x', # Changed from 'x unified' to 'x' to respect custom hovertemplate and language
         height=600 if use_volume else 450,
         margin=dict(l=50, r=50, t=50, b=50),
         legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
     )
+    
+    # Enable Spikelines for better "Ruler" feel in standard hover mode
+    fig.update_xaxes(showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='dash')
 
     # Y-axis formatting
     fig.update_yaxes(title_text="Price", row=1, col=1)
