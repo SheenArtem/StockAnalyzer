@@ -6,7 +6,7 @@ class ChipAnalyzer:
     def __init__(self):
         self.dl = DataLoader()
 
-    def get_chip_data(self, ticker):
+    def get_chip_data(self, ticker, force_update=False):
         """
         取得籌碼面數據 (三大法人 + 融資融券)
         """
@@ -27,8 +27,8 @@ class ChipAnalyzer:
         cache_key_inst = f"{stock_id}_inst"
         cache_key_margin = f"{stock_id}_margin"
         
-        df_inst, hit_inst = cm.load_cache(cache_key_inst, 'chip')
-        df_margin, hit_margin = cm.load_cache(cache_key_margin, 'chip')
+        df_inst, hit_inst = cm.load_cache(cache_key_inst, 'chip', force_reload=force_update)
+        df_margin, hit_margin = cm.load_cache(cache_key_margin, 'chip', force_reload=force_update)
         
         if hit_inst and hit_margin:
             print(f"⚡ [Cache Hit] 讀取 {stock_id} 籌碼快取")
