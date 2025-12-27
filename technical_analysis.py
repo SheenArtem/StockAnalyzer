@@ -436,8 +436,8 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     add_plot_safe("MA60", plot_df['MA60'], color='black', width=1.5)
     add_plot_safe("BB_Up", plot_df['BB_Up'], color='gray', linestyle='--', alpha=0.5)
     add_plot_safe("BB_Lo", plot_df['BB_Lo'], color='gray', linestyle='--', alpha=0.5)
-    add_plot_safe("Tenkan", plot_df['Tenkan'], color='cyan', linestyle=':', width=0.8)
-    add_plot_safe("Kijun", plot_df['Kijun'], color='brown', linestyle=':', width=0.8)
+    # add_plot_safe("Tenkan", plot_df['Tenkan'], color='cyan', linestyle=':', width=0.8) # Removed per user request
+    # add_plot_safe("Kijun", plot_df['Kijun'], color='brown', linestyle=':', width=0.8) # Removed per user request
     add_plot_safe("ATR_Stop", plot_df['ATR_Stop'], color='purple', type='scatter', markersize=6, marker='_')
 
     # Magic Nine (TD Sequential) Markers
@@ -577,38 +577,20 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         fig.add_trace(go.Scatter(
             x=plot_df.index, y=plot_df['BB_Up'],
             mode='lines', name='BB_Up',
-            line=dict(color='gray', width=1, dash='dash'),
+            line=dict(color='red', width=1.5), # Solid, Red, Thicker
             hovertemplate='BB_Up: %{y:.2f}<extra></extra>',
             showlegend=True
         ), row=1, col=1)
         fig.add_trace(go.Scatter(
             x=plot_df.index, y=plot_df['BB_Lo'],
             mode='lines', name='BB_Lo',
-            line=dict(color='gray', width=1, dash='dash'),
-            fill='tonexty', # Fill area between BB_Up and BB_Lo? No, need order.
-            # Plotly fills to previous trace. 
-            # Simplified: Just lines or explicitly fill. 
-            # To fill properly: add Lo first, then Up with fill='tonexty'
-            # Let's just show lines to avoid clutter
+            line=dict(color='green', width=1.5), # Solid, Green, Thicker
             hovertemplate='BB_Lo: %{y:.2f}<extra></extra>',
             showlegend=True
         ), row=1, col=1)
 
-    # Ichimoku (Tenkan/Kijun)
-    if 'Tenkan' in plot_df.columns:
-        fig.add_trace(go.Scatter(
-            x=plot_df.index, y=plot_df['Tenkan'],
-            mode='lines', name='Tenkan',
-            line=dict(color='cyan', width=1, dash='dot'),
-            hovertemplate='Tenkan: %{y:.2f}<extra></extra>'
-        ), row=1, col=1)
-    if 'Kijun' in plot_df.columns:
-        fig.add_trace(go.Scatter(
-            x=plot_df.index, y=plot_df['Kijun'],
-            mode='lines', name='Kijun',
-            line=dict(color='brown', width=1, dash='dot'),
-            hovertemplate='Kijun: %{y:.2f}<extra></extra>'
-        ), row=1, col=1)
+    # Ichimoku Removed per user request
+    # if 'Tenkan' in plot_df.columns: ...
 
     # ATR Stop
     if 'ATR_Stop' in plot_df.columns:
@@ -616,7 +598,8 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
             x=plot_df.index, y=plot_df['ATR_Stop'],
             mode='markers', name='ATR_Stop',
             marker=dict(symbol='line-ew', color='purple', size=10, line=dict(width=2)),
-            hovertemplate='ATR_Stop: %{y:.2f}<extra></extra>'
+            hovertemplate='ATR_Stop: %{y:.2f}<extra></extra>',
+            visible='legendonly' # Hidden by default per user request
         ), row=1, col=1)
     
     # 3. Magic Nine Markers
