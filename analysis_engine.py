@@ -61,11 +61,17 @@ class TechnicalAnalyzer:
         sl_ma = ma20
         sl_key = sl_low # fallback
         sl_atr = close_price - (2.0 * atr_val) if atr_val > 0 else close_price * 0.9
+        sl_key_candle = sl_low # Default for key candle if logic complex
+
+        # Default S/L Method
+        rec_sl_method = "ATR 波動停損 (科學)" # Updated simplified name logic later if needed
+        rec_sl_price = 0
         
         # Determine Scenario Intent
         if code == 'A': # Active
             is_actionable = True
             if close_price > ma5 * 1.05:
+                # ... (rest of logic same)
                 rec_entry_low, rec_entry_high = ma10, ma5
                 rec_entry_desc = "等待拉回 (5MA-10MA)"
                 entry_basis = ma5
@@ -91,6 +97,7 @@ class TechnicalAnalyzer:
             rec_entry_desc = "抄底區間 (前低-布林下)"
             entry_basis = rec_entry_high
             strategy_text = "⚠️ **搶反彈**：逆勢操作風險高的。建議在布林下緣或前低嘗試。"
+            rec_sl_method = "波段低點停損 (形態)" # Override default
 
         elif code == 'D':
             is_actionable = False
@@ -106,17 +113,35 @@ class TechnicalAnalyzer:
                 "is_actionable": False,
                 "rec_entry_low": 0, "rec_entry_high": 0, "rec_entry_desc": "",
                 "rec_tp_price": 0, "rec_sl_price": 0,
-                "tp_list": []
+                "tp_list": [],
+                # [FIX] Populate missing S/L keys for UI display
+                "rec_sl_method": "N/A", # Or rec_sl_method
+                "sl_atr": sl_atr,
+                "sl_ma": sl_ma,
+                "sl_key_candle": sl_key_candle,
+                "sl_low": sl_low
             }
             
         # --- Logic continues ONLY if actionable ---
         
         # 1. Stop Loss (Based on Entry)
-        rec_sl_method = "ATR 波動停損"
+        # Recalculate based on Entry Basis
         rec_sl_price = entry_basis - (2.0 * atr_val) if atr_val > 0 else entry_basis * 0.9
-        if code == 'C' and sl_low < entry_basis:
-             rec_sl_method = "波段低點停損"
-             rec_sl_price = sl_low * 0.99
+        
+        # Update Method Name to match UI exact string
+        if code == 'C':
+             # Already set above to match UI? 
+             # UI expects: "A. ATR 波動停損 (科學)", "D. 波段低點停損 (形態)"
+             # Let's map it
+             pass 
+             
+        # Map simple method string to UI full string
+        if "ATR" in rec_sl_method:
+             rec_sl_method = "A. ATR 波動停損 (科學)"
+        elif "波段" in rec_sl_method:
+             rec_sl_method = "D. 波段低點停損 (形態)"
+        else:
+             rec_sl_method = "A. ATR 波動停損 (科學)" # Default
         
         # 2. Take Profit (Based on Entry)
         recent_high_20 = df['High'].iloc[-20:].max()
