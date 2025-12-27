@@ -220,7 +220,7 @@ def fetch_from_finmind(stock_id):
         print(f"❌ FinMind Download Error: {e}")
         return pd.DataFrame()
 
-def load_and_resample(source):
+def load_and_resample(source, force_update=False):
     """
     智慧數據載入器：
     1. 若輸入是字串 (Ticker) -> 智慧抓取 (.TW -> .TWO -> FinMind)
@@ -241,7 +241,7 @@ def load_and_resample(source):
         
         # 1. 嘗試讀取快取 (Price Data)
         # Note: We use 'raw_input' as key for simplicity first
-        cached_df, is_hit = cm.load_cache(raw_input, 'price')
+        cached_df, is_hit = cm.load_cache(raw_input, 'price', force_reload=force_update)
         
         if is_hit and not cached_df.empty:
             print(f"⚡ [Cache Hit] 讀取 {raw_input} 本地快取")
@@ -360,12 +360,12 @@ def load_and_resample(source):
 # 修改後的主程式：支援 CSV 與 Ticker
 # ==========================================
 
-def plot_dual_timeframe(source):
+def plot_dual_timeframe(source, force_update=False):
     """
     主程式：接受 '代號' 或 'DataFrame' 進行雙週期分析
     """
     # 1. 呼叫智慧載入器
-    ticker, df_day, df_week, stock_meta = load_and_resample(source)
+    ticker, df_day, df_week, stock_meta = load_and_resample(source, force_update=force_update)
     
     # 檢查是否有數據
     if df_day.empty:
