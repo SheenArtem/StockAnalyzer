@@ -37,15 +37,32 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.45")
+    st.caption("Version: v2025.12.25.46")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
     target_ticker = "2330" # 預設值
     uploaded_file = None
     
+    # [NEW] Search History
+    from cache_manager import CacheManager
+    cm = CacheManager()
+    cached_list = cm.list_cached_tickers()
+    
+    # 讓使用者選擇歷史紀錄
+    selected_history = None
+    if cached_list:
+        # Insert a placeholder so it doesn't auto-select the first one immediately
+        options = ["(選擇歷史紀錄)"] + cached_list
+        selected_history = st.selectbox("🕒 搜尋歷史 (已快取)", options, index=0)
+
     if input_method == "股票代號 (Ticker)":
-        target_ticker = st.text_input("輸入股票代號 (台股請加 .TW)", value="2330", help="例如: 2330, TSM, AAPL")
+        # 如果使用者選了歷史紀錄，就自動帶入
+        default_val = "2330"
+        if selected_history and selected_history != "(選擇歷史紀錄)":
+            default_val = selected_history
+            
+        target_ticker = st.text_input("輸入股票代號 (台股請加 .TW)", value=default_val, help="例如: 2330, TSM, AAPL")
     else:
         uploaded_file = st.file_uploader("上傳股票 CSV", type=['csv'])
 
