@@ -235,36 +235,58 @@ def load_and_resample(source):
     if isinstance(source, str):
         raw_input = source.strip()
         
-        # 1. 如果是純數字，啟動智慧判斷序列
-        if raw_input.isdigit():
-            # 嘗試 1: .TW (上市)
-            try_ticker = f"{raw_input}.TW"
-            print(f"📥 嘗試下載 {try_ticker} (yfinance)...")
-            df_day = yf.download(try_ticker, period='3y', interval='1d', progress=False)
+        # [CACHE] Initialize Cache Manager
+        from cache_manager import CacheManager
+        cm = CacheManager()
+        
+        # 1. 嘗試讀取快取 (Price Data)
+        # Note: We use 'raw_input' as key for simplicity first
+        cached_df, is_hit = cm.load_cache(raw_input, 'price')
+        
+        if is_hit and not cached_df.empty:
+            print(f"⚡ [Cache Hit] 讀取 {raw_input} 本地快取")
+            df_day = cached_df
+            ticker_name = raw_input
+            # Meta data might be missing in cache-only mode, so we might need to re-fetch meta or cache meta too.
+            # Simple fix: Re-fetch meta only (fast) or stick to basic meta.
+            stock_meta = get_stock_info_smart(ticker_name)
             
-            if df_day.empty:
-                # 嘗試 2: .TWO (上櫃)
-                try_ticker = f"{raw_input}.TWO"
+        else:
+            # Cache Miss - Start Download
+            # 1. 如果是純數字，啟動智慧判斷序列
+            if raw_input.isdigit():
+                # 嘗試 1: .TW (上市)
+                try_ticker = f"{raw_input}.TW"
                 print(f"📥 嘗試下載 {try_ticker} (yfinance)...")
                 df_day = yf.download(try_ticker, period='3y', interval='1d', progress=False)
                 
-            if df_day.empty:
-                # 嘗試 3: FinMind (Fallback)
-                print(f"⚠️ yfinance 無數據，切換至 FinMind API...")
-                df_day = fetch_from_finmind(raw_input)
-                ticker_name = raw_input # FinMind 只用數字
+                if df_day.empty:
+                    # 嘗試 2: .TWO (上櫃)
+                    try_ticker = f"{raw_input}.TWO"
+                    print(f"📥 嘗試下載 {try_ticker} (yfinance)...")
+                    df_day = yf.download(try_ticker, period='3y', interval='1d', progress=False)
+                    
+                if df_day.empty:
+                    # 嘗試 3: FinMind (Fallback)
+                    print(f"⚠️ yfinance 無數據，切換至 FinMind API...")
+                    df_day = fetch_from_finmind(raw_input)
+                    ticker_name = raw_input # FinMind 只用數字
+                else:
+                    ticker_name = try_ticker
+                    
+                # 取得台股中文資訊
+                stock_meta = get_stock_info_smart(ticker_name)
+    
             else:
-                ticker_name = try_ticker
-                
-            # 取得台股中文資訊
-            stock_meta = get_stock_info_smart(ticker_name)
-
-        else:
-            # 2. 非純數字 (如 TSM, AAPL)，直接透過 yfinance
-            ticker_name = raw_input
-            print(f"📥 正在下載 {ticker_name} (yfinance)...")
-            df_day = yf.download(ticker_name, period='3y', interval='1d', progress=False)
-            stock_meta['name'] = ticker_name
+                # 2. 非純數字 (如 TSM, AAPL)，直接透過 yfinance
+                ticker_name = raw_input
+                print(f"📥 正在下載 {ticker_name} (yfinance)...")
+                df_day = yf.download(ticker_name, period='3y', interval='1d', progress=False)
+                stock_meta['name'] = ticker_name
+            
+            # [CACHE] Save to Cache
+            if not df_day.empty:
+                 cm.save_cache(raw_input, df_day, 'price')
 
     # 情境 B: 傳入的是 CSV 資料 (DataFrame)
     elif isinstance(source, pd.DataFrame):
