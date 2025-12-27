@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.44 (Cache Fix)")
+    st.caption("Version: v2025.12.25.45")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -327,7 +327,8 @@ if run_btn:
                 st.warning("⚠️ 無法產生日線圖表 (請查看上方錯誤訊息)")
 
         with tab3:
-            if source and isinstance(source, str) and "TW" in source:
+            # 寬鬆判斷：只要是字串且 (含TW 或 純數字) 都嘗試顯示籌碼
+            if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
                  # 嘗試抓取籌碼數據
                  try:
                      st.info(f"⏳ 正在抓取 {display_ticker} 近一年籌碼數據 (FinMind)...")
