@@ -721,15 +721,18 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     # But that messes up ticks sometimes. 
     # Providing a rangebreaks arg is the standard Plotly way for stocks.
     
-    # Simple logic to hide weekends/holidays if gaps are large:
-    fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])]) 
-    # But Taiwanese market has specific holidays, sticking to default timedate axis is safer unless requested.
-    # To strictly follow "Equal Spacing" like mplfinance (removing gaps):
-    # We can use type='category' for x-axis, BUT we need to format tick labels carefully.
+    # 2025-12-27 User Request: Fix gaps. Use Category Axis.
+    # We must ensure x-axis is discrete categories (Strings) to strictly remove gaps.
+    # Plotly 'category' axis treats every point as equal width.
+    # Update: Format index to strings for cleaner hover
+    # plot_df.index = plot_df.index.strftime('%Y-%m-%d') # Don't mutate original DF index globally if reused?
+    # Actually plot_df is a copy (.tail().copy()), so it's safe.
     
-    # Let's try type='date' first (default). 
-    # If the user complains about gaps, we fix it later. 
-    # Usually "hover date" is requested, so keeping real dates is good.
+    fig.update_xaxes(
+        type='category', 
+        tickmode='auto',
+        nticks=20 # Limit ticks to avoid clutter
+    )
 
     return fig
 
