@@ -38,7 +38,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.27.02")
+    st.caption("Version: v2025.12.27.03")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -459,23 +459,32 @@ if run_btn or force_btn or auto_run:
                              def get_color(val): return 'red' if val > 0 else 'green'
                              
                              # --- Row 1: Institutional Investors ---
+                             # Data in FinMind is 'Shares' (股). Convert to 'Zhang' (張) = Shares / 1000
+                             
                              # Foreign
                              if '外資' in df_inst_plot.columns:
+                                 # Convert to Zhang
+                                 val_zhang = df_inst_plot['外資'] / 1000
                                  fig_chip.add_trace(go.Bar(
-                                     x=df_inst_plot.index, y=df_inst_plot['外資'],
-                                     name='外資', marker_color='orange'
+                                     x=df_inst_plot.index, y=val_zhang,
+                                     name='外資', marker_color='orange',
+                                     hovertemplate="外資: %{y:,.0f} 張<extra></extra>"
                                  ), row=1, col=1)
                              # Trust
                              if '投信' in df_inst_plot.columns:
+                                 val_zhang = df_inst_plot['投信'] / 1000
                                  fig_chip.add_trace(go.Bar(
-                                     x=df_inst_plot.index, y=df_inst_plot['投信'],
-                                     name='投信', marker_color='red'
+                                     x=df_inst_plot.index, y=val_zhang,
+                                     name='投信', marker_color='red',
+                                     hovertemplate="投信: %{y:,.0f} 張<extra></extra>"
                                  ), row=1, col=1)
                              # Dealer
                              if '自營商' in df_inst_plot.columns:
+                                 val_zhang = df_inst_plot['自營商'] / 1000
                                  fig_chip.add_trace(go.Bar(
-                                     x=df_inst_plot.index, y=df_inst_plot['自營商'],
-                                     name='自營商', marker_color='blue'
+                                     x=df_inst_plot.index, y=val_zhang,
+                                     name='自營商', marker_color='blue',
+                                     hovertemplate="自營商: %{y:,.0f} 張<extra></extra>"
                                  ), row=1, col=1)
                                  
                              # --- Row 2: Margin Trading ---
@@ -485,14 +494,21 @@ if run_btn or force_btn or auto_run:
                              if not common_idx.empty:
                                  df_margin_aligned = df_margin.loc[common_idx]
                                  
+                                 # Margin is usually also in Shares? FinMind units: usually Shares for Balance
+                                 # Convert to Zhang as well for consistency
+                                 margin_zhang = df_margin_aligned['融資餘額'] / 1000
+                                 short_zhang = df_margin_aligned['融券餘額'] / 1000
+
                                  fig_chip.add_trace(go.Scatter(
-                                     x=df_margin_aligned.index, y=df_margin_aligned['融資餘額'],
-                                     name='融資餘額', mode='lines', line=dict(color='red', width=2)
+                                     x=df_margin_aligned.index, y=margin_zhang,
+                                     name='融資餘額', mode='lines', line=dict(color='red', width=2),
+                                     hovertemplate="融資: %{y:,.0f} 張<extra></extra>"
                                  ), row=2, col=1)
                                  
                                  fig_chip.add_trace(go.Scatter(
-                                     x=df_margin_aligned.index, y=df_margin_aligned['融券餘額'],
-                                     name='融券餘額', mode='lines', line=dict(color='green', width=2)
+                                     x=df_margin_aligned.index, y=short_zhang,
+                                     name='融券餘額', mode='lines', line=dict(color='green', width=2),
+                                     hovertemplate="融券: %{y:,.0f} 張<extra></extra>"
                                  ), row=2, col=1)
 
                              # Layout
@@ -500,8 +516,9 @@ if run_btn or force_btn or auto_run:
                                  height=600,
                                  hovermode='x unified', # Key requirement: Unified Hover
                                  barmode='group',
-                                 margin=dict(l=10, r=10, t=30, b=10),
-                                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                                 margin=dict(l=10, r=10, t=10, b=10), # Reduced Top Margin
+                                 # Move Legend to Bottom to avoid overlap with Modebar/Title Hover
+                                 legend=dict(orientation="h", yanchor="top", y=-0.05, xanchor="center", x=0.5)
                              )
                              # Spikes
                              fig_chip.update_xaxes(showspikes=True, spikemode='across', spikesnap='cursor')
