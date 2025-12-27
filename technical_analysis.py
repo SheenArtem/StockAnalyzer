@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from pattern_recognition import identify_patterns
 
 def calculate_all_indicators(df):
     """
@@ -653,6 +654,47 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
             marker_color=colors_vol
         ), row=2, col=1)
 
+    # ----------------------------------------------------
+    # 7. Candlestick Patterns (Markers)
+    # ----------------------------------------------------
+    try:
+        pat_df = identify_patterns(plot_df)
+        # Filter where patterns are found
+        bullish_pats = pat_df[pat_df['Pattern_Type'] == 'Bullish']
+        bearish_pats = pat_df[pat_df['Pattern_Type'] == 'Bearish']
+        
+        # Bullish Markers (Purple Triangle Up)
+        if not bullish_pats.empty:
+            # Align with original df index to get Low prices
+            bull_marker_y = plot_df.loc[bullish_pats.index, 'Low'] * 0.99
+            
+            fig.add_trace(go.Scatter(
+                x=bullish_pats.index,
+                y=bull_marker_y,
+                mode='markers',
+                marker=dict(symbol='triangle-up', size=8, color='purple'),
+                name='Bullish Pattern',
+                text=bullish_pats['Pattern'],
+                hovertemplate='%{x}<br>Pattern: %{text}<extra></extra>'
+            ), row=1, col=1)
+
+        # Bearish Markers (Orange Triangle Down)
+        if not bearish_pats.empty:
+             bear_marker_y = plot_df.loc[bearish_pats.index, 'High'] * 1.01
+             
+             fig.add_trace(go.Scatter(
+                x=bearish_pats.index,
+                y=bear_marker_y,
+                mode='markers',
+                marker=dict(symbol='triangle-down', size=8, color='orange'),
+                name='Bearish Pattern',
+                text=bearish_pats['Pattern'],
+                hovertemplate='%{x}<br>Pattern: %{text}<extra></extra>'
+            ), row=1, col=1)
+            
+    except Exception as e:
+        print(f"Pattern Warning: {e}")
+
     # Layout Configuration
     fig.update_layout(
         title=dict(text=f"{ticker} - {title_suffix} ({timeframe_label})", x=0.5), # Centered title
@@ -674,7 +716,7 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     # Providing a rangebreaks arg is the standard Plotly way for stocks.
     
     # Simple logic to hide weekends/holidays if gaps are large:
-    # fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])]) 
+    fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])]) 
     # But Taiwanese market has specific holidays, sticking to default timedate axis is safer unless requested.
     # To strictly follow "Equal Spacing" like mplfinance (removing gaps):
     # We can use type='category' for x-axis, BUT we need to format tick labels carefully.
