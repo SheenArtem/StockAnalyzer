@@ -9,7 +9,6 @@ def get_fundamentals(ticker):
     Returns a dictionary of metrics.
     """
     try:
-    try:
         stock = yf.Ticker(ticker)
         info = stock.info
         
