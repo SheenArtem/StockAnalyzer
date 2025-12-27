@@ -563,7 +563,15 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         increasing_line_color='red', 
         decreasing_line_color='green',
         increasing_fillcolor='red', # Optional: fill body
-        decreasing_fillcolor='green'
+        decreasing_fillcolor='green',
+        hovertemplate=(
+            "<b>日期: %{x}</b><br>"
+            "開盤: %{open:.2f}<br>"
+            "最高: %{high:.2f}<br>"
+            "最低: %{low:.2f}<br>"
+            "收盤: %{close:.2f}<br>"
+            "<extra></extra>"
+        )
     ), row=1, col=1)
 
     # 2. Indicators (MA, BB, etc.) - Only add if they exist
