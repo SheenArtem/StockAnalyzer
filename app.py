@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.42")
+    st.caption("Version: v2025.12.25.43")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -49,7 +49,20 @@ with st.sidebar:
     else:
         uploaded_file = st.file_uploader("上傳股票 CSV", type=['csv'])
 
-    run_btn = st.button("🚀 開始分析", type="primary")
+    col_run, col_clear = st.columns([2, 1])
+    with col_run:
+        run_btn = st.button("🚀 開始分析", type="primary")
+    with col_clear:
+        if st.button("🧹 清除快取"):
+            try:
+                import shutil
+                import os
+                if os.path.exists("data_cache"):
+                    shutil.rmtree("data_cache")
+                    # os.makedirs("data_cache") # lazy create
+                st.toast("✅ 快取已清除！下一次分析將重新下載資料。", icon="🧹")
+            except Exception as e:
+                st.error(f"清除失敗: {e}")
 
     st.markdown("---")
 
