@@ -34,229 +34,155 @@ class TechnicalAnalyzer:
     def _generate_action_plan(self, df, scenario):
         """
         生成操作建議與風控數值
+        (2025 Refined: Entry-based SL/TP, Conditionally Actionable)
         """
         if df.empty or len(df) < 20:
             return None
             
         current = df.iloc[-1]
         close_price = current['Close']
-        
-        # 1. 停損價位計算 (Stop Loss Levels)
-        # A. ATR 波動停損 (Close - 2*ATR)
-        atr_val = current.get('ATR', 0)
-        sl_atr = close_price - (2.0 * atr_val) if atr_val > 0 else 0
-        
-        # B. 均線停損 (MA20)
-        sl_ma = current.get('MA20', 0)
-        
-        # C. 關鍵 K 線停損 (近 10 日最大量 K 線之低點)
-        recent_10 = df.iloc[-10:]
-        max_vol_idx = recent_10['Volume'].idxmax()
-        sl_key_candle = df.loc[max_vol_idx]['Low']
-        
-        # D. 前波低點停損 (近 20 日最低點)
-        sl_low = df['Low'].iloc[-20:].min()
-        
-        # 2. 停利目標預估 (Take Profit) - 智慧動態測幅
-        # 準備數據
-        recent_high_20 = df['High'].iloc[-20:].max()
-        recent_low_20 = df['Low'].iloc[-20:].min()
-        recent_high_60 = df['High'].iloc[-60:].max()
-        wave_height = recent_high_20 - recent_low_20
-        
-        # 取得長天期均線與布林
-        ma60 = current.get('MA60', 0)
-        ma120 = current.get('MA120', 0)
-        ma240 = current.get('MA240', 0)
-        bb_up = current.get('BB_Up', 0)
-        
-        # 計算籌碼大量區
-        recent_60 = df.iloc[-60:]
-        max_vol_idx = recent_60['Volume'].idxmax()
-        vol_pressure = df.loc[max_vol_idx]['High']
-        
-        # 建立所有可能的停利目標清單
-        tp_candidates = []
-        
-        # 1. 測距法 (Projection)
-        tp_candidates.append({"method": "🚀 費波南希擴張 (1.618)", "price": close_price + (wave_height * 1.618), "desc": "強勢噴出目標"})
-        tp_candidates.append({"method": "📈 N 字測量 (1.0)", "price": close_price + wave_height, "desc": "等幅測距滿足點"})
-        tp_candidates.append({"method": "📦 箱型突破 (Pattern)", "price": close_price + wave_height, "desc": "型態突破滿足點"})
-        
-        # 2. 壓力法 (Resistance)
-        if ma60 > close_price: tp_candidates.append({"method": "📉 MA60 季線", "price": ma60, "desc": "生命線反壓"})
-        if ma120 > close_price: tp_candidates.append({"method": "📉 MA120 半年線", "price": ma120, "desc": "長線反壓"})
-        if ma240 > close_price: tp_candidates.append({"method": "📉 MA240 年線", "price": ma240, "desc": "超級反壓"})
-        if vol_pressure > close_price * 1.02: tp_candidates.append({"method": "📊 籌碼大量區", "price": vol_pressure, "desc": "套牢冤魂反壓"})
-        if recent_high_60 > close_price * 1.02: tp_candidates.append({"method": "🎢 前波高點", "price": recent_high_60, "desc": "解套賣壓區"})
-        if bb_up > close_price: tp_candidates.append({"method": "🎢 布林上緣", "price": bb_up, "desc": "通道超漲壓力"})
-        
         code = scenario['code']
-        rec_method_name = ""
         
-        # 選擇 "推薦" 的邏輯
-        if code == 'A':
-            # 強勢股: 優先看 1.618 或 N 字
-            if close_price >= recent_high_20 * 0.99:
-                 if close_price > recent_high_20 * 1.05:
-                      rec_method_name = "🚀 費波南希擴張 (1.618)"
-                 else:
-                      rec_method_name = "📦 箱型突破 (Pattern)"
-            else:
-                 rec_method_name = "📈 N 字測量 (1.0)"
-                 
-        elif code == 'C':
-             # 反彈股: 優先看均線或籌碼壓力 (找最小值但 > close)
-             resistances = [t for t in tp_candidates if "反壓" in t["desc"] or "賣壓" in t["desc"] or "MA" in t["method"]]
-             if resistances:
-                 # 找出大於現價且最小的壓力
-                 valid_res = [r for r in resistances if r['price'] > close_price * 1.02]
-                 if valid_res:
-                     best_res = min(valid_res, key=lambda x: x['price'])
-                     rec_method_name = best_res['method']
-                 else:
-                     rec_method_name = "📈 N 字測量 (1.0)" # 只有這條路
-             else:
-                  rec_method_name = "📈 N 字測量 (1.0)"
-
-        elif code == 'B':
-             rec_method_name = "🎢 布林上緣" if bb_up > close_price else "🎢 前波高點"
-             
-        else: # D or N
-             rec_method_name = "🛡️ 短線 5% 停利" # Fallback
-             tp_candidates.append({"method": "🛡️ 短線 5% 停利", "price": close_price * 1.05, "desc": "搶反彈快跑"})
-
-        # 整理輸出列表 (標記推薦)
-        final_tp_list = []
-        rec_price = 0
-        
-        # 為了表格整潔，我們只選出幾個有代表性的，或全部列出？
-        # 這裡過濾掉價格 <= close 的無效壓力
-        valid_candidates = [t for t in tp_candidates if t['price'] > close_price]
-        
-        # 排序: 價格由低到高
-        valid_candidates.sort(key=lambda x: x['price'])
-        
-        for item in valid_candidates:
-            is_rec = (item['method'] == rec_method_name)
-            # 如果是反彈劇本，卻推薦了 N 字/Fib，這裡要做防呆校正
-            if is_rec: rec_price = item['price']
-            
-            final_tp_list.append({
-                "method": item['method'],
-                "price": item['price'],
-                "desc": item['desc'],
-                "is_rec": is_rec
-            })
-            
-        # 如果沒有選到 (例如推薦的壓力已經被突破)，則預設選第一個
-        if not any(item['is_rec'] for item in final_tp_list) and final_tp_list:
-            final_tp_list[0]['is_rec'] = True
-            rec_price = final_tp_list[0]['price']
-
-        # 3. 進場策略建議 (Entry Strategy)
-        strategy_text = "觀望"
-        
-        # 4. 智慧停損推薦 (Smart Stop Loss)
-        # 根據劇本與價格位置，推薦最適合的防守點
-        # 預設
-        rec_sl_method = "A. ATR 波動停損 (科學)"
-        rec_sl_price = sl_atr
-        
-        if code == 'A':
-            # 強勢股: 守 MA20 或 關鍵K低 (比較貼近價格者，避免回吐太多)
-            # 如果 MA20 離太遠 (> 10%)，改守關鍵K
-            dist_ma = (close_price - sl_ma) / close_price
-            if dist_ma > 0.1:
-                rec_sl_method = "C. 關鍵 K 線停損 (積極)"
-                rec_sl_price = sl_key_candle
-            else:
-                rec_sl_method = "B. 均線停損 (趨勢)"
-                rec_sl_price = sl_ma
-                
-        elif code == 'B':
-            # 震盪整理: 容易洗盤，用 ATR 過濾雜訊
-            rec_sl_method = "A. ATR 波動停損 (科學)"
-            rec_sl_price = sl_atr
-            
-        elif code == 'C':
-             # 搶反彈: 絕對不能破底，守波段低點
-             rec_sl_method = "D. 波段低點停損 (形態)"
-             rec_sl_price = sl_low
-
-        elif code == 'D':
-             # 做空或觀望，守均線
-             rec_sl_method = "B. 均線停損 (趨勢)"
-             rec_sl_price = sl_ma
-
-        # Strategy Text Generation
-        if code == 'A':
-            strategy_text = "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。若回測不破 5MA 可加碼。"
-        elif code == 'B':
-            strategy_text = "⏳ **等待訊號**：多頭休息中。等待突破「下降壓力線」或「前波高點」再介入。"
-        elif code == 'C':
-            strategy_text = "⚠️ **搶反彈**：逆勢操作風險高。優先參考上方均線反壓，有獲利即跑。"
-        if code == 'D':
-            strategy_text = "🛑 **空手**：下方無支撐。若反彈無力 (量縮過不去 MA10) 可嘗試放空。"
-        else:
-            strategy_text = "💤 **觀望**：多空分歧，等待方向明確。"
-
-        # 5. 建議進場區間 (Recommended Entry Zone) - New!
-        # 根據這是一個 "範圍": Low ~ High
+        # 1. Actionability & Entry Basis
+        is_actionable = False
+        entry_basis = close_price 
         rec_entry_low = 0
         rec_entry_high = 0
         rec_entry_desc = "觀望"
+        strategy_text = "觀望"
+
+        # Indicators
+        ma5 = current.get('MA5', 0)
+        ma10 = current.get('MA10', 0)
+        ma20 = current.get('MA20', 0)
+        ma60 = current.get('MA60', 0)
+        atr_val = current.get('ATR', 0)
+        sl_low = df['Low'].iloc[-20:].min()
+        sl_ma = ma20
+        sl_key = sl_low # fallback
         
-        if code == 'A':
-            # A 強勢股: 
-            # 策略: 沿著 5MA 操作，但不追高超過 2-3%。
-            # 區間: 5MA ~ 現價 (若現價離5MA太遠，則建議 5MA~10MA)
-            ma5 = current.get('MA5', 0)
-            ma10 = current.get('MA10', 0)
-            
-            # 檢查乖離
-            if close_price > ma5 * 1.05: # 乖離過大
-                rec_entry_low = ma10
-                rec_entry_high = ma5
+        # Determine Scenario Intent
+        if code == 'A': # Active
+            is_actionable = True
+            if close_price > ma5 * 1.05:
+                rec_entry_low, rec_entry_high = ma10, ma5
                 rec_entry_desc = "等待拉回 (5MA-10MA)"
+                entry_basis = ma5
+                strategy_text = "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。"
             else:
-                rec_entry_low = ma5
-                rec_entry_high = close_price
+                rec_entry_low, rec_entry_high = ma5, close_price
                 rec_entry_desc = "積極操作 (5MA-現價)"
+                entry_basis = close_price
+                strategy_text = "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。"
                 
-        elif code == 'B':
-            # B 整理股:
-            # 策略: 拉回支撐買進。支撐通常是 20MA (月線) 或 60MA (季線)
-            # 這裡假設多頭回檔守月線
-            ma20 = current.get('MA20', 0)
-            ma60 = current.get('MA60', 0)
-            rec_entry_low = ma60 if ma60 < ma20 else ma20 * 0.98 # 往下抓一點緩衝
-            rec_entry_high = ma20
+        elif code == 'B': # Pullback (Actionable Limit Buy)
+            is_actionable = True
+            support = ma60 if ma60 < ma20 else ma20
+            rec_entry_low, rec_entry_high = support * 0.98, support * 1.02
             rec_entry_desc = "回測支撐 (月季線)"
-            
-        elif code == 'C':
-            # C 搶反彈:
-            # 策略: 接近波段低點或布林下緣
+            entry_basis = support
+            strategy_text = "⏳ **等待訊號**：建議掛單在月季線支撐附近，不要追高。"
+
+        elif code == 'C': # Rebound
+            is_actionable = True
             bb_lo = current.get('BB_Lo', 0)
-            rec_entry_low = sl_low # 波段低點
-            rec_entry_high = bb_lo if bb_lo > sl_low else sl_low * 1.02
+            rec_entry_low, rec_entry_high = sl_low * 0.99, (bb_lo if bb_lo > sl_low else sl_low * 1.02)
             rec_entry_desc = "抄底區間 (前低-布林下)"
+            entry_basis = rec_entry_high
+            strategy_text = "⚠️ **搶反彈**：逆勢操作風險高的。建議在布林下緣或前低嘗試。"
+
+        elif code == 'D':
+            is_actionable = False
+            strategy_text = "🛑 **空手觀望**：下方無支撐，不建議進場。"
+        else:
+            is_actionable = False
+            strategy_text = "💤 **觀望**：多空分歧，等待方向明確。"
+            
+        if not is_actionable:
+             return {
+                "current_price": close_price,
+                "strategy": strategy_text,
+                "is_actionable": False,
+                "rec_entry_low": 0, "rec_entry_high": 0, "rec_entry_desc": "",
+                "rec_tp_price": 0, "rec_sl_price": 0,
+                "tp_list": []
+            }
+            
+        # --- Logic continues ONLY if actionable ---
+        
+        # 1. Stop Loss (Based on Entry)
+        rec_sl_method = "ATR 波動停損"
+        rec_sl_price = entry_basis - (2.0 * atr_val) if atr_val > 0 else entry_basis * 0.9
+        if code == 'C' and sl_low < entry_basis:
+             rec_sl_method = "波段低點停損"
+             rec_sl_price = sl_low * 0.99
+        
+        # 2. Take Profit (Based on Entry)
+        recent_high_20 = df['High'].iloc[-20:].max()
+        recent_low_20 = df['Low'].iloc[-20:].min()
+        wave_height = recent_high_20 - recent_low_20
+        bb_up = current.get('BB_Up', 0)
+        ma60 = current.get('MA60', 0)
+        ma120 = current.get('MA120', 0)
+        ma240 = current.get('MA240', 0)
+
+        tp_candidates = []
+        tp_candidates.append({"method": "N 字測量 (1.0)", "price": entry_basis + wave_height, "desc": "等幅測距"})
+        tp_candidates.append({"method": "費波南希 (1.618)", "price": entry_basis + (wave_height * 1.618), "desc": "強勢目標"})
+        
+        if ma60 > entry_basis: tp_candidates.append({"method": "MA60 季線反壓", "price": ma60, "desc": "生命線"})
+        if ma120 > entry_basis: tp_candidates.append({"method": "MA120 半年線", "price": ma120, "desc": "長線反壓"})
+        if ma240 > entry_basis: tp_candidates.append({"method": "MA240 年線", "price": ma240, "desc": "超級反壓"})
+        if bb_up > entry_basis: tp_candidates.append({"method": "布林上緣", "price": bb_up, "desc": "通道壓力"})
+        if recent_high_20 > entry_basis: tp_candidates.append({"method": "前波高點", "price": recent_high_20, "desc": "解套賣壓"})
+        
+        valid_candidates = [t for t in tp_candidates if t['price'] > entry_basis * 1.02] 
+        valid_candidates.sort(key=lambda x: x['price'])
+        
+        final_tp_list = []
+        rec_tp_price = 0
+        rec_method_name = ""
+        
+        if valid_candidates:
+            if code == 'A':
+                rec_cand = next((t for t in valid_candidates if "1.618" in t['method']), None)
+                if not rec_cand: rec_cand = next((t for t in valid_candidates if "N 字" in t['method']), None)
+                if rec_cand: rec_method_name = rec_cand['method']
+            elif code == 'B':
+                rec_cand = next((t for t in valid_candidates if "布林" in t['method']), None)
+                if rec_cand: rec_method_name = rec_cand['method']
+            
+            final_tp_list = valid_candidates
+            if rec_method_name:
+                 for t in final_tp_list:
+                     if t['method'] == rec_method_name:
+                         t['is_rec'] = True
+                         rec_tp_price = t['price']
+                         break
+            
+            if not any(t.get('is_rec') for t in final_tp_list):
+                final_tp_list[0]['is_rec'] = True
+                rec_tp_price = final_tp_list[0]['price']
+        else:
+            rec_tp_price = entry_basis * 1.1
+            final_tp_list.append({"method": "🛡️ 短線獲利", "price": rec_tp_price, "desc": "預設 10%", "is_rec": True})
 
         return {
             "current_price": close_price,
-            "sl_atr": sl_atr,
-            "sl_ma": sl_ma,
-            "sl_key_candle": sl_key_candle,
-            "sl_low": sl_low,
-            "rec_sl_method": rec_sl_method, 
-            "rec_sl_price": rec_sl_price,   
-            "tp_list": final_tp_list, 
-            "rec_tp_price": rec_price, 
-            "rec_entry_low": rec_entry_low,    # New
-            "rec_entry_high": rec_entry_high,  # New
-            "rec_entry_desc": rec_entry_desc,  # New
-            "strategy": strategy_text
+            "strategy": strategy_text,
+            "is_actionable": True,
+            "rec_entry_low": rec_entry_low,
+            "rec_entry_high": rec_entry_high,
+            "rec_entry_desc": rec_entry_desc,
+            "rec_sl_method": rec_sl_method,
+            "rec_sl_price": rec_sl_price,
+            "rec_tp_price": rec_tp_price,
+            "tp_list": final_tp_list
         }
+        
+
+
+
 
     def _calculate_trend_score(self, df):
         """

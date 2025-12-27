@@ -265,24 +265,29 @@ if run_btn or force_btn:
             # 2. 核心操作建議 (Key Actionables) - Moved to Top
             if report.get('action_plan'):
                 ap = report['action_plan']
+                is_actionable = ap.get('is_actionable', True) # Default True for backward compatibility
                 
-                # 第一排：策略、進場、停利、停損 (4欄)
-                c1, c2, c3, c4 = st.columns(4)
+                # 第一排：策略 (Always Show)
+                st.info(f"**操作策略**：\n\n{ap['strategy']}")
                 
-                # 1. 策略
-                c1.info(f"**操作策略**：\n\n{ap['strategy']}")
-                
-                # 2. 進場
-                if ap.get('rec_entry_low', 0) > 0:
-                     c2.warning(f"**建議進場**：\n\n📉 **{ap['rec_entry_low']:.2f}~{ap['rec_entry_high']:.2f}**")
-                else:
-                     c2.warning(f"**建議進場**：\n\n(暫無建議)")
+                if is_actionable:
+                    c2, c3, c4 = st.columns(3)
+                    
+                    # 2. 進場
+                    if ap.get('rec_entry_low', 0) > 0:
+                         c2.warning(f"**建議進場**：\n\n📉 **{ap['rec_entry_low']:.2f}~{ap['rec_entry_high']:.2f}**")
+                    else:
+                         c2.warning(f"**建議進場**：\n\n(暫無建議)")
 
-                # 3. 停利
-                c3.success(f"**推薦停利**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
-                
-                # 4. 停損
-                c4.error(f"**推薦停損**：\n\n🛑 **{ap['rec_sl_price']:.2f}** ({ap['rec_sl_method'].split(' ')[0]})")
+                    # 3. 停利
+                    c3.success(f"**推薦停利**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
+                    
+                    # 4. 停損
+                    c4.error(f"**推薦停損**：\n\n🛑 **{ap['rec_sl_price']:.2f}**")
+                else:
+                    # Not actionable: Show simple message or nothing else?
+                    # User request: "If not suggested entry, don't give"
+                    pass
                 
             st.markdown("---")
 
