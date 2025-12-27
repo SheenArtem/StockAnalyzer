@@ -1,3 +1,4 @@
+
 import pandas as pd
 from FinMind.data import DataLoader
 
@@ -17,7 +18,32 @@ class ChipAnalyzer:
         else:
              return None, "非台股代號，無法抓取籌碼數據"
 
-        print(f"🔍 正在抓取 {stock_id} 籌碼數據...")
+        # [CACHE] Initialize Cache Manager
+        from cache_manager import CacheManager
+        cm = CacheManager()
+        
+        # 嘗試讀取快取
+        # Caching strategy: Separate files for Inst and Margin
+        cache_key_inst = f"{stock_id}_inst"
+        cache_key_margin = f"{stock_id}_margin"
+        
+        df_inst, hit_inst = cm.load_cache(cache_key_inst, 'chip')
+        df_margin, hit_margin = cm.load_cache(cache_key_margin, 'chip')
+        
+        if hit_inst and hit_margin:
+            print(f"⚡ [Cache Hit] 讀取 {stock_id} 籌碼快取")
+            # 轉換索引為 datetime (讀取 csv 後通常是字串)
+            if not df_inst.empty:
+                df_inst.index = pd.to_datetime(df_inst.index)
+            if not df_margin.empty:
+                df_margin.index = pd.to_datetime(df_margin.index)
+                
+            return {
+                "institutional": df_inst,
+                "margin": df_margin
+            }, None
+
+        print(f"🔍 正在抓取 {stock_id} 籌碼數據 (FinMind)...")
         
         try:
             # 1. 三大法人買賣超 (Institutional Investors)
@@ -74,6 +100,12 @@ class ChipAnalyzer:
                 keep_cols = ['MarginPurchaseTodayBalance', 'ShortSaleTodayBalance']
                 df_margin = df_margin[keep_cols]
                 df_margin.columns = ['融資餘額', '融券餘額']
+            
+            # [CACHE] Save Data
+            if not df_inst.empty:
+                cm.save_cache(cache_key_inst, df_inst, 'chip')
+            if not df_margin.empty:
+                cm.save_cache(cache_key_margin, df_margin, 'chip')
 
             return {
                 "institutional": df_inst,
