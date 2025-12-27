@@ -152,20 +152,24 @@ class TechnicalAnalyzer:
                 rec_cand = next((t for t in valid_candidates if "布林" in t['method']), None)
                 if rec_cand: rec_method_name = rec_cand['method']
             
-            final_tp_list = valid_candidates
-            if rec_method_name:
-                 for t in final_tp_list:
-                     if t['method'] == rec_method_name:
-                         t['is_rec'] = True
-                         rec_tp_price = t['price']
-                         break
+        for item in valid_candidates:
+            is_rec = (item['method'] == rec_method_name)
+            if is_rec: rec_tp_price = item['price']
             
-            if not any(t.get('is_rec') for t in final_tp_list):
-                final_tp_list[0]['is_rec'] = True
-                rec_tp_price = final_tp_list[0]['price']
-        else:
-            rec_tp_price = entry_basis * 1.1
-            final_tp_list.append({"method": "🛡️ 短線獲利", "price": rec_tp_price, "desc": "預設 10%", "is_rec": True})
+            final_tp_list.append({
+                "method": item['method'],
+                "price": item['price'],
+                "desc": item['desc'],
+                "is_rec": is_rec
+            })
+            
+        # Fallback if no valid candidates or no recommendation found
+        if not final_tp_list:
+             rec_tp_price = entry_basis * 1.1
+             final_tp_list.append({"method": "🛡️ 短線獲利", "price": rec_tp_price, "desc": "預設 10%", "is_rec": True})
+        elif not any(x['is_rec'] for x in final_tp_list):
+             final_tp_list[0]['is_rec'] = True
+             rec_tp_price = final_tp_list[0]['price']
 
         return {
             "current_price": close_price,
