@@ -63,6 +63,7 @@ with st.sidebar:
                 with c2:
                     if st.button("載入", key=f"load_{past_ticker}"):
                         st.session_state['ticker_input'] = past_ticker
+                        st.session_state['trigger_analysis'] = True # Trigger auto-run
                         st.rerun() # Rerun to update the input box immediately
                 
                 with c3:
@@ -139,7 +140,12 @@ def run_analysis(source_data, force_update=False):
     return figures, errors, df_week, df_day, stock_meta
 
 # 主程式邏輯
-if run_btn or force_btn:
+# Check for auto-trigger from history load
+auto_run = st.session_state.get('trigger_analysis', False)
+if auto_run:
+    st.session_state['trigger_analysis'] = False # Reset immediately
+
+if run_btn or force_btn or auto_run:
     # 決定資料來源
     source = None
     display_ticker = ""
