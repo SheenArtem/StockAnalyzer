@@ -38,7 +38,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.27.01")
+    st.caption("Version: v2025.12.27.02")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -430,29 +430,86 @@ if run_btn or force_btn or auto_run:
                      if chip_data:
                          st.success(f"✅ {display_ticker} 籌碼數據讀取成功")
                          
-                         # 1. 三大法人買賣超 (Bar Chart)
-                         st.markdown("### 🏛️ 三大法人買賣超 (Institutional Investors)")
+                         # 1. 整合圖表：三大法人 + 融資融券 (Plotly Dual Subplot)
+                         st.markdown("### 📊 籌碼綜合分析 (Institutional & Margin)")
+                         
                          df_inst = chip_data['institutional']
-                         if not df_inst.empty:
-                             # 只顯示最近 60 天以保持圖表清晰
-                             df_inst_recent = df_inst.iloc[-60:]
-                             cols_to_plot = [c for c in df_inst_recent.columns if c != '三大法人合計' and c != 'stock_id']
-                             st.bar_chart(df_inst_recent[cols_to_plot])
-                             st.caption("三大法人近期動向 (Foreign/Trust/Dealer)")
+                         df_margin = chip_data['margin']
+                         
+                         # Data Slicing (Last 120 days for clear view)
+                         days_show = 120
+                         df_inst_plot = df_inst.iloc[-days_show:] if not df_inst.empty else pd.DataFrame()
+                         df_margin_plot = df_margin.iloc[-days_show:] if not df_margin.empty else pd.DataFrame()
+                         
+                         if not df_inst_plot.empty:
+                             # Import Plotly
+                             import plotly.graph_objects as go
+                             from plotly.subplots import make_subplots
+                             
+                             # Create Subplots: Row 1 = Investors (Bar), Row 2 = Margin (Line)
+                             fig_chip = make_subplots(
+                                 rows=2, cols=1,
+                                 shared_xaxes=True,
+                                 vertical_spacing=0.05,
+                                 subplot_titles=("三大法人買賣超 (張)", "融資融券餘額 (張)"),
+                                 row_heights=[0.6, 0.4]
+                             )
+                             
+                             # Utils for color
+                             def get_color(val): return 'red' if val > 0 else 'green'
+                             
+                             # --- Row 1: Institutional Investors ---
+                             # Foreign
+                             if '外資' in df_inst_plot.columns:
+                                 fig_chip.add_trace(go.Bar(
+                                     x=df_inst_plot.index, y=df_inst_plot['外資'],
+                                     name='外資', marker_color='orange'
+                                 ), row=1, col=1)
+                             # Trust
+                             if '投信' in df_inst_plot.columns:
+                                 fig_chip.add_trace(go.Bar(
+                                     x=df_inst_plot.index, y=df_inst_plot['投信'],
+                                     name='投信', marker_color='red'
+                                 ), row=1, col=1)
+                             # Dealer
+                             if '自營商' in df_inst_plot.columns:
+                                 fig_chip.add_trace(go.Bar(
+                                     x=df_inst_plot.index, y=df_inst_plot['自營商'],
+                                     name='自營商', marker_color='blue'
+                                 ), row=1, col=1)
+                                 
+                             # --- Row 2: Margin Trading ---
+                             # Ensure Margin data aligns with Inst data dates if possible
+                             # Or just plot what we have. Aligning index intersection is safer.
+                             common_idx = df_inst_plot.index.intersection(df_margin.index)
+                             if not common_idx.empty:
+                                 df_margin_aligned = df_margin.loc[common_idx]
+                                 
+                                 fig_chip.add_trace(go.Scatter(
+                                     x=df_margin_aligned.index, y=df_margin_aligned['融資餘額'],
+                                     name='融資餘額', mode='lines', line=dict(color='red', width=2)
+                                 ), row=2, col=1)
+                                 
+                                 fig_chip.add_trace(go.Scatter(
+                                     x=df_margin_aligned.index, y=df_margin_aligned['融券餘額'],
+                                     name='融券餘額', mode='lines', line=dict(color='green', width=2)
+                                 ), row=2, col=1)
+
+                             # Layout
+                             fig_chip.update_layout(
+                                 height=600,
+                                 hovermode='x unified', # Key requirement: Unified Hover
+                                 barmode='group',
+                                 margin=dict(l=10, r=10, t=30, b=10),
+                                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                             )
+                             # Spikes
+                             fig_chip.update_xaxes(showspikes=True, spikemode='across', spikesnap='cursor')
+                             
+                             st.plotly_chart(fig_chip, use_container_width=True)
+                             
                          else:
                              st.warning("⚠️ 查無法人數據")
-
-                         st.markdown("---")
-
-                         # 2. 融資融券 (Line Chart)
-                         st.markdown("### 🎢 融資融券餘額 (Margin Trading)")
-                         df_margin = chip_data['margin']
-                         if not df_margin.empty:
-                             df_margin_recent = df_margin.iloc[-120:]
-                             st.line_chart(df_margin_recent)
-                             st.caption("融資(Margin Buy) vs 融券(Short Sell) 餘額走勢")
-                         else:
-                             st.warning("⚠️ 查無融資券數據")
 
                          st.markdown("---")
                          st.info("💡 **集保股權分散 (Shareholding Distribution)**：因 API 限制為付費數據，暫無法顯示詳細大戶/散戶比例。建議搭配「三大法人」與「EFI 指標」判斷主力動向。")
