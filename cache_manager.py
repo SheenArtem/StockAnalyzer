@@ -91,3 +91,20 @@ class CacheManager:
         import shutil
         shutil.rmtree(CACHE_DIR)
         os.makedirs(CACHE_DIR)
+
+    def list_cached_tickers(self):
+        """
+        List all unique tickers currently in cache (based on price files).
+        Returns: list of str (e.g., ['2330', 'TSM'])
+        """
+        if not os.path.exists(CACHE_DIR):
+            return []
+            
+        tickers = set()
+        for f in os.listdir(CACHE_DIR):
+            if f.endswith('_price.csv'):
+                # filename format: {ticker}_price.csv
+                ticker = f.replace('_price.csv', '')
+                tickers.add(ticker)
+                
+        return sorted(list(tickers))
