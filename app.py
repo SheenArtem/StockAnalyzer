@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.47")
+    st.caption("Version: v2025.12.25.48")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -81,35 +81,39 @@ with st.sidebar:
     else:
         uploaded_file = st.file_uploader("上傳股票 CSV", type=['csv'])
 
-    col_run, col_clear = st.columns([2, 1])
+    col_run, col_force = st.columns([1, 1])
     with col_run:
         run_btn = st.button("🚀 開始分析", type="primary")
-    with col_clear:
-        if st.button("🧹 清除快取"):
-            try:
-                import shutil
-                import os
-                if os.path.exists("data_cache"):
-                    shutil.rmtree("data_cache")
-                    # os.makedirs("data_cache") # lazy create
-                st.toast("✅ 快取已清除！下一次分析將重新下載資料。", icon="🧹")
-            except Exception as e:
-                st.error(f"清除失敗: {e}")
+    with col_force:
+        force_btn = st.button("🔄 強制重抓", help="忽略快取，重新下載最新資料")
+
+    # Clear cache button (Moved to Expander or kept here? Kept here for global clear)
+    if st.button("🧹 清除所有快取"):
+        try:
+             import shutil
+             import os
+             if os.path.exists("data_cache"):
+                 shutil.rmtree("data_cache")
+             st.toast("✅ 快取已清除！", icon="🧹")
+        except Exception as e:
+             st.error(f"清除失敗: {e}")
 
     st.markdown("---")
 
 # 封裝分析函數 (暫時移除 Cache 以確保代碼更新生效)
 # @st.cache_data(ttl=3600) 
-def run_analysis(source_data):
+# 封裝分析函數 (暫時移除 Cache 以確保代碼更新生效)
+# @st.cache_data(ttl=3600) 
+def run_analysis(source_data, force_update=False):
     # 這裡的邏輯與原本 main 當中的一樣，但搬進來做 cache
     
     # 1. 股票代號情況
     if isinstance(source_data, str):
-        return plot_dual_timeframe(source_data)
+        return plot_dual_timeframe(source_data, force_update=force_update)
         
     # 2. CSV 資料情況 (DataFrame 無法直接 hash，需注意 cache 機制，這裡簡化處理)
     # Streamlit 對 DataFrame 有支援 hashing，所以通常可以直接傳
-    ticker_name, df_day, df_week, stock_meta = load_and_resample(source_data)
+    ticker_name, df_day, df_week, stock_meta = load_and_resample(source_data) # CSV no force update
     
     figures = {}
     errors = {}
@@ -134,10 +138,11 @@ def run_analysis(source_data):
     return figures, errors, df_week, df_day, stock_meta
 
 # 主程式邏輯
-if run_btn:
+if run_btn or force_btn:
     # 決定資料來源
     source = None
     display_ticker = ""
+    is_force = True if force_btn else False
     
     if input_method == "股票代號 (Ticker)":
         if target_ticker:
@@ -162,15 +167,18 @@ if run_btn:
 
     # 執行分析
     status_text = st.empty()
-    status_text.info(f"⏳ 正在分析 {display_ticker} ...")
+    action_text = "強制下載" if is_force else "分析"
+    status_text.info(f"⏳ 正在{action_text} {display_ticker} ...")
     
     try:
         # 呼叫有快取的函數
-        figures, errors, df_week, df_day, stock_meta = run_analysis(source)
+        figures, errors, df_week, df_day, stock_meta = run_analysis(source, force_update=is_force)
         
         # 暫存給 Analyzer 用 (Hack: 把變數掛在函式上，或者直接傳變數)
         run_analysis.df_week_cache = df_week
         run_analysis.df_day_cache = df_day
+        # Save force state for chip loader
+        run_analysis.force_update = is_force
 
         status_text.success("✅ 分析完成！")
         
@@ -367,11 +375,13 @@ if run_btn:
                      from chip_analysis import ChipAnalyzer
                      
                      @st.cache_data(ttl=3600)
-                     def get_chip_data_cached(ticker):
+                     def get_chip_data_cached(ticker, force):
                          analyzer = ChipAnalyzer()
-                         return analyzer.get_chip_data(ticker)
+                         return analyzer.get_chip_data(ticker, force_update=force)
 
-                     chip_data, err = get_chip_data_cached(source)
+                     # Use force state from run_analysis
+                     is_force = getattr(run_analysis, 'force_update', False)
+                     chip_data, err = get_chip_data_cached(source, is_force)
                      
                      if chip_data:
                          st.success(f"✅ {display_ticker} 籌碼數據讀取成功")
