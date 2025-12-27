@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import mplfinance as mpf
 from technical_analysis import plot_dual_timeframe, load_and_resample, calculate_all_indicators, plot_interactive_chart
+from fundamental_analysis import get_fundamentals
 
 # 設定頁面配置
 st.set_page_config(
@@ -185,27 +186,57 @@ if run_btn or force_btn:
         # ==========================================
         # 顯示股票基本資訊 (Header)
         # ==========================================
+                 
+        # ==========================================
+        # 顯示基本面資訊 (Fundamentals) - Moved to Header Area
+        # ==========================================
+        fund_data = None
+        if source and isinstance(source, str):
+             # 靜默載入，不顯示 Spinner 以免閃爍
+             fund_data = get_fundamentals(display_ticker)
+             run_analysis.fund_cache = fund_data # Cache for Tab
+
         if stock_meta and 'name' in stock_meta:
              st.markdown(f"## 🏢 {display_ticker} {stock_meta.get('name', '')}")
+             
              if not df_day.empty:
                  last_price = df_day['Close'].iloc[-1]
                  prev_price = df_day['Close'].iloc[-2]
                  chg = last_price - prev_price
                  pct = (chg / prev_price) * 100
-                 color = "red" if chg > 0 else "green" # 台股紅漲綠跌
                  
-                 cols = st.columns(4)
-                 cols[0].metric("最新收盤價", f"{last_price:.2f}", f"{chg:.2f} ({pct:.2f}%)", delta_color="inverse")
-                 cols[1].metric("產業類別", stock_meta.get('sector', 'N/A'))
-                 cols[2].metric("幣別", stock_meta.get('currency', 'TWD'))
+                 # Combine Price and Fundamentals
+                 # Row 1: Price | P/E | EPS | Yield | P/B | ROE
                  
-        # 顯示如果有錯誤
-        if errors:
-            with st.expander("⚠️ 部分圖表產生失敗原因", expanded=True):
-                for k, v in errors.items():
-                    st.error(f"{k}: {v}")
+                 st.markdown("##### 概況與基本面")
+                 
+                 # Dynamic Columns: Price(1) + Fund(5) = 6 columns
+                 c_price, c_pe, c_eps, c_yield, c_pb, c_roe = st.columns(6)
+                 
+                 # 1. Price
+                 c_price.metric("收盤價", f"{last_price:.2f}", f"{chg:.2f} ({pct:.2f}%)", delta_color="inverse")
+                 
+                 # 2. Fundamentals
+                 if fund_data:
+                     c_pe.metric("本益比", fund_data['PE Ratio'])
+                     c_eps.metric("EPS", fund_data['EPS (TTM)'])
+                     c_yield.metric("殖利率", fund_data['Dividend Yield'])
+                     c_pb.metric("淨值比", fund_data['PB Ratio'])
+                     c_roe.metric("ROE", fund_data.get('ROE', 'N/A'))
+                 else:
+                     # Fill with N/A if no fund data
+                     c_pe.metric("本益比", "N/A")
+                     c_eps.metric("EPS", "N/A")
+                     c_yield.metric("殖利率", "N/A")
+                     c_pb.metric("淨值比", "N/A")
+                     c_roe.metric("ROE", "N/A")
 
-        # ==========================================
+                 # Row 2: Sector | Currency | Market Cap (Optional)
+                 st.caption(f"產業: {stock_meta.get('sector', 'N/A')} | 幣別: {stock_meta.get('currency', 'TWD')} | 更新時間: {df_day.index[-1].strftime('%Y-%m-%d')}")
+        
+        # 顯示如果有錯誤
+                 
+
         # 新增 AI 分析報告 (Analysis Report)
         # ==========================================
         from analysis_engine import TechnicalAnalyzer
@@ -315,7 +346,7 @@ if run_btn or force_btn:
         # 顯示圖表
         col1, col2 = st.columns(2)
         
-        tab1, tab2, tab3 = st.tabs(["📅 週線趨勢 (Trend)", "🌞 日線操作 (Action)", "💰 籌碼分佈 (Chips)"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📅 週線趨勢 (Trend)", "🌞 日線操作 (Action)", "💰 籌碼分佈 (Chips)", "🏢 基本面 (Fundamentals)"])
         
         with tab1:
             if 'Weekly' in figures:
@@ -419,6 +450,21 @@ if run_btn or force_btn:
                      st.error(f"❌ 發生錯誤: {e}")
             else:
                  st.info("💡 籌碼分析目前僅支援台股代號 (如 2330.TW)，CSV 模式不支援。")
+
+        with tab4:
+             # Basic Fundamentals Tab
+             fd = getattr(run_analysis, 'fund_cache', None)
+             if fd:
+                 st.markdown(f"### 🏢 {display_ticker} 公司簡介")
+                 st.write(f"**產業**: {fd['Sector']} / {fd['Industry']}")
+                 st.write(f"**市值**: {fd['Market Cap']}")
+                 st.write(f"**網站**: {fd['Website']}")
+                 st.info(fd['Business Summary'])
+                 
+                 st.markdown("#### 更多指標")
+                 st.json(fd)
+             else:
+                 st.warning("⚠️ 無基本面數據 (可能為 CSV 模式或查無資料)")
 
     except Exception as e:
         status_text.error(f"❌ 發生未預期錯誤: {e}")
