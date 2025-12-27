@@ -37,7 +37,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.25.46")
+    st.caption("Version: v2025.12.25.47")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -49,20 +49,35 @@ with st.sidebar:
     cm = CacheManager()
     cached_list = cm.list_cached_tickers()
     
-    # 讓使用者選擇歷史紀錄
-    selected_history = None
-    if cached_list:
-        # Insert a placeholder so it doesn't auto-select the first one immediately
-        options = ["(選擇歷史紀錄)"] + cached_list
-        selected_history = st.selectbox("🕒 搜尋歷史 (已快取)", options, index=0)
+    # 使用 Expander 管理歷史紀錄 (取代 Selectbox)
+    with st.expander("🕒 歷史紀錄管理", expanded=False):
+        if not cached_list:
+            st.info("尚無歷史紀錄")
+        else:
+            for past_ticker in cached_list:
+                c1, c2, c3 = st.columns([3, 2, 2])
+                with c1:
+                    st.write(f"**{past_ticker}**")
+                
+                with c2:
+                    if st.button("載入", key=f"load_{past_ticker}"):
+                        st.session_state['ticker_input'] = past_ticker
+                        st.rerun() # Rerun to update the input box immediately
+                
+                with c3:
+                    if st.button("刪除", key=f"del_{past_ticker}"):
+                        cm.delete_ticker_cache(past_ticker)
+                        st.toast(f"🗑️ 已刪除 {past_ticker}", icon="🗑️")
+                        st.rerun()
 
     if input_method == "股票代號 (Ticker)":
-        # 如果使用者選了歷史紀錄，就自動帶入
-        default_val = "2330"
-        if selected_history and selected_history != "(選擇歷史紀錄)":
-            default_val = selected_history
-            
-        target_ticker = st.text_input("輸入股票代號 (台股請加 .TW)", value=default_val, help="例如: 2330, TSM, AAPL")
+        # 如果 session_state 有值 (剛按了載入)，就用它
+        default_val = st.session_state.get('ticker_input', '2330')
+        
+        target_ticker = st.text_input("輸入股票代號 (台股請加 .TW)", 
+                                      value=default_val, 
+                                      key='ticker_input', # Bind to session state
+                                      help="例如: 2330, TSM, AAPL")
     else:
         uploaded_file = st.file_uploader("上傳股票 CSV", type=['csv'])
 
