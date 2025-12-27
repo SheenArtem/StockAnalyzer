@@ -9,7 +9,13 @@ def get_fundamentals(ticker):
     Returns a dictionary of metrics.
     """
     try:
-        stock = yf.Ticker(ticker)
+        # Ticker Correction for Taiwan Stocks
+        # yfinance needs "2330.TW", but user might input "2330"
+        search_ticker = ticker
+        if ticker.isdigit():
+            search_ticker = f"{ticker}.TW"
+            
+        stock = yf.Ticker(search_ticker)
         info = stock.info
         
         # 判斷是否為台股 (FinMind 支援)
@@ -54,8 +60,6 @@ def get_fundamentals(ticker):
                  print(f"✅ 使用 FinMind 數據覆蓋台股基本面: {stock_id}")
                  if tw_data.get('PE Ratio') != 'N/A': data['PE Ratio'] = tw_data['PE Ratio']
                  if tw_data.get('PB Ratio') != 'N/A': data['PB Ratio'] = tw_data['PB Ratio']
-                 if tw_data.get('Dividend Yield') != 'N/A': data['Dividend Yield'] = tw_data['Dividend Yield']
-                 
                  # 嘗試計算 EPS (Close / PE)
                  try:
                      close_price = info.get('currentPrice') or info.get('previousClose')
@@ -65,6 +69,13 @@ def get_fundamentals(ticker):
                          data['EPS (TTM)'] = f"{eps_est:.2f} (Est.)"
                  except:
                      pass
+                     
+                 # [PATCH] 嘗試補全 Profile (Sector/Industry)
+                 if data['Sector'] == 'N/A':
+                      profile = get_taiwan_stock_profile(stock_id)
+                      if profile:
+                          data['Sector'] = profile.get('sector', 'N/A')
+                          data['Industry'] = profile.get('industry', 'N/A')
 
         # Handle Dividend Yield (yfinance returns decimal like 0.015 for 1.5%)
 
@@ -117,3 +128,20 @@ def get_taiwan_stock_fundamentals(stock_id):
     except Exception as e:
         print(f"FinMind Error: {e}")
         return {}
+
+def get_taiwan_stock_profile(stock_id):
+    """
+    從 FinMind 取得產業類別 (Fallback)
+    """
+    try:
+        dl = DataLoader()
+        df = dl.taiwan_stock_info()
+        row = df[df['stock_id'] == stock_id]
+        if not row.empty:
+            return {
+                'sector': row.iloc[0]['industry_category'],
+                'industry': row.iloc[0]['industry_category'] # FinMind usually groups them
+            }
+    except:
+        pass
+    return None

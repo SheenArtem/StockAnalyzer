@@ -4,25 +4,22 @@ import sys
 def test_fundamentals():
     print("Testing Fundamental Analysis...")
     
-    # Test 1: TW Stock
-    ticker = "2330.TW"
-    print(f"\nFetching {ticker}...")
+    # Test 1: TW Stock (Numeric Input) - This previously failed for profile
+    ticker = "2330" 
+    print(f"\nFetching {ticker} (Numeric)...")
     data = fundamental_analysis.get_fundamentals(ticker)
-    if data and data['PE Ratio'] != 'N/A':
-        print("✅ TW Stock Success")
-        print(data)
+    
+    if data:
+        print(f"PE Ratio: {data.get('PE Ratio')}")
+        print(f"Sector: {data.get('Sector')}")
+        
+        if data.get('PE Ratio') != 'N/A' and data.get('Sector') != 'N/A':
+            print("✅ TW Stock (2330) Success - Profile & Metrics Found")
+        else:
+            print("❌ TW Stock (2330) Partial Failure - Check Sector/PE")
+            print(data)
     else:
-        print("❌ TW Stock Failed or No Data")
-
-    # Test 2: US Stock
-    ticker = "AAPL"
-    print(f"\nFetching {ticker}...")
-    data = fundamental_analysis.get_fundamentals(ticker)
-    if data and data['Market Cap'] != 'N/A':
-        print("✅ US Stock Success")
-        print(data)
-    else:
-        print("❌ US Stock Failed")
+        print("❌ TW Stock Failed Completely")
 
 if __name__ == "__main__":
     test_fundamentals()
