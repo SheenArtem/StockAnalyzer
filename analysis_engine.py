@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 
 class TechnicalAnalyzer:
-    def __init__(self, ticker, df_week, df_day):
+    def __init__(self, ticker, df_week, df_day, strategy_params=None):
         self.ticker = ticker
         self.df_week = df_week
         self.df_day = df_day
+        self.strategy_params = strategy_params # { 'buy': 3, 'sell': -2 }
 
     def run_analysis(self):
         """
@@ -19,7 +20,8 @@ class TechnicalAnalyzer:
         scenario = self._determine_scenario(trend_score, trigger_details) # Check details for ADX special case
         
         # 4. 操作劇本與風控 (Action Plan & Risk)
-        action_plan = self._generate_action_plan(self.df_day, scenario)
+        # Pass trigger_score to link with optimized strategy
+        action_plan = self._generate_action_plan(self.df_day, scenario, trigger_score)
         
         # 5. [NEW] Dynamic Monitoring Checklist (Conditional Alerts)
         checklist = self._generate_monitoring_checklist(self.df_day, scenario)
@@ -98,7 +100,7 @@ class TechnicalAnalyzer:
 
         return checklist
 
-    def _generate_action_plan(self, df, scenario):
+    def _generate_action_plan(self, df, scenario, trigger_score=0):
         """
         生成操作建議與風控數值
         (2025 Refined: Entry-based SL/TP, Conditionally Actionable)
@@ -134,18 +136,42 @@ class TechnicalAnalyzer:
         rec_sl_method = "ATR 波動停損 (科學)" # Updated simplified name logic later if needed
         rec_sl_price = 0
         
-        # Determine Scenario Intent
-        if code == 'A': # Active
-            is_actionable = True
-            if close_price > ma5 * 1.05:
-                # ... (rest of logic same)
-                rec_entry_low, rec_entry_high = ma10, ma5
-                rec_entry_desc = "等待拉回 (5MA-10MA)"
-                entry_basis = ma5
-                strategy_text = "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。"
-            else:
-                rec_entry_low, rec_entry_high = ma5, close_price
-                rec_entry_desc = "積極操作 (5MA-現價)"
+        # [Optimization Override]
+        optimizer_active = False
+        if self.strategy_params:
+            buy_th = self.strategy_params.get('buy', 3)
+            sell_th = self.strategy_params.get('sell', -2)
+            
+            if trigger_score >= buy_th:
+                 optimizer_active = True
+                 is_actionable = True
+                 code = 'A' # Treat as Active
+                 strategy_text = f"🔥 **AI 最佳化訊號 (買進)**：評分 ({trigger_score}) 已達買進門檻 ({buy_th})，建議進場。"
+                 # Dynamic Entry
+                 rec_entry_low, rec_entry_high = close_price * 0.99, close_price * 1.01
+                 rec_entry_desc = "現價進場 (AI 訊號)"
+                 entry_basis = close_price
+                 
+            elif trigger_score <= sell_th:
+                 optimizer_active = True
+                 is_actionable = False
+                 code = 'D'
+                 strategy_text = f"🛑 **AI 最佳化訊號 (賣出)**：評分 ({trigger_score}) 已達賣出門檻 ({sell_th})，建議出場觀望。"
+
+        
+        # Determine Scenario Intent (Only if not overridden by optimizer)
+        if not optimizer_active:
+            if code == 'A': # Active
+                is_actionable = True
+                if close_price > ma5 * 1.05:
+                    # ... (rest of logic same)
+                    rec_entry_low, rec_entry_high = ma10, ma5
+                    rec_entry_desc = "等待拉回 (5MA-10MA)"
+                    entry_basis = ma5
+                    strategy_text = "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。"
+                else:
+                    rec_entry_low, rec_entry_high = ma5, close_price
+                    rec_entry_desc = "積極操作 (5MA-現價)"
                 entry_basis = close_price
                 strategy_text = "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。"
                 
@@ -173,6 +199,35 @@ class TechnicalAnalyzer:
             is_actionable = False
             strategy_text = "💤 **觀望**：多空分歧，等待方向明確。"
             
+        # [MOVED] Construct Stop Loss List (sl_list) for UI - Calculate BEFORE actionable check
+        final_sl_list = []
+        sl_candidates = [
+            {"method": "A. ATR 波動停損 (科學)", "price": sl_atr, "desc": "2倍 ATR"},
+            {"method": "B. 均線停損 (趨勢)", "price": sl_ma, "desc": "MA20/60"},
+            {"method": "C. 關鍵紅K (籌碼)", "price": sl_key, "desc": "大量低點"},
+            {"method": "D. 波段低點停損 (形態)", "price": sl_low, "desc": "前波低點"}
+        ]
+        
+        for item in sl_candidates:
+            if item['price'] > 0: # Show all valid calculated supports
+                diff = item['price'] - entry_basis
+                loss_pct = (diff / entry_basis) * 100
+                
+                # Add note if broken
+                note = item['desc']
+                if diff > 0:
+                     note += " (壓力/已破)"
+                
+                final_sl_list.append({
+                    "method": item['method'],
+                    "price": item['price'],
+                    "desc": note,
+                    "loss": round(loss_pct, 2) 
+                })
+        
+        # Sort by price descending (closest to current price first)
+        final_sl_list.sort(key=lambda x: x['price'], reverse=True)
+
         if not is_actionable:
              return {
                 "current_price": close_price,
@@ -181,6 +236,7 @@ class TechnicalAnalyzer:
                 "rec_entry_low": 0, "rec_entry_high": 0, "rec_entry_desc": "",
                 "rec_tp_price": 0, "rec_sl_price": 0,
                 "tp_list": [],
+                "sl_list": final_sl_list, # [FIX] Return SL list even if not actionable
                 # [FIX] Populate missing S/L keys for UI display
                 "rec_sl_method": "N/A", # Or rec_sl_method
                 "sl_atr": sl_atr,
@@ -264,34 +320,15 @@ class TechnicalAnalyzer:
              final_tp_list[0]['is_rec'] = True
              rec_tp_price = final_tp_list[0]['price']
 
-        # [NEW] Construct Stop Loss List (sl_list) for UI
-        final_sl_list = []
-        sl_candidates = [
-            {"method": "A. ATR 波動停損 (科學)", "price": sl_atr, "desc": "2倍 ATR"},
-            {"method": "B. 均線停損 (趨勢)", "price": sl_ma, "desc": "MA20/60"},
-            {"method": "C. 關鍵紅K (籌碼)", "price": sl_key, "desc": "大量低點"},
-            {"method": "D. 波段低點停損 (形態)", "price": sl_low, "desc": "前波低點"}
-        ]
-        
-        for item in sl_candidates:
-            if item['price'] > 0: # Show all valid calculated supports
-                diff = item['price'] - entry_basis
-                loss_pct = (diff / entry_basis) * 100
-                
-                # Add note if broken
-                note = item['desc']
-                if diff > 0:
-                     note += " (壓力/已破)"
-                
-                final_sl_list.append({
-                    "method": item['method'],
-                    "price": item['price'],
-                    "desc": note,
-                    "loss": round(loss_pct, 2) 
-                })
-        
-        # Sort by price descending (closest to current price first)
-        final_sl_list.sort(key=lambda x: x['price'], reverse=True)
+
+
+        # Calculate Risk-Reward Ratio (RR)
+        rr_ratio = 0.0
+        if is_actionable and entry_basis > 0 and rec_sl_price > 0:
+            potential_reward = rec_tp_price - entry_basis
+            potential_risk = entry_basis - rec_sl_price
+            if potential_risk > 0:
+                rr_ratio = potential_reward / potential_risk
 
         return {
             "current_price": close_price,
@@ -303,6 +340,7 @@ class TechnicalAnalyzer:
             "rec_sl_method": rec_sl_method,
             "rec_sl_price": rec_sl_price,
             "rec_tp_price": rec_tp_price,
+            "rr_ratio": rr_ratio, # [NEW] RR Ratio
             "tp_list": final_tp_list,
             "sl_list": final_sl_list,
             "sl_atr": sl_atr,
