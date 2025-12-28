@@ -38,7 +38,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.28.01")
+    st.caption("Version: v2025.12.28.02")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -144,12 +144,25 @@ def run_analysis(source_data, force_update=False):
 auto_run = st.session_state.get('trigger_analysis', False)
 if auto_run:
     st.session_state['trigger_analysis'] = False # Reset immediately
+    st.session_state['analysis_active'] = True
 
-if run_btn or force_btn or auto_run:
+if run_btn or force_btn:
+    st.session_state['analysis_active'] = True
+
+# Persist 'force' state only if clicked, otherwise default to False (use cache)
+if force_btn:
+    st.session_state['force_run'] = True
+elif run_btn or auto_run:
+    st.session_state['force_run'] = False 
+# If just creating backtest (rerun), preserve existing 'force_run' or default False? 
+# actually, just let it be.
+
+if st.session_state.get('analysis_active', False):
     # 決定資料來源
     source = None
     display_ticker = ""
-    is_force = True if force_btn else False
+    # Use session state for force if available, else False
+    is_force = st.session_state.get('force_run', False)
     
     if input_method == "股票代號 (Ticker)":
         if target_ticker:
@@ -158,6 +171,7 @@ if run_btn or force_btn or auto_run:
             display_ticker = source
         else:
             st.error("❌ 請輸入有效的股票代號")
+            st.session_state['analysis_active'] = False # Reset
             st.stop()
     else:
         if uploaded_file is not None:
@@ -167,9 +181,11 @@ if run_btn or force_btn or auto_run:
                 display_ticker = "Uploaded File"
             except Exception as e:
                 st.error(f"❌ 讀取 CSV 失敗: {e}")
+                st.session_state['analysis_active'] = False # Reset
                 st.stop()
         else:
             st.warning("⚠️ 請先上傳 CSV 檔案")
+            st.session_state['analysis_active'] = False # Reset
             st.stop()
 
     # 執行分析
@@ -177,6 +193,11 @@ if run_btn or force_btn or auto_run:
     # 執行分析
     status_text = st.empty()
     action_text = "強制下載" if is_force else "分析"
+    # Show spinner only if strict run or different ticker? 
+    # Actually just show it, it's fast if cached.
+    # But if backtest button is clicked, we assume analysis is already done.
+    # Whatever, let it re-run run_analysis (it hits cache).
+    
     status_text.info(f"⏳ 正在{action_text} {display_ticker} ...")
     
     try:
@@ -247,13 +268,23 @@ if run_btn or force_btn or auto_run:
 
         # 新增 AI 分析報告 (Analysis Report)
         # ==========================================
+        # 新增 AI 分析報告 (Analysis Report)
+        # ==========================================
+        import analysis_engine
+        import importlib
+        importlib.reload(analysis_engine)
         from analysis_engine import TechnicalAnalyzer
+        from strategy_manager import StrategyManager
         
         # 只有當兩者都有數據時才進行完整分析
         if 'Weekly' in figures and 'Daily' in figures:
+            # Load Strategy from cache
+            sm = StrategyManager()
+            strategy_params = sm.load_strategy(display_ticker) # Returns dict or None
+            
             # 注意: 這裡需要傳入原始 DataFrame，而不是 Figure
             # run_analysis 回傳的是 dict
-            analyzer = TechnicalAnalyzer(display_ticker, run_analysis.df_week_cache, run_analysis.df_day_cache)
+            analyzer = TechnicalAnalyzer(display_ticker, run_analysis.df_week_cache, run_analysis.df_day_cache, strategy_params)
             report = analyzer.run_analysis()
             
             st.markdown("---")
@@ -270,12 +301,185 @@ if run_btn or force_btn or auto_run:
             else:
                 st.info(f"### {sc['title']}\n{sc['desc']}")
             
+
+                
+            # [NEW] 🔔 盤中監控看板 (Monitoring & Outlook)
+            if 'checklist' in report and report['checklist']:
+                cl = report['checklist']
+                with st.expander("🔔 盤中監控看板 (Monitoring & Outlook)", expanded=True):
+                    
+                    # Layout: 3 Columns
+                    mc1, mc2, mc3 = st.columns(3)
+                    
+                    with mc1:
+                        st.markdown("#### 🛑 停損/調節 (Risk)")
+                        if cl['risk']:
+                            for item in cl['risk']:
+                                st.warning(item, icon="⚠️")
+                        else:
+                            st.caption("(暫無緊急風險訊號)")
+
+                    with mc2:
+                        st.markdown("#### 🚀 追價/加碼 (Active)")
+                        if cl['active']:
+                            for item in cl['active']:
+                                st.success(item, icon="🔥")
+                        else:
+                            st.caption("(暫無追價訊號)")
+                            
+                    with mc3:
+                        st.markdown("#### 🔭 未來觀察 (Future)")
+                        if cl['future']:
+                            for item in cl['future']:
+                                st.info(item, icon="👀")
+                        else:
+                            st.caption("(持續觀察)")
+
+            # 2. 核心操作建議 (Key Actionables) - Moved to Top
+            if report.get('action_plan'):
+                ap = report['action_plan']
+                is_actionable = ap.get('is_actionable', True) # Default True for backward compatibility
+                
+                # 第一排：策略 (Always Show)
+                st.info(f"**操作策略**：\n\n{ap['strategy']}")
+                
+                if is_actionable:
+                    c2, c3, c4, c5 = st.columns(4)
+                    
+                    # 2. 進場
+                    if ap.get('rec_entry_low', 0) > 0:
+                         c2.warning(f"**建議進場**：\n\n📉 **{ap['rec_entry_low']:.2f}~{ap['rec_entry_high']:.2f}**")
+                    else:
+                         c2.warning(f"**建議進場**：\n\n(暫無建議)")
+
+                    # 3. 停利
+                    c3.success(f"**推薦停利**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
+                    
+                    # 4. 停損
+                    c4.error(f"**推薦停損**：\n\n🛑 **{ap['rec_sl_price']:.2f}**")
+                    
+                    # 5. 風報比 (RR Ratio)
+                    rr = ap.get('rr_ratio', 0)
+                    rr_text = f"1 : {rr:.1f}"
+                    if rr >= 2.0:
+                        c5.success(f"**風報比**：\n\n⚖️ **{rr_text}**") # Excellent
+                    elif rr >= 1.0:
+                        c5.warning(f"**風報比**：\n\n⚖️ **{rr_text}**") # Okay
+                    elif rr > 0:
+                        c5.error(f"**風報比**：\n\n⚖️ **{rr_text}**") # Bad
+                    else:
+                         c5.info(f"**風報比**：\n\nN/A")
+                else:
+                    # Not actionable: Show simple message or nothing else?
+                    # User request: "If not suggested entry, don't give"
+                    pass
+                
+            st.markdown("---")
+
+            # 3. 詳細因子分析 (Detailed Breakdown)
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("#### 📅 週線趨勢因子")
+                for item in report['trend_details']:
+                    st.write(item)
+            with c2:
+                st.markdown("#### ⚡ 日線訊號因子")
+                for item in report['trigger_details']:
+                    st.write(item)
+            
+            # 4. 完整價位規劃表 (Detailed Price Levels)
+            with st.expander("📊 查看完整支撐壓力與停損清單", expanded=False):
+                if report.get('action_plan'):
+                    ap = report['action_plan']
+                    
+                    # [RESTORED] 停利目標清單
+                    if ap.get('tp_list'):
+                        st.markdown("#### 🔭 停利目標預估清單")
+                        tp_data = []
+                        for t in ap['tp_list']:
+                            mark = "⭐️" if t.get('is_rec') else ""
+                            tp_data.append({
+                                "推薦": mark,
+                                "測幅方法": t['method'],
+                                "目標價格": f"{t['price']:.2f}",
+                                "說明": t['desc']
+                            })
+                        st.table(pd.DataFrame(tp_data))
+
+                    if ap.get('sl_list'):
+                        st.markdown("#### 🛡️ 支撐防守清單")
+                        sl_data = []
+                        for sl in ap['sl_list']:
+                            sl_data.append([sl['desc'], f"{sl['price']:.2f}", f"{sl['loss']}%"])
+                        st.table(pd.DataFrame(sl_data, columns=['支撐位置', '價格', '風險幅度']))
+
+
+
+        # 顯示圖表
+        col1, col2 = st.columns(2)
+        
+        # 顯示圖表
+        col1, col2 = st.columns(2)
+        
+        tab1, tab2, tab3, tab4 = st.tabs(["📅 週線趨勢 (Trend)", "🌞 日線操作 (Action)", "💰 籌碼分佈 (Chips)", "🏢 基本面 (Fundamentals)"])
+        
+        with tab1:
+            if 'Weekly' in figures:
+                st.plotly_chart(figures['Weekly'], use_container_width=True)
+                
+                # 圖例說明 (新增)
+                st.info("""
+                **圖表符號說明：**
+                - 🔺 紅色三角形 + 數字 9：**神奇九轉 (買進)** - 股價連續 9 天低於前 4 天收盤，短線超賣，隨時可能反彈。
+                - 🔻 綠色倒三角 + 數字 9：**神奇九轉 (賣出)** - 股價連續 9 天高於前 4 天收盤，短線超漲，隨時可能回檔。
+                - 🔢 數字 6~8：代表趨勢正在累積中，即將出現轉折訊號。
+                """)
+                
+                # 新增: Weekly EFI
+                if not df_week.empty and 'EFI_EMA13' in df_week.columns:
+                    st.markdown("### ⚡ 週線能量 (Weekly EFI)")
+                    st.caption("週線 EFI 能夠過濾短期雜訊，更準確判斷主力長線資金動向。")
+                    st.line_chart(df_week[['EFI_EMA13']].iloc[-100:])
+                    
+            else:
+                st.warning("⚠️ 無法產生週線圖表 (請查看上方錯誤訊息)")
+        
+        with tab2:
+            if 'Daily' in figures:
+                st.plotly_chart(figures['Daily'], use_container_width=True)
+                
+                # 圖例說明
+                st.info("""
+                **圖表符號說明：**
+                - 🔺 紅色三角形 + 數字 9：**神奇九轉 (買進)** - 股價連續 9 天低於前 4 天收盤，短線超賣，隨時可能反彈。
+                - 🔻 綠色倒三角 + 數字 9：**神奇九轉 (賣出)** - 股價連續 9 天高於前 4 天收盤，短線超漲，隨時可能回檔。
+                - 🔢 數字 6~8：代表趨勢正在累積中，即將出現轉折訊號。
+                """)
+
+                # 新增: EFI 能量圖 (獨立顯示)
+                if not df_day.empty and 'EFI_EMA13' in df_day.columns:
+                    st.markdown("### ⚡ 埃爾德強力指標 (EFI - Elder's Force Index)")
+                    st.caption("原理：結合「價格變動」與「成交量」。EFI > 0 代表多方有力，EFI < 0 代表空方有力。")
+                    
+                    st.line_chart(df_day[['EFI_EMA13', 'EFI_EMA2']].iloc[-60:])
+                    
+                    # 簡易解讀
+                    last_efi = df_day['EFI_EMA13'].iloc[-1]
+                    if last_efi > 0:
+                        st.success(f"🔥 主力力道：多方控盤 (EFI_13={last_efi:,.0f})")
+                    else:
+                        st.error(f"❄️ 主力力道：空方控盤 (EFI_13={last_efi:,.0f})")
+            else:
+                st.warning("⚠️ 無法產生日線圖表 (請查看上方錯誤訊息)")
+
+        with tab3:
             # ==========================================
             # [NEW] 籌碼成交分佈 (Volume Profile)
             # ==========================================
             from technical_analysis import calculate_volume_profile
             import plotly.graph_objects as go
             
+            # 使用 Expander 包裹，但預設展開，讓它成為 Tab 的第一部分
             with st.expander("📊 籌碼成交分佈 (Volume Profile)", expanded=True):
                 try:
                     # Calculate Profile
@@ -345,275 +549,8 @@ if run_btn or force_btn or auto_run:
                         st.info("資料不足，無法計算籌碼分佈。")
                 except Exception as e:
                     st.error(f"籌碼圖繪製失敗: {e}")
-                
-            # [NEW] 🔔 盤中監控看板 (Monitoring & Outlook)
-            if 'checklist' in report and report['checklist']:
-                cl = report['checklist']
-                with st.expander("🔔 盤中監控看板 (Monitoring & Outlook)", expanded=True):
-                    
-                    # Layout: 3 Columns
-                    mc1, mc2, mc3 = st.columns(3)
-                    
-                    with mc1:
-                        st.markdown("#### 🛑 停損/調節 (Risk)")
-                        if cl['risk']:
-                            for item in cl['risk']:
-                                st.warning(item, icon="⚠️")
-                        else:
-                            st.caption("(暫無緊急風險訊號)")
-
-                    with mc2:
-                        st.markdown("#### 🚀 追價/加碼 (Active)")
-                        if cl['active']:
-                            for item in cl['active']:
-                                st.success(item, icon="🔥")
-                        else:
-                            st.caption("(暫無追價訊號)")
-                            
-                    with mc3:
-                        st.markdown("#### 🔭 未來觀察 (Future)")
-                        if cl['future']:
-                            for item in cl['future']:
-                                st.info(item, icon="👀")
-                        else:
-                            st.caption("(持續觀察)")
-
-            # 2. 核心操作建議 (Key Actionables) - Moved to Top
-            if report.get('action_plan'):
-                ap = report['action_plan']
-                is_actionable = ap.get('is_actionable', True) # Default True for backward compatibility
-                
-                # 第一排：策略 (Always Show)
-                st.info(f"**操作策略**：\n\n{ap['strategy']}")
-                
-                if is_actionable:
-                    c2, c3, c4 = st.columns(3)
-                    
-                    # 2. 進場
-                    if ap.get('rec_entry_low', 0) > 0:
-                         c2.warning(f"**建議進場**：\n\n📉 **{ap['rec_entry_low']:.2f}~{ap['rec_entry_high']:.2f}**")
-                    else:
-                         c2.warning(f"**建議進場**：\n\n(暫無建議)")
-
-                    # 3. 停利
-                    c3.success(f"**推薦停利**：\n\n🎯 **{ap['rec_tp_price']:.2f}**")
-                    
-                    # 4. 停損
-                    c4.error(f"**推薦停損**：\n\n🛑 **{ap['rec_sl_price']:.2f}**")
-                else:
-                    # Not actionable: Show simple message or nothing else?
-                    # User request: "If not suggested entry, don't give"
-                    pass
-                
-            st.markdown("---")
-
-            # 3. 詳細因子分析 (Detailed Breakdown)
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("#### 📅 週線趨勢因子")
-                for item in report['trend_details']:
-                    st.write(item)
-            with c2:
-                st.markdown("#### ⚡ 日線訊號因子")
-                for item in report['trigger_details']:
-                    st.write(item)
-            
-            # 4. 完整價位規劃表 (Detailed Price Levels)
-            with st.expander("📊 查看完整支撐壓力與停損清單", expanded=False):
-                if report.get('action_plan'):
-                    ap = report['action_plan']
-                    
-                    # [RESTORED] 停利目標清單
-                    if ap.get('tp_list'):
-                        st.markdown("#### 🔭 停利目標預估清單")
-                        tp_data = []
-                        for t in ap['tp_list']:
-                            mark = "⭐️" if t.get('is_rec') else ""
-                            tp_data.append({
-                                "推薦": mark,
-                                "測幅方法": t['method'],
-                                "目標價格": f"{t['price']:.2f}",
-                                "說明": t['desc']
-                            })
-                        st.table(pd.DataFrame(tp_data))
-
-                    if ap.get('sl_list'):
-                        st.markdown("#### 🛡️ 支撐防守清單")
-                        sl_data = []
-                        for sl in ap['sl_list']:
-                            sl_data.append([sl['desc'], f"{sl['price']:.2f}", f"{sl['loss']}%"])
-                        st.table(pd.DataFrame(sl_data, columns=['支撐位置', '價格', '風險幅度']))
-
-        # ==========================================
-        # 6. 策略回測系統 (Strategy Backtester)
-        # ==========================================
-        st.markdown("---")
-        st.subheader("📈 策略歷史回測與優化 (Backtest & Optimization)")
-        st.info("驗證 AI 評分模型在過去 3 年的即時績效。")
-
-        bc1, bc2 = st.columns(2)
-        
-        run_default = bc1.button("🚀 執行 AI 策略 (預設參數)", use_container_width=True)
-        run_opt = bc2.button("✨ 自動最佳化 (Auto Optimize)", use_container_width=True)
-
-        if run_default or run_opt:
-            # [Visual Feedback] Progress Bar
-            prog_bar = st.progress(0, text="正在初始化回測引擎...")
-            
-            with st.spinner("正在模擬歷史交易與運算分數... (需時約 10 秒)"):
-                try:
-                    from backtest_engine import BacktestEngine
-                    from technical_analysis import load_and_resample, calculate_all_indicators
-                    from strategy_manager import StrategyManager 
-                    
-                    # 1. Reload Data
-                    prog_bar.progress(20, text="正在載入歷史數據...")
-                    _, df_bt, _, _ = load_and_resample(ticker_input, force_update=False)
-                    
-                    if not df_bt.empty:
-                        prog_bar.progress(40, text="正在計算技術指標...")
-                        df_bt = calculate_all_indicators(df_bt)
-                        
-                        # 2. Initialize Engine
-                        engine = BacktestEngine(df_bt, initial_capital=100000)
-                        sm = StrategyManager() 
-                        
-                        results = {}
-                        params = ""
-                        
-                        if run_opt:
-                            prog_bar.progress(60, text="正在執行 AI 參數最佳化 (Grid Search)...")
-                            st.toast("正在進行網格搜索最佳參數...", icon="🔍")
-                            best_p, results = engine.optimize()
-                            
-                            # Auto-Save
-                            sm.save_strategy(ticker_input, best_p['buy'], best_p['sell'])
-                            st.toast(f"已儲存 {ticker_input} 專屬策略參數！", icon="💾")
-                            
-                            params = f"最佳參數: 買進分數 > {best_p['buy']}, 賣出分數 < {best_p['sell']} (已自動儲存)"
-                            st.success(f"✨ 找到並儲存最佳策略組合！ {params}")
-                        else:
-                            prog_bar.progress(60, text="正在執行歷史回測...")
-                            # Default AI Logic
-                            results = engine.run(buy_threshold=3, sell_threshold=-2)
-                            params = "目前參數: 買進分數 > 3, 賣出分數 < -2 (預設)"
-                        
-                        prog_bar.progress(100, text="回測完成！")
-                        prog_bar.empty() # Clear bar
-                        
-                        st.success("✅ 回測模擬完成！以下是過去 3 年的績效報告", icon="🏁")
-                        
-                        # 3. Display Results
-                        st.markdown(f"### 📊 回測結果 ({params})")
-                        
-                        m1, m2, m3, m4 = st.columns(4)
-                        val_color = "normal"
-                        if results['total_return'] > 0: val_color = "off" # Streamlit metric doesn't allow color param directly easily
-                        
-                        m1.metric("總報酬率 (Total Return)", f"{results['total_return']:.2f}%", delta=None)
-                        m2.metric("交易勝率 (Win Rate)", f"{results['win_rate']:.1f}%")
-                        m3.metric("最大回檔 (Max DD)", f"{results['max_drawdown']:.2f}%")
-                        m4.metric("目前持倉", "持有中" if results['holding'] else "空手")
-                        
-                        # Plot
-                        fig_bt = engine.plot_results(results)
-                        st.plotly_chart(fig_bt, use_container_width=True)
-                        
-                        # Trade Log
-                        with st.expander("查看詳細交易紀錄 (Trade Log)"):
-                            if not results['trades'].empty:
-                                st.dataframe(results['trades'])
-                            else:
-                                st.info("期間無交易產生。")
-                    else:
-                        st.error("無法載入數據進行回測")
-                        
-                except Exception as e:
-                    st.error(f"回測執行失敗: {str(e)}")
-
-                    # 停損矩陣
-                    st.markdown(f"#### 🛑 停損防守價位")
-                    
-                    def get_mark(name):
-                        return "⭐️" if name == ap['rec_sl_method'] else ""
-                        
-                    sl_data = {
-                        "推薦": [
-                            get_mark("A. ATR 波動停損 (科學)"),
-                            get_mark("B. 均線停損 (趨勢)"),
-                            get_mark("C. 關鍵 K 線停損 (積極)"),
-                            get_mark("D. 波段低點停損 (形態)"),
-                        ],
-                        "策略類型": ["A. ATR 波動停損 (科學)", "B. 均線停損 (趨勢)", "C. 關鍵 K 線停損 (積極)", "D. 波段低點停損 (形態)"],
-                        "防守價位": [
-                            f"{ap['sl_atr']:.2f}",
-                            f"{ap['sl_ma']:.2f}",
-                            f"{ap['sl_key_candle']:.2f}",
-                            f"{ap['sl_low']:.2f}"
-                        ]
-                    }
-                    st.table(pd.DataFrame(sl_data))
 
             st.markdown("---")
-
-        # 顯示圖表
-        col1, col2 = st.columns(2)
-        
-        # 顯示圖表
-        col1, col2 = st.columns(2)
-        
-        tab1, tab2, tab3, tab4 = st.tabs(["📅 週線趨勢 (Trend)", "🌞 日線操作 (Action)", "💰 籌碼分佈 (Chips)", "🏢 基本面 (Fundamentals)"])
-        
-        with tab1:
-            if 'Weekly' in figures:
-                st.plotly_chart(figures['Weekly'], use_container_width=True)
-                
-                # 圖例說明 (新增)
-                st.info("""
-                **圖表符號說明：**
-                - 🔺 紅色三角形 + 數字 9：**神奇九轉 (買進)** - 股價連續 9 天低於前 4 天收盤，短線超賣，隨時可能反彈。
-                - 🔻 綠色倒三角 + 數字 9：**神奇九轉 (賣出)** - 股價連續 9 天高於前 4 天收盤，短線超漲，隨時可能回檔。
-                - 🔢 數字 6~8：代表趨勢正在累積中，即將出現轉折訊號。
-                """)
-                
-                # 新增: Weekly EFI
-                if not df_week.empty and 'EFI_EMA13' in df_week.columns:
-                    st.markdown("### ⚡ 週線能量 (Weekly EFI)")
-                    st.caption("週線 EFI 能夠過濾短期雜訊，更準確判斷主力長線資金動向。")
-                    st.line_chart(df_week[['EFI_EMA13']].iloc[-100:])
-                    
-            else:
-                st.warning("⚠️ 無法產生週線圖表 (請查看上方錯誤訊息)")
-        
-        with tab2:
-            if 'Daily' in figures:
-                st.plotly_chart(figures['Daily'], use_container_width=True)
-                
-                # 圖例說明
-                st.info("""
-                **圖表符號說明：**
-                - 🔺 紅色三角形 + 數字 9：**神奇九轉 (買進)** - 股價連續 9 天低於前 4 天收盤，短線超賣，隨時可能反彈。
-                - 🔻 綠色倒三角 + 數字 9：**神奇九轉 (賣出)** - 股價連續 9 天高於前 4 天收盤，短線超漲，隨時可能回檔。
-                - 🔢 數字 6~8：代表趨勢正在累積中，即將出現轉折訊號。
-                """)
-
-                # 新增: EFI 能量圖 (獨立顯示)
-                if not df_day.empty and 'EFI_EMA13' in df_day.columns:
-                    st.markdown("### ⚡ 埃爾德強力指標 (EFI - Elder's Force Index)")
-                    st.caption("原理：結合「價格變動」與「成交量」。EFI > 0 代表多方有力，EFI < 0 代表空方有力。")
-                    
-                    st.line_chart(df_day[['EFI_EMA13', 'EFI_EMA2']].iloc[-60:])
-                    
-                    # 簡易解讀
-                    last_efi = df_day['EFI_EMA13'].iloc[-1]
-                    if last_efi > 0:
-                        st.success(f"🔥 主力力道：多方控盤 (EFI_13={last_efi:,.0f})")
-                    else:
-                        st.error(f"❄️ 主力力道：空方控盤 (EFI_13={last_efi:,.0f})")
-            else:
-                st.warning("⚠️ 無法產生日線圖表 (請查看上方錯誤訊息)")
-
-        with tab3:
             # 寬鬆判斷：只要是字串且 (含TW 或 純數字) 都嘗試顯示籌碼
             if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
                  # 嘗試抓取籌碼數據
@@ -755,6 +692,138 @@ if run_btn or force_btn or auto_run:
                  st.json(fd)
              else:
                  st.warning("⚠️ 無基本面數據 (可能為 CSV 模式或查無資料)")
+
+        # ==========================================
+        # 6. 策略回測系統 (Strategy Backtester)
+        # ==========================================
+        st.markdown("---")
+        st.subheader("📈 策略歷史回測與優化 (Backtest & Optimization)")
+        st.info("驗證 AI 評分模型在過去 3 年的即時績效。")
+
+        bc1, bc2 = st.columns(2)
+        
+        run_default = bc1.button("🚀 執行 AI 策略 (預設參數)", use_container_width=True)
+        run_opt = bc2.button("✨ 自動最佳化 (Auto Optimize)", use_container_width=True)
+
+        if run_default or run_opt:
+            # [Visual Feedback] Progress Bar
+            prog_bar = st.progress(0, text="正在初始化回測引擎...")
+            
+            with st.spinner("正在模擬歷史交易與運算分數... (需時約 10 秒)"):
+                try:
+                    from backtest_engine import BacktestEngine
+                    from technical_analysis import load_and_resample, calculate_all_indicators
+                    from strategy_manager import StrategyManager 
+                    
+                    # 1. Reload Data
+                    prog_bar.progress(20, text="正在載入歷史數據...")
+                    # Use display_ticker which holds the actual ticker string (e.g. "2330.TW")
+                    # If CSV mode, display_ticker is "Uploaded File", which might crash load_and_resample if not handled.
+                    # But Backtest is primarily for Tickers. For CSV, we might need to use 'source' if it was preserved?
+                    # But load_and_resample expects a ticker string usually to fetch fresh data for backtest?
+                    # Actually, if we are in CSV mode, 'source' is a DataFrame. load_and_resample accepts DataFrame too in my wrapper?
+                    # Let's check app.py definition of load_and_resample wrapper (none, it imports).
+                    # app.py run_analysis wrapper handles checks.
+                    
+                    # Safe approach: Pass 'source' (which is ticker str OR DataFrame)
+                    # But load_and_resample signature: (ticker_or_df, force_update=True)
+                    
+                    # For Backtesting, we want strict consistency.
+                    target_source = source 
+                    if isinstance(source, str):
+                         target_source = source
+                    elif input_method == "上傳 CSV 檔":
+                         # Re-read CSV? or use cached?
+                         # For now, let's use display_ticker if string, else handle error.
+                         pass
+
+                    _, df_bt, _, _ = load_and_resample(display_ticker, force_update=False)
+                    
+                    if not df_bt.empty:
+                        prog_bar.progress(40, text="正在計算技術指標...")
+                        df_bt = calculate_all_indicators(df_bt)
+                        
+                        # 2. Initialize Engine
+                        engine = BacktestEngine(df_bt, initial_capital=100000)
+                        sm = StrategyManager() 
+                        
+                        results = {}
+                        params = ""
+                        
+                        if run_opt:
+                            prog_bar.progress(60, text="正在執行 AI 參數最佳化 (Grid Search)...")
+                            st.toast("正在進行網格搜索最佳參數...", icon="🔍")
+                            best_p, results = engine.optimize()
+                            
+                            # Auto-Save
+                            sm.save_strategy(display_ticker, best_p['buy'], best_p['sell'])
+                            st.toast(f"已儲存 {display_ticker} 專屬策略參數！", icon="💾")
+                            
+                            params = f"最佳參數: 買進分數 > {best_p['buy']}, 賣出分數 < {best_p['sell']} (已自動儲存)"
+                            st.success(f"✨ 找到並儲存最佳策略組合！ {params}")
+                        else:
+                            prog_bar.progress(60, text="正在執行歷史回測...")
+                            # Default AI Logic
+                            results = engine.run(buy_threshold=3, sell_threshold=-2)
+                            params = "目前參數: 買進分數 > 3, 賣出分數 < -2 (預設)"
+                        
+                        prog_bar.progress(100, text="回測完成！")
+                        prog_bar.empty() # Clear bar
+                        
+                        st.success("✅ 回測模擬完成！以下是過去 3 年的績效報告", icon="🏁")
+                        
+                        # 3. Display Results
+                        st.markdown(f"### 📊 回測結果 ({params})")
+                        
+                        m1, m2, m3, m4 = st.columns(4)
+                        val_color = "normal"
+                        if results['total_return'] > 0: val_color = "off" # Streamlit metric doesn't allow color param directly easily
+                        
+                        m1.metric("總報酬率 (Total Return)", f"{results['total_return']:.2f}%", delta=None)
+                        m2.metric("交易勝率 (Win Rate)", f"{results['win_rate']:.1f}%")
+                        m3.metric("最大回檔 (Max DD)", f"{results['max_drawdown']:.2f}%")
+                        m4.metric("目前持倉", "持有中" if results['holding'] else "空手")
+                        
+                        # Plot
+                        fig_bt = engine.plot_results(results)
+                        st.plotly_chart(fig_bt, use_container_width=True)
+                        
+                        # Trade Log
+                        with st.expander("查看詳細交易紀錄 (Trade Log)"):
+                            if not results['trades'].empty:
+                                st.dataframe(results['trades'])
+                            else:
+                                st.info("期間無交易產生。")
+                    else:
+                        st.error("無法載入數據進行回測")
+                        
+                except Exception as e:
+                    st.error(f"回測執行失敗: {str(e)}")
+
+                    # 停損矩陣
+                    st.markdown(f"#### 🛑 停損防守價位")
+                    
+                    def get_mark(name):
+                        return "⭐️" if name == ap['rec_sl_method'] else ""
+                        
+                    sl_data = {
+                        "推薦": [
+                            get_mark("A. ATR 波動停損 (科學)"),
+                            get_mark("B. 均線停損 (趨勢)"),
+                            get_mark("C. 關鍵 K 線停損 (積極)"),
+                            get_mark("D. 波段低點停損 (形態)"),
+                        ],
+                        "策略類型": ["A. ATR 波動停損 (科學)", "B. 均線停損 (趨勢)", "C. 關鍵 K 線停損 (積極)", "D. 波段低點停損 (形態)"],
+                        "防守價位": [
+                            f"{ap['sl_atr']:.2f}",
+                            f"{ap['sl_ma']:.2f}",
+                            f"{ap['sl_key_candle']:.2f}",
+                            f"{ap['sl_low']:.2f}"
+                        ]
+                    }
+                    st.table(pd.DataFrame(sl_data))
+
+            st.markdown("---")
 
     except Exception as e:
         status_text.error(f"❌ 發生未預期錯誤: {e}")
