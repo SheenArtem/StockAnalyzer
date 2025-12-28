@@ -21,6 +21,9 @@ class TechnicalAnalyzer:
         # 4. 操作劇本與風控 (Action Plan & Risk)
         action_plan = self._generate_action_plan(self.df_day, scenario)
         
+        # 5. [NEW] Dynamic Monitoring Checklist (Conditional Alerts)
+        checklist = self._generate_monitoring_checklist(self.df_day, scenario)
+        
         return {
             "ticker": self.ticker,
             "trend_score": trend_score,
@@ -28,8 +31,72 @@ class TechnicalAnalyzer:
             "trigger_score": trigger_score,
             "trigger_details": trigger_details,
             "scenario": scenario,
-            "action_plan": action_plan
+            "action_plan": action_plan,
+            "checklist": checklist
         }
+
+    def _generate_monitoring_checklist(self, df, scenario):
+        """
+        生成盤中監控與未來展望清單 (Dynamic Strategy Alerts)
+        分為:
+        1. 🛑 停損/調節 (Risk Control) -> 下跌觸發
+        2. 🚀 追價/加碼 (Active Entry) -> 上漲觸發
+        3. 🔭 未來觀察 (Future Opportunity) -> 等待特定條件
+        """
+        checklist = {
+            "risk": [],
+            "active": [],
+            "future": []
+        }
+        
+        if df.empty or len(df) < 60: return checklist
+        
+        current = df.iloc[-1]
+        close = current['Close']
+        ma5 = current.get('MA5', 0)
+        ma20 = current.get('MA20', 0)
+        ma60 = current.get('MA60', 0)
+        vol_ma5 = current.get('Vol_MA5', 0) if 'Vol_MA5' in current else 0
+        
+        # --- 1. Risk Control (Stop Loss / Trim) ---
+        # A. 破線停損
+        if close > ma20:
+            checklist['risk'].append(f"若收盤跌破 **月線 ({ma20:.2f})**，短期轉弱，建議減碼或停損。")
+        elif close > ma60:
+             checklist['risk'].append(f"若收盤跌破 **季線 ({ma60:.2f})**，波段轉弱，建議清倉觀望。")
+             
+        # B. 爆量長黑
+        checklist['risk'].append(f"若出現 **爆量長黑** (成交量 > {vol_ma5*2:.0f}) 且收跌，視為主力出貨訊號。")
+        
+        # C. KD 高檔鈍化結束
+        if current.get('K', 0) > 80:
+             checklist['risk'].append("指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。")
+
+        # --- 2. Active Entry (Add / Chase) ---
+        # A. 突破前高
+        recent_high = df['High'].iloc[-20:].max()
+        if close < recent_high:
+             checklist['active'].append(f"若帶量突破 **波段前高 ({recent_high:.2f})**，趨勢續攻，可嘗試加碼。")
+             
+        # B. 突破均線
+        if close < ma20:
+             checklist['active'].append(f"若帶量站上 **月線 ({ma20:.2f})**，短線翻多，可試單進場。")
+             
+        # --- 3. Future Opportunity (Watchlist) ---
+        # A. 拉回買點 (Pullback)
+        if close > ma20 * 1.05: # 正乖離過大
+             checklist['future'].append(f"目前正乖離過大 ({((close/ma20)-1)*100:.1f}%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。")
+        elif close > ma60 and close < ma20: # 在月季線之間整理
+             checklist['future'].append(f"股價處於整理階段。若 **量縮回測季線 ({ma60:.2f})** 獲支撐收紅 K，為絕佳波段買點。")
+             
+        # B. 底部反轉 (Reversal)
+        if close < ma60: # 空頭走勢
+             checklist['future'].append("目前處於空頭趨勢。需等待 **底部形態 (如W底)** 出現，或 **站上月線** 後再考慮進場。")
+             
+        # C. 轉折訊號
+        checklist['future'].append("持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。")
+
+        return checklist
 
     def _generate_action_plan(self, df, scenario):
         """
@@ -197,6 +264,35 @@ class TechnicalAnalyzer:
              final_tp_list[0]['is_rec'] = True
              rec_tp_price = final_tp_list[0]['price']
 
+        # [NEW] Construct Stop Loss List (sl_list) for UI
+        final_sl_list = []
+        sl_candidates = [
+            {"method": "A. ATR 波動停損 (科學)", "price": sl_atr, "desc": "2倍 ATR"},
+            {"method": "B. 均線停損 (趨勢)", "price": sl_ma, "desc": "MA20/60"},
+            {"method": "C. 關鍵紅K (籌碼)", "price": sl_key, "desc": "大量低點"},
+            {"method": "D. 波段低點停損 (形態)", "price": sl_low, "desc": "前波低點"}
+        ]
+        
+        for item in sl_candidates:
+            if item['price'] > 0: # Show all valid calculated supports
+                diff = item['price'] - entry_basis
+                loss_pct = (diff / entry_basis) * 100
+                
+                # Add note if broken
+                note = item['desc']
+                if diff > 0:
+                     note += " (壓力/已破)"
+                
+                final_sl_list.append({
+                    "method": item['method'],
+                    "price": item['price'],
+                    "desc": note,
+                    "loss": round(loss_pct, 2) 
+                })
+        
+        # Sort by price descending (closest to current price first)
+        final_sl_list.sort(key=lambda x: x['price'], reverse=True)
+
         return {
             "current_price": close_price,
             "strategy": strategy_text,
@@ -208,9 +304,10 @@ class TechnicalAnalyzer:
             "rec_sl_price": rec_sl_price,
             "rec_tp_price": rec_tp_price,
             "tp_list": final_tp_list,
+            "sl_list": final_sl_list,
             "sl_atr": sl_atr,
             "sl_ma": sl_ma,
-            "sl_key_candle": sl_key, # Variable name check needed
+            "sl_key_candle": sl_key, 
             "sl_low": sl_low
         }
         
@@ -559,7 +656,20 @@ class TechnicalAnalyzer:
             else:
                  msgs.append("⚠️ 出現【量縮十字線】多空觀望 (Info)")
 
-        return score, msgs
+        # 5. [NEW] Check for Extra Patterns from pattern_recognition.py
+        # These are informational only (+0)
+        current_pattern = c.get('Pattern', None)
+        if current_pattern and isinstance(current_pattern, str) and current_pattern not in [None, 'None', 'nan']:
+            # Avoid duplicating what we already detected manually (Engulfing, Morning Star)
+            # Simple check: if msg already contains the pattern name
+            is_duplicate = False
+            for m in msgs:
+                if current_pattern.split('(')[0] in m: 
+                    is_duplicate = True
+                    break
+            
+            if not is_duplicate:
+                msgs.append(f"🕯️ 形態識別: {current_pattern} (+0)")
 
         return score, msgs
 

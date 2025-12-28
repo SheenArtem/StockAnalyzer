@@ -38,7 +38,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.27.05")
+    st.caption("Version: v2025.12.28.01")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -269,7 +269,115 @@ if run_btn or force_btn or auto_run:
                 st.success(f"### {sc['title']}\n{sc['desc']}")
             else:
                 st.info(f"### {sc['title']}\n{sc['desc']}")
+            
+            # ==========================================
+            # [NEW] 籌碼成交分佈 (Volume Profile)
+            # ==========================================
+            from technical_analysis import calculate_volume_profile
+            import plotly.graph_objects as go
+            
+            with st.expander("📊 籌碼成交分佈 (Volume Profile)", expanded=True):
+                try:
+                    # Calculate Profile
+                    vp_df, poc_price = calculate_volume_profile(df_day)
+                    
+                    if not vp_df.empty:
+                        # Plot
+                        fig_vp = go.Figure()
+                        
+                        # 1. Volume Bars (Horizontal)
+                        # Color bars: Grey for normal, Yellow for POC area
+                        colors = ['rgba(100, 100, 100, 0.5)'] * len(vp_df)
+                        # Find index closest to POC
+                        if not vp_df['Price'].empty:
+                            poc_idx = (vp_df['Price'] - poc_price).abs().idxmin()
+                            if 0 <= poc_idx < len(colors):
+                                colors[poc_idx] = 'rgba(255, 215, 0, 0.8)' # Gold
+                        
+                        fig_vp.add_trace(go.Bar(
+                            y=vp_df['Price'],
+                            x=vp_df['Volume'],
+                            orientation='h',
+                            name='成交量',
+                            marker_color=colors,
+                            opacity=0.6,
+                            hovertemplate="價格: %{y:.2f}<br>成交量: %{x:,.0f}<extra></extra>"
+                        ))
+                        
+                        # 2. Current Price Line
+                        curr_price = df_day['Close'].iloc[-1]
+                        fig_vp.add_hline(
+                            y=curr_price, 
+                            line_dash="dash", 
+                            line_color="cyan", 
+                            annotation_text=f"現價 {curr_price}", 
+                            annotation_position="top right"
+                        )
+                        
+                        # 3. POC Line
+                        fig_vp.add_hline(
+                            y=poc_price, 
+                            line_width=2, 
+                            line_color="orange", 
+                            annotation_text=f"大量支撐 (POC) {poc_price:.2f}", 
+                            annotation_position="bottom right"
+                        )
+
+                        fig_vp.update_layout(
+                            title="近半年籌碼成交分佈圖 (Volume Profile)",
+                            xaxis_title="成交量 (Volume)",
+                            yaxis_title="價格 (Price)",
+                            template="plotly_dark",
+                            height=400,
+                            showlegend=False,
+                            margin=dict(l=20, r=20, t=40, b=20),
+                            hovermode="y unified"
+                        )
+                        st.plotly_chart(fig_vp, use_container_width=True)
+                        
+                        # Interpretation Text
+                        if curr_price > poc_price:
+                            st.caption(f"✅ **多頭優勢**：股價位於大量成本區 ({poc_price:.2f}) 之上，下檔有撐。")
+                        else:
+                            st.caption(f"⚠️ **空頭壓力**：股價位於大量套牢區 ({poc_price:.2f}) 之下，上檔有壓。")
+                            
+                    else:
+                        st.info("資料不足，無法計算籌碼分佈。")
+                except Exception as e:
+                    st.error(f"籌碼圖繪製失敗: {e}")
                 
+            # [NEW] 🔔 盤中監控看板 (Monitoring & Outlook)
+            if 'checklist' in report and report['checklist']:
+                cl = report['checklist']
+                with st.expander("🔔 盤中監控看板 (Monitoring & Outlook)", expanded=True):
+                    
+                    # Layout: 3 Columns
+                    mc1, mc2, mc3 = st.columns(3)
+                    
+                    with mc1:
+                        st.markdown("#### 🛑 停損/調節 (Risk)")
+                        if cl['risk']:
+                            for item in cl['risk']:
+                                st.warning(item, icon="⚠️")
+                        else:
+                            st.caption("(暫無緊急風險訊號)")
+
+                    with mc2:
+                        st.markdown("#### 🚀 追價/加碼 (Active)")
+                        if cl['active']:
+                            for item in cl['active']:
+                                st.success(item, icon="🔥")
+                        else:
+                            st.caption("(暫無追價訊號)")
+                            
+                    with mc3:
+                        st.markdown("#### 🔭 未來觀察 (Future)")
+                        if cl['future']:
+                            for item in cl['future']:
+                                st.info(item, icon="👀")
+                        else:
+                            st.caption("(持續觀察)")
+
             # 2. 核心操作建議 (Key Actionables) - Moved to Top
             if report.get('action_plan'):
                 ap = report['action_plan']
@@ -314,12 +422,13 @@ if run_btn or force_btn or auto_run:
             with st.expander("📊 查看完整支撐壓力與停損清單", expanded=False):
                 if report.get('action_plan'):
                     ap = report['action_plan']
-                    # 停利目標清單
+                    
+                    # [RESTORED] 停利目標清單
                     if ap.get('tp_list'):
                         st.markdown("#### 🔭 停利目標預估清單")
                         tp_data = []
                         for t in ap['tp_list']:
-                            mark = "⭐️" if t['is_rec'] else ""
+                            mark = "⭐️" if t.get('is_rec') else ""
                             tp_data.append({
                                 "推薦": mark,
                                 "測幅方法": t['method'],
@@ -327,6 +436,100 @@ if run_btn or force_btn or auto_run:
                                 "說明": t['desc']
                             })
                         st.table(pd.DataFrame(tp_data))
+
+                    if ap.get('sl_list'):
+                        st.markdown("#### 🛡️ 支撐防守清單")
+                        sl_data = []
+                        for sl in ap['sl_list']:
+                            sl_data.append([sl['desc'], f"{sl['price']:.2f}", f"{sl['loss']}%"])
+                        st.table(pd.DataFrame(sl_data, columns=['支撐位置', '價格', '風險幅度']))
+
+        # ==========================================
+        # 6. 策略回測系統 (Strategy Backtester)
+        # ==========================================
+        st.markdown("---")
+        st.subheader("📈 策略歷史回測與優化 (Backtest & Optimization)")
+        st.info("驗證 AI 評分模型在過去 3 年的即時績效。")
+
+        bc1, bc2 = st.columns(2)
+        
+        run_default = bc1.button("🚀 執行 AI 策略 (預設參數)", use_container_width=True)
+        run_opt = bc2.button("✨ 自動最佳化 (Auto Optimize)", use_container_width=True)
+
+        if run_default or run_opt:
+            # [Visual Feedback] Progress Bar
+            prog_bar = st.progress(0, text="正在初始化回測引擎...")
+            
+            with st.spinner("正在模擬歷史交易與運算分數... (需時約 10 秒)"):
+                try:
+                    from backtest_engine import BacktestEngine
+                    from technical_analysis import load_and_resample, calculate_all_indicators
+                    from strategy_manager import StrategyManager 
+                    
+                    # 1. Reload Data
+                    prog_bar.progress(20, text="正在載入歷史數據...")
+                    _, df_bt, _, _ = load_and_resample(ticker_input, force_update=False)
+                    
+                    if not df_bt.empty:
+                        prog_bar.progress(40, text="正在計算技術指標...")
+                        df_bt = calculate_all_indicators(df_bt)
+                        
+                        # 2. Initialize Engine
+                        engine = BacktestEngine(df_bt, initial_capital=100000)
+                        sm = StrategyManager() 
+                        
+                        results = {}
+                        params = ""
+                        
+                        if run_opt:
+                            prog_bar.progress(60, text="正在執行 AI 參數最佳化 (Grid Search)...")
+                            st.toast("正在進行網格搜索最佳參數...", icon="🔍")
+                            best_p, results = engine.optimize()
+                            
+                            # Auto-Save
+                            sm.save_strategy(ticker_input, best_p['buy'], best_p['sell'])
+                            st.toast(f"已儲存 {ticker_input} 專屬策略參數！", icon="💾")
+                            
+                            params = f"最佳參數: 買進分數 > {best_p['buy']}, 賣出分數 < {best_p['sell']} (已自動儲存)"
+                            st.success(f"✨ 找到並儲存最佳策略組合！ {params}")
+                        else:
+                            prog_bar.progress(60, text="正在執行歷史回測...")
+                            # Default AI Logic
+                            results = engine.run(buy_threshold=3, sell_threshold=-2)
+                            params = "目前參數: 買進分數 > 3, 賣出分數 < -2 (預設)"
+                        
+                        prog_bar.progress(100, text="回測完成！")
+                        prog_bar.empty() # Clear bar
+                        
+                        st.success("✅ 回測模擬完成！以下是過去 3 年的績效報告", icon="🏁")
+                        
+                        # 3. Display Results
+                        st.markdown(f"### 📊 回測結果 ({params})")
+                        
+                        m1, m2, m3, m4 = st.columns(4)
+                        val_color = "normal"
+                        if results['total_return'] > 0: val_color = "off" # Streamlit metric doesn't allow color param directly easily
+                        
+                        m1.metric("總報酬率 (Total Return)", f"{results['total_return']:.2f}%", delta=None)
+                        m2.metric("交易勝率 (Win Rate)", f"{results['win_rate']:.1f}%")
+                        m3.metric("最大回檔 (Max DD)", f"{results['max_drawdown']:.2f}%")
+                        m4.metric("目前持倉", "持有中" if results['holding'] else "空手")
+                        
+                        # Plot
+                        fig_bt = engine.plot_results(results)
+                        st.plotly_chart(fig_bt, use_container_width=True)
+                        
+                        # Trade Log
+                        with st.expander("查看詳細交易紀錄 (Trade Log)"):
+                            if not results['trades'].empty:
+                                st.dataframe(results['trades'])
+                            else:
+                                st.info("期間無交易產生。")
+                    else:
+                        st.error("無法載入數據進行回測")
+                        
+                except Exception as e:
+                    st.error(f"回測執行失敗: {str(e)}")
 
                     # 停損矩陣
                     st.markdown(f"#### 🛑 停損防守價位")
@@ -516,9 +719,9 @@ if run_btn or force_btn or auto_run:
                                  height=600,
                                  hovermode='x unified', # Key requirement: Unified Hover
                                  barmode='group',
-                                 margin=dict(l=10, r=10, t=10, b=10), # Reduced Top Margin
+                                 margin=dict(l=30, r=30, t=50, b=50), # Increased Margins for Titles/Legend
                                  # Move Legend to Bottom to avoid overlap with Modebar/Title Hover
-                                 legend=dict(orientation="h", yanchor="top", y=-0.05, xanchor="center", x=0.5)
+                                 legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
                              )
                              # Spikes
                              fig_chip.update_xaxes(showspikes=True, spikemode='across', spikesnap='cursor')

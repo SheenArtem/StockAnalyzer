@@ -8,6 +8,57 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pattern_recognition import identify_patterns
 
+
+def calculate_volume_profile(df, days=120, bins=50):
+    """
+    計算籌碼成交分佈 (Volume Profile)
+    :param df: 日線資料
+    :param days: 回算天數 (預設半年約 120 交易日)
+    :param bins: 價格區間數量
+    :return: (profile_df, poc_price)
+    """
+    if df.empty or len(df) < 5:
+        return pd.DataFrame(), 0
+        
+    # Use recent data
+    subset = df.iloc[-days:] if len(df) > days else df
+    
+    # Define Price Range
+    price_min = subset['Low'].min()
+    price_max = subset['High'].max()
+    
+    if price_min == price_max:
+        return pd.DataFrame(), price_min
+        
+    # Create Bins
+    bin_edges = np.linspace(price_min, price_max, bins + 1)
+    bin_midpoints = (bin_edges[:-1] + bin_edges[1:]) / 2
+    
+    # Digitize prices (Use 'Close' or 'Typical Price' (H+L+C)/3)
+    typical_prices = (subset['High'] + subset['Low'] + subset['Close']) / 3
+    bin_indices = np.digitize(typical_prices, bin_edges)
+    
+    # Aggregate Volume
+    vol_profile = np.zeros(bins)
+    volumes = subset['Volume'].values
+    
+    for i in range(len(volumes)):
+        idx = bin_indices[i] - 1
+        if 0 <= idx < bins:
+            vol_profile[idx] += volumes[i]
+            
+    # Create DataFrame
+    profile_df = pd.DataFrame({
+        'Price': bin_midpoints,
+        'Volume': vol_profile
+    })
+    
+    # Find POC (Point of Control)
+    max_vol_idx = profile_df['Volume'].idxmax()
+    poc_price = profile_df.iloc[max_vol_idx]['Price']
+    
+    return profile_df, poc_price
+
 def calculate_all_indicators(df):
     """
     核心運算引擎：計算所有技術指標
@@ -133,6 +184,11 @@ def calculate_all_indicators(df):
             
     df['TD_Buy_Setup'] = buy_setups
     df['TD_Sell_Setup'] = sell_setups
+
+    # 12. [NEW] K-Line Pattern Recognition (Candlestick Patterns)
+    # This adds 'Pattern' and 'Pattern_Type' columns
+    pat_df = identify_patterns(df)
+    df = df.join(pat_df) # Join columns to main df
 
     return df
 
