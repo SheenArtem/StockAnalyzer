@@ -143,7 +143,12 @@ def get_taiwan_stock_fundamentals(stock_id):
         # 取最近 365 天數據確保有收盤與殖利率資料 (有些冷門股可能交易少)
         start_date = (datetime.datetime.now() - datetime.timedelta(days=365)).strftime('%Y-%m-%d')
         
-        df = dl.taiwan_stock_per_pbr(stock_id=stock_id, start_date=start_date)
+        # Use generic get_data since specific method is unstable
+        df = dl.get_data(
+            dataset="TaiwanStockPER",
+            data_id=stock_id,
+            start_date=start_date
+        )
         
         if df.empty:
             return {}
@@ -222,3 +227,75 @@ def get_taiwan_stock_dividend_policy(stock_id):
     except Exception as e:
         print(f"Dividend Error: {e}")
     return None
+
+def get_revenue_history(stock_id, months=36):
+    """ Fetch historical revenue data for plotting (Last 3 years default) """
+    try:
+        dl = DataLoader()
+        # 36 months + buffer
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=months*30 + 30)).strftime('%Y-%m-%d')
+        df = dl.taiwan_stock_month_revenue(stock_id=stock_id, start_date=start_date)
+        if not df.empty:
+             df['date'] = pd.to_datetime(df['date'])
+             df.sort_values('date', inplace=True)
+        return df
+    except:
+        return pd.DataFrame()
+
+def get_per_history(stock_id, days=500):
+    """ Fetch historical PER/PBR data for plotting """
+    try:
+        dl = DataLoader()
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
+        df = dl.get_data(dataset="TaiwanStockPER", data_id=stock_id, start_date=start_date)
+        if not df.empty:
+             df['date'] = pd.to_datetime(df['date'])
+             df.sort_values('date', inplace=True)
+        return df
+    except:
+        return pd.DataFrame()
+
+def get_financial_statements(stock_id, quarters=12):
+    """
+    Fetch quarterly financial statements and calculate Three Rates (Margins) & EPS.
+    """
+    try:
+        dl = DataLoader()
+        # Estimate days: 12 quarters * 100 days
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=quarters*100)).strftime('%Y-%m-%d')
+        
+        df = dl.get_data(
+            dataset="TaiwanStockFinancialStatements",
+            data_id=stock_id,
+            start_date=start_date
+        )
+        
+        if df.empty:
+            return pd.DataFrame()
+            
+        # Pivot: index=date, columns=type, values=value
+        # aggfunc='mean' handles potential duplicates by averaging (though usually unique)
+        df_pivot = df.pivot_table(index='date', columns='type', values='value', aggfunc='mean')
+        df_pivot.index = pd.to_datetime(df_pivot.index)
+        df_pivot.sort_index(inplace=True)
+        
+        # Calculate Margins (%)
+        # Check if Revenue exists to avoid divide by zero
+        if 'Revenue' in df_pivot.columns:
+            # Gross Margin
+            if 'GrossProfit' in df_pivot.columns:
+                df_pivot['GrossMargin'] = (df_pivot['GrossProfit'] / df_pivot['Revenue']) * 100
+            
+            # Operating Margin
+            if 'OperatingIncome' in df_pivot.columns:
+                df_pivot['OperatingMargin'] = (df_pivot['OperatingIncome'] / df_pivot['Revenue']) * 100
+                
+            # Net Profit Margin
+            if 'IncomeAfterTaxes' in df_pivot.columns:
+                df_pivot['NetProfitMargin'] = (df_pivot['IncomeAfterTaxes'] / df_pivot['Revenue']) * 100
+                
+        return df_pivot
+        
+    except Exception as e:
+        print(f"Financials Error: {e}")
+        return pd.DataFrame()
