@@ -2,15 +2,22 @@ import streamlit as st
 import pandas as pd
 import mplfinance as mpf
 from technical_analysis import plot_dual_timeframe, load_and_resample, calculate_all_indicators, plot_interactive_chart
-from fundamental_analysis import get_fundamentals
+from fundamental_analysis import get_fundamentals, get_revenue_history, get_per_history, get_financial_statements
+
 
 # 設定頁面配置
 st.set_page_config(
-    page_title="Stock Technical Analyzer",
+    page_title="台股 AI 操盤手 (Stock Analyzer)",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Sidebar
+st.sidebar.title("🔧 設定 (Settings)")
+# User provided Key
+# DEFAULT_KEY removed.
+# Input removed.
 
 # CSS 美化
 st.markdown("""
@@ -38,7 +45,7 @@ st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2025.12.28.02")
+    st.caption("Version: v2025.12.30.01")
     
     input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
     
@@ -204,6 +211,22 @@ if st.session_state.get('analysis_active', False):
         # 呼叫有快取的函數
         figures, errors, df_week, df_day, stock_meta = run_analysis(source, force_update=is_force)
         
+        # [NEW] Pre-load Chip Data for Analysis (籌碼預載)
+        chip_data = None
+        if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
+             try:
+                 from chip_analysis import ChipAnalyzer
+                 
+                 @st.cache_data(ttl=3600)
+                 def get_chip_data_cached(ticker, force):
+                     analyzer = ChipAnalyzer()
+                     return analyzer.get_chip_data(ticker, force_update=force)
+                 
+                 status_text.info(f"⏳ 正在分析 {display_ticker} (技術+籌碼)...")
+                 chip_data, chip_err = get_chip_data_cached(source, is_force)
+             except Exception as e:
+                 print(f"Chip Load Error: {e}")
+
         # 暫存給 Analyzer 用 (Hack: 把變數掛在函式上，或者直接傳變數)
         run_analysis.df_week_cache = df_week
         run_analysis.df_day_cache = df_day
@@ -284,7 +307,7 @@ if st.session_state.get('analysis_active', False):
             
             # 注意: 這裡需要傳入原始 DataFrame，而不是 Figure
             # run_analysis 回傳的是 dict
-            analyzer = TechnicalAnalyzer(display_ticker, run_analysis.df_week_cache, run_analysis.df_day_cache, strategy_params)
+            analyzer = TechnicalAnalyzer(display_ticker, run_analysis.df_week_cache, run_analysis.df_day_cache, strategy_params, chip_data=chip_data)
             report = analyzer.run_analysis()
             
             st.markdown("---")
@@ -420,8 +443,7 @@ if st.session_state.get('analysis_active', False):
         
         # 顯示圖表
         col1, col2 = st.columns(2)
-        
-        tab1, tab2, tab3, tab4 = st.tabs(["📅 週線趨勢 (Trend)", "🌞 日線操作 (Action)", "💰 籌碼分佈 (Chips)", "🏢 基本面 (Fundamentals)"])
+        tab1, tab2, tab3, tab4 = st.tabs(["📝 AI 分析報告 (週線趨勢)", "📈 技術指標 (日線操作)", "💰 籌碼分佈", "🏢 基本面"])
         
         with tab1:
             if 'Weekly' in figures:
@@ -555,7 +577,8 @@ if st.session_state.get('analysis_active', False):
             if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
                  # 嘗試抓取籌碼數據
                  try:
-                     st.info(f"⏳ 正在抓取 {display_ticker} 近一年籌碼數據 (FinMind)...")
+                     loading_msg = st.empty()
+                     loading_msg.info(f"⏳ 正在抓取 {display_ticker} 近一年籌碼數據 (FinMind)...")
                      from chip_analysis import ChipAnalyzer
                      
                      @st.cache_data(ttl=3600)
@@ -566,9 +589,142 @@ if st.session_state.get('analysis_active', False):
                      # Use force state from run_analysis
                      is_force = getattr(run_analysis, 'force_update', False)
                      chip_data, err = get_chip_data_cached(source, is_force)
+                     loading_msg.empty() # Clear message
                      
                      if chip_data:
                          st.success(f"✅ {display_ticker} 籌碼數據讀取成功")
+                         
+                         # [NEW] Margin Utilization Metric (融資使用率)
+                         df_m = chip_data['margin']
+                         if not df_m.empty and '融資限額' in df_m.columns:
+                             # Ensure numeric stats
+                             try:
+                                 latest_m = df_m.iloc[-1]
+                                 bal = latest_m.get('融資餘額', 0)
+                                 lim = latest_m.get('融資限額', 0)
+                                 
+                                 if lim > 0:
+                                     util_rate = (bal / lim) * 100
+                                     
+                                     st.markdown("#### 💳 信用交易概況")
+                                     c_m1, c_m2, c_m3 = st.columns(3)
+                                     c_m1.metric("融資餘額", f"{bal:,.0f} 張")
+                                     c_m2.metric("融資限額", f"{lim:,.0f} 張")
+                                     
+                                     state_color = "normal"
+                                     state_label = "水位健康"
+                                     if util_rate > 60:
+                                         state_label = "⚠️ 融資過熱"
+                                         state_color = "inverse"
+                                     elif util_rate > 40:
+                                         state_label = "偏高"
+                                         state_color = "inverse"
+                                         
+                                     c_m3.metric("融資使用率", f"{util_rate:.2f}%", delta=state_label, delta_color=state_color)
+                             except Exception as e:
+                                 st.caption(f"融資數據計算異常: {e}")
+                         elif not df_m.empty:
+                             st.warning("⚠️ 檢測到舊的快取數據，缺少「融資限額」欄位。請勾選側邊欄的 **強制更新數據 (Force Update)** 以取得最新資料。")
+
+                         # [NEW] Day Trading Rate (當沖率)
+                         df_dt = chip_data.get('day_trading')
+                         if df_dt is not None and not df_dt.empty and not df_day.empty:
+                             try:
+                                 # Align data
+                                 common_idx = df_day.index.intersection(df_dt.index)
+                                 if not common_idx.empty:
+                                     latest_date = common_idx[-1]
+                                     # Values might be Series if index duplicate? Ensured unique in chip_analysis.
+                                     dt_vol = df_dt.loc[latest_date, 'DayTradingVolume']
+                                     total_vol = df_day.loc[latest_date, 'Volume']
+                                     
+                                     # Handle potential Series if scalar expected
+                                     if isinstance(dt_vol, pd.Series): dt_vol = dt_vol.iloc[0]
+                                     if isinstance(total_vol, pd.Series): total_vol = total_vol.iloc[0]
+
+                                     if total_vol > 0:
+                                         dt_rate = (dt_vol / total_vol) * 100
+                                         
+                                         st.markdown("#### ⚡ 當沖週轉概況")
+                                         st.caption(f"資料日期: {latest_date.strftime('%Y-%m-%d')}")
+                                         c_dt1, c_dt2, c_dt3 = st.columns(3)
+                                         c_dt1.metric("當沖成交量", f"{dt_vol:,.0f} 張")
+                                         c_dt2.metric("當日總量", f"{total_vol:,.0f} 張")
+                                         
+                                         state_color = "normal"
+                                         state_label = "籌碼穩定"
+                                         if dt_rate > 50:
+                                             state_label = "⚠️ 過熱 (賭場)"
+                                             state_color = "inverse"
+                                         elif dt_rate > 35:
+                                             state_label = "偏高"
+                                             state_color = "inverse"
+                                         
+                                         c_dt3.metric("當沖率", f"{dt_rate:.2f}%", delta=state_label, delta_color=state_color)
+                             except Exception as e:
+                                 st.caption(f"當沖數據計算異常: {e}")
+
+                         # [NEW] Foreign Holding Ratio (外資持股比率)
+                         df_sh = chip_data.get('shareholding')
+                         if df_sh is not None and not df_sh.empty:
+                             st.markdown("#### 🌍 外資持股比率 (Foreign Holding Trends)")
+                             
+                             # Filter common date range
+                             if not df_day.empty and 'ForeignHoldingRatio' in df_sh.columns:
+                                 # Align dates
+                                 common_idx = df_day.index.intersection(df_sh.index)
+                                 # Take last 180 days max
+                                 common_idx = common_idx[-180:]
+                                 
+                                 if not common_idx.empty:
+                                     aligned_sh = df_sh.loc[common_idx]
+                                     aligned_price = df_day.loc[common_idx]
+                                     
+                                     fig_sh = go.Figure()
+                                     
+                                     # 1. Foreign Ratio (Line, Left Y)
+                                     fig_sh.add_trace(go.Scatter(
+                                         x=aligned_sh.index, 
+                                         y=aligned_sh['ForeignHoldingRatio'],
+                                         mode='lines',
+                                         name='外資持股比率(%)',
+                                         line=dict(color='#FFA500', width=2), # Orange
+                                         yaxis='y1'
+                                     ))
+                                     
+                                     # 2. Price (Line, Right Y)
+                                     fig_sh.add_trace(go.Scatter(
+                                         x=aligned_price.index,
+                                         y=aligned_price['Close'],
+                                         mode='lines',
+                                         name='股價',
+                                         line=dict(color='gray', width=1, dash='dot'),
+                                         yaxis='y2'
+                                     ))
+                                     
+                                     fig_sh.update_layout(
+                                         xaxis_title="日期",
+                                         yaxis=dict(
+                                             title="持股比率 (%)",
+                                             side="left",
+                                             showgrid=True,
+                                             tickformat=".1f"
+                                         ),
+                                         yaxis2=dict(
+                                             title="股價",
+                                             side="right",
+                                             overlaying="y",
+                                             showgrid=False
+                                         ),
+                                         legend=dict(orientation="h", y=1.2, x=0.5, xanchor='center'),
+                                         height=300,
+                                         margin=dict(l=20, r=20, t=30, b=20),
+                                         hovermode='x unified'
+                                     )
+                                     st.plotly_chart(fig_sh, use_container_width=True)
+                             else:
+                                 st.caption("⚠️ 尚無足夠的外資持股比率數據")
+
                          
                          # 1. 整合圖表：三大法人 + 融資融券 (Plotly Dual Subplot)
                          st.markdown("### 📊 籌碼綜合分析 (Institutional & Margin)")
@@ -679,19 +835,144 @@ if st.session_state.get('analysis_active', False):
                  st.info("💡 籌碼分析目前僅支援台股代號 (如 2330.TW)，CSV 模式不支援。")
 
         with tab4:
-             # Basic Fundamentals Tab
+             st.markdown("### 🏢 基本面數據 (Fundamentals)")
+             
+             # 1. Company Profile
              fd = getattr(run_analysis, 'fund_cache', None)
              if fd:
-                 st.markdown(f"### 🏢 {display_ticker} 公司簡介")
-                 st.write(f"**產業**: {fd['Sector']} / {fd['Industry']}")
-                 st.write(f"**市值**: {fd['Market Cap']}")
-                 st.write(f"**網站**: {fd['Website']}")
-                 st.info(fd['Business Summary'])
-                 
-                 st.markdown("#### 更多指標")
-                 st.json(fd)
+                 c1, c2 = st.columns([1, 3])
+                 with c1:
+                      st.markdown(f"#### {stock_meta.get('name', display_ticker)}")
+                      st.write(f"**產業**: {fd.get('Sector', 'N/A')}")
+                      st.write(f"**市值**: {fd.get('Market Cap', 'N/A')}")
+                      st.metric("本益比 (P/E)", fd.get('PE Ratio', 'N/A'))
+                      st.metric("殖利率 (Yield)", fd.get('Dividend Yield', 'N/A'))
+                 with c2:
+                      st.info(fd.get('Business Summary', '暫無簡介'))
+                      st.json(fd, expanded=False)
              else:
                  st.warning("⚠️ 無基本面數據 (可能為 CSV 模式或查無資料)")
+
+             st.markdown("---")
+             
+             # 2. Charts
+             # Extract pure stock ID
+             stock_id_pure = display_ticker.split('.')[0] if '.' in display_ticker else display_ticker
+             
+             if stock_id_pure.isdigit():
+                 # A. Monthly Revenue
+                 rev_df = get_revenue_history(stock_id_pure)
+                 if not rev_df.empty:
+                     st.markdown("#### 📊 月營收趨勢 (Monthly Revenue)")
+                     
+                     # Check columns
+                     if 'revenue' in rev_df.columns:
+                         # revenue unit in FinMind is usually raw value
+                         rev_df['revenue_e'] = rev_df['revenue'] / 100_000_000 
+                         
+                         fig_rev = go.Figure()
+                         fig_rev.add_trace(go.Bar(
+                             x=rev_df['date'], y=rev_df['revenue_e'],
+                             name='營收(億)', marker_color='#3366CC', yaxis='y1'
+                         ))
+                         # YoY might be null for first year
+                         if 'revenue_year_growth' in rev_df.columns:
+                             fig_rev.add_trace(go.Scatter(
+                                 x=rev_df['date'], y=rev_df['revenue_year_growth'],
+                                 name='年增率(%)', marker_color='#DC3912', yaxis='y2', mode='lines+markers'
+                             ))
+                         
+                         fig_rev.update_layout(
+                             height=350,
+                             yaxis=dict(title='營收 (億)', side='left'),
+                             yaxis2=dict(title='年增率 (%)', side='right', overlaying='y', showgrid=False),
+                             hovermode='x unified',
+                             legend=dict(orientation="h", y=1.1)
+                         )
+                         st.plotly_chart(fig_rev, use_container_width=True)
+                 
+                 # B. PE/PB History
+                 per_df = get_per_history(stock_id_pure)
+                 if not per_df.empty:
+                     st.markdown("#### 📉 本益比與股價淨值比趨勢 (PE & PB Trend)")
+                     
+                     fig_pe = go.Figure()
+                     if 'PER' in per_df.columns:
+                         fig_pe.add_trace(go.Scatter(
+                             x=per_df['date'], y=per_df['PER'],
+                             name='本益比 (PE)', line=dict(color='purple'),
+                         ))
+                     if 'PBR' in per_df.columns:
+                         fig_pe.add_trace(go.Scatter(
+                             x=per_df['date'], y=per_df['PBR'],
+                             name='股價淨值比 (PB)', line=dict(color='green'),
+                             yaxis='y2'
+                         ))
+                     
+                     fig_pe.update_layout(
+                         height=300,
+                         yaxis=dict(title='PE Times', side='left'),
+                         yaxis2=dict(title='PB Times', side='right', overlaying='y', showgrid=False),
+                         hovermode='x unified',
+                         legend=dict(orientation="h", y=1.1)
+                     )
+                     st.plotly_chart(fig_pe, use_container_width=True)
+
+                 # C. Profitability (EPS & Margins)
+                 fin_df = get_financial_statements(stock_id_pure)
+                 if not fin_df.empty:
+                     st.markdown("#### 💰 獲利能力分析 (Profitability)")
+                     
+                     # 1. EPS Chart
+                     if 'EPS' in fin_df.columns:
+                         fig_eps = go.Figure()
+                         fig_eps.add_trace(go.Bar(
+                             x=fin_df.index, y=fin_df['EPS'],
+                             name='EPS (元)', marker_color='#1E88E5'
+                         ))
+                         fig_eps.update_layout(
+                             title="每股盈餘 (EPS)",
+                             height=300,
+                             yaxis_title="EPS (元)",
+                             hovermode='x unified',
+                             margin=dict(l=20, r=20, t=40, b=20)
+                         )
+                         st.plotly_chart(fig_eps, use_container_width=True)
+                         
+                     # 2. Three Rates Chart
+                     fig_margin = go.Figure()
+                     has_margin = False
+                     if 'GrossMargin' in fin_df.columns:
+                         fig_margin.add_trace(go.Scatter(
+                            x=fin_df.index, y=fin_df['GrossMargin'],
+                            name='毛利率 (%)', mode='lines+markers', line=dict(color='#FFC107', width=2)
+                         ))
+                         has_margin = True
+                     if 'OperatingMargin' in fin_df.columns:
+                         fig_margin.add_trace(go.Scatter(
+                            x=fin_df.index, y=fin_df['OperatingMargin'],
+                            name='營益率 (%)', mode='lines+markers', line=dict(color='#FF5722', width=2)
+                         ))
+                         has_margin = True
+                     if 'NetProfitMargin' in fin_df.columns:
+                         fig_margin.add_trace(go.Scatter(
+                            x=fin_df.index, y=fin_df['NetProfitMargin'],
+                            name='淨利率 (%)', mode='lines+markers', line=dict(color='#4CAF50', width=2)
+                         ))
+                         has_margin = True
+                         
+                     if has_margin:
+                         fig_margin.update_layout(
+                             title="三率走勢圖 (Margins)",
+                             height=350,
+                             yaxis_title="百分比 (%)",
+                             hovermode='x unified',
+                             legend=dict(orientation="h", y=1.2),
+                             margin=dict(l=20, r=20, t=40, b=20)
+                         )
+                         st.plotly_chart(fig_margin, use_container_width=True)
+             else:
+                 st.info("💡 歷史基本面圖表僅支援台股代號")
 
         # ==========================================
         # 6. 策略回測系統 (Strategy Backtester)

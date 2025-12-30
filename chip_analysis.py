@@ -1,5 +1,6 @@
 
 import pandas as pd
+import datetime
 from FinMind.data import DataLoader
 
 class ChipAnalyzer:
@@ -26,16 +27,22 @@ class ChipAnalyzer:
         # Caching strategy: Separate files for Inst and Margin
         cache_key_inst = f"{stock_id}_inst"
         cache_key_margin = f"{stock_id}_margin"
+        cache_key_dt = f"{stock_id}_day_trading"
+        cache_key_sh = f"{stock_id}_shareholding" # [NEW]
         
         df_inst, stat_inst, date_inst = cm.load_cache(cache_key_inst, 'chip', force_reload=force_update)
         df_margin, stat_margin, date_margin = cm.load_cache(cache_key_margin, 'chip', force_reload=force_update)
+        df_dt, stat_dt, date_dt = cm.load_cache(cache_key_dt, 'chip', force_reload=force_update)
+        df_sh, stat_sh, date_sh = cm.load_cache(cache_key_sh, 'chip', force_reload=force_update) # [NEW]
         
         # 判斷是否為「完全命中」
-        if stat_inst == "hit" and stat_margin == "hit":
+        if stat_inst == "hit" and stat_margin == "hit" and stat_dt == "hit" and stat_sh == "hit":
             print(f"⚡ [Cache Hit] 讀取 {stock_id} 籌碼快取")
             if not df_inst.empty: df_inst.index = pd.to_datetime(df_inst.index)
             if not df_margin.empty: df_margin.index = pd.to_datetime(df_margin.index)
-            return {"institutional": df_inst, "margin": df_margin}, None
+            if not df_dt.empty: df_dt.index = pd.to_datetime(df_dt.index)
+            if not df_sh.empty: df_sh.index = pd.to_datetime(df_sh.index)
+            return {"institutional": df_inst, "margin": df_margin, "day_trading": df_dt, "shareholding": df_sh}, None
 
         # 準備增量或全量抓取
         print(f"🔍 正在抓取 {stock_id} 籌碼數據 (FinMind)...")
@@ -67,6 +74,34 @@ class ChipAnalyzer:
             raw_margin = self.dl.taiwan_stock_margin_purchase_short_sale(
                 stock_id=stock_id,
                 start_date=start_date_m
+            )
+            
+            # --- 3. Day Trading (現股當沖) ---
+            new_dt = pd.DataFrame()
+            if stat_dt == "partial" and date_dt:
+                 start_date_d = (date_dt + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+                 print(f"   ↳ 增量更新當沖數據 (從 {start_date_d})...")
+            else:
+                 start_date_d = '2016-01-01'
+                 print(f"   ↳ 全量下載當沖數據...")
+
+            raw_dt = self.dl.taiwan_stock_day_trading(
+                stock_id=stock_id,
+                start_date=start_date_d
+            )
+            
+            # --- 4. Shareholding (外資持股) ---
+            new_sh = pd.DataFrame()
+            if stat_sh == "partial" and date_sh:
+                 start_date_s = (date_sh + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+                 print(f"   ↳ 增量更新持股數據 (從 {start_date_s})...")
+            else:
+                 start_date_s = '2016-01-01'
+                 print(f"   ↳ 全量下載持股數據...")
+
+            raw_sh = self.dl.taiwan_stock_shareholding(
+                stock_id=stock_id,
+                start_date=start_date_s
             )
 
             # --- Process Institutional Data ---
@@ -112,12 +147,18 @@ class ChipAnalyzer:
             if not raw_margin.empty:
                 raw_margin['date'] = pd.to_datetime(raw_margin['date'])
                 raw_margin.set_index('date', inplace=True)
-                keep_cols = ['MarginPurchaseTodayBalance', 'ShortSaleTodayBalance']
+                keep_cols = ['MarginPurchaseTodayBalance', 'ShortSaleTodayBalance', 'MarginPurchaseLimit']
                 # Check if columns exist (sometimes API returns partial)
                 avail_cols = [c for c in keep_cols if c in raw_margin.columns]
                 if avail_cols:
                     processed_margin = raw_margin[avail_cols].copy()
-                    processed_margin.columns = ['融資餘額', '融券餘額'] if len(avail_cols)==2 else avail_cols
+                    # Mapping
+                    col_map = {
+                        'MarginPurchaseTodayBalance': '融資餘額',
+                        'ShortSaleTodayBalance': '融券餘額',
+                        'MarginPurchaseLimit': '融資限額'
+                    }
+                    processed_margin.rename(columns=col_map, inplace=True)
             
             # Merge with Cache
             if stat_margin == "partial" and not df_margin.empty:
@@ -129,15 +170,64 @@ class ChipAnalyzer:
             else:
                 df_margin = processed_margin
 
+            # --- Process Day Trading Data ---
+            processed_dt = pd.DataFrame()
+            if not raw_dt.empty:
+                raw_dt['date'] = pd.to_datetime(raw_dt['date'])
+                raw_dt.set_index('date', inplace=True)
+                # Keep relevant columns
+                keep_cols = ['Volume', 'BuyAmount', 'SellAmount']
+                avail_cols = [c for c in keep_cols if c in raw_dt.columns]
+                if avail_cols:
+                    processed_dt = raw_dt[avail_cols].copy()
+                    processed_dt.rename(columns={'Volume': 'DayTradingVolume', 'BuyAmount': 'DT_Buy', 'SellAmount': 'DT_Sell'}, inplace=True)
+            
+            # Merge with Cache
+            if stat_dt == "partial" and not df_dt.empty:
+                df_dt.index = pd.to_datetime(df_dt.index)
+                if not processed_dt.empty:
+                    df_dt = pd.concat([df_dt, processed_dt])
+                    df_dt = df_dt[~df_dt.index.duplicated(keep='last')]
+                    df_dt.sort_index(inplace=True)
+            else:
+                df_dt = processed_dt
+
+            # --- Process Shareholding Data ---
+            processed_sh = pd.DataFrame()
+            if not raw_sh.empty:
+                raw_sh['date'] = pd.to_datetime(raw_sh['date'])
+                raw_sh.set_index('date', inplace=True)
+                # Keep ForeignInvestmentSharesRatio
+                keep_cols = ['ForeignInvestmentSharesRatio']
+                if 'ForeignInvestmentSharesRatio' in raw_sh.columns:
+                    processed_sh = raw_sh[keep_cols].copy()
+                    processed_sh.rename(columns={'ForeignInvestmentSharesRatio': 'ForeignHoldingRatio'}, inplace=True)
+            
+            # Merge with Cache
+            if stat_sh == "partial" and not df_sh.empty:
+                df_sh.index = pd.to_datetime(df_sh.index)
+                if not processed_sh.empty:
+                    df_sh = pd.concat([df_sh, processed_sh])
+                    df_sh = df_sh[~df_sh.index.duplicated(keep='last')]
+                    df_sh.sort_index(inplace=True)
+            else:
+                df_sh = processed_sh
+
             # [CACHE] Save Updated Data (Only if we have something)
             if not df_inst.empty:
                 cm.save_cache(cache_key_inst, df_inst, 'chip')
             if not df_margin.empty:
                 cm.save_cache(cache_key_margin, df_margin, 'chip')
+            if not df_dt.empty:
+                cm.save_cache(cache_key_dt, df_dt, 'chip')
+            if not df_sh.empty:
+                cm.save_cache(cache_key_sh, df_sh, 'chip')
 
             return {
                 "institutional": df_inst,
-                "margin": df_margin
+                "margin": df_margin,
+                "day_trading": df_dt,
+                "shareholding": df_sh
             }, None
 
         except Exception as e:

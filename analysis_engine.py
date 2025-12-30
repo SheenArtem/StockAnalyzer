@@ -2,11 +2,12 @@ import pandas as pd
 import numpy as np
 
 class TechnicalAnalyzer:
-    def __init__(self, ticker, df_week, df_day, strategy_params=None):
+    def __init__(self, ticker, df_week, df_day, strategy_params=None, chip_data=None):
         self.ticker = ticker
         self.df_week = df_week
         self.df_day = df_day
         self.strategy_params = strategy_params # { 'buy': 3, 'sell': -2 }
+        self.chip_data = chip_data
 
     def run_analysis(self):
         """
@@ -430,6 +431,76 @@ class TechnicalAnalyzer:
 
         return score, details
 
+    def _analyze_chip_factors(self, df):
+        """
+        [NEW] 籌碼面評分 (Chip Analysis)
+        分數作為 Trigger Score 的修正項
+        """
+        score = 0
+        details = []
+        
+        if not self.chip_data:
+            return 0, []
+
+        try:
+            # 1. 法人動向 (Institutional)
+            # 檢查近 5 日外資+投信總買賣超
+            df_inst = self.chip_data.get('institutional')
+            if df_inst is not None and not df_inst.empty:
+                # Just take the last 5 rows available
+                recent_inst = df_inst.iloc[-5:]
+                
+                total_buy = 0
+                if '外資' in recent_inst.columns:
+                    total_buy += recent_inst['外資'].sum()
+                if '投信' in recent_inst.columns:
+                    total_buy += recent_inst['投信'].sum()
+                
+                if total_buy > 3000: # 加大門檻
+                    score += 1
+                    details.append(f"💰 法人近5日大舉買超 ({total_buy:,.0f}張) (+1)")
+                elif total_buy < -3000:
+                    score -= 1
+                    details.append(f"💸 法人近5日大舉賣超 ({total_buy:,.0f}張) (-1)")
+
+            # 2. 融資水位 (Margin)
+            df_margin = self.chip_data.get('margin')
+            if df_margin is not None and not df_margin.empty:
+               last_m = df_margin.iloc[-1]
+               # Check column existence safely
+               lim = last_m.get('融資限額', 0)
+               bal = last_m.get('融資餘額', 0)
+               
+               if lim > 0:
+                   util = (bal / lim) * 100
+                   if util > 60:
+                       score -= 1
+                       details.append(f"⚠️ 融資使用率過熱 ({util:.1f}%) (-1)")
+            
+            # 3. 當沖佔比 (Day Trading)
+            df_dt = self.chip_data.get('day_trading')
+            if df_dt is not None and not df_dt.empty and not df.empty:
+                last_date = df.index[-1]
+                if last_date in df_dt.index:
+                    dt_row = df_dt.loc[last_date]
+                    if isinstance(dt_row, pd.Series): 
+                        dt_vol = dt_row.get('DayTradingVolume', 0)
+                    else: 
+                        dt_vol = dt_row['DayTradingVolume'].iloc[0] # Handle duplicate index
+
+                    total_vol = df.iloc[-1]['Volume']
+                    if total_vol > 0:
+                        dt_rate = (dt_vol / total_vol) * 100
+                        if dt_rate > 50:
+                            score -= 0.5
+                            details.append(f"🎰 當沖率過高籌碼混亂 ({dt_rate:.1f}%) (-0.5)")
+
+        except Exception as e:
+            # print(f"Chip Scoring Error: {e}") 
+            pass # Silent fail for scoring
+            
+        return score, details
+
     def _calculate_trigger_score(self, df):
         """
         計算日線進場訊號 (Trigger Score) -5 ~ +5 (擴大範圍)
@@ -571,6 +642,11 @@ class TechnicalAnalyzer:
              details.append("9️⃣ 神奇九轉【賣出訊號】(高檔鈍化轉折) (-2)")
         elif td_sell == 8:
              details.append("8️⃣ 神奇九轉【賣出前夕】(數到 8 了) (-0.5)")
+
+        # 13. [NEW] 籌碼面修正 (Chip Factors)
+        c_score, c_details = self._analyze_chip_factors(df)
+        score += c_score
+        details.extend(c_details)
 
         return score, details
 
