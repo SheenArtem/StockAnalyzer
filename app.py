@@ -7,7 +7,7 @@ from fundamental_analysis import get_fundamentals, get_revenue_history, get_per_
 
 # 設定頁面配置
 st.set_page_config(
-    page_title="台股 AI 操盤手 (Stock Analyzer)",
+    page_title="股票右側分析系統",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -40,7 +40,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 標題
-st.markdown('<div class="main-header">📈 右側交易技術分析系統</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">📈 股票右側分析系統</div>', unsafe_allow_html=True)
 
 # 側邊欄
 with st.sidebar:
