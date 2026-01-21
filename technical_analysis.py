@@ -852,36 +852,32 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         print(f"Pattern Warning: {e}")
 
     # Layout Configuration
+    # Layout Configuration
+    # Calculate default zoom range (Last 60 bars)
+    # Since x-axis is categorical (strings), we use the exact string values
+    if len(plot_df) > 60:
+         zoom_start = plot_df.index[-60]
+         zoom_end = plot_df.index[-1]
+         default_range = [zoom_start, zoom_end]
+    else:
+         default_range = None # Show all if less than 60
+
     fig.update_layout(
         title=dict(text=f"{ticker} - {title_suffix} ({timeframe_label})", x=0.5), # Centered title
-        xaxis_rangeslider_visible=False,
-        hovermode='x unified', # Reverted to unified for single-box UI
+        xaxis_rangeslider_visible=False, # Slider disabled per user preference elsewhere, or enabling it? Usually annoying.
+        # User requested "Operation is not intuitive", maybe they WANT the slider? 
+        # But usually "zoom to recent" means just setting the view.
+        # Let's keep slider hidden but set range.
+        xaxis=dict(range=default_range), # [FIX] Default Zoom
+        hovermode='x unified', 
         height=600 if use_volume else 450,
         margin=dict(l=50, r=50, t=50, b=50),
         legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
     )
     
     # Enable Spikelines for better "Ruler" feel in standard hover mode
-    fig.update_xaxes(showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='dash')
-
-    # Y-axis formatting
-    fig.update_yaxes(title_text="Price", row=1, col=1)
-    if use_volume:
-        fig.update_yaxes(title_text="Volume", row=2, col=1)
-    
-    # Remove weekends gaps (Optional - Plotly default treats x as continuous time if it detects dates)
-    # Depending on preference, one might want to treat it as category to remove gaps.
-    # But that messes up ticks sometimes. 
-    # Providing a rangebreaks arg is the standard Plotly way for stocks.
-    
-    # 2025-12-27 User Request: Fix gaps. Use Category Axis.
-    # We must ensure x-axis is discrete categories (Strings) to strictly remove gaps.
-    # Plotly 'category' axis treats every point as equal width.
-    # Update: Format index to strings for cleaner hover
-    # plot_df.index = plot_df.index.strftime('%Y-%m-%d') # Don't mutate original DF index globally if reused?
-    # Actually plot_df is a copy (.tail().copy()), so it's safe.
-    
     fig.update_xaxes(
+        showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='dash',
         type='category', 
         tickmode='auto',
         nticks=20 # Limit ticks to avoid clutter
