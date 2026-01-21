@@ -629,8 +629,15 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     使用 Plotly 繪製互動式 K 線圖 (含成交量、指標)
     """
     # 裁切數據
-    bars = 100 if timeframe_label == 'Weekly' else 120
-    plot_df = df.tail(bars).copy()
+    # 裁切數據 (根據使用者回饋，顯示更多歷史資料)
+    # Daily: 3 年約 750~800 根
+    # Weekly: 5 年約 260 根
+    bars = 300 if timeframe_label == 'Weekly' else 800
+    # 如果資料不足 bars 數量，就全取
+    if len(df) < bars:
+        plot_df = df.copy()
+    else:
+        plot_df = df.tail(bars).copy()
     
     # [FIX] 1. Remove empty rows (essential for Weekly resampled data) to prevents gaps
     plot_df = plot_df.dropna(subset=['Close'])
