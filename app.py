@@ -470,7 +470,12 @@ if st.session_state.get('analysis_active', False):
                 if not df_week.empty and 'EFI_EMA13' in df_week.columns:
                     st.markdown("### ⚡ 週線能量 (Weekly EFI)")
                     st.caption("週線 EFI 能夠過濾短期雜訊，更準確判斷主力長線資金動向。")
-                    st.line_chart(df_week[['EFI_EMA13']].iloc[-100:])
+                    # Create Static Plotly Figure for EFI
+                    import plotly.express as px
+                    fig_efi_w = px.line(df_week.iloc[-100:], y=['EFI_EMA13'])
+                    fig_efi_w.update_layout(xaxis_title=None, yaxis_title=None, showlegend=True, margin=dict(l=0, r=0, t=10, b=0))
+                    # Disable Zoom via config
+                    st.plotly_chart(fig_efi_w, use_container_width=True, config={'staticPlot': True})
                     
             else:
                 st.warning("⚠️ 無法產生週線圖表 (請查看上方錯誤訊息)")
@@ -492,7 +497,11 @@ if st.session_state.get('analysis_active', False):
                     st.markdown("### ⚡ 埃爾德強力指標 (EFI - Elder's Force Index)")
                     st.caption("原理：結合「價格變動」與「成交量」。EFI > 0 代表多方有力，EFI < 0 代表空方有力。")
                     
-                    st.line_chart(df_day[['EFI_EMA13', 'EFI_EMA2']].iloc[-60:])
+                    # Create Static Plotly Figure for EFI
+                    import plotly.express as px
+                    fig_efi_d = px.line(df_day.iloc[-60:], y=['EFI_EMA13', 'EFI_EMA2'])
+                    fig_efi_d.update_layout(xaxis_title=None, yaxis_title=None, showlegend=True, margin=dict(l=0, r=0, t=10, b=0))
+                    st.plotly_chart(fig_efi_d, use_container_width=True, config={'staticPlot': True})
                     
                     # 簡易解讀
                     last_efi = df_day['EFI_EMA13'].iloc[-1]
