@@ -454,7 +454,7 @@ if st.session_state.get('analysis_active', False):
         
         # 顯示圖表
         col1, col2 = st.columns(2)
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📝 AI 分析報告 (週線趨勢)", "📈 技術指標 (日線操作)", "💰 籌碼分佈", "🏢 基本面", "📊 研究報告"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["週K", "日K", "💰 籌碼分佈", "🏢 基本面", "📊 研究報告"])
         
         with tab1:
             if 'Weekly' in figures:
