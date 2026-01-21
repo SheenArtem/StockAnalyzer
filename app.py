@@ -301,7 +301,7 @@ if st.session_state.get('analysis_active', False):
         importlib.reload(analysis_engine)
         from analysis_engine import TechnicalAnalyzer
         from strategy_manager import StrategyManager
-        from markdown_generator import generate_analysis_markdown
+
         
         # 只有當兩者都有數據時才進行完整分析
         if 'Weekly' in figures and 'Daily' in figures:
@@ -440,10 +440,7 @@ if st.session_state.get('analysis_active', False):
                             sl_data.append([sl['desc'], f"{sl['price']:.2f}", f"{sl['loss']}%"])
                         st.table(pd.DataFrame(sl_data, columns=['支撐位置', '價格', '風險幅度']))
 
-            # [NEW] Generate Markdown for Copy
-            md_content = generate_analysis_markdown(display_ticker, report, run_analysis.df_day_cache, chip_data=chip_data)
-            with st.expander("📝 複製分析報告 (Copy Markdown)", expanded=False):
-                st.code(md_content, language='markdown')
+
 
 
 
