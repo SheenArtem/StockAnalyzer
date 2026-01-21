@@ -545,7 +545,7 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
             
     # Panel 0: 主圖
     add_plot_safe("MA_Lines", plot_df[['MA5', 'MA10', 'MA20']], width=1.0)
-    add_plot_safe("MA60", plot_df['MA60'], color='black', width=1.5)
+    add_plot_safe("MA60", plot_df['MA60'], color='#32CD32', width=1.5)
     add_plot_safe("BB_Up", plot_df['BB_Up'], color='gray', linestyle='--', alpha=0.5)
     add_plot_safe("BB_Lo", plot_df['BB_Lo'], color='gray', linestyle='--', alpha=0.5)
     # add_plot_safe("Tenkan", plot_df['Tenkan'], color='cyan', linestyle=':', width=0.8) # Removed per user request
@@ -702,7 +702,7 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     # 2. Indicators (MA, BB, etc.) - Only add if they exist
     
     # MA Lines
-    colors = {'MA5': '#00BFFF', 'MA10': 'orange', 'MA20': '#9370DB', 'MA60': '#FFFF00', 'MA120': 'gray', 'MA240': 'brown'}
+    colors = {'MA5': 'white', 'MA10': 'orange', 'MA20': '#9370DB', 'MA60': '#32CD32', 'MA120': 'gray', 'MA240': 'brown'}
     for ma_name, color in colors.items():
         if ma_name in plot_df.columns:
             fig.add_trace(go.Scatter(
