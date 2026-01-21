@@ -39,6 +39,11 @@ st.markdown("""
         text-align: center;
         margin-bottom: 1rem;
     }
+    /* Increase Sidebar Width */
+    section[data-testid="stSidebar"] {
+        min-width: 400px !important;
+        width: 400px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
