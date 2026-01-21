@@ -629,15 +629,9 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     使用 Plotly 繪製互動式 K 線圖 (含成交量、指標)
     """
     # 裁切數據
-    # 裁切數據 (根據使用者回饋，顯示更多歷史資料)
-    # Daily: 3 年約 750~800 根
-    # Weekly: 5 年約 260 根
-    bars = 300 if timeframe_label == 'Weekly' else 800
-    # 如果資料不足 bars 數量，就全取
-    if len(df) < bars:
-        plot_df = df.copy()
-    else:
-        plot_df = df.tail(bars).copy()
+    # 裁切數據
+    bars = 100 if timeframe_label == 'Weekly' else 120
+    plot_df = df.tail(bars).copy()
     
     # [FIX] 1. Remove empty rows (essential for Weekly resampled data) to prevents gaps
     plot_df = plot_df.dropna(subset=['Close'])
@@ -852,24 +846,10 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         print(f"Pattern Warning: {e}")
 
     # Layout Configuration
-    # Layout Configuration
-    # Calculate default zoom range (Last 60 bars)
-    # Since x-axis is categorical (strings), we use the exact string values
-    if len(plot_df) > 60:
-         zoom_start = plot_df.index[-60]
-         zoom_end = plot_df.index[-1]
-         default_range = [zoom_start, zoom_end]
-    else:
-         default_range = None # Show all if less than 60
-
     fig.update_layout(
         title=dict(text=f"{ticker} - {title_suffix} ({timeframe_label})", x=0.5), # Centered title
-        xaxis_rangeslider_visible=False, # Slider disabled per user preference elsewhere, or enabling it? Usually annoying.
-        # User requested "Operation is not intuitive", maybe they WANT the slider? 
-        # But usually "zoom to recent" means just setting the view.
-        # Let's keep slider hidden but set range.
-        xaxis=dict(range=default_range), # [FIX] Default Zoom
-        hovermode='x unified', 
+        xaxis_rangeslider_visible=False,
+        hovermode='x unified', # Reverted to unified for single-box UI
         height=600 if use_volume else 450,
         margin=dict(l=50, r=50, t=50, b=50),
         legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
