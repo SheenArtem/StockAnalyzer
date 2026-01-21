@@ -39,8 +39,8 @@ st.markdown("""
         text-align: center;
         margin-bottom: 1rem;
     }
-    /* Increase Sidebar Width */
-    section[data-testid="stSidebar"] {
+    /* Increase Sidebar Width - Only when expanded */
+    section[data-testid="stSidebar"][aria-expanded="true"] {
         min-width: 400px !important;
         width: 400px !important;
     }
