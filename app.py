@@ -60,32 +60,27 @@ with st.sidebar:
     target_ticker = "2330" # 預設值
     uploaded_file = None
     
-    # [NEW] Search History
+    # [NEW] Search History (Dropdown)
     from cache_manager import CacheManager
     cm = CacheManager()
     cached_list = cm.list_cached_tickers()
     
-    # 使用 Expander 管理歷史紀錄 (取代 Selectbox)
-    with st.expander("🕒 歷史紀錄管理", expanded=False):
-        if not cached_list:
-            st.info("尚無歷史紀錄")
-        else:
-            for past_ticker in cached_list:
-                c1, c2, c3 = st.columns([3, 2, 2])
-                with c1:
-                    st.write(f"**{past_ticker}**")
-                
-                with c2:
-                    if st.button("載入", key=f"load_{past_ticker}"):
-                        st.session_state['ticker_input'] = past_ticker
-                        st.session_state['trigger_analysis'] = True # Trigger auto-run
-                        st.rerun() # Rerun to update the input box immediately
-                
-                with c3:
-                    if st.button("刪除", key=f"del_{past_ticker}"):
-                        cm.delete_ticker_cache(past_ticker)
-                        st.toast(f"🗑️ 已刪除 {past_ticker}", icon="🗑️")
-                        st.rerun()
+    # Callback for history selection
+    def on_history_change():
+        st.session_state['ticker_input'] = st.session_state['history_selected']
+        st.session_state['analysis_active'] = True
+        st.session_state['force_run'] = False
+
+    # History Dropdown
+    if cached_list:
+        st.selectbox(
+            "🕒 歷史紀錄 (最近20筆)", 
+            options=cached_list, 
+            index=None, 
+            placeholder="選擇歷史紀錄...",
+            key='history_selected',
+            on_change=on_history_change
+        )
 
     if input_method == "股票代號 (Ticker)":
         # Initialize session state if not present
@@ -98,23 +93,11 @@ with st.sidebar:
     else:
         uploaded_file = st.file_uploader("上傳股票 CSV", type=['csv'])
 
-    col_run, col_force = st.columns([1, 1])
-    with col_run:
-        run_btn = st.button("🚀 開始分析", type="primary")
-    with col_force:
-        force_btn = st.button("🔄 強制重抓", help="忽略快取，重新下載最新資料")
-
-    # Clear cache button (Moved to Expander or kept here? Kept here for global clear)
-    if st.button("🧹 清除所有快取"):
-        try:
-             import shutil
-             import os
-             if os.path.exists("data_cache"):
-                 shutil.rmtree("data_cache")
-             st.toast("✅ 快取已清除！", icon="🧹")
-        except Exception as e:
-             st.error(f"清除失敗: {e}")
-
+    # Only Run Button remains
+    if st.button("🚀 開始分析", type="primary"):
+        st.session_state['analysis_active'] = True
+        st.session_state['force_run'] = False
+        
     st.markdown("---")
 
 # 封裝分析函數 (暫時移除 Cache 以確保代碼更新生效)
@@ -155,22 +138,10 @@ def run_analysis(source_data, force_update=False):
     return figures, errors, df_week, df_day, stock_meta
 
 # 主程式邏輯
-# Check for auto-trigger from history load
-auto_run = st.session_state.get('trigger_analysis', False)
-if auto_run:
-    st.session_state['trigger_analysis'] = False # Reset immediately
-    st.session_state['analysis_active'] = True
+# 主程式邏輯
+# run_btn and force_btn usage removed.
+# History auto-run is handled by on_change callback.
 
-if run_btn or force_btn:
-    st.session_state['analysis_active'] = True
-
-# Persist 'force' state only if clicked, otherwise default to False (use cache)
-if force_btn:
-    st.session_state['force_run'] = True
-elif run_btn or auto_run:
-    st.session_state['force_run'] = False 
-# If just creating backtest (rerun), preserve existing 'force_run' or default False? 
-# actually, just let it be.
 
 if st.session_state.get('analysis_active', False):
     # 決定資料來源
