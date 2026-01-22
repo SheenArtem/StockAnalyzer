@@ -41,8 +41,8 @@ st.markdown("""
     }
     /* Increase Sidebar Width - Only when expanded */
     section[data-testid="stSidebar"][aria-expanded="true"] {
-        min-width: 400px !important;
-        width: 400px !important;
+        min-width: 250px !important;
+        width: 250px !important;
     }
 </style>
 """, unsafe_allow_html=True)
