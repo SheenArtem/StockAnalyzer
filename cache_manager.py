@@ -121,14 +121,20 @@ class CacheManager:
         if not os.path.exists(CACHE_DIR):
             return []
             
-        tickers = set()
+        ticker_files = []
         for f in os.listdir(CACHE_DIR):
             if f.endswith('_price.csv'):
                 # filename format: {ticker}_price.csv
                 ticker = f.replace('_price.csv', '')
-                tickers.add(ticker)
-                
-        return sorted(list(tickers))
+                file_path = os.path.join(CACHE_DIR, f)
+                mtime = os.path.getmtime(file_path)
+                ticker_files.append((ticker, mtime))
+        
+        # Sort by mtime desc
+        ticker_files.sort(key=lambda x: x[1], reverse=True)
+        
+        # Return top 20 tickers
+        return [t[0] for t in ticker_files[:20]]
 
     def delete_ticker_cache(self, ticker):
         """
