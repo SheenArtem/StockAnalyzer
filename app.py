@@ -53,9 +53,9 @@ st.markdown('<div class="main-header">📈 股票右側分析系統</div>', unsa
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.01.21.01")
+    st.caption("Version: v2026.01.22.01")
     
-    input_method = st.radio("選擇輸入方式", ["股票代號 (Ticker)", "上傳 CSV 檔"])
+    # input_method = "股票代號 (Ticker)" # Default, hidden
     
     target_ticker = "2330" # 預設值
     uploaded_file = None
@@ -82,16 +82,15 @@ with st.sidebar:
             on_change=on_history_change
         )
 
-    if input_method == "股票代號 (Ticker)":
-        # Initialize session state if not present
-        if 'ticker_input' not in st.session_state:
-            st.session_state['ticker_input'] = '2330'
-            
-        target_ticker = st.text_input("輸入股票代號 (台股請加 .TW)", 
-                                      key='ticker_input', # Bind to session state
-                                      help="例如: 2330, TSM, AAPL")
-    else:
-        uploaded_file = st.file_uploader("上傳股票 CSV", type=['csv'])
+    # Always show Ticker input
+    # Initialize session state if not present
+    if 'ticker_input' not in st.session_state:
+        st.session_state['ticker_input'] = '2330'
+        
+    target_ticker = st.text_input("輸入股票代號 (台股請加 .TW)", 
+                                  key='ticker_input', # Bind to session state
+                                  help="例如: 2330, TSM, AAPL")
+    input_method = "股票代號 (Ticker)" # Backward compatibility variable
 
     # Only Run Button remains
     if st.button("🚀 開始分析", type="primary"):
