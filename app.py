@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import mplfinance as mpf
-from report_fetcher import get_latest_report
 from technical_analysis import plot_dual_timeframe, load_and_resample, calculate_all_indicators, plot_interactive_chart
 from fundamental_analysis import get_fundamentals, get_revenue_history, get_per_history, get_financial_statements
 
@@ -424,7 +423,7 @@ if st.session_state.get('analysis_active', False):
         
         # 顯示圖表
         col1, col2 = st.columns(2)
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["週K", "日K", "💰 籌碼分佈", "🏢 基本面", "📊 研究報告"])
+        tab1, tab2, tab3, tab4 = st.tabs(["週K", "日K", "💰 籌碼分佈", "🏢 基本面"])
         
         with tab1:
             if 'Weekly' in figures:
@@ -950,23 +949,7 @@ if st.session_state.get('analysis_active', False):
                          )
                          st.plotly_chart(fig_margin, use_container_width=True)
              else:
-                 st.info("💡 歷史基本面圖表僅支援台股代號")
-
-        with tab5:
-            st.subheader(f"📊 {display_ticker} 研究報告 (Github)")
-            
-            # Fetch report
-            with st.spinner("正在搜尋最新研究報告..."):
-                report_content, report_date, report_url = get_latest_report(display_ticker)
-            
-            if report_content:
-                st.success(f"✅ 找到報告！日期: {report_date}")
-                st.markdown(f"[🔗 在 GitHub 查看原文]({report_url})")
-                st.markdown("---")
-                st.markdown(report_content)
-            else:
-                st.info(f"ℹ️ 目前尚無 {display_ticker} 的相關研究報告。")
-                st.caption(f"報告來源: https://github.com/SheenArtem/stock-research-reports")
+                st.info("💡 歷史基本面圖表僅支援台股代號")
 
         # ==========================================
         # 6. 策略回測系統 (Strategy Backtester)
