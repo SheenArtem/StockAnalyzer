@@ -52,7 +52,7 @@ st.markdown('<div class="main-header">📈 股票右側分析系統</div>', unsa
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.01.22.01")
+    st.caption("Version: v2026.01.29.01")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -435,7 +435,7 @@ if st.session_state.get('analysis_active', False):
         
         # 顯示圖表
         col1, col2 = st.columns(2)
-        tab1, tab2, tab3, tab4 = st.tabs(["週K", "日K", "💰 籌碼分佈", "🏢 基本面"])
+        tab1, tab2, tab3, tab4 = st.tabs(["週K", "日K", "籌碼面", "🏢 基本面"])
         
         with tab1:
             if 'Weekly' in figures:
@@ -484,6 +484,9 @@ if st.session_state.get('analysis_active', False):
                 st.warning("⚠️ 無法產生日線圖表 (請查看上方錯誤訊息)")
 
         with tab3:
+            # 籌碼資料更新時間提醒
+            st.info("⏰ **籌碼資料更新時間**：每日晚上 21:30 之後更新（T+0 日資料）")
+            
             # ==========================================
             # [NEW] 籌碼成交分佈 (Volume Profile)
             # ==========================================
