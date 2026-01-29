@@ -49,10 +49,50 @@ st.markdown("""
 # 標題
 st.markdown('<div class="main-header">📈 股票右側分析系統</div>', unsafe_allow_html=True)
 
+# ==========================================
+# [NEW] 免責聲明與風險提示
+# ==========================================
+# 初始化 session state 用於追蹤是否顯示過免責聲明
+if 'disclaimer_shown' not in st.session_state:
+    st.session_state['disclaimer_shown'] = False
+
+# 使用 expander 顯示免責聲明 (可收合)
+with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.session_state['disclaimer_shown']):
+    st.markdown("""
+    ### 📜 免責聲明 (Disclaimer)
+    
+    **本系統為技術分析輔助工具，所有分析結果僅供參考，不構成任何投資建議。**
+    
+    #### ⚠️ 投資風險提示
+    - 🔹 股市投資有風險，過去績效不代表未來表現
+    - 🔹 AI 評分模型基於歷史數據訓練，無法預測突發事件
+    - 🔹 籌碼數據存在延遲 (T+1 或更久)，可能不反映即時狀況
+    - 🔹 技術指標在盤整行情中可能產生大量假訊號
+    - 🔹 建議結合基本面分析與自身判斷，審慎決策
+    
+    #### 📊 數據來源說明
+    | 數據類型 | 來源 | 更新頻率 |
+    |---------|------|---------|
+    | 台股股價 | Yahoo Finance / FinMind | 每日收盤後 |
+    | 美股股價 | Yahoo Finance | 即時 (延遲 15 分鐘) |
+    | 台股籌碼 | FinMind (三大法人/融資券) | 每日 21:30 後 |
+    | 美股籌碼 | Yahoo Finance (機構持股/空頭) | 每季 / 每月 |
+    | 基本面數據 | Yahoo Finance / FinMind | 每季 / 每月 |
+    
+    #### 📝 使用條款
+    - 本系統僅供個人學習研究使用，禁止商業用途
+    - 用戶應自行承擔投資決策的全部風險
+    - 系統開發者不對任何投資損失負責
+    
+    ---
+    *點擊「收合」按鈕可隱藏此聲明*
+    """)
+    st.session_state['disclaimer_shown'] = True
+
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.01.29.01")
+    st.caption("Version: v2026.01.29.02")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -96,6 +136,23 @@ with st.sidebar:
         st.session_state['analysis_active'] = True
         st.session_state['force_run'] = False
         
+    st.markdown("---")
+    
+    # === 數據來源與風險提示 (側邊欄底部) ===
+    st.markdown("### 📊 數據來源")
+    st.caption("""
+    **台股**: FinMind / Yahoo Finance  
+    **美股**: Yahoo Finance  
+    **籌碼更新**: 每日 21:30 後
+    """)
+    
+    st.markdown("### ⚠️ 風險提示")
+    st.caption("""
+    本系統分析結果僅供參考  
+    股市有風險，投資需謹慎  
+    歷史績效不代表未來表現
+    """)
+    
     st.markdown("---")
 
 # 封裝分析函數 (暫時移除 Cache 以確保代碼更新生效)
@@ -297,7 +354,27 @@ if st.session_state.get('analysis_active', False):
             
             # 注意: 這裡需要傳入原始 DataFrame，而不是 Figure
             # run_analysis 回傳的是 dict
-            analyzer = TechnicalAnalyzer(display_ticker, st.session_state['df_week_cache'], st.session_state['df_day_cache'], strategy_params, chip_data=chip_data)
+            
+            # [NEW] 美股籌碼數據預載
+            us_chip_data = None
+            if source and isinstance(source, str) and not source.isdigit() and not source.endswith('.TW'):
+                try:
+                    from us_stock_chip import USStockChipAnalyzer
+                    us_analyzer = USStockChipAnalyzer()
+                    us_chip_data, us_err = us_analyzer.get_chip_data(source)
+                    if us_err:
+                        print(f"US Chip Warning: {us_err}")
+                except Exception as e:
+                    print(f"US Chip Load Error: {e}")
+            
+            analyzer = TechnicalAnalyzer(
+                display_ticker, 
+                st.session_state['df_week_cache'], 
+                st.session_state['df_day_cache'], 
+                strategy_params, 
+                chip_data=chip_data,
+                us_chip_data=us_chip_data
+            )
             report = analyzer.run_analysis()
             
             st.markdown("---")
@@ -845,8 +922,141 @@ if st.session_state.get('analysis_active', False):
                          st.error(f"❌ 籌碼讀取失敗: {err}")
                  except Exception as e:
                      st.error(f"❌ 發生錯誤: {e}")
+            
+            # === 美股籌碼分析 ===
+            elif source and isinstance(source, str) and not source.isdigit() and not source.endswith('.TW'):
+                try:
+                    st.markdown("### 🇺🇸 美股籌碼分析 (US Stock Chip Analysis)")
+                    
+                    loading_msg = st.empty()
+                    loading_msg.info(f"⏳ 正在取得 {display_ticker} 美股籌碼數據...")
+                    
+                    from us_stock_chip import USStockChipAnalyzer
+                    us_analyzer = USStockChipAnalyzer()
+                    us_chip, us_err = us_analyzer.get_chip_data(source)
+                    
+                    loading_msg.empty()
+                    
+                    if us_chip:
+                        st.success(f"✅ {display_ticker} 美股籌碼數據讀取成功")
+                        
+                        # 1. 機構持股概況
+                        inst = us_chip.get('institutional', {})
+                        major = us_chip.get('major_holders', {})
+                        
+                        st.markdown("#### 🏛️ 機構持股概況")
+                        col_inst1, col_inst2, col_inst3, col_inst4 = st.columns(4)
+                        
+                        col_inst1.metric("機構持股比例", f"{inst.get('percent_held', 0):.1f}%")
+                        col_inst2.metric("機構家數", f"{inst.get('holders_count', 0):,}")
+                        col_inst3.metric("內部人持股", f"{major.get('insiders_percent', 0):.1f}%")
+                        col_inst4.metric("流通股比例", f"{major.get('float_percent', 0):.1f}%")
+                        
+                        # 機構持股變化
+                        inst_change = inst.get('change_vs_prior', 0)
+                        if inst_change != 0:
+                            if inst_change > 0:
+                                st.success(f"📈 機構近期增持 {inst_change:+.1f}%")
+                            else:
+                                st.warning(f"📉 機構近期減持 {inst_change:+.1f}%")
+                        
+                        # 前十大機構持股
+                        top_holders = inst.get('top_holders', pd.DataFrame())
+                        if not top_holders.empty:
+                            with st.expander("📊 查看前十大機構持股"):
+                                st.dataframe(top_holders, use_container_width=True)
+                        
+                        st.markdown("---")
+                        
+                        # 2. 空頭持倉分析
+                        short = us_chip.get('short_interest', {})
+                        
+                        st.markdown("#### 🐻 空頭持倉 (Short Interest)")
+                        col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+                        
+                        short_pct = short.get('short_percent_of_float', 0)
+                        short_ratio = short.get('short_ratio', 0)
+                        short_change = short.get('short_change_pct', 0)
+                        
+                        col_s1.metric("空頭佔流通股", f"{short_pct:.1f}%")
+                        col_s2.metric("回補天數", f"{short_ratio:.1f}天")
+                        col_s3.metric("空頭股數", f"{short.get('shares_short', 0)/1_000_000:.2f}M")
+                        
+                        delta_color = "inverse" if short_change > 0 else "normal"
+                        col_s4.metric("較上月變化", f"{short_change:+.1f}%", delta_color=delta_color)
+                        
+                        # 空頭風險提示
+                        if short_pct > 20:
+                            st.warning(f"🔥 **高軋空風險**：空頭比例 {short_pct:.1f}% 極高，若股價上漲可能引發軋空行情")
+                        elif short_pct > 10:
+                            st.info(f"⚠️ 空頭比例偏高 ({short_pct:.1f}%)，留意軋空機會")
+                        
+                        st.markdown("---")
+                        
+                        # 3. 內部人交易
+                        insider = us_chip.get('insider_trades', {})
+                        
+                        st.markdown("#### 👔 內部人交易 (Insider Trading)")
+                        col_i1, col_i2, col_i3 = st.columns(3)
+                        
+                        buy_count = insider.get('buy_count', 0)
+                        sell_count = insider.get('sell_count', 0)
+                        sentiment = insider.get('sentiment', 'neutral')
+                        
+                        col_i1.metric("買入次數", buy_count)
+                        col_i2.metric("賣出次數", sell_count)
+                        
+                        sentiment_map = {'bullish': '🟢 偏多', 'bearish': '🔴 偏空', 'neutral': '⚪ 中性'}
+                        col_i3.metric("內部人情緒", sentiment_map.get(sentiment, '⚪ 中性'))
+                        
+                        # 內部人交易明細
+                        recent_trades = insider.get('recent_trades', pd.DataFrame())
+                        if not recent_trades.empty:
+                            with st.expander("📋 查看內部人交易明細"):
+                                st.dataframe(recent_trades.head(10), use_container_width=True)
+                        
+                        st.markdown("---")
+                        
+                        # 4. 分析師評等
+                        recs = us_chip.get('recommendations', {})
+                        
+                        st.markdown("#### 📊 分析師評等 (Analyst Recommendations)")
+                        col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+                        
+                        rec_key = recs.get('recommendation', 'N/A')
+                        target_price = recs.get('target_price', 0)
+                        current_price = recs.get('current_price', 0)
+                        upside = recs.get('upside', 0)
+                        
+                        rec_map = {
+                            'strong_buy': '🟢 強力買進',
+                            'buy': '🟢 買進',
+                            'hold': '🟡 持有',
+                            'sell': '🔴 賣出',
+                            'strong_sell': '🔴 強力賣出'
+                        }
+                        
+                        col_r1.metric("評等", rec_map.get(rec_key, rec_key))
+                        col_r2.metric("目標價", f"${target_price:.2f}" if target_price else "N/A")
+                        col_r3.metric("現價", f"${current_price:.2f}" if current_price else "N/A")
+                        
+                        delta_color = "normal" if upside > 0 else "inverse"
+                        col_r4.metric("上漲空間", f"{upside:+.1f}%", delta_color=delta_color)
+                        
+                        # 目標價區間
+                        target_high = recs.get('target_high', 0)
+                        target_low = recs.get('target_low', 0)
+                        if target_high and target_low:
+                            st.caption(f"目標價區間: ${target_low:.2f} ~ ${target_high:.2f}")
+                        
+                    else:
+                        st.warning(f"⚠️ 無法取得美股籌碼數據: {us_err}")
+                        
+                except Exception as e:
+                    st.error(f"❌ 美股籌碼分析錯誤: {e}")
+            
             else:
-                 st.info("💡 籌碼分析目前僅支援台股代號 (如 2330.TW)，CSV 模式不支援。")
+                 st.info("💡 籌碼分析支援台股代號 (如 2330) 與美股代號 (如 AAPL, NVDA)。CSV 模式不支援。")
 
         with tab4:
              st.markdown("### 🏢 基本面數據 (Fundamentals)")
