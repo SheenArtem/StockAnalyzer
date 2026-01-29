@@ -64,7 +64,7 @@ def calculate_all_indicators(df):
     核心運算引擎：計算所有技術指標
     包含：MA, BB, ATR, Ichimoku, RSI, KD, MACD, OBV, DMI
     """
-    print("DEBUG: VERSION v2025.12.25.19 - ADDING MA120/MA240 & ADVANCED TARGETS")
+    logger.debug("Calculating indicators (MA120/MA240 & Advanced Targets)")
     # 1. 基礎數據清洗
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
@@ -198,14 +198,11 @@ def calculate_all_indicators(df):
 
 from FinMind.data import DataLoader
 import datetime
-
-# ==========================================
-# 新增模組：數據載入與重採樣 (Data Loader & Resampler)
-# ==========================================
-
-from FinMind.data import DataLoader
-import datetime
 import functools
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Global Cache for Stock Info
 _TW_STOCK_INFO_CACHE = None

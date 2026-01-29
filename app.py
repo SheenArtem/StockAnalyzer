@@ -141,6 +141,17 @@ def run_analysis(source_data, force_update=False):
 # History auto-run is handled by on_change callback.
 
 
+def validate_ticker(ticker):
+    """驗證股票代號格式 (只允許英數字、點號、連字號)"""
+    import re
+    if not ticker:
+        return False, "請輸入股票代號"
+    # 只允許英數字、點號、連字號，長度 1-20
+    pattern = r'^[A-Za-z0-9.\-]{1,20}$'
+    if not re.match(pattern, ticker):
+        return False, "股票代號格式不正確 (只允許英數字、點號)"
+    return True, ""
+
 if st.session_state.get('analysis_active', False):
     # 決定資料來源
     source = None
@@ -150,8 +161,14 @@ if st.session_state.get('analysis_active', False):
     
     if input_method == "股票代號 (Ticker)":
         if target_ticker:
+            # 驗證輸入
+            is_valid, err_msg = validate_ticker(target_ticker)
+            if not is_valid:
+                st.error(f"❌ {err_msg}")
+                st.session_state['analysis_active'] = False
+                st.stop()
             # 簡單判斷台股 - 讓 technical_analysis 自動處理後綴 (.TW/.TWO/FinMind)
-            source = target_ticker.upper()
+            source = target_ticker.upper().strip()
             display_ticker = source
         else:
             st.error("❌ 請輸入有效的股票代號")
@@ -204,11 +221,10 @@ if st.session_state.get('analysis_active', False):
              except Exception as e:
                  print(f"Chip Load Error: {e}")
 
-        # 暫存給 Analyzer 用 (Hack: 把變數掛在函式上，或者直接傳變數)
-        run_analysis.df_week_cache = df_week
-        run_analysis.df_day_cache = df_day
-        # Save force state for chip loader
-        run_analysis.force_update = is_force
+        # 暫存給 Analyzer 用 (使用 session_state)
+        st.session_state['df_week_cache'] = df_week
+        st.session_state['df_day_cache'] = df_day
+        st.session_state['force_update_cache'] = is_force
 
         status_text.success("✅ 分析完成！")
         
@@ -223,7 +239,7 @@ if st.session_state.get('analysis_active', False):
         if source and isinstance(source, str):
              # 靜默載入，不顯示 Spinner 以免閃爍
              fund_data = get_fundamentals(display_ticker)
-             run_analysis.fund_cache = fund_data # Cache for Tab
+             st.session_state['fund_cache'] = fund_data # Cache for Tab
 
         if stock_meta and 'name' in stock_meta:
              st.markdown(f"## 🏢 {display_ticker} {stock_meta.get('name', '')}")
@@ -266,13 +282,9 @@ if st.session_state.get('analysis_active', False):
         # 顯示如果有錯誤
                  
 
-        # 新增 AI 分析報告 (Analysis Report)
         # ==========================================
-        # 新增 AI 分析報告 (Analysis Report)
+        # AI 分析報告 (Analysis Report)
         # ==========================================
-        import analysis_engine
-        import importlib
-        importlib.reload(analysis_engine)
         from analysis_engine import TechnicalAnalyzer
         from strategy_manager import StrategyManager
 
@@ -285,7 +297,7 @@ if st.session_state.get('analysis_active', False):
             
             # 注意: 這裡需要傳入原始 DataFrame，而不是 Figure
             # run_analysis 回傳的是 dict
-            analyzer = TechnicalAnalyzer(display_ticker, run_analysis.df_week_cache, run_analysis.df_day_cache, strategy_params, chip_data=chip_data)
+            analyzer = TechnicalAnalyzer(display_ticker, st.session_state['df_week_cache'], st.session_state['df_day_cache'], strategy_params, chip_data=chip_data)
             report = analyzer.run_analysis()
             
             st.markdown("---")
@@ -563,8 +575,8 @@ if st.session_state.get('analysis_active', False):
                          analyzer = ChipAnalyzer()
                          return analyzer.get_chip_data(ticker, force_update=force)
 
-                     # Use force state from run_analysis
-                     is_force = getattr(run_analysis, 'force_update', False)
+                     # Use force state from session_state
+                     is_force = st.session_state.get('force_update_cache', False)
                      chip_data, err = get_chip_data_cached(source, is_force)
                      loading_msg.empty() # Clear message
                      
@@ -620,13 +632,17 @@ if st.session_state.get('analysis_active', False):
                                      if isinstance(total_vol, pd.Series): total_vol = total_vol.iloc[0]
 
                                      if total_vol > 0:
+                                         # 注意：FinMind和yfinance的Volume都是「股」為單位
+                                         # 台股：1000股 = 1張，需要轉換
+                                         dt_vol_lots = dt_vol / 1000  # 轉換為張
+                                         total_vol_lots = total_vol / 1000  # 轉換為張
                                          dt_rate = (dt_vol / total_vol) * 100
                                          
                                          st.markdown("#### ⚡ 當沖週轉概況")
                                          st.caption(f"資料日期: {latest_date.strftime('%Y-%m-%d')}")
                                          c_dt1, c_dt2, c_dt3 = st.columns(3)
-                                         c_dt1.metric("當沖成交量", f"{dt_vol:,.0f} 張")
-                                         c_dt2.metric("當日總量", f"{total_vol:,.0f} 張")
+                                         c_dt1.metric("當沖成交量", f"{dt_vol_lots:,.0f} 張")
+                                         c_dt2.metric("當日總量", f"{total_vol_lots:,.0f} 張")
                                          
                                          state_color = "normal"
                                          state_label = "籌碼穩定"
@@ -756,7 +772,7 @@ if st.session_state.get('analysis_active', False):
                                  val_zhang = df_inst_plot['自營商'] / 1000
                                  fig_chip.add_trace(go.Bar(
                                      x=df_inst_plot.index, y=val_zhang,
-                                     name='自營商', marker_color='blue',
+                                     name='自營商', marker_color='lightgreen',  # 淺綠色，更容易識別
                                      hovertemplate="自營商: %{y:,.0f} 張<extra></extra>"
                                  ), row=1, col=1)
                                  
@@ -789,12 +805,30 @@ if st.session_state.get('analysis_active', False):
                                  height=600,
                                  hovermode='x unified', # Key requirement: Unified Hover
                                  barmode='group',
+                                 bargap=0.3,  # 增加柱狀圖之間的間隙（0-1之間，0.3表示30%間隙）
+                                 bargroupgap=0.1,  # 增加同組柱狀圖之間的間隙
                                  margin=dict(l=30, r=30, t=50, b=50), # Increased Margins for Titles/Legend
                                  # Move Legend to Bottom to avoid overlap with Modebar/Title Hover
                                  legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
                              )
-                             # Spikes
-                             fig_chip.update_xaxes(showspikes=True, spikemode='across', spikesnap='cursor')
+                             # Spikes and Grid
+                             fig_chip.update_xaxes(
+                                 showspikes=True, 
+                                 spikemode='across', 
+                                 spikesnap='cursor',
+                                 showgrid=True,  # 顯示垂直網格線
+                                 gridcolor='rgba(128, 128, 128, 0.2)',  # 淺灰色網格線
+                                 dtick=86400000*7,  # 每週顯示一次刻度（毫秒）
+                                 tickformat='%m/%d',  # 日期格式：月/日
+                             )
+                             # Y軸網格線
+                             fig_chip.update_yaxes(
+                                 showgrid=True,  # 顯示水平網格線
+                                 gridcolor='rgba(128, 128, 128, 0.15)',  # 更淺的灰色
+                                 zeroline=True,  # 顯示零線
+                                 zerolinecolor='rgba(0, 0, 0, 0.3)',  # 零線顏色
+                                 zerolinewidth=1.5
+                             )
                              
                              st.plotly_chart(fig_chip, use_container_width=True)
                              
@@ -815,7 +849,7 @@ if st.session_state.get('analysis_active', False):
              st.markdown("### 🏢 基本面數據 (Fundamentals)")
              
              # 1. Company Profile
-             fd = getattr(run_analysis, 'fund_cache', None)
+             fd = st.session_state.get('fund_cache', None)
              if fd:
                  c1, c2 = st.columns([1, 3])
                  with c1:
@@ -1057,29 +1091,6 @@ if st.session_state.get('analysis_active', False):
                         
                 except Exception as e:
                     st.error(f"回測執行失敗: {str(e)}")
-
-                    # 停損矩陣
-                    st.markdown(f"#### 🛑 停損防守價位")
-                    
-                    def get_mark(name):
-                        return "⭐️" if name == ap['rec_sl_method'] else ""
-                        
-                    sl_data = {
-                        "推薦": [
-                            get_mark("A. ATR 波動停損 (科學)"),
-                            get_mark("B. 均線停損 (趨勢)"),
-                            get_mark("C. 關鍵 K 線停損 (積極)"),
-                            get_mark("D. 波段低點停損 (形態)"),
-                        ],
-                        "策略類型": ["A. ATR 波動停損 (科學)", "B. 均線停損 (趨勢)", "C. 關鍵 K 線停損 (積極)", "D. 波段低點停損 (形態)"],
-                        "防守價位": [
-                            f"{ap['sl_atr']:.2f}",
-                            f"{ap['sl_ma']:.2f}",
-                            f"{ap['sl_key_candle']:.2f}",
-                            f"{ap['sl_low']:.2f}"
-                        ]
-                    }
-                    st.table(pd.DataFrame(sl_data))
 
             st.markdown("---")
 

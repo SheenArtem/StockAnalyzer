@@ -1,5 +1,9 @@
 import pandas as pd
 import numpy as np
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 class TechnicalAnalyzer:
     def __init__(self, ticker, df_week, df_day, strategy_params=None, chip_data=None):
@@ -165,7 +169,7 @@ class TechnicalAnalyzer:
             if code == 'A': # Active
                 is_actionable = True
                 if close_price > ma5 * 1.05:
-                    # ... (rest of logic same)
+                    # 乖離過大，等待拉回
                     rec_entry_low, rec_entry_high = ma10, ma5
                     rec_entry_desc = "等待拉回 (5MA-10MA)"
                     entry_basis = ma5
@@ -173,32 +177,32 @@ class TechnicalAnalyzer:
                 else:
                     rec_entry_low, rec_entry_high = ma5, close_price
                     rec_entry_desc = "積極操作 (5MA-現價)"
-                entry_basis = close_price
-                strategy_text = "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。"
+                    entry_basis = close_price
+                    strategy_text = "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。"
                 
-        elif code == 'B': # Pullback (Actionable Limit Buy)
-            is_actionable = True
-            support = ma60 if ma60 < ma20 else ma20
-            rec_entry_low, rec_entry_high = support * 0.98, support * 1.02
-            rec_entry_desc = "回測支撐 (月季線)"
-            entry_basis = support
-            strategy_text = "⏳ **等待訊號**：建議掛單在月季線支撐附近，不要追高。"
+            elif code == 'B': # Pullback (Actionable Limit Buy)
+                is_actionable = True
+                support = ma60 if ma60 < ma20 else ma20
+                rec_entry_low, rec_entry_high = support * 0.98, support * 1.02
+                rec_entry_desc = "回測支撐 (月季線)"
+                entry_basis = support
+                strategy_text = "⏳ **等待訊號**：建議掛單在月季線支撐附近，不要追高。"
 
-        elif code == 'C': # Rebound
-            is_actionable = True
-            bb_lo = current.get('BB_Lo', 0)
-            rec_entry_low, rec_entry_high = sl_low * 0.99, (bb_lo if bb_lo > sl_low else sl_low * 1.02)
-            rec_entry_desc = "抄底區間 (前低-布林下)"
-            entry_basis = rec_entry_high
-            strategy_text = "⚠️ **搶反彈**：逆勢操作風險高的。建議在布林下緣或前低嘗試。"
-            rec_sl_method = "波段低點停損 (形態)" # Override default
+            elif code == 'C': # Rebound
+                is_actionable = True
+                bb_lo = current.get('BB_Lo', 0)
+                rec_entry_low, rec_entry_high = sl_low * 0.99, (bb_lo if bb_lo > sl_low else sl_low * 1.02)
+                rec_entry_desc = "抄底區間 (前低-布林下)"
+                entry_basis = rec_entry_high
+                strategy_text = "⚠️ **搶反彈**：逆勢操作風險高的。建議在布林下緣或前低嘗試。"
+                rec_sl_method = "波段低點停損 (形態)" # Override default
 
-        elif code == 'D':
-            is_actionable = False
-            strategy_text = "🛑 **空手觀望**：下方無支撐，不建議進場。"
-        else:
-            is_actionable = False
-            strategy_text = "💤 **觀望**：多空分歧，等待方向明確。"
+            elif code == 'D':
+                is_actionable = False
+                strategy_text = "🛑 **空手觀望**：下方無支撐，不建議進場。"
+            else:
+                is_actionable = False
+                strategy_text = "💤 **觀望**：多空分歧，等待方向明確。"
             
         # [MOVED] Construct Stop Loss List (sl_list) for UI - Calculate BEFORE actionable check
         final_sl_list = []
@@ -401,8 +405,8 @@ class TechnicalAnalyzer:
                 details.append("✅ OBV 能量潮近 5 週上升 (+1)")
             else:
                 details.append("🔻 OBV 能量潮下降 (0)")
-        except:
-            pass
+        except (KeyError, IndexError) as e:
+            logger.debug(f"OBV calculation skipped: {e}")
             
         # 4. EFI 強力指標 (每週資金流向)
         efi_week = current.get('EFI_EMA13', 0)
@@ -422,7 +426,7 @@ class TechnicalAnalyzer:
                  morph_msgs = [f"📅 週線{m}" for m in morph_msgs]
              details.extend(morph_msgs)
         except Exception as e:
-             pass
+             logger.debug(f"Morphology detection skipped: {e}")
 
         # 6. 量價關係 (Price-Volume)
         pv_score, pv_msgs = self._analyze_price_volume(df)
@@ -445,23 +449,56 @@ class TechnicalAnalyzer:
         try:
             # 1. 法人動向 (Institutional)
             # 檢查近 5 日外資+投信總買賣超
+            # 注意：台股取得的數據單位是「股」，需轉換為「張」(1張=1000股)
             df_inst = self.chip_data.get('institutional')
-            if df_inst is not None and not df_inst.empty:
+            if df_inst is not None and not df_inst.empty and not df.empty:
                 # Just take the last 5 rows available
                 recent_inst = df_inst.iloc[-5:]
                 
-                total_buy = 0
+                total_buy_shares = 0  # 單位：股
                 if '外資' in recent_inst.columns:
-                    total_buy += recent_inst['外資'].sum()
+                    total_buy_shares += recent_inst['外資'].sum()
                 if '投信' in recent_inst.columns:
-                    total_buy += recent_inst['投信'].sum()
+                    total_buy_shares += recent_inst['投信'].sum()
                 
-                if total_buy > 3000: # 加大門檻
+                # 轉換為張數（台股：1000股=1張）
+                total_buy_lots = total_buy_shares / 1000
+                
+                # 動態門檻：根據股價和成交量調整
+                current_price = df.iloc[-1]['Close']
+                
+                # 方法1: 按資金金額（考慮股價高低）
+                # 買賣超金額 = 張數 × 股價 × 1000股
+                buy_amount_million = (abs(total_buy_lots) * current_price * 1000) / 1_000_000  # 單位：百萬元
+                
+                # 方法2: 按成交量比例（考慮個股流動性）
+                # 近5日平均成交張數
+                recent_volume = df.iloc[-5:]['Volume'].mean() / 1000  # 轉換為張
+                volume_ratio = abs(total_buy_lots) / recent_volume if recent_volume > 0 else 0
+                
+                # 綜合判斷門檻（兩個條件滿足其一即可）
+                # 條件A: 資金金額 > 5000萬元（適用於所有股票的絕對標準）
+                # 條件B: 買賣超 > 近5日均量的15%（相對流動性標準）
+                is_significant = (buy_amount_million > 50) or (volume_ratio > 0.15)
+                
+                if total_buy_lots > 0 and is_significant:
                     score += 1
-                    details.append(f"💰 法人近5日大舉買超 ({total_buy:,.0f}張) (+1)")
-                elif total_buy < -3000:
+                    if buy_amount_million > 50 and volume_ratio > 0.15:
+                        # 雙重門檻都達標，給予更強烈的評價
+                        details.append(f"💰 法人近5日大舉買超 ({total_buy_lots:,.0f}張, {buy_amount_million:.0f}百萬, 占均量{volume_ratio*100:.1f}%) (+1)")
+                    elif buy_amount_million > 50:
+                        details.append(f"💰 法人近5日大額買超 ({total_buy_lots:,.0f}張, {buy_amount_million:.0f}百萬) (+1)")
+                    else:
+                        details.append(f"💰 法人近5日持續買超 ({total_buy_lots:,.0f}張, 占均量{volume_ratio*100:.1f}%) (+1)")
+                        
+                elif total_buy_lots < 0 and is_significant:
                     score -= 1
-                    details.append(f"💸 法人近5日大舉賣超 ({total_buy:,.0f}張) (-1)")
+                    if buy_amount_million > 50 and volume_ratio > 0.15:
+                        details.append(f"💸 法人近5日大舉賣超 ({total_buy_lots:,.0f}張, {buy_amount_million:.0f}百萬, 占均量{volume_ratio*100:.1f}%) (-1)")
+                    elif buy_amount_million > 50:
+                        details.append(f"💸 法人近5日大額賣超 ({total_buy_lots:,.0f}張, {buy_amount_million:.0f}百萬) (-1)")
+                    else:
+                        details.append(f"💸 法人近5日持續賣超 ({total_buy_lots:,.0f}張, 占均量{volume_ratio*100:.1f}%) (-1)")
 
             # 2. 融資水位 (Margin)
             df_margin = self.chip_data.get('margin')
@@ -496,8 +533,7 @@ class TechnicalAnalyzer:
                             details.append(f"🎰 當沖率過高籌碼混亂 ({dt_rate:.1f}%) (-0.5)")
 
         except Exception as e:
-            # print(f"Chip Scoring Error: {e}") 
-            pass # Silent fail for scoring
+            logger.warning(f"Chip scoring error: {e}")
             
         return score, details
 
@@ -620,7 +656,7 @@ class TechnicalAnalyzer:
              score += morph_score
              details.extend(morph_msgs)
         except Exception as e:
-             pass # 防止 scipy 運算錯誤影響整體
+             logger.debug(f"Daily morphology detection skipped: {e}")
 
         # 11. 量價關係 (Price-Volume)
         pv_score, pv_msgs = self._analyze_price_volume(df)
@@ -1018,7 +1054,6 @@ class TechnicalAnalyzer:
             if ind_recent.max() < ind_past.max():
                 return 'bear'
                 
-        return None
         return None
 
     def _analyze_price_volume(self, df):
