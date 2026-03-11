@@ -2,8 +2,12 @@
 import os
 import pandas as pd
 import datetime
+import time
 
 CACHE_DIR = "data_cache"
+
+# 盤中快取過期時間 (秒) - 交易時段內快取僅維持 5 分鐘
+INTRADAY_CACHE_TTL = 60 * 5  # 5 分鐘
 
 class CacheManager:
     """
@@ -14,14 +18,26 @@ class CacheManager:
     - Timestamp Check:
         - If file modified date == Today and Current Time > 13:30 (Market Close), it's considered "Final" for today.
         - If file modified date < Today, it's stale (needs update).
-        - If current time < 13:30, we might want to fetch real-time, BUT to save calls, 
-          we can set a 'cache_validity_period' (e.g. 1 hour).
+        - During trading hours (09:00-13:30 weekdays), cache expires after INTRADAY_CACHE_TTL (5 min).
     """
     
     def __init__(self):
         if not os.path.exists(CACHE_DIR):
             os.makedirs(CACHE_DIR)
-            
+
+    @staticmethod
+    def _is_tw_trading_hours():
+        """
+        判斷目前是否在台股盤中交易時段 (週一至週五 09:00 ~ 13:30)
+        """
+        now = datetime.datetime.now()
+        # 週六(5) / 週日(6) 不是交易日
+        if now.weekday() >= 5:
+            return False
+        market_open = now.replace(hour=9, minute=0, second=0, microsecond=0)
+        market_close = now.replace(hour=13, minute=30, second=0, microsecond=0)
+        return market_open <= now <= market_close
+
     def _get_path(self, ticker, data_type):
         """
         data_type: 'price' or 'chip'
@@ -48,19 +64,7 @@ class CacheManager:
         mtime = os.path.getmtime(file_path)
         file_time = datetime.datetime.fromtimestamp(mtime)
         now = datetime.datetime.now()
-        
-        # Logic:
-        # 1. If file is from yesterday or older -> Stale (Need new daily candle)
-        # 1. If file is from yesterday or older -> Stale (Need new daily candle)
-        # However, we now want to support partial load, so we don't just return False.
-        # We proceed to load it and let the logic inside try decide if it's partial or hit.
-        pass
-            
-        # 2. If file is from today
-        # If today is trading day and time is < 13:30, data might be incomplete.
-        # But for 'Right-Side Trading', we usually analyze after close.
-        # Let's assume: If we have a file from today, we trust it for "Performance".
-        # User can click "Force Reload" if they want real-time.
+        file_age_seconds = time.time() - mtime
         
         try:
             print(f"📂 Loading {data_type} cache for {ticker}...")
@@ -86,6 +90,17 @@ class CacheManager:
                      return df, "hit", None
                 
                 return df, "partial", last_date
+
+            # 2. File is from today
+            # 2a. 盤中時段: 若快取超過 INTRADAY_CACHE_TTL (5分鐘)，視為過期需重抓
+            if self._is_tw_trading_hours() and data_type == 'price':
+                if file_age_seconds > INTRADAY_CACHE_TTL:
+                    print(f"🔄 盤中模式: 快取已超過 {INTRADAY_CACHE_TTL//60} 分鐘，觸發增量更新...")
+                    last_date = df.index[-1] if isinstance(df.index, pd.DatetimeIndex) and not df.empty else None
+                    return df, "partial", last_date
+                else:
+                    remaining = int(INTRADAY_CACHE_TTL - file_age_seconds)
+                    print(f"⚡ 盤中模式: 快取仍有效 (剩餘 {remaining} 秒)")
 
             return df, "hit", None
             
