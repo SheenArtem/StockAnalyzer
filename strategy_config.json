@@ -10,5 +10,9 @@
     "3293": {
         "buy_threshold": 1,
         "sell_threshold": -3
+    },
+    "2404": {
+        "buy_threshold": 2,
+        "sell_threshold": -3
     }
 }

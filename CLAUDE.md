@@ -37,7 +37,11 @@ app.py (Streamlit UI 入口, 6 tabs)
   ├→ taifex_data.py          — TAIFEX 期貨選擇權 + 恐懼貪婪指數
   ├→ ptt_sentiment.py        — PTT Stock 板情緒分析
   ├→ dividend_revenue.py     — 除權息行事曆 + 月營收追蹤
-  └→ ml_signal.py            — XGBoost 信號分類器（需 pip install xgboost scikit-learn）
+  ├→ ml_signal.py            — XGBoost 信號分類器（需 pip install xgboost scikit-learn）
+  ├→ sec_edgar.py            — SEC EDGAR 申報（13F/Form 4/近期 Filings）
+  ├→ cnn_fear_greed.py       — CNN Fear & Greed Index（美股情緒）
+  ├→ google_trends.py        — Google Trends 搜尋熱度（需 pip install pytrends）
+  └→ finviz_data.py          — Finviz 美股快照（估值/技術/分析師目標價）
 ```
 
 ## 開發規範

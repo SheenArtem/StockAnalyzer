@@ -273,6 +273,27 @@ class BacktestEngine:
             curr_equity = self.cash + (self.holdings * price)
             self.equity_curve.append({'date': date, 'equity': curr_equity, 'action': action})
 
+        # 回測結束時若仍持有部位，以最後收盤價強制平倉
+        if self.position > 0 and self.trades:
+            last_price = closes[-1]
+            last_date = dates[-1]
+            exec_price = self._round_to_tick(last_price * (1 - slippage))
+
+            revenue = self.holdings * exec_price
+            fee = revenue * self.fee_rate
+            tax = revenue * self.tax_rate
+            net = revenue - fee - tax
+            self.cash += net
+
+            last_trade = self.trades[-1]
+            last_trade['exit_date'] = last_date
+            last_trade['exit_price'] = exec_price
+            last_trade['pnl'] = net - last_trade['cost']
+            last_trade['return'] = (last_trade['pnl'] / last_trade['cost']) * 100
+
+            self.holdings = 0
+            self.position = 0
+
         return self._generate_report()
 
     # ---------------------------------------------------------------
@@ -397,13 +418,10 @@ class BacktestEngine:
             }
             windows.append(window_info)
 
-            # Collect OOS equity curve with adjusted capital
+            # Collect OOS equity curve (已使用 cumulative_capital 作為起始資金，無需再縮放)
             if not oos_result['equity_df'].empty:
                 eq_segment = oos_result['equity_df'].copy()
-                # Scale equity to reflect cumulative capital
                 if len(eq_segment) > 0:
-                    scale_factor = cumulative_capital / self.initial_capital
-                    eq_segment['equity'] = eq_segment['equity'] * scale_factor
                     eq_segment['window'] = iteration
                     oos_equity_segments.append(eq_segment)
 

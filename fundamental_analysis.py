@@ -121,13 +121,11 @@ def get_fundamentals(ticker):
                      except Exception as e:
                          logger.debug(f"Failed to calculate payout ratio for {stock_id}: {e}")
 
-        # Handle Dividend Yield (yfinance returns decimal like 0.015 for 1.5%)
-
-        # Handle Dividend Yield (yfinance returns percentage e.g. 1.36 for 1.36%)
-        # Note: Previous assumption of decimal (0.0136) was wrong based on debug.
+        # Handle Dividend Yield (yfinance returns decimal, e.g. 0.0136 for 1.36%)
+        # 與 ROE/profitMargins 一致，統一 *100 轉為百分比
         dy = info.get('dividendYield')
         if dy is not None:
-             data['Dividend Yield'] = f"{dy:.2f}%"
+             data['Dividend Yield'] = f"{dy*100:.2f}%"
 
         # Handle ROE (Return on Equity)
         roe = info.get('returnOnEquity')

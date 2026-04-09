@@ -63,6 +63,10 @@ st.markdown('<div class="main-header">📈 股票右側分析系統</div>', unsa
 # 初始化 session state 用於追蹤是否顯示過免責聲明
 if 'disclaimer_shown' not in st.session_state:
     st.session_state['disclaimer_shown'] = False
+# 初始化分析快取 session state，避免 KeyError
+for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'):
+    if _key not in st.session_state:
+        st.session_state[_key] = None
 
 # 使用 expander 顯示免責聲明 (可收合)
 with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.session_state['disclaimer_shown']):
@@ -86,6 +90,10 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
     | 台股籌碼 | FinMind (三大法人/融資券) | 每日 21:30 後 |
     | 美股籌碼 | Yahoo Finance (機構持股/空頭) | 每季 / 每月 |
     | 基本面數據 | Yahoo Finance / FinMind | 每季 / 每月 |
+    | SEC 申報 | SEC EDGAR (13F/Form 4) | 即時 |
+    | 美股情緒 | CNN Fear & Greed Index | 每日 |
+    | 搜尋熱度 | Google Trends | 每日 |
+    | 美股快照 | Finviz (技術面/估值) | 盤中 |
     
     #### 📝 使用條款
     - 本系統僅供個人學習研究使用，禁止商業用途
@@ -100,7 +108,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.09.02")
+    st.caption("Version: v2026.04.09.03")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -145,7 +153,7 @@ with st.sidebar:
     target_ticker = st.text_input("輸入股票代號 (台股請加 .TW)", 
                                   key='ticker_input', # Bind to session state
                                   help="例如: 2330, TSM, AAPL")
-    input_method = "股票代號 (Ticker)" # Backward compatibility variable
+    # CSV 上傳功能已移除，僅支援股票代號輸入
 
     # Only Run Button remains
     if st.button("🚀 開始分析", type="primary"):
@@ -157,8 +165,9 @@ with st.sidebar:
     # === 數據來源與風險提示 (側邊欄底部) ===
     st.markdown("### 📊 數據來源")
     st.caption("""
-    **台股**: FinMind / Yahoo Finance  
-    **美股**: Yahoo Finance  
+    **台股**: FinMind / Yahoo Finance
+    **美股**: Yahoo Finance / SEC EDGAR / Finviz
+    **情緒**: CNN F&G / PTT / Google Trends
     **籌碼更新**: 每日 21:30 後
     """)
     
@@ -230,35 +239,20 @@ if st.session_state.get('analysis_active', False):
     # Use session state for force if available, else False
     is_force = st.session_state.get('force_run', False)
     
-    if input_method == "股票代號 (Ticker)":
-        if target_ticker:
-            # 驗證輸入
-            is_valid, err_msg = validate_ticker(target_ticker)
-            if not is_valid:
-                st.error(f"❌ {err_msg}")
-                st.session_state['analysis_active'] = False
-                st.stop()
-            # 簡單判斷台股 - 讓 technical_analysis 自動處理後綴 (.TW/.TWO/FinMind)
-            source = target_ticker.upper().strip()
-            display_ticker = source
-        else:
-            st.error("❌ 請輸入有效的股票代號")
-            st.session_state['analysis_active'] = False # Reset
+    if target_ticker:
+        # 驗證輸入
+        is_valid, err_msg = validate_ticker(target_ticker)
+        if not is_valid:
+            st.error(f"❌ {err_msg}")
+            st.session_state['analysis_active'] = False
             st.stop()
+        # 簡單判斷台股 - 讓 technical_analysis 自動處理後綴 (.TW/.TWO/FinMind)
+        source = target_ticker.upper().strip()
+        display_ticker = source
     else:
-        if uploaded_file is not None:
-            # 讀取 CSV
-            try:
-                source = pd.read_csv(uploaded_file)
-                display_ticker = "Uploaded File"
-            except Exception as e:
-                st.error(f"❌ 讀取 CSV 失敗: {e}")
-                st.session_state['analysis_active'] = False # Reset
-                st.stop()
-        else:
-            st.warning("⚠️ 請先上傳 CSV 檔案")
-            st.session_state['analysis_active'] = False # Reset
-            st.stop()
+        st.error("❌ 請輸入有效的股票代號")
+        st.session_state['analysis_active'] = False # Reset
+        st.stop()
 
     # 執行分析
     
@@ -1095,12 +1089,121 @@ if st.session_state.get('analysis_active', False):
                         target_low = recs.get('target_low', 0)
                         if target_high and target_low:
                             st.caption(f"目標價區間: ${target_low:.2f} ~ ${target_high:.2f}")
-                        
+
                     else:
                         st.warning(f"⚠️ 無法取得美股籌碼數據: {us_err}")
-                        
+
                 except Exception as e:
                     st.error(f"❌ 美股籌碼分析錯誤: {e}")
+
+                # === SEC EDGAR 申報資料 ===
+                try:
+                    from sec_edgar import SECEdgarAnalyzer
+                    st.markdown("---")
+                    st.markdown("### 📋 SEC EDGAR 申報資料")
+
+                    edgar = SECEdgarAnalyzer()
+                    edgar_data, edgar_err = edgar.get_edgar_data(source)
+
+                    if edgar_data:
+                        # 內部人交易活躍度
+                        insider_sec = edgar_data.get('insider', {})
+                        form4_count = insider_sec.get('form4_count_90d', 0)
+                        activity = insider_sec.get('activity_level', '無資料')
+
+                        ec1, ec2, ec3 = st.columns(3)
+                        ec1.metric("近 90 天 Form 4 申報", f"{form4_count} 筆")
+                        ec2.metric("內部人交易活躍度", activity)
+
+                        # 13F 機構申報
+                        inst_13f = edgar_data.get('institutional', {})
+                        latest_13f = inst_13f.get('latest_date', 'N/A')
+                        ec3.metric("最新 13F 申報", latest_13f or 'N/A')
+
+                        # 近期重要申報清單
+                        filings = edgar_data.get('filings', [])
+                        if filings:
+                            with st.expander(f"📄 近期重要申報 ({len(filings)} 筆)", expanded=False):
+                                filing_data = []
+                                for f in filings[:15]:
+                                    filing_data.append({
+                                        '表單': f['form'],
+                                        '類型': f['description'],
+                                        '日期': f['date'],
+                                    })
+                                st.table(pd.DataFrame(filing_data))
+                    elif edgar_err:
+                        st.caption(f"SEC EDGAR: {edgar_err}")
+                except ImportError:
+                    pass
+                except Exception as e:
+                    st.caption(f"SEC EDGAR 資料取得失敗: {e}")
+
+                # === Finviz 數據 ===
+                try:
+                    from finviz_data import FinvizAnalyzer
+                    st.markdown("---")
+                    st.markdown("### 📊 Finviz 技術快照")
+
+                    fv = FinvizAnalyzer()
+                    fv_data, fv_err = fv.get_stock_data(source)
+
+                    if fv_data:
+                        # 分析師目標價
+                        analyst = fv_data.get('analyst', {})
+                        target_p = analyst.get('target_price')
+                        current_p = analyst.get('current_price')
+                        upside = analyst.get('upside_pct')
+                        recom = analyst.get('recommendation', 'N/A')
+
+                        fc1, fc2, fc3, fc4 = st.columns(4)
+                        fc1.metric("Finviz 目標價", f"${target_p:.2f}" if target_p else "N/A")
+                        fc2.metric("分析師建議", recom)
+                        if upside is not None:
+                            fc3.metric("上漲空間", f"{upside:+.1f}%")
+                        else:
+                            fc3.metric("上漲空間", "N/A")
+
+                        # 技術指標
+                        tech = fv_data.get('technical', {})
+                        fc4.metric("RSI(14)", tech.get('rsi14', 'N/A'))
+
+                        # 估值與 SMA 距離
+                        val = fv_data.get('valuation', {})
+                        with st.expander("📈 Finviz 詳細指標", expanded=False):
+                            vc1, vc2 = st.columns(2)
+                            with vc1:
+                                st.markdown("**估值指標**")
+                                val_items = [
+                                    ("P/E (TTM)", val.get('pe', 'N/A')),
+                                    ("Forward P/E", val.get('forward_pe', 'N/A')),
+                                    ("PEG", val.get('peg', 'N/A')),
+                                    ("P/S", val.get('ps', 'N/A')),
+                                    ("P/B", val.get('pb', 'N/A')),
+                                    ("EPS (TTM)", val.get('eps_ttm', 'N/A')),
+                                    ("EPS 未來成長", val.get('eps_growth_next_5y', 'N/A')),
+                                    ("殖利率", val.get('dividend_yield', 'N/A')),
+                                ]
+                                st.table(pd.DataFrame(val_items, columns=['指標', '數值']))
+                            with vc2:
+                                st.markdown("**技術指標**")
+                                tech_items = [
+                                    ("SMA20 距離", tech.get('sma20', 'N/A')),
+                                    ("SMA50 距離", tech.get('sma50', 'N/A')),
+                                    ("SMA200 距離", tech.get('sma200', 'N/A')),
+                                    ("Beta", tech.get('beta', 'N/A')),
+                                    ("52 週高點距離", tech.get('high_52w', 'N/A')),
+                                    ("52 週低點距離", tech.get('low_52w', 'N/A')),
+                                    ("放空比例", tech.get('short_float', 'N/A')),
+                                    ("相對成交量", tech.get('rel_volume', 'N/A')),
+                                ]
+                                st.table(pd.DataFrame(tech_items, columns=['指標', '數值']))
+                    elif fv_err:
+                        st.caption(f"Finviz: {fv_err}")
+                except ImportError:
+                    pass
+                except Exception as e:
+                    st.caption(f"Finviz 資料取得失敗: {e}")
             
             else:
                  st.info("💡 籌碼分析支援台股代號 (如 2330) 與美股代號 (如 AAPL, NVDA)。CSV 模式不支援。")
@@ -1296,6 +1399,64 @@ if st.session_state.get('analysis_active', False):
             except Exception as e:
                 st.warning(f"恐懼貪婪指數暫時無法取得: {e}")
 
+            # === CNN Fear & Greed Index (美股) ===
+            try:
+                from cnn_fear_greed import CNNFearGreedIndex
+                st.markdown("---")
+                st.markdown("#### 🇺🇸 CNN Fear & Greed Index (美股)")
+
+                cnn_fg = CNNFearGreedIndex()
+                with st.spinner("取得 CNN Fear & Greed Index..."):
+                    cnn_result = cnn_fg.get_index()
+                    cnn_score = cnn_result.get('score')
+
+                    if cnn_score is not None:
+                        cnn_c1, cnn_c2 = st.columns([1, 2])
+                        with cnn_c1:
+                            cnn_color = CNNFearGreedIndex.get_color(cnn_score)
+                            st.metric("CNN 恐懼貪婪", f"{cnn_score:.0f}", delta=cnn_result.get('label', ''))
+                            st.progress(int(min(cnn_score, 100)))
+
+                            # 歷史比較
+                            prev = cnn_result.get('previous_close')
+                            week = cnn_result.get('one_week_ago')
+                            month = cnn_result.get('one_month_ago')
+                            year = cnn_result.get('one_year_ago')
+
+                            hist_data = []
+                            if prev is not None:
+                                hist_data.append({"時間": "前日收盤", "分數": f"{prev:.0f}"})
+                            if week is not None:
+                                hist_data.append({"時間": "一週前", "分數": f"{week:.0f}"})
+                            if month is not None:
+                                hist_data.append({"時間": "一月前", "分數": f"{month:.0f}"})
+                            if year is not None:
+                                hist_data.append({"時間": "一年前", "分數": f"{year:.0f}"})
+                            if hist_data:
+                                st.table(pd.DataFrame(hist_data))
+
+                        with cnn_c2:
+                            # 子指標
+                            cnn_components = cnn_result.get('components', {})
+                            if cnn_components:
+                                cnn_comp_data = []
+                                for name, val in cnn_components.items():
+                                    c_score = val.get('score')
+                                    c_rating = val.get('rating', 'N/A')
+                                    if c_score is not None:
+                                        status = "恐懼" if c_score < 40 else "貪婪" if c_score > 60 else "中性"
+                                        cnn_comp_data.append({"指標": name, "分數": f"{c_score:.0f}", "狀態": status})
+                                    else:
+                                        cnn_comp_data.append({"指標": name, "分數": "N/A", "狀態": c_rating})
+                                if cnn_comp_data:
+                                    st.table(pd.DataFrame(cnn_comp_data))
+                    else:
+                        st.caption(f"CNN F&G: {cnn_result.get('error', '無法取得')}")
+            except ImportError:
+                pass
+            except Exception as e:
+                st.caption(f"CNN Fear & Greed 暫時無法取得: {e}")
+
             st.markdown("---")
 
             # TAIFEX Data
@@ -1342,7 +1503,7 @@ if st.session_state.get('analysis_active', False):
                         search_hint += f" / {ptt_stock_name}"
                     if st.button(f"🔍 分析 PTT 情緒 ({search_hint})", key="ptt_btn"):
                         with st.spinner(f"爬取 PTT Stock 板 {search_hint} 相關討論..."):
-                            sentiment = ptt.get_stock_sentiment(stock_id_clean, pages=3, stock_name=ptt_stock_name if ptt_stock_name else None)
+                            sentiment = ptt.get_stock_sentiment(stock_id_clean, pages=5, stock_name=ptt_stock_name if ptt_stock_name else None)
                             if sentiment['total_posts'] > 0:
                                 ps1, ps2, ps3 = st.columns(3)
                                 ps1.metric("相關文章數", sentiment['total_posts'])
@@ -1362,6 +1523,56 @@ if st.session_state.get('analysis_active', False):
                 st.info("ptt_sentiment 模組尚未安裝")
             except Exception as e:
                 st.warning(f"PTT 情緒分析失敗: {e}")
+
+            # === Google Trends 搜尋熱度 ===
+            try:
+                from google_trends import GoogleTrendsAnalyzer
+                st.markdown("---")
+                st.markdown("#### 🔍 Google Trends 搜尋熱度")
+
+                stock_id_gt = display_ticker.split('.')[0] if '.' in display_ticker else display_ticker
+                gt_stock_name = stock_meta.get('name', '') if stock_meta else ''
+
+                if st.button("📊 分析搜尋趨勢", key="gtrends_btn"):
+                    with st.spinner("取得 Google Trends 數據 (約 5 秒)..."):
+                        gt = GoogleTrendsAnalyzer()
+                        gt_result = gt.get_search_trend(stock_id_gt, stock_name=gt_stock_name if gt_stock_name else None)
+
+                        if gt_result.get('error'):
+                            st.warning(f"Google Trends: {gt_result['error']}")
+                        else:
+                            gt1, gt2, gt3 = st.columns(3)
+                            gt1.metric("目前搜尋熱度", gt_result['current_interest'])
+                            gt2.metric("近 7 日平均", f"{gt_result['recent_avg']:.0f}")
+                            gt3.metric("變化率", f"{gt_result['change_pct']:+.0f}%", delta=gt_result['trend_label'])
+
+                            # 趨勢圖表
+                            trend_df = gt_result.get('trend_df')
+                            if trend_df is not None and not trend_df.empty:
+                                import plotly.express as px
+                                fig_gt = px.line(trend_df, y=trend_df.columns[:2], title="搜尋趨勢 (近 90 天)")
+                                fig_gt.update_layout(
+                                    height=300,
+                                    xaxis_title=None, yaxis_title="搜尋熱度 (0-100)",
+                                    hovermode='x unified',
+                                    margin=dict(l=20, r=20, t=40, b=20)
+                                )
+                                st.plotly_chart(fig_gt, use_container_width=True)
+
+                            # 相關搜尋
+                            related = gt_result.get('related_queries', [])
+                            if related:
+                                st.caption(f"相關搜尋: {', '.join(related)}")
+
+                            # 提醒
+                            if gt_result['change_pct'] > 50:
+                                st.warning("⚠️ 搜尋量暴增 — 散戶關注度激增，留意過熱風險")
+                            elif gt_result['change_pct'] < -30:
+                                st.info("💡 搜尋量低迷 — 市場關注度低，可能處於冷門期")
+            except ImportError:
+                st.caption("💡 安裝 pytrends 可啟用搜尋熱度分析: pip install pytrends")
+            except Exception as e:
+                st.caption(f"Google Trends 暫時無法取得: {e}")
 
         # ==========================================
         # Tab 6: 除息/營收分析

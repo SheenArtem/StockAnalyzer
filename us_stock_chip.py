@@ -150,10 +150,13 @@ class USStockChipAnalyzer:
                     desc = str(row.iloc[1]).lower() if len(row) > 1 else str(idx).lower()
                     val = row.iloc[0] if len(row) > 0 else 0
                     
-                    if 'insider' in desc:
-                        result['insiders_percent'] = float(str(val).replace('%', ''))
-                    elif 'institution' in desc:
-                        result['institutions_percent'] = float(str(val).replace('%', ''))
+                    try:
+                        if 'insider' in desc:
+                            result['insiders_percent'] = float(str(val).replace('%', ''))
+                        elif 'institution' in desc:
+                            result['institutions_percent'] = float(str(val).replace('%', ''))
+                    except (ValueError, TypeError):
+                        pass  # 無法解析時保留 info 來源的值
             
             return result
             

@@ -23,10 +23,14 @@ class StrategyManager:
         """
         儲存特定股票的策略參數
         """
-        # 正規化 ticker (去除非數字若需要，這裡假設 ticker 是穩定的 id)
+        buy_threshold = int(buy_threshold)
+        sell_threshold = int(sell_threshold)
+        if buy_threshold <= sell_threshold:
+            logger.warning(f"Invalid thresholds for {ticker}: buy={buy_threshold} must be > sell={sell_threshold}")
+            return
         self.strategies[ticker] = {
-            'buy_threshold': int(buy_threshold),
-            'sell_threshold': int(sell_threshold)
+            'buy_threshold': buy_threshold,
+            'sell_threshold': sell_threshold
         }
         self._save_to_file()
 
@@ -38,8 +42,12 @@ class StrategyManager:
         return self.strategies.get(ticker)
 
     def _save_to_file(self):
+        tmp_path = self.config_file + '.tmp'
         try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
+            with open(tmp_path, 'w', encoding='utf-8') as f:
                 json.dump(self.strategies, f, indent=4, ensure_ascii=False)
+            os.replace(tmp_path, self.config_file)
         except Exception as e:
             logger.error(f"Error saving strategy config: {e}")
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
