@@ -1270,10 +1270,27 @@ if st.session_state.get('analysis_active', False):
                     with fg2:
                         components = fg_result.get('components', {})
                         if components:
+                            label_map = {
+                                'market_momentum': '市場動能',
+                                'market_breadth': '漲跌家數',
+                                'put_call_ratio': 'Put/Call比',
+                                'volatility': '波動率',
+                                'margin_balance': '融資餘額'
+                            }
                             comp_data = []
                             for name, val in components.items():
-                                comp_data.append({"指標": name, "分數": f"{val:.0f}", "狀態": "恐懼" if val < 40 else "貪婪" if val > 60 else "中性"})
-                            st.table(pd.DataFrame(comp_data))
+                                # val 是 dict，score 可能是 None（取得失敗）
+                                if isinstance(val, dict):
+                                    score = val.get('score')
+                                    if score is not None:
+                                        status = "恐懼" if score < 40 else "貪婪" if score > 60 else "中性"
+                                        comp_data.append({"指標": label_map.get(name, name), "分數": f"{score:.0f}", "狀態": status})
+                                    else:
+                                        comp_data.append({"指標": label_map.get(name, name), "分數": "N/A", "狀態": "無資料"})
+                                else:
+                                    comp_data.append({"指標": label_map.get(name, name), "分數": f"{val:.0f}" if isinstance(val, (int, float)) else str(val), "狀態": ""})
+                            if comp_data:
+                                st.table(pd.DataFrame(comp_data))
             except ImportError:
                 st.info("taifex_data 模組尚未安裝")
             except Exception as e:
@@ -1318,9 +1335,14 @@ if st.session_state.get('analysis_active', False):
                 stock_id_clean = display_ticker.split('.')[0] if '.' in display_ticker else display_ticker
 
                 if stock_id_clean.isdigit():
-                    if st.button("🔍 分析 PTT 情緒", key="ptt_btn"):
-                        with st.spinner(f"爬取 PTT Stock 板 {stock_id_clean} 相關討論..."):
-                            sentiment = ptt.get_stock_sentiment(stock_id_clean, pages=3)
+                    # 取得股票名稱以擴大搜尋範圍
+                    ptt_stock_name = stock_meta.get('name', '') if stock_meta else ''
+                    search_hint = f"{stock_id_clean}"
+                    if ptt_stock_name and ptt_stock_name != stock_id_clean:
+                        search_hint += f" / {ptt_stock_name}"
+                    if st.button(f"🔍 分析 PTT 情緒 ({search_hint})", key="ptt_btn"):
+                        with st.spinner(f"爬取 PTT Stock 板 {search_hint} 相關討論..."):
+                            sentiment = ptt.get_stock_sentiment(stock_id_clean, pages=3, stock_name=ptt_stock_name if ptt_stock_name else None)
                             if sentiment['total_posts'] > 0:
                                 ps1, ps2, ps3 = st.columns(3)
                                 ps1.metric("相關文章數", sentiment['total_posts'])

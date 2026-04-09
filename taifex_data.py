@@ -15,6 +15,7 @@ Data sources:
 
 import logging
 import time
+import urllib3
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Any
 
@@ -22,6 +23,9 @@ import requests
 import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
+
+# 部分環境 TWSE SSL 憑證驗證失敗，停用相關警告
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -479,7 +483,7 @@ class TAIFEXData:
         """Fetch current TAIEX spot index from TWSE JSON API."""
         try:
             url = 'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json'
-            resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT)
+            resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False)
             resp.raise_for_status()
             data = resp.json()
 
@@ -707,7 +711,7 @@ class TaiwanFearGreedIndex:
                 'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX'
                 f'?date={date_str}&response=json'
             )
-            resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT)
+            resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False)
             resp.raise_for_status()
             data = resp.json()
 
@@ -869,7 +873,7 @@ class TaiwanFearGreedIndex:
                 'https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN'
                 f'?date={date_str}&selectType=MS&response=json'
             )
-            resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT)
+            resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False)
             resp.raise_for_status()
             data = resp.json()
 
@@ -909,7 +913,7 @@ class TaiwanFearGreedIndex:
                             f'?date={prev_str}&selectType=MS&response=json'
                         )
                         resp_prev = requests.get(
-                            url_prev, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT
+                            url_prev, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False
                         )
                         if resp_prev.status_code == 200:
                             data_prev = resp_prev.json()

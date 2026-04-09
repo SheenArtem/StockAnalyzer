@@ -12,10 +12,14 @@ TWSE/TPEX Open Data API Module (台灣證交所/櫃買中心 開放資料 API)
 
 import logging
 import time
+import urllib3
 from datetime import datetime, timedelta
 
 import pandas as pd
 import requests
+
+# 部分環境 TWSE SSL 憑證驗證失敗，停用相關警告
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +49,7 @@ class TWSEOpenData:
         self._last_request_time = 0.0
         # HTTP Session 重用連線
         self._session = requests.Session()
+        self._session.verify = False  # 部分環境 TWSE SSL 憑證驗證失敗
         self._session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept': 'application/json, text/html, */*',

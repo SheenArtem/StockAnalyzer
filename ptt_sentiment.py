@@ -208,18 +208,19 @@ class PTTSentimentAnalyzer:
     # 公開 API
     # ------------------------------------------------------------------
 
-    def get_stock_sentiment(self, stock_id, pages=3):
+    def get_stock_sentiment(self, stock_id, pages=3, stock_name=None):
         """
         Analyze PTT sentiment for a specific stock.
 
         Args:
             stock_id: Stock ticker, e.g. '2330'
             pages: Number of index pages to scan (each ~20 posts)
+            stock_name: Stock name for broader search, e.g. '台積電'
 
         Returns:
             dict with sentiment analysis results, or default empty result on error.
         """
-        cache_key = f"stock_sentiment_{stock_id}_{pages}"
+        cache_key = f"stock_sentiment_{stock_id}_{stock_name}_{pages}"
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
@@ -242,15 +243,20 @@ class PTTSentimentAnalyzer:
             logger.error("Unable to determine latest PTT Stock index page")
             return default_result
 
-        logger.info("Scanning PTT Stock board for stock_id=%s, pages=%d, latest_index=%d",
-                     stock_id, pages, latest_index)
+        # 建立搜尋關鍵字清單 (代號 + 名稱)
+        search_terms = [stock_id]
+        if stock_name and stock_name != stock_id:
+            search_terms.append(stock_name)
+
+        logger.info("Scanning PTT Stock board for %s, pages=%d, latest_index=%d",
+                     search_terms, pages, latest_index)
 
         all_posts = self._collect_index_posts(pages, latest_index)
 
-        # 篩選標題中包含 stock_id 的文章
+        # 篩選標題中包含任一關鍵字的文章 (代號或名稱)
         matched_posts = [
             p for p in all_posts
-            if stock_id in p['title']
+            if any(term in p['title'] for term in search_terms)
         ]
 
         if not matched_posts:
@@ -366,18 +372,19 @@ class PTTSentimentAnalyzer:
         self._set_cached(cache_key, result)
         return result
 
-    def get_mention_volume(self, stock_id, pages=5):
+    def get_mention_volume(self, stock_id, pages=5, stock_name=None):
         """
         Count mention volume of a stock on PTT Stock board.
 
         Args:
             stock_id: Stock ticker, e.g. '2330'
             pages: Number of index pages to scan
+            stock_name: Stock name for broader search, e.g. '台積電'
 
         Returns:
             dict with mention count, relative volume, and trending flag.
         """
-        cache_key = f"mention_volume_{stock_id}_{pages}"
+        cache_key = f"mention_volume_{stock_id}_{stock_name}_{pages}"
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
@@ -393,14 +400,19 @@ class PTTSentimentAnalyzer:
             logger.error("Unable to determine latest PTT Stock index page")
             return default_result
 
-        logger.info("Counting mention volume for stock_id=%s, pages=%d", stock_id, pages)
+        # 建立搜尋關鍵字
+        search_terms = [stock_id]
+        if stock_name and stock_name != stock_id:
+            search_terms.append(stock_name)
+
+        logger.info("Counting mention volume for %s, pages=%d", search_terms, pages)
 
         all_posts = self._collect_index_posts(pages, latest_index)
         if not all_posts:
             return default_result
 
-        # 計算目標股票提及次數
-        mentions = sum(1 for p in all_posts if stock_id in p['title'])
+        # 計算目標股票提及次數 (代號或名稱)
+        mentions = sum(1 for p in all_posts if any(term in p['title'] for term in search_terms))
 
         # 基準線: 收集所有出現的台股代號, 計算平均提及次數
         # 台股代號通常是 4 位數字
