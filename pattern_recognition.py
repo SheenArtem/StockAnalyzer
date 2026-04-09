@@ -24,7 +24,7 @@ def identify_patterns(df):
         data['Vol_Surge'] = False
 
     # Calculate Avg Body for relative size check
-    data['Body_Abs_Rolling'] = data['Body_Abs'].rolling(20).mean()
+    data['Body_Abs_Rolling'] = data['Body_Abs'].rolling(20, min_periods=1).mean()
     avg_body = data['Body_Abs_Rolling'] # Series
 
     # 0. Trend Identification (Simple)

@@ -112,13 +112,16 @@ def calculate_all_indicators(df):
     delta = df['Close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-    rs = gain / loss
+    rs = gain / loss.replace(0, np.nan)
     df['RSI'] = 100 - (100 / (1 + rs))
+    df['RSI'] = df['RSI'].fillna(100)  # loss=0 代表全漲，RSI=100
 
     # 7. KD (Stochastic)
     low_min = df['Low'].rolling(window=9).min()
     high_max = df['High'].rolling(window=9).max()
-    df['RSV'] = (df['Close'] - low_min) / (high_max - low_min) * 100
+    denom = (high_max - low_min).replace(0, np.nan)
+    df['RSV'] = (df['Close'] - low_min) / denom * 100
+    df['RSV'] = df['RSV'].fillna(50)  # 高低相同時 RSV=50（中性）
     df['K'] = df['RSV'].ewm(com=2).mean()
     df['D'] = df['K'].ewm(com=2).mean()
 
@@ -137,10 +140,11 @@ def calculate_all_indicators(df):
     down = -df['Low'].diff()
     plus_dm = np.where((up > down) & (up > 0), up, 0.0)
     minus_dm = np.where((down > up) & (down > 0), down, 0.0)
-    tr_smooth = df['TR'].rolling(window=14).mean()
+    tr_smooth = df['TR'].rolling(window=14).mean().replace(0, np.nan)
     df['+DI'] = 100 * (pd.Series(plus_dm, index=df.index).rolling(window=14).mean() / tr_smooth)
     df['-DI'] = 100 * (pd.Series(minus_dm, index=df.index).rolling(window=14).mean() / tr_smooth)
-    df['DX'] = 100 * abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])
+    di_sum = (df['+DI'] + df['-DI']).replace(0, np.nan)
+    df['DX'] = 100 * abs(df['+DI'] - df['-DI']) / di_sum
     df['ADX'] = df['DX'].rolling(window=14).mean()
 
     # 6. 埃爾德強力指標 (Elder's Force Index)
@@ -203,7 +207,8 @@ def calculate_all_indicators(df):
     # 使用 20 日滾動 VWAP，模擬法人成本線
     typical_price = (df['High'] + df['Low'] + df['Close']) / 3
     tp_vol = typical_price * df['Volume']
-    df['VWAP'] = tp_vol.rolling(window=20).sum() / df['Volume'].rolling(window=20).sum()
+    vol_sum = df['Volume'].rolling(window=20).sum().replace(0, np.nan)
+    df['VWAP'] = tp_vol.rolling(window=20).sum() / vol_sum
 
     # 14. Supertrend (基於 ATR 的趨勢指標)
     # 台灣散戶圈主流趨勢指標，產生明確多空翻轉信號

@@ -1450,8 +1450,8 @@ class TechnicalAnalyzer:
                 if p2_price < p1_price and ind2_val > ind1_val:
                     # 計算背離強度
                     price_drop_pct = (p1_price - p2_price) / p1_price * 100
-                    ind_rise_pct = (ind2_val - ind1_val) / abs(ind1_val) * 100 if ind1_val != 0 else 0
-                    
+                    ind_rise_pct = min((ind2_val - ind1_val) / abs(ind1_val) * 100, 500) if ind1_val != 0 else 0
+
                     # 強烈背離: 價格跌幅 > 3% 且 指標上升 > 10%
                     if price_drop_pct > 3 and ind_rise_pct > 10:
                         return 'bull_strong'
@@ -1485,7 +1485,7 @@ class TechnicalAnalyzer:
                 if p2_price > p1_price and ind2_val < ind1_val:
                     # 計算背離強度
                     price_rise_pct = (p2_price - p1_price) / p1_price * 100
-                    ind_drop_pct = (ind1_val - ind2_val) / abs(ind1_val) * 100 if ind1_val != 0 else 0
+                    ind_drop_pct = min((ind1_val - ind2_val) / abs(ind1_val) * 100, 500) if ind1_val != 0 else 0
                     
                     # 強烈背離
                     if price_rise_pct > 3 and ind_drop_pct > 10:
