@@ -2,9 +2,17 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-import mplfinance as mpf
+import logging
 from technical_analysis import plot_dual_timeframe, load_and_resample, calculate_all_indicators, plot_interactive_chart
 from fundamental_analysis import get_fundamentals, get_revenue_history, get_per_history, get_financial_statements
+
+logger = logging.getLogger(__name__)
+
+@st.cache_data(ttl=3600)
+def get_chip_data_cached(ticker, force):
+    from chip_analysis import ChipAnalyzer
+    analyzer = ChipAnalyzer()
+    return analyzer.get_chip_data(ticker, force_update=force)
 
 
 # 設定頁面配置
@@ -92,7 +100,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.01.29.02")
+    st.caption("Version: v2026.04.09.01")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -106,7 +114,15 @@ with st.sidebar:
     
     # Callback for history selection
     def on_history_change():
-        st.session_state['ticker_input'] = st.session_state['history_selected']
+        import re
+        selected = st.session_state.get('history_selected', '')
+        if selected:
+            selected = selected.strip()
+            # Basic character check: only allow alphanumeric, dot, hyphen
+            if not re.match(r'^[A-Za-z0-9.\-]{1,20}$', selected):
+                logger.error(f"Invalid ticker from history dropdown: {selected!r}")
+                return  # Do not activate analysis for invalid ticker
+        st.session_state['ticker_input'] = selected
         st.session_state['analysis_active'] = True
         st.session_state['force_run'] = False
 
@@ -156,9 +172,7 @@ with st.sidebar:
     st.markdown("---")
 
 # 封裝分析函數 (暫時移除 Cache 以確保代碼更新生效)
-# @st.cache_data(ttl=3600) 
-# 封裝分析函數 (暫時移除 Cache 以確保代碼更新生效)
-# @st.cache_data(ttl=3600) 
+# @st.cache_data(ttl=3600)
 def run_analysis(source_data, force_update=False):
     # 這裡的邏輯與原本 main 當中的一樣，但搬進來做 cache
     
@@ -261,22 +275,21 @@ if st.session_state.get('analysis_active', False):
     try:
         # 呼叫有快取的函數
         figures, errors, df_week, df_day, stock_meta = run_analysis(source, force_update=is_force)
-        
+
+        # Display analysis warnings from errors dict
+        for key, err_msg in errors.items():
+            if err_msg:
+                st.warning(f"⚠️ {key} 計算警告: {err_msg}")
+
         # [NEW] Pre-load Chip Data for Analysis (籌碼預載)
         chip_data = None
         if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
              try:
-                 from chip_analysis import ChipAnalyzer
-                 
-                 @st.cache_data(ttl=3600)
-                 def get_chip_data_cached(ticker, force):
-                     analyzer = ChipAnalyzer()
-                     return analyzer.get_chip_data(ticker, force_update=force)
-                 
                  status_text.info(f"⏳ 正在分析 {display_ticker} (技術+籌碼)...")
                  chip_data, chip_err = get_chip_data_cached(source, is_force)
              except Exception as e:
-                 print(f"Chip Load Error: {e}")
+                 logger.error(f"Chip Load Error: {e}", exc_info=True)
+                 st.warning(f"⚠️ 籌碼預載失敗: {e}")
 
         # 暫存給 Analyzer 用 (使用 session_state)
         st.session_state['df_week_cache'] = df_week
@@ -363,9 +376,11 @@ if st.session_state.get('analysis_active', False):
                     us_analyzer = USStockChipAnalyzer()
                     us_chip_data, us_err = us_analyzer.get_chip_data(source)
                     if us_err:
-                        print(f"US Chip Warning: {us_err}")
+                        logger.warning(f"US Chip Warning: {us_err}")
+                        st.warning(f"⚠️ 美股籌碼資料警告: {us_err}")
                 except Exception as e:
-                    print(f"US Chip Load Error: {e}")
+                    logger.error(f"US Chip Load Error: {e}", exc_info=True)
+                    st.warning(f"⚠️ 美股籌碼預載失敗: {e}")
             
             analyzer = TechnicalAnalyzer(
                 display_ticker, 
@@ -508,10 +523,6 @@ if st.session_state.get('analysis_active', False):
 
 
         # 顯示圖表
-        col1, col2 = st.columns(2)
-        
-        # 顯示圖表
-        col1, col2 = st.columns(2)
         tab1, tab2, tab3, tab4 = st.tabs(["週K", "日K", "籌碼面", "🏢 基本面"])
         
         with tab1:
@@ -648,12 +659,6 @@ if st.session_state.get('analysis_active', False):
                  try:
                      loading_msg = st.empty()
                      loading_msg.info(f"⏳ 正在抓取 {display_ticker} 近一年籌碼數據 (FinMind)...")
-                     from chip_analysis import ChipAnalyzer
-                     
-                     @st.cache_data(ttl=3600)
-                     def get_chip_data_cached(ticker, force):
-                         analyzer = ChipAnalyzer()
-                         return analyzer.get_chip_data(ticker, force_update=force)
 
                      # Use force state from session_state
                      is_force = st.session_state.get('force_update_cache', False)
@@ -664,7 +669,7 @@ if st.session_state.get('analysis_active', False):
                          st.success(f"✅ {display_ticker} 籌碼數據讀取成功")
                          
                          # [NEW] Margin Utilization Metric (融資使用率)
-                         df_m = chip_data['margin']
+                         df_m = chip_data.get('margin', pd.DataFrame())
                          if not df_m.empty and '融資限額' in df_m.columns:
                              # Ensure numeric stats
                              try:
@@ -802,8 +807,8 @@ if st.session_state.get('analysis_active', False):
                          # 1. 整合圖表：三大法人 + 融資融券 (Plotly Dual Subplot)
                          st.markdown("### 📊 籌碼綜合分析 (Institutional & Margin)")
                          
-                         df_inst = chip_data['institutional']
-                         df_margin = chip_data['margin']
+                         df_inst = chip_data.get('institutional', pd.DataFrame())
+                         df_margin = chip_data.get('margin', pd.DataFrame())
                          
                          # Data Slicing (Last 120 days for clear view)
                          days_show = 120

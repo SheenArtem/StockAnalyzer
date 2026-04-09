@@ -1,7 +1,22 @@
 import yfinance as yf
 import pandas as pd
 import datetime
+import logging
+import threading
 from FinMind.data import DataLoader
+
+logger = logging.getLogger(__name__)
+
+_data_loader = None
+_data_loader_lock = threading.Lock()
+
+def _get_data_loader():
+    global _data_loader
+    if _data_loader is None:
+        with _data_loader_lock:
+            if _data_loader is None:
+                _data_loader = DataLoader()
+    return _data_loader
 
 def get_fundamentals(ticker):
     """
@@ -65,7 +80,6 @@ def get_fundamentals(ticker):
              if tw_data:
                  print(f"✅ 使用 FinMind 數據覆蓋台股基本面: {stock_id}")
                  if tw_data.get('PE Ratio') != 'N/A': data['PE Ratio'] = tw_data['PE Ratio']
-                 if tw_data.get('PE Ratio') != 'N/A': data['PE Ratio'] = tw_data['PE Ratio']
                  if tw_data.get('PB Ratio') != 'N/A': data['PB Ratio'] = tw_data['PB Ratio']
                  if tw_data.get('Dividend Yield') != 'N/A': 
                      data['Dividend Yield'] = f"{tw_data['Dividend Yield']:.2f}%" # Format here
@@ -76,8 +90,8 @@ def get_fundamentals(ticker):
                      if close_price and pe_val > 0:
                          eps_est = close_price / pe_val
                          data['EPS (TTM)'] = f"{eps_est:.2f} (Est.)"
-                 except:
-                     pass
+                 except Exception as e:
+                     logger.debug(f"Failed to estimate EPS from PE for {stock_id}: {e}")
                      
                  # [PATCH] 嘗試補全 Profile (Sector/Industry)
                  if data['Sector'] == 'N/A':
@@ -104,8 +118,8 @@ def get_fundamentals(ticker):
                          if eps_val > 0:
                              payout = (total_div / eps_val) * 100
                              data['Payout Ratio'] = f"{payout:.1f}%"
-                     except:
-                         pass
+                     except Exception as e:
+                         logger.debug(f"Failed to calculate payout ratio for {stock_id}: {e}")
 
         # Handle Dividend Yield (yfinance returns decimal like 0.015 for 1.5%)
 
@@ -139,7 +153,7 @@ def get_taiwan_stock_fundamentals(stock_id):
     從 FinMind 取得台股基本面數據 (PER, PBR, Yield)
     """
     try:
-        dl = DataLoader()
+        dl = _get_data_loader()
         # 取最近 365 天數據確保有收盤與殖利率資料 (有些冷門股可能交易少)
         start_date = (datetime.datetime.now() - datetime.timedelta(days=365)).strftime('%Y-%m-%d')
         
@@ -170,7 +184,7 @@ def get_taiwan_stock_profile(stock_id):
     從 FinMind 取得產業類別 (Fallback)
     """
     try:
-        dl = DataLoader()
+        dl = _get_data_loader()
         df = dl.taiwan_stock_info()
         row = df[df['stock_id'] == stock_id]
         if not row.empty:
@@ -178,8 +192,8 @@ def get_taiwan_stock_profile(stock_id):
                 'sector': row.iloc[0]['industry_category'],
                 'industry': row.iloc[0]['industry_category'] # FinMind usually groups them
             }
-    except:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to fetch stock profile for {stock_id}: {e}")
     return None
 
 def get_taiwan_stock_revenue(stock_id):
@@ -187,7 +201,7 @@ def get_taiwan_stock_revenue(stock_id):
     從 FinMind 取得最近一月營收與年增率 (taiwan_stock_month_revenue)
     """
     try:
-        dl = DataLoader()
+        dl = _get_data_loader()
         # 抓取近 90 天 (確保有上個月資料)
         start_date = (datetime.datetime.now() - datetime.timedelta(days=90)).strftime('%Y-%m-%d')
         df = dl.taiwan_stock_month_revenue(stock_id=stock_id, start_date=start_date)
@@ -209,7 +223,7 @@ def get_taiwan_stock_dividend_policy(stock_id):
     從 FinMind 取得最近一年股利政策 (taiwan_stock_dividend)
     """
     try:
-        dl = DataLoader()
+        dl = _get_data_loader()
         # 股利通常一年一次，抓 2 年確保有資料
         start_date = (datetime.datetime.now() - datetime.timedelta(days=730)).strftime('%Y-%m-%d')
         df = dl.taiwan_stock_dividend(stock_id=stock_id, start_date=start_date)
@@ -231,7 +245,7 @@ def get_taiwan_stock_dividend_policy(stock_id):
 def get_revenue_history(stock_id, months=36):
     """ Fetch historical revenue data for plotting (Last 3 years default) """
     try:
-        dl = DataLoader()
+        dl = _get_data_loader()
         # 36 months + buffer
         start_date = (datetime.datetime.now() - datetime.timedelta(days=months*30 + 30)).strftime('%Y-%m-%d')
         df = dl.taiwan_stock_month_revenue(stock_id=stock_id, start_date=start_date)
@@ -239,20 +253,22 @@ def get_revenue_history(stock_id, months=36):
              df['date'] = pd.to_datetime(df['date'])
              df.sort_values('date', inplace=True)
         return df
-    except:
+    except Exception as e:
+        logger.warning(f"Failed to fetch revenue history for {stock_id}: {e}")
         return pd.DataFrame()
 
 def get_per_history(stock_id, days=500):
     """ Fetch historical PER/PBR data for plotting """
     try:
-        dl = DataLoader()
+        dl = _get_data_loader()
         start_date = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d')
         df = dl.get_data(dataset="TaiwanStockPER", data_id=stock_id, start_date=start_date)
         if not df.empty:
              df['date'] = pd.to_datetime(df['date'])
              df.sort_values('date', inplace=True)
         return df
-    except:
+    except Exception as e:
+        logger.warning(f"Failed to fetch PER history for {stock_id}: {e}")
         return pd.DataFrame()
 
 def get_financial_statements(stock_id, quarters=12):
@@ -260,7 +276,7 @@ def get_financial_statements(stock_id, quarters=12):
     Fetch quarterly financial statements and calculate Three Rates (Margins) & EPS.
     """
     try:
-        dl = DataLoader()
+        dl = _get_data_loader()
         # Estimate days: 12 quarters * 100 days
         start_date = (datetime.datetime.now() - datetime.timedelta(days=quarters*100)).strftime('%Y-%m-%d')
         
