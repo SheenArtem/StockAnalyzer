@@ -190,9 +190,17 @@ class TechnicalAnalyzer:
         atr_val = self._safe_get(current, 'ATR', 0)
         sl_low = df['Low'].iloc[-20:].min()
         sl_ma = ma20
-        sl_key = sl_low # fallback
+
+        # 關鍵紅K: 近20日最大量那根K棒的低點（真正的大量支撐）
+        if 'Volume' in df.columns and len(df) >= 20:
+            recent_20 = df.iloc[-20:]
+            key_vol_idx = recent_20['Volume'].idxmax()
+            sl_key = recent_20.loc[key_vol_idx, 'Low']
+        else:
+            sl_key = sl_low
+
         sl_atr = close_price - (2.0 * atr_val) if atr_val > 0 else close_price * 0.9
-        sl_key_candle = sl_low # Default for key candle if logic complex
+        sl_key_candle = sl_key
 
         # Default S/L Method
         rec_sl_method = "ATR 波動停損 (科學)" # Updated simplified name logic later if needed
@@ -219,21 +227,23 @@ class TechnicalAnalyzer:
         if not optimizer_active:
             if code == 'A': # Active
                 is_actionable = True
-                if close_price > ma5 * 1.05:
+                if close_price > ma5 * 1.05 and ma5 > 0:
                     # 乖離過大，等待拉回
-                    rec_entry_low, rec_entry_high = ma10, ma5
+                    lo, hi = sorted([v for v in [ma10, ma5] if v > 0]) if ma10 > 0 and ma5 > 0 else (ma5 * 0.98, ma5)
+                    rec_entry_low, rec_entry_high = lo, hi
                     rec_entry_desc = "等待拉回 (5MA-10MA)"
                     entry_basis = ma5
                     strategy_text = "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。"
                 else:
-                    rec_entry_low, rec_entry_high = ma5, close_price
+                    rec_entry_low, rec_entry_high = ma5 if ma5 > 0 else close_price * 0.99, close_price
                     rec_entry_desc = "積極操作 (5MA-現價)"
                     entry_basis = close_price
                     strategy_text = "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。"
                 
             elif code == 'B': # Pullback (Actionable Limit Buy)
                 is_actionable = True
-                support = ma60 if ma60 < ma20 else ma20
+                support_candidates = [m for m in [ma20, ma60] if m > 0]
+                support = min(support_candidates) if support_candidates else close_price * 0.95
                 rec_entry_low, rec_entry_high = support * 0.98, support * 1.02
                 rec_entry_desc = "回測支撐 (月季線)"
                 entry_basis = support
@@ -256,18 +266,20 @@ class TechnicalAnalyzer:
                 strategy_text = "💤 **觀望**：多空分歧，等待方向明確。"
             
         # [MOVED] Construct Stop Loss List (sl_list) for UI - Calculate BEFORE actionable check
+        # 重算 ATR 停損：基於 entry_basis 而非 close_price，與推薦值一致
+        sl_atr_entry = entry_basis - (2.0 * atr_val) if atr_val > 0 else entry_basis * 0.9
         final_sl_list = []
         sl_candidates = [
-            {"method": "A. ATR 波動停損 (科學)", "price": sl_atr, "desc": "2倍 ATR"},
+            {"method": "A. ATR 波動停損 (科學)", "price": sl_atr_entry, "desc": "2倍 ATR"},
             {"method": "B. 均線停損 (趨勢)", "price": sl_ma, "desc": "MA20/60"},
             {"method": "C. 關鍵紅K (籌碼)", "price": sl_key, "desc": "大量低點"},
             {"method": "D. 波段低點停損 (形態)", "price": sl_low, "desc": "前波低點"}
         ]
-        
+
         for item in sl_candidates:
             if item['price'] > 0: # Show all valid calculated supports
                 diff = item['price'] - entry_basis
-                loss_pct = (diff / entry_basis) * 100
+                loss_pct = (diff / entry_basis) * 100 if entry_basis > 0 else 0
                 
                 # Add note if broken
                 note = item['desc']
@@ -302,18 +314,16 @@ class TechnicalAnalyzer:
             }
             
         # --- Logic continues ONLY if actionable ---
-        
-        # 1. Stop Loss (Based on Entry)
-        # Recalculate based on Entry Basis
-        rec_sl_price = entry_basis - (2.0 * atr_val) if atr_val > 0 else entry_basis * 0.9
-        
-        # Map simple method string to UI full string
-        if "ATR" in rec_sl_method:
-             rec_sl_method = "A. ATR 波動停損 (科學)"
-        elif "波段" in rec_sl_method:
-             rec_sl_method = "D. 波段低點停損 (形態)"
+
+        # 1. Stop Loss — 依劇本選擇合適方法
+        if code == 'C':
+            # 反彈搶短：用前波低點 -3% 作停損，緊貼進場價控制風險
+            rec_sl_price = sl_low * 0.97 if sl_low > 0 else entry_basis * 0.93
+            rec_sl_method = "D. 波段低點停損 (形態)"
         else:
-             rec_sl_method = "A. ATR 波動停損 (科學)" # Default
+            # A / B / Optimizer：標準 ATR 波動停損
+            rec_sl_price = entry_basis - (2.0 * atr_val) if atr_val > 0 else entry_basis * 0.9
+            rec_sl_method = "A. ATR 波動停損 (科學)"
         
         # 2. Take Profit (Based on Entry)
         recent_high_20 = df['High'].iloc[-20:].max()
@@ -348,6 +358,12 @@ class TechnicalAnalyzer:
                 if rec_cand: rec_method_name = rec_cand['method']
             elif code == 'B':
                 rec_cand = next((t for t in valid_candidates if "布林" in t['method']), None)
+                if rec_cand: rec_method_name = rec_cand['method']
+            elif code == 'C':
+                # 反彈搶短：優先前波高點（解套賣壓），其次 MA60 季線反壓
+                rec_cand = next((t for t in valid_candidates if "前波高點" in t['method']), None)
+                if not rec_cand: rec_cand = next((t for t in valid_candidates if "MA60" in t['method']), None)
+                if not rec_cand: rec_cand = next((t for t in valid_candidates if "N 字" in t['method']), None)
                 if rec_cand: rec_method_name = rec_cand['method']
             
         for item in valid_candidates:
