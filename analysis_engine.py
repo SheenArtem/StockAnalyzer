@@ -130,7 +130,12 @@ class TechnicalAnalyzer:
 
         # B. 爆量長黑
         if vol_ma5 > 0:
-            checklist['risk'].append(f"若出現 **爆量長黑** (成交量 > {vol_ma5*2:.0f}) 且收跌，視為主力出貨訊號。")
+            vol_threshold = vol_ma5 * 2
+            if not self._is_us_stock:
+                vol_display = f"{vol_threshold/1000:,.0f} 張"
+            else:
+                vol_display = f"{vol_threshold:,.0f}"
+            checklist['risk'].append(f"若出現 **爆量長黑** (成交量 > {vol_display}) 且收跌，視為主力出貨訊號。")
 
         # C. KD 高檔鈍化結束
         if self._safe_get(current, 'K', 0) > 80:
