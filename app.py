@@ -100,7 +100,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.09.01")
+    st.caption("Version: v2026.04.09.02")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -474,11 +474,31 @@ if st.session_state.get('analysis_active', False):
                         c5.error(f"**風報比**：\n\n⚖️ **{rr_text}**") # Bad
                     else:
                          c5.info(f"**風報比**：\n\nN/A")
+                    # 6. 部位管理建議 (Position Sizing)
+                    ps = ap.get('position_sizing', {})
+                    if ps:
+                        with st.expander("📐 部位管理建議 (2% 風險法則)", expanded=False):
+                            ps_data = []
+                            for cap, info in ps.items():
+                                if info['lots'] > 0:
+                                    ps_data.append({
+                                        "資金規模": f"{cap/10000:.0f} 萬",
+                                        "建議張數": f"{info['lots']} 張",
+                                        "所需資金": f"{info['cost']:,.0f}",
+                                        "停損虧損": f"{info['risk_amount']:,.0f}",
+                                        "風險比例": f"{info['risk_pct']:.1f}%"
+                                    })
+                            if ps_data:
+                                st.table(pd.DataFrame(ps_data))
+                                st.caption("💡 2% 法則：單筆交易最大虧損不超過總資金的 2%")
+                            else:
+                                st.caption("⚠️ 停損距離過大或股價過高，建議降低部位或等待更佳進場點")
+
                 else:
                     # Not actionable: Show simple message or nothing else?
                     # User request: "If not suggested entry, don't give"
                     pass
-                
+
             st.markdown("---")
 
             # 3. 詳細因子分析 (Detailed Breakdown)
@@ -492,6 +512,28 @@ if st.session_state.get('analysis_active', False):
                 for item in report['trigger_details']:
                     st.write(item)
             
+            # 3.5 ML Signal (if available)
+            try:
+                from ml_signal import MLSignalClassifier
+                ml = MLSignalClassifier()
+                if ml.load_model(display_ticker):
+                    ml_score = ml.get_ml_score(df_day)
+                    ensemble = ml.ensemble_score(report['trigger_score'], ml_score)
+                    with st.expander("🤖 AI/ML 混合信號", expanded=False):
+                        mc1, mc2, mc3 = st.columns(3)
+                        mc1.metric("規則分數", f"{report['trigger_score']:.1f}")
+                        mc2.metric("ML 分數", f"{ml_score:.1f}")
+                        mc3.metric("混合分數", f"{ensemble:.1f}")
+                        fi = ml.get_feature_importance()
+                        if fi:
+                            st.markdown("**Top 特徵重要性:**")
+                            top5 = dict(list(fi.items())[:5])
+                            st.bar_chart(pd.Series(top5))
+            except ImportError:
+                pass
+            except Exception:
+                pass
+
             # 4. 完整價位規劃表 (Detailed Price Levels)
             with st.expander("📊 查看完整支撐壓力與停損清單", expanded=False):
                 if report.get('action_plan'):
@@ -523,7 +565,7 @@ if st.session_state.get('analysis_active', False):
 
 
         # 顯示圖表
-        tab1, tab2, tab3, tab4 = st.tabs(["週K", "日K", "籌碼面", "🏢 基本面"])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["週K", "日K", "籌碼面", "🏢 基本面", "🔮 情緒/期權", "📊 除息/營收"])
         
         with tab1:
             if 'Weekly' in figures:
@@ -1204,6 +1246,192 @@ if st.session_state.get('analysis_active', False):
                 st.info("💡 歷史基本面圖表僅支援台股代號")
 
         # ==========================================
+        # Tab 5: 情緒/期權分析
+        # ==========================================
+        with tab5:
+            st.markdown("#### 🔮 市場情緒與期權分析")
+
+            # Fear & Greed Index
+            try:
+                from taifex_data import TaiwanFearGreedIndex
+                fgi = TaiwanFearGreedIndex()
+                with st.spinner("計算恐懼貪婪指數..."):
+                    fg_result = fgi.calculate()
+                    fg_score = fg_result.get('score', 50)
+                    fg_label = fg_result.get('label', 'N/A')
+
+                    fg1, fg2 = st.columns([1, 2])
+                    with fg1:
+                        # Gauge-like display
+                        color = '#FF4444' if fg_score < 25 else '#FF8800' if fg_score < 40 else '#FFD700' if fg_score < 60 else '#88CC00' if fg_score < 75 else '#00CC44'
+                        st.metric("恐懼貪婪指數", f"{fg_score:.0f}", delta=fg_label)
+                        st.progress(int(fg_score))
+                        st.caption("0=極度恐懼 → 100=極度貪婪")
+                    with fg2:
+                        components = fg_result.get('components', {})
+                        if components:
+                            comp_data = []
+                            for name, val in components.items():
+                                comp_data.append({"指標": name, "分數": f"{val:.0f}", "狀態": "恐懼" if val < 40 else "貪婪" if val > 60 else "中性"})
+                            st.table(pd.DataFrame(comp_data))
+            except ImportError:
+                st.info("taifex_data 模組尚未安裝")
+            except Exception as e:
+                st.warning(f"恐懼貪婪指數暫時無法取得: {e}")
+
+            st.markdown("---")
+
+            # TAIFEX Data
+            try:
+                from taifex_data import TAIFEXData
+                taifex = TAIFEXData()
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    st.markdown("**期貨正逆價差**")
+                    try:
+                        basis = taifex.get_futures_basis()
+                        if basis.get('basis') is not None:
+                            b_val = basis['basis']
+                            st.metric("基差", f"{b_val:.0f} 點", delta="正價差 (偏多)" if b_val > 0 else "逆價差 (偏空)")
+                    except Exception:
+                        st.caption("期貨數據暫時無法取得")
+                with tc2:
+                    st.markdown("**Put/Call Ratio**")
+                    try:
+                        pcr = taifex.get_put_call_ratio()
+                        if pcr.get('pc_ratio') is not None:
+                            pc = pcr['pc_ratio']
+                            st.metric("P/C Ratio", f"{pc:.2f}", delta="恐懼" if pc > 1.0 else "貪婪" if pc < 0.7 else "中性")
+                    except Exception:
+                        st.caption("選擇權數據暫時無法取得")
+            except ImportError:
+                pass
+            except Exception:
+                pass
+
+            st.markdown("---")
+
+            # PTT Sentiment
+            try:
+                from ptt_sentiment import PTTSentimentAnalyzer
+                ptt = PTTSentimentAnalyzer()
+                stock_id_clean = display_ticker.split('.')[0] if '.' in display_ticker else display_ticker
+
+                if stock_id_clean.isdigit():
+                    if st.button("🔍 分析 PTT 情緒", key="ptt_btn"):
+                        with st.spinner(f"爬取 PTT Stock 板 {stock_id_clean} 相關討論..."):
+                            sentiment = ptt.get_stock_sentiment(stock_id_clean, pages=3)
+                            if sentiment['total_posts'] > 0:
+                                ps1, ps2, ps3 = st.columns(3)
+                                ps1.metric("相關文章數", sentiment['total_posts'])
+                                ps2.metric("推噓比", f"{sentiment['push_ratio']:.0%}")
+                                ps3.metric("情緒分數", f"{sentiment['sentiment_score']:.0f}", delta=sentiment['sentiment_label'])
+                                if sentiment.get('contrarian_warning'):
+                                    st.warning("⚠️ 極度樂觀！擦鞋童效應警告 — 過度看多可能是頂部信號")
+                                if sentiment.get('recent_posts'):
+                                    with st.expander("相關文章"):
+                                        for post in sentiment['recent_posts'][:10]:
+                                            st.write(f"[{post['date']}] {post['title']} (推{post['push']}/噓{post['boo']})")
+                            else:
+                                st.info(f"PTT 近期無 {stock_id_clean} 相關討論")
+                else:
+                    st.info("PTT 情緒分析僅支援台股")
+            except ImportError:
+                st.info("ptt_sentiment 模組尚未安裝")
+            except Exception as e:
+                st.warning(f"PTT 情緒分析失敗: {e}")
+
+        # ==========================================
+        # Tab 6: 除息/營收分析
+        # ==========================================
+        with tab6:
+            st.markdown("#### 📊 除權息行事曆 & 月營收追蹤")
+            stock_id_clean = display_ticker.split('.')[0] if '.' in display_ticker else display_ticker
+
+            if not stock_id_clean.isdigit():
+                st.info("除息/營收分析僅支援台股")
+            else:
+                try:
+                    from dividend_revenue import DividendAnalyzer, RevenueTracker
+
+                    # Dividend Section
+                    st.markdown("##### 💰 除權息分析")
+                    try:
+                        da = DividendAnalyzer()
+                        with st.spinner("載入股利資料..."):
+                            div_hist = da.get_dividend_history(stock_id_clean)
+                            if not div_hist.empty:
+                                st.dataframe(div_hist, use_container_width=True)
+
+                                # Fill-gap stats
+                                fg_stats = da.get_fill_gap_stats(stock_id_clean)
+                                if fg_stats:
+                                    dc1, dc2, dc3 = st.columns(3)
+                                    dc1.metric("平均填息天數", f"{fg_stats.get('avg_fill_days', 0):.0f} 天")
+                                    dc2.metric("填息率", f"{fg_stats.get('fill_rate', 0):.0f}%")
+                                    dc3.metric("建議", fg_stats.get('recommendation', 'N/A'))
+                            else:
+                                st.info("查無股利資料")
+
+                        # Upcoming ex-date
+                        upcoming = da.get_upcoming_ex_dates(stock_id_clean)
+                        if upcoming and upcoming.get('has_upcoming'):
+                            st.success(f"📅 即將除息：{upcoming['ex_date']}，股利 {upcoming['dividend_amount']:.2f} 元，殖利率 {upcoming['yield_pct']:.1f}%，距今 {upcoming['days_until']} 天")
+                    except Exception as e:
+                        st.warning(f"股利資料暫時無法取得: {e}")
+
+                    st.markdown("---")
+
+                    # Revenue Section
+                    st.markdown("##### 📈 月營收追蹤")
+                    try:
+                        rt = RevenueTracker()
+                        with st.spinner("載入營收資料..."):
+                            rev_df = rt.get_monthly_revenue(stock_id_clean)
+                            if not rev_df.empty:
+                                # Revenue chart
+                                import plotly.graph_objects as go
+                                fig_rev = go.Figure()
+                                fig_rev.add_trace(go.Bar(
+                                    x=rev_df['year_month'], y=rev_df['revenue'],
+                                    name='月營收', marker_color='#4CAF50'
+                                ))
+                                if 'yoy_pct' in rev_df.columns:
+                                    fig_rev.add_trace(go.Scatter(
+                                        x=rev_df['year_month'], y=rev_df['yoy_pct'],
+                                        name='YoY%', yaxis='y2', mode='lines+markers',
+                                        line=dict(color='#FF9800', width=2)
+                                    ))
+                                fig_rev.update_layout(
+                                    title="月營收趨勢", height=350,
+                                    yaxis=dict(title='營收 (千元)'),
+                                    yaxis2=dict(title='YoY %', overlaying='y', side='right'),
+                                    hovermode='x unified',
+                                    margin=dict(l=20, r=60, t=40, b=20)
+                                )
+                                st.plotly_chart(fig_rev, use_container_width=True)
+                            else:
+                                st.info("查無營收資料")
+
+                        # Revenue alert
+                        alert = rt.get_revenue_alert(stock_id_clean)
+                        if alert and alert.get('alert_text'):
+                            st.info(f"📢 {alert['alert_text']}")
+
+                        # Revenue surprise
+                        surprise = rt.detect_revenue_surprise(stock_id_clean)
+                        if surprise and surprise.get('is_surprise'):
+                            if surprise['direction'] == 'positive':
+                                st.success(f"🎉 營收正驚喜！{surprise['text']}")
+                            else:
+                                st.error(f"⚠️ 營收負驚喜！{surprise['text']}")
+                    except Exception as e:
+                        st.warning(f"營收資料暫時無法取得: {e}")
+
+                except ImportError:
+                    st.info("dividend_revenue 模組尚未安裝")
+
+        # ==========================================
         # 6. 策略回測系統 (Strategy Backtester)
         # ==========================================
         st.markdown("---")
@@ -1285,25 +1513,132 @@ if st.session_state.get('analysis_active', False):
                         # 3. Display Results
                         st.markdown(f"### 📊 回測結果 ({params})")
                         
+                        # === 基本績效指標 ===
                         m1, m2, m3, m4 = st.columns(4)
-                        val_color = "normal"
-                        if results['total_return'] > 0: val_color = "off" # Streamlit metric doesn't allow color param directly easily
-                        
-                        m1.metric("總報酬率 (Total Return)", f"{results['total_return']:.2f}%", delta=None)
-                        m2.metric("交易勝率 (Win Rate)", f"{results['win_rate']:.1f}%")
-                        m3.metric("最大回檔 (Max DD)", f"{results['max_drawdown']:.2f}%")
+                        m1.metric("總報酬率", f"{results['total_return']:.2f}%")
+                        m2.metric("交易勝率", f"{results['win_rate']:.1f}%")
+                        m3.metric("最大回檔", f"{results['max_drawdown']:.2f}%")
                         m4.metric("目前持倉", "持有中" if results['holding'] else "空手")
-                        
-                        # Plot
+
+                        # === Alpha & 進階指標 ===
+                        rm = results.get('risk_metrics', {})
+                        if rm:
+                            m5, m6, m7, m8 = st.columns(4)
+                            alpha = results.get('alpha', 0)
+                            m5.metric("Alpha (超額報酬)", f"{alpha:+.2f}%")
+                            m6.metric("Sharpe Ratio", f"{rm.get('sharpe_ratio', 0):.2f}")
+                            m7.metric("Profit Factor", f"{rm.get('profit_factor', 0):.2f}")
+                            m8.metric("平均持有天數", f"{rm.get('avg_holding_days', 0):.0f} 天")
+
+                        # === 績效曲線 (含大盤基準) ===
                         fig_bt = engine.plot_results(results)
                         st.plotly_chart(fig_bt, use_container_width=True)
-                        
-                        # Trade Log
+
+                        # === 進階分析 (展開式) ===
+                        with st.expander("📊 進階風險指標 & 交易統計", expanded=False):
+                            if rm:
+                                rc1, rc2 = st.columns(2)
+                                with rc1:
+                                    st.markdown("**風險指標**")
+                                    risk_data = {
+                                        "Sharpe Ratio": f"{rm.get('sharpe_ratio', 0):.3f}",
+                                        "Sortino Ratio": f"{rm.get('sortino_ratio', 0):.3f}",
+                                        "Calmar Ratio": f"{rm.get('calmar_ratio', 0):.3f}",
+                                        "Profit Factor": f"{rm.get('profit_factor', 0):.2f}",
+                                        "最大回撤持續天數": f"{rm.get('max_dd_duration_days', 0)} 天",
+                                    }
+                                    st.table(pd.DataFrame(risk_data.items(), columns=["指標", "數值"]))
+                                with rc2:
+                                    st.markdown("**交易統計**")
+                                    trade_data = {
+                                        "平均獲利": f"{results.get('avg_win', 0):.2f}%",
+                                        "平均虧損": f"{results.get('avg_loss', 0):.2f}%",
+                                        "最大單筆獲利": f"{results.get('largest_win', 0):.2f}%",
+                                        "最大單筆虧損": f"{results.get('largest_loss', 0):.2f}%",
+                                        "最長連勝": f"{rm.get('max_consecutive_wins', 0)} 次",
+                                        "最長連敗": f"{rm.get('max_consecutive_losses', 0)} 次",
+                                    }
+                                    st.table(pd.DataFrame(trade_data.items(), columns=["指標", "數值"]))
+
+                            # 月報酬熱力圖
+                            monthly_ret = results.get('monthly_returns')
+                            if monthly_ret is not None and not monthly_ret.empty:
+                                st.markdown("**月度報酬一覽**")
+                                # 轉換為年/月 pivot
+                                mr_df = monthly_ret.reset_index()
+                                mr_df.columns = ['month', 'return']
+                                mr_df['year'] = mr_df['month'].str[:4]
+                                mr_df['mon'] = mr_df['month'].str[5:7]
+                                pivot = mr_df.pivot(index='year', columns='mon', values='return')
+                                st.dataframe(pivot.style.format("{:.1f}%").background_gradient(cmap='RdYlGn', axis=None))
+
+                        # === 交易紀錄 ===
                         with st.expander("查看詳細交易紀錄 (Trade Log)"):
                             if not results['trades'].empty:
                                 st.dataframe(results['trades'])
                             else:
                                 st.info("期間無交易產生。")
+
+                        # === Walk-Forward 前推最佳化 ===
+                        st.markdown("---")
+                        st.markdown("#### 🔬 進階回測工具")
+                        wf_col, mc_col = st.columns(2)
+
+                        with wf_col:
+                            if st.button("🔄 Walk-Forward 前推驗證", use_container_width=True):
+                                with st.spinner("執行 Walk-Forward 最佳化... (分段驗證防過擬合)"):
+                                    try:
+                                        wf_result = engine.walk_forward_optimize()
+                                        st.success(f"✅ Walk-Forward 完成！OOS 總報酬: {wf_result['total_return']:.2f}%")
+                                        fig_wf = engine.plot_walk_forward(wf_result)
+                                        st.plotly_chart(fig_wf, use_container_width=True)
+                                        with st.expander("各段詳細結果"):
+                                            for i, seg in enumerate(wf_result['windows']):
+                                                st.write(f"**Window {i+1}**: 買={seg['best_params']['buy']}, 賣={seg['best_params']['sell']} → OOS報酬={seg['oos_return']:.2f}%")
+                                    except Exception as e:
+                                        st.error(f"Walk-Forward 失敗: {e}")
+
+                        with mc_col:
+                            if st.button("🎲 Monte Carlo 模擬", use_container_width=True):
+                                with st.spinner("執行 Monte Carlo 模擬 (1000 次隨機排列)..."):
+                                    try:
+                                        mc_result = engine.monte_carlo(results)
+                                        st.success(f"✅ Monte Carlo 完成！95% 信心區間: {mc_result['p5_return']:.1f}% ~ {mc_result['p95_return']:.1f}%")
+                                        fig_mc = engine.plot_monte_carlo(mc_result)
+                                        st.plotly_chart(fig_mc, use_container_width=True)
+                                        mc_data = {
+                                            "平均報酬": f"{mc_result['mean_return']:.2f}%",
+                                            "中位數報酬": f"{mc_result['median_return']:.2f}%",
+                                            "5% 最差情境": f"{mc_result['p5_return']:.2f}%",
+                                            "95% 最佳情境": f"{mc_result['p95_return']:.2f}%",
+                                            "平均最大回撤": f"{mc_result['mean_dd']:.2f}%",
+                                            "95% 最差回撤": f"{mc_result['p5_dd']:.2f}%",
+                                        }
+                                        st.table(pd.DataFrame(mc_data.items(), columns=["指標", "數值"]))
+                                    except Exception as e:
+                                        st.error(f"Monte Carlo 失敗: {e}")
+
+                        # === Pyramiding 分批進場回測 ===
+                        if st.button("📐 Pyramiding 分批進場回測", use_container_width=True):
+                            with st.spinner("執行金字塔分批回測 (1/3 + 1/3 + 1/3)..."):
+                                try:
+                                    pyr_result = engine.run_pyramid(
+                                        buy_threshold=3, sell_threshold=-2,
+                                        slippage=0.001, max_positions=3
+                                    )
+                                    pc1, pc2, pc3, pc4 = st.columns(4)
+                                    pc1.metric("總報酬率", f"{pyr_result['total_return']:.2f}%")
+                                    pc2.metric("勝率", f"{pyr_result['win_rate']:.1f}%")
+                                    pc3.metric("最大回撤", f"{pyr_result['max_drawdown']:.2f}%")
+                                    pc4.metric("平均批次", f"{pyr_result['avg_batches']:.1f}")
+                                    fig_pyr = engine.plot_pyramid_results(pyr_result)
+                                    st.plotly_chart(fig_pyr, use_container_width=True)
+                                    if not pyr_result['trades'].empty:
+                                        with st.expander("Pyramiding 交易紀錄"):
+                                            st.dataframe(pyr_result['trades'])
+                                except Exception as e:
+                                    st.error(f"Pyramiding 失敗: {e}")
+
                     else:
                         st.error("無法載入數據進行回測")
                         

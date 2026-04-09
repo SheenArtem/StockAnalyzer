@@ -190,6 +190,79 @@ def calculate_all_indicators(df):
     pat_df = identify_patterns(df)
     df = df.join(pat_df) # Join columns to main df
 
+    # 13. VWAP (Volume Weighted Average Price) - Anchored from rolling window
+    # 使用 20 日滾動 VWAP，模擬法人成本線
+    typical_price = (df['High'] + df['Low'] + df['Close']) / 3
+    tp_vol = typical_price * df['Volume']
+    df['VWAP'] = tp_vol.rolling(window=20).sum() / df['Volume'].rolling(window=20).sum()
+
+    # 14. Supertrend (基於 ATR 的趨勢指標)
+    # 台灣散戶圈主流趨勢指標，產生明確多空翻轉信號
+    st_period = 10
+    st_multiplier = 3.0
+    st_atr = df['TR'].rolling(window=st_period).mean()
+    hl2 = (df['High'] + df['Low']) / 2
+    st_upper = hl2 + (st_multiplier * st_atr)
+    st_lower = hl2 - (st_multiplier * st_atr)
+
+    supertrend = np.full(len(df), np.nan)
+    direction = np.ones(len(df))  # 1 = bullish, -1 = bearish
+    # Initialize first valid value
+    first_valid = st_atr.first_valid_index()
+    if first_valid is not None:
+        start_idx = df.index.get_loc(first_valid)
+        supertrend[start_idx] = st_lower.iloc[start_idx]  # Start bullish
+    else:
+        start_idx = 0
+
+    for i in range(max(1, start_idx + 1), len(df)):
+        # Adjust bands based on previous values
+        if st_lower.iloc[i] > st_lower.iloc[i-1] or df['Close'].iloc[i-1] < st_lower.iloc[i-1]:
+            pass  # keep current lower band
+        else:
+            st_lower.iloc[i] = st_lower.iloc[i-1]
+
+        if st_upper.iloc[i] < st_upper.iloc[i-1] or df['Close'].iloc[i-1] > st_upper.iloc[i-1]:
+            pass  # keep current upper band
+        else:
+            st_upper.iloc[i] = st_upper.iloc[i-1]
+
+        # Determine direction
+        if direction[i-1] == 1:  # was bullish
+            if df['Close'].iloc[i] < st_lower.iloc[i]:
+                direction[i] = -1  # flip to bearish
+                supertrend[i] = st_upper.iloc[i]
+            else:
+                direction[i] = 1
+                supertrend[i] = st_lower.iloc[i]
+        else:  # was bearish
+            if df['Close'].iloc[i] > st_upper.iloc[i]:
+                direction[i] = 1  # flip to bullish
+                supertrend[i] = st_lower.iloc[i]
+            else:
+                direction[i] = -1
+                supertrend[i] = st_upper.iloc[i]
+
+    df['Supertrend'] = supertrend
+    df['Supertrend_Dir'] = direction  # 1=多, -1=空
+
+    # 15. RVOL (Relative Volume) - 相對成交量
+    # RVOL = 今日成交量 / 20日均量，> 1.5 為放量確認
+    vol_ma20 = df['Volume'].rolling(window=20).mean()
+    df['RVOL'] = df['Volume'] / vol_ma20
+    df['Vol_MA5'] = df['Volume'].rolling(window=5).mean()
+
+    # 16. Squeeze Momentum (布林帶壓縮進 Keltner Channel)
+    # 偵測波動壓縮即將爆發的信號
+    kc_ema20 = df['Close'].ewm(span=20, adjust=False).mean()
+    kc_upper = kc_ema20 + (1.5 * st_atr)  # Keltner Channel 使用 ATR
+    kc_lower = kc_ema20 - (1.5 * st_atr)
+    # Squeeze: BB 在 KC 內部 = 壓縮中
+    df['Squeeze_On'] = (df['BB_Up'] < kc_upper) & (df['BB_Lo'] > kc_lower)
+    # Squeeze Momentum: 使用線性回歸斜率作為動量
+    # 簡化版：使用 Close 相對於 BB 中線的位置
+    df['Squeeze_Mom'] = df['Close'] - (df['BB_Up'] + df['BB_Lo']) / 2
+
     return df
 
 # ==========================================
@@ -741,6 +814,37 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
 
     # Ichimoku Removed per user request
     # if 'Tenkan' in plot_df.columns: ...
+
+    # VWAP (法人成本線)
+    if 'VWAP' in plot_df.columns:
+        fig.add_trace(go.Scatter(
+            x=plot_df.index, y=plot_df['VWAP'],
+            mode='lines', name='VWAP',
+            line=dict(color='#FFD700', width=2, dash='dot'),
+            hovertemplate='VWAP: %{y:.2f}<extra></extra>',
+            connectgaps=True
+        ), row=1, col=1)
+
+    # Supertrend (趨勢翻轉指標)
+    if 'Supertrend' in plot_df.columns and 'Supertrend_Dir' in plot_df.columns:
+        # 多頭段 (綠色) vs 空頭段 (紅色)
+        st_bull = plot_df['Supertrend'].where(plot_df['Supertrend_Dir'] == 1, np.nan)
+        st_bear = plot_df['Supertrend'].where(plot_df['Supertrend_Dir'] == -1, np.nan)
+
+        fig.add_trace(go.Scatter(
+            x=plot_df.index, y=st_bull,
+            mode='lines', name='Supertrend 多',
+            line=dict(color='#00FF7F', width=2),
+            hovertemplate='ST多: %{y:.2f}<extra></extra>',
+            connectgaps=False
+        ), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=plot_df.index, y=st_bear,
+            mode='lines', name='Supertrend 空',
+            line=dict(color='#FF4500', width=2),
+            hovertemplate='ST空: %{y:.2f}<extra></extra>',
+            connectgaps=False
+        ), row=1, col=1)
 
     # ATR Stop
     if 'ATR_Stop' in plot_df.columns:
