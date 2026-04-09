@@ -780,71 +780,61 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     ), row=1, col=1)
 
     # 2. Indicators (MA, BB, etc.) - Only add if they exist
-    
+    # Helper: 只繪製有效 (非 NaN) 的部分，避免開頭空白段
+    def _add_line_trace(series, name, color, width=1, dash=None, visible=True, secondary=False):
+        """Add a line trace, skipping if all NaN."""
+        valid = series.dropna()
+        if valid.empty:
+            return
+        fig.add_trace(go.Scatter(
+            x=valid.index, y=valid,
+            mode='lines', name=name,
+            line=dict(color=color, width=width, dash=dash) if dash else dict(color=color, width=width),
+            hovertemplate=f'{name}: %{{y:.2f}}<extra></extra>',
+            connectgaps=True,
+            visible=True if visible else 'legendonly'
+        ), row=1, col=1)
+
     # MA Lines
     colors = {'MA5': 'white', 'MA10': 'orange', 'MA20': '#9370DB', 'MA60': '#32CD32', 'MA120': 'gray', 'MA240': 'brown'}
     for ma_name, color in colors.items():
         if ma_name in plot_df.columns:
-            fig.add_trace(go.Scatter(
-                x=plot_df.index, y=plot_df[ma_name],
-                mode='lines', name=ma_name,
-                line=dict(color=color, width=1),
-                hovertemplate=f'{ma_name}: %{{y:.2f}}<extra></extra>',
-                connectgaps=True # [FIX] Bridge gaps
-            ), row=1, col=1)
+            _add_line_trace(plot_df[ma_name], ma_name, color, width=1)
 
     # Bollinger Bands
     if 'BB_Up' in plot_df.columns and 'BB_Lo' in plot_df.columns:
-        fig.add_trace(go.Scatter(
-            x=plot_df.index, y=plot_df['BB_Up'],
-            mode='lines', name='BB_Up',
-            line=dict(color='red', width=1.5), # Solid, Red, Thicker
-            hovertemplate='BB_Up: %{y:.2f}<extra></extra>',
-            showlegend=True,
-            connectgaps=True # [FIX] Bridge gaps
-        ), row=1, col=1)
-        fig.add_trace(go.Scatter(
-            x=plot_df.index, y=plot_df['BB_Lo'],
-            mode='lines', name='BB_Lo',
-            line=dict(color='green', width=1.5), # Solid, Green, Thicker
-            hovertemplate='BB_Lo: %{y:.2f}<extra></extra>',
-            showlegend=True,
-            connectgaps=True # [FIX] Bridge gaps
-        ), row=1, col=1)
+        _add_line_trace(plot_df['BB_Up'], 'BB_Up', 'red', width=1.5)
+        _add_line_trace(plot_df['BB_Lo'], 'BB_Lo', 'green', width=1.5)
 
     # Ichimoku Removed per user request
     # if 'Tenkan' in plot_df.columns: ...
 
     # VWAP (法人成本線)
     if 'VWAP' in plot_df.columns:
-        fig.add_trace(go.Scatter(
-            x=plot_df.index, y=plot_df['VWAP'],
-            mode='lines', name='VWAP',
-            line=dict(color='#FFD700', width=2, dash='dot'),
-            hovertemplate='VWAP: %{y:.2f}<extra></extra>',
-            connectgaps=True
-        ), row=1, col=1)
+        _add_line_trace(plot_df['VWAP'], 'VWAP', '#FFD700', width=2, dash='dot')
 
     # Supertrend (趨勢翻轉指標)
     if 'Supertrend' in plot_df.columns and 'Supertrend_Dir' in plot_df.columns:
-        # 多頭段 (綠色) vs 空頭段 (紅色)
         st_bull = plot_df['Supertrend'].where(plot_df['Supertrend_Dir'] == 1, np.nan)
         st_bear = plot_df['Supertrend'].where(plot_df['Supertrend_Dir'] == -1, np.nan)
-
-        fig.add_trace(go.Scatter(
-            x=plot_df.index, y=st_bull,
-            mode='lines', name='Supertrend 多',
-            line=dict(color='#00FF7F', width=2),
-            hovertemplate='ST多: %{y:.2f}<extra></extra>',
-            connectgaps=False
-        ), row=1, col=1)
-        fig.add_trace(go.Scatter(
-            x=plot_df.index, y=st_bear,
-            mode='lines', name='Supertrend 空',
-            line=dict(color='#FF4500', width=2),
-            hovertemplate='ST空: %{y:.2f}<extra></extra>',
-            connectgaps=False
-        ), row=1, col=1)
+        st_bull_valid = st_bull.dropna()
+        st_bear_valid = st_bear.dropna()
+        if not st_bull_valid.empty:
+            fig.add_trace(go.Scatter(
+                x=st_bull_valid.index, y=st_bull_valid,
+                mode='lines', name='Supertrend 多',
+                line=dict(color='#00FF7F', width=2),
+                hovertemplate='ST多: %{y:.2f}<extra></extra>',
+                connectgaps=False
+            ), row=1, col=1)
+        if not st_bear_valid.empty:
+            fig.add_trace(go.Scatter(
+                x=st_bear_valid.index, y=st_bear_valid,
+                mode='lines', name='Supertrend 空',
+                line=dict(color='#FF4500', width=2),
+                hovertemplate='ST空: %{y:.2f}<extra></extra>',
+                connectgaps=False
+            ), row=1, col=1)
 
     # ATR Stop
     if 'ATR_Stop' in plot_df.columns:

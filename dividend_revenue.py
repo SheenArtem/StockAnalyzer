@@ -230,24 +230,40 @@ class DividendAnalyzer:
         if df.empty:
             return default
 
-        # 只看有填息天數資料的年度
-        filled = df.dropna(subset=['fill_days'])
-        if filled.empty:
+        # Exclude future ex-dates (they can't have fill_days yet)
+        today_str = datetime.date.today().strftime('%Y-%m-%d')
+        past_df = df[df['ex_date'].notna() & (df['ex_date'] < today_str)]
+        if past_df.empty:
             return default
+
+        # 有填息天數的 = 成功填息的年度
+        filled = past_df.dropna(subset=['fill_days'])
+        if filled.empty:
+            # All past ex-dates failed to fill within 60 days
+            return {
+                'avg_fill_days': 0.0,
+                'fill_rate': 0.0,
+                'fastest_fill': 0,
+                'slowest_fill': 0,
+                'recommendation': '過去均未在60日內完成填息',
+            }
 
         fill_days_list = filled['fill_days'].astype(float).tolist()
 
         # 60 個交易日內完成填息的比率
+        # 分母 = 所有過去曾除息的年度 (含未填息的)
         filled_within_60 = [d for d in fill_days_list if d <= 60]
-        total_ex_events = len(df)  # 所有曾除息的年度
-        fill_rate = (len(filled_within_60) / total_ex_events * 100) if total_ex_events > 0 else 0.0
+        total_past_events = len(past_df)
+        fill_rate = (len(filled_within_60) / total_past_events * 100) if total_past_events > 0 else 0.0
         avg_fill = float(np.mean(fill_days_list)) if fill_days_list else 0.0
 
         # 建議
         if fill_rate > 80 and avg_fill < 30:
-            recommendation = '適合除息前佈局'
+            recommendation = '填息能力強，適合除息前佈局'
+        elif fill_rate > 60:
+            recommendation = '填息能力中等，可搭配其他指標判斷'
         else:
-            recommendation = '建議除息後觀察'
+            recommendation = '填息能力偏弱，建議除息後觀察'
 
         return {
             'avg_fill_days': round(avg_fill, 1),
@@ -359,7 +375,11 @@ class DividendAnalyzer:
     # FinMind fallback
     # -----------------------------------------------------------------
     def _fetch_dividend_finmind(self, stock_id: str, years: int) -> pd.DataFrame | None:
-        """Fetch dividend history from FinMind TaiwanStockDividend."""
+        """Fetch dividend history from FinMind TaiwanStockDividend.
+
+        FinMind does NOT provide fill_days, so we compute it via yfinance
+        price data: count trading days from ex_date until close >= pre-ex close.
+        """
         try:
             dl = _get_finmind_loader()
             current_year = datetime.date.today().year
@@ -371,7 +391,13 @@ class DividendAnalyzer:
             if raw is None or raw.empty:
                 return None
 
-            records = []
+            # Shared price cache across all ex-dates for this stock
+            # to minimise yfinance downloads
+            price_cache = {}  # type: dict
+
+            # First pass: collect all ex-dates and download a single wide
+            # price window covering all of them
+            ex_dates_info = []
             for _, r in raw.iterrows():
                 cash = float(r.get('CashEarningsDistribution', 0) or 0) + \
                        float(r.get('CashStaticDistribution', 0) or 0)
@@ -385,6 +411,16 @@ class DividendAnalyzer:
                         year_val = pd.to_datetime(ex_date_val).year
                     except Exception:
                         pass
+                ex_dates_info.append((year_val, cash, stock_d, total, ex_date_val))
+
+            # Pre-download price data covering all ex-dates in one call
+            self._prefetch_prices_for_fill(stock_id, ex_dates_info, price_cache)
+
+            records = []
+            for year_val, cash, stock_d, total, ex_date_val in ex_dates_info:
+                fill_days_val, yield_pct = self._compute_fill_days(
+                    stock_id, ex_date_val, total, price_cache,
+                )
 
                 records.append({
                     'year': year_val,
@@ -392,8 +428,8 @@ class DividendAnalyzer:
                     'stock_dividend': round(stock_d, 2),
                     'total_dividend': round(total, 2),
                     'ex_date': ex_date_val,
-                    'fill_days': None,  # FinMind 不提供填息天數
-                    'yield_pct': 0.0,
+                    'fill_days': fill_days_val,
+                    'yield_pct': yield_pct,
                 })
 
             if not records:
@@ -406,6 +442,58 @@ class DividendAnalyzer:
         except Exception as exc:
             logger.error("FinMind dividend fetch error for %s: %s", stock_id, exc)
             return None
+
+    def _prefetch_prices_for_fill(self, stock_id: str,
+                                   ex_dates_info: list,
+                                   price_cache: dict) -> None:
+        """Download a single wide price window covering all ex-dates.
+
+        This avoids multiple yfinance downloads when computing fill_days
+        for many ex-dates of the same stock.
+        """
+        import yfinance as yf
+
+        today = datetime.date.today()
+        min_date = None
+        max_date = None
+
+        for _, _, _, _, ex_date_val in ex_dates_info:
+            if not ex_date_val:
+                continue
+            try:
+                d = pd.to_datetime(ex_date_val).date()
+            except Exception:
+                continue
+            if d >= today:
+                continue  # Skip future dates
+            start = d - datetime.timedelta(days=10)
+            end = min(today, d + datetime.timedelta(days=120))
+            if min_date is None or start < min_date:
+                min_date = start
+            if max_date is None or end > max_date:
+                max_date = end
+
+        if min_date is None or max_date is None:
+            return  # All dates are future or invalid
+
+        ticker_str = f"{stock_id}.TW"
+        try:
+            df_price = yf.download(
+                ticker_str,
+                start=min_date.strftime('%Y-%m-%d'),
+                end=max_date.strftime('%Y-%m-%d'),
+                progress=False, auto_adjust=True,
+            )
+            if df_price is not None and not df_price.empty:
+                if isinstance(df_price.columns, pd.MultiIndex):
+                    df_price.columns = df_price.columns.get_level_values(0)
+                price_cache[stock_id] = df_price
+                logger.info("Pre-fetched %d price rows for %s (%s to %s)",
+                            len(df_price), stock_id,
+                            min_date.strftime('%Y-%m-%d'),
+                            max_date.strftime('%Y-%m-%d'))
+        except Exception as exc:
+            logger.warning("Price pre-fetch failed for %s: %s", stock_id, exc)
 
     # -----------------------------------------------------------------
     # Parsing utilities
@@ -493,6 +581,143 @@ class DividendAnalyzer:
         except Exception as exc:
             logger.warning("Could not estimate yield for %s: %s", stock_id, exc)
         return 0.0
+
+    def _compute_fill_days(self, stock_id: str, ex_date_str: str,
+                           total_dividend: float,
+                           price_cache: dict | None = None) -> tuple:
+        """Compute fill-gap days and yield_pct for a single ex-dividend event.
+
+        Fill gap (填息) = number of trading days after ex_date until the
+        closing price reaches (or exceeds) the closing price on the day
+        BEFORE the ex-date.
+
+        Parameters
+        ----------
+        stock_id : str
+            Taiwan stock ID (digits only, no .TW suffix).
+        ex_date_str : str
+            Ex-dividend date in 'YYYY-MM-DD' format.
+        total_dividend : float
+            Total dividend amount per share.
+        price_cache : dict, optional
+            Mutable dict used to cache downloaded price DataFrames across
+            multiple calls for the same stock.  Key = stock_id, value = df.
+
+        Returns
+        -------
+        tuple(fill_days: int | None, yield_pct: float)
+            fill_days is None if the stock never recovered within 60 trading
+            days, or if ex_date is in the future, or on data error.
+        """
+        import yfinance as yf
+
+        if not ex_date_str or total_dividend <= 0:
+            return (None, 0.0)
+
+        try:
+            ex_date = pd.to_datetime(ex_date_str).date()
+        except Exception:
+            return (None, 0.0)
+
+        today = datetime.date.today()
+        if ex_date >= today:
+            # Future ex-date -- cannot compute
+            return (None, 0.0)
+
+        # We need prices from ~5 trading days before ex_date to ~90 calendar
+        # days after.  Download a wide window and reuse via cache.
+        ticker_str = f"{stock_id}.TW"
+        if price_cache is None:
+            price_cache = {}
+
+        if stock_id not in price_cache:
+            # Download enough history to cover all ex-dates in recent years
+            dl_start = (ex_date - datetime.timedelta(days=10)).strftime('%Y-%m-%d')
+            # End at today or ex_date + 120 days (whichever is earlier)
+            dl_end_date = min(today, ex_date + datetime.timedelta(days=120))
+            dl_end = dl_end_date.strftime('%Y-%m-%d')
+            try:
+                df_price = yf.download(
+                    ticker_str, start=dl_start, end=dl_end,
+                    progress=False, auto_adjust=True,
+                )
+                if df_price is not None and not df_price.empty:
+                    # Flatten MultiIndex columns if present (yfinance >= 0.2.x)
+                    if isinstance(df_price.columns, pd.MultiIndex):
+                        df_price.columns = df_price.columns.get_level_values(0)
+                    price_cache[stock_id] = df_price
+                else:
+                    return (None, 0.0)
+            except Exception as exc:
+                logger.warning("yfinance download failed for %s: %s", ticker_str, exc)
+                return (None, 0.0)
+        else:
+            # Check if cached data covers this ex-date window; extend if not
+            cached_df = price_cache[stock_id]
+            need_start = ex_date - datetime.timedelta(days=10)
+            need_end = min(today, ex_date + datetime.timedelta(days=120))
+            cached_start = cached_df.index.min().date() if len(cached_df) > 0 else today
+            cached_end = cached_df.index.max().date() if len(cached_df) > 0 else today
+
+            if need_start < cached_start or need_end > cached_end:
+                # Re-download with wider window
+                new_start = min(need_start, cached_start) - datetime.timedelta(days=5)
+                new_end = max(need_end, cached_end) + datetime.timedelta(days=5)
+                new_end = min(new_end, today)
+                try:
+                    df_price = yf.download(
+                        ticker_str,
+                        start=new_start.strftime('%Y-%m-%d'),
+                        end=new_end.strftime('%Y-%m-%d'),
+                        progress=False, auto_adjust=True,
+                    )
+                    if df_price is not None and not df_price.empty:
+                        if isinstance(df_price.columns, pd.MultiIndex):
+                            df_price.columns = df_price.columns.get_level_values(0)
+                        price_cache[stock_id] = df_price
+                    else:
+                        return (None, 0.0)
+                except Exception as exc:
+                    logger.warning("yfinance re-download failed for %s: %s",
+                                   ticker_str, exc)
+                    return (None, 0.0)
+
+        df_price = price_cache[stock_id]
+
+        # Ensure index is DatetimeIndex
+        if not isinstance(df_price.index, pd.DatetimeIndex):
+            df_price.index = pd.to_datetime(df_price.index)
+
+        # Find the closing price on the last trading day BEFORE ex_date
+        ex_dt = pd.Timestamp(ex_date)
+        before_ex = df_price[df_price.index < ex_dt]
+        if before_ex.empty:
+            logger.debug("No price data before ex-date %s for %s", ex_date_str, stock_id)
+            return (None, 0.0)
+
+        pre_ex_close = float(before_ex['Close'].iloc[-1])
+        if pre_ex_close <= 0:
+            return (None, 0.0)
+
+        # yield_pct = total_dividend / pre_ex_close * 100
+        yield_pct = round(total_dividend / pre_ex_close * 100, 2)
+
+        # Count trading days from ex_date onward until close >= pre_ex_close
+        after_ex = df_price[df_price.index >= ex_dt]
+        if after_ex.empty:
+            return (None, yield_pct)
+
+        fill_days = None
+        for i, (dt, row) in enumerate(after_ex.iterrows()):
+            close_price = float(row['Close'])
+            if close_price >= pre_ex_close:
+                fill_days = i + 1  # 1-based: ex_date itself is day 1
+                break
+            if i >= 59:
+                # 60 trading days cap
+                break
+
+        return (fill_days, yield_pct)
 
 
 # ===================================================================

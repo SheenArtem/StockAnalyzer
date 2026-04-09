@@ -103,10 +103,10 @@ class TAIFEXData:
     def get_futures_basis(self) -> Dict[str, Any]:
         """
         Fetch TAIEX futures basis (正逆價差).
+        使用 CSV 下載端點取得期貨結算價，比 HTML 解析更可靠。
 
         Returns:
             dict with keys: basis, futures_price, spot_price, basis_pct
-            Returns zeros on failure.
         """
         cached = self._cache.get('futures_basis')
         if cached is not None:
@@ -120,49 +120,56 @@ class TAIFEXData:
         }
 
         try:
-            # 使用期交所每日行情 -- 台股期貨 (TX)
             today = datetime.now()
-            date_str = today.strftime('%Y/%m/%d')
-
-            url = 'https://www.taifex.com.tw/cht/3/futContractsDate'
-            payload = {
-                'queryType': '2',
-                'marketCode': '0',
-                'dateaddcnt': '',
-                'commodity_id': 'TX',
-                'queryDate': date_str,
-            }
-
-            resp = self._session.post(url, data=payload, timeout=REQUEST_TIMEOUT)
-            resp.raise_for_status()
-
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            # 抓取表格 -- 找到包含「台股期貨」的 table
-            tables = soup.find_all('table', class_='table_f')
-            if not tables:
-                tables = soup.find_all('table')
-
             futures_price = 0.0
-            for table in tables:
-                rows = table.find_all('tr')
-                for row in rows:
-                    cells = row.find_all('td')
-                    if len(cells) >= 6:
-                        text = cells[0].get_text(strip=True)
-                        # 找「近月」或第一個 TX 合約的收盤價
-                        if 'TX' in text or '臺股期貨' in text or '台股期貨' in text:
-                            try:
-                                # 收盤價通常在第 5 或第 6 欄
-                                close_text = cells[5].get_text(strip=True).replace(',', '')
-                                if close_text and close_text != '-':
-                                    futures_price = float(close_text)
-                                    break
-                            except (ValueError, IndexError):
-                                continue
+
+            # 嘗試最近 5 個交易日 (跳過假日)
+            for delta in range(5):
+                d = today - timedelta(days=delta)
+                date_str = d.strftime('%Y/%m/%d')
+
+                url = 'https://www.taifex.com.tw/cht/3/dlFutDataDown'
+                payload = {
+                    'down_type': '1',
+                    'commodity_id': 'TX',
+                    'queryStartDate': date_str,
+                    'queryEndDate': date_str,
+                }
+
+                resp = self._session.post(url, data=payload, timeout=REQUEST_TIMEOUT)
+                resp.raise_for_status()
+                content = resp.text.strip()
+                lines = content.split('\n')
+
+                if len(lines) < 2:
+                    continue
+
+                # CSV 格式: 交易日期,契約,到期月份,開盤價,最高價,最低價,收盤價,...,結算價,未沖銷契約數,...
+                # 取近月合約 (成交量最大的那一行)
+                best_volume = 0
+                for line in lines[1:]:
+                    fields = line.split(',')
+                    if len(fields) < 11:
+                        continue
+                    try:
+                        close_str = fields[6].strip()
+                        settle_str = fields[10].strip()
+                        vol_str = fields[9].strip()
+                        if close_str == '-' or not close_str:
+                            continue
+                        vol = int(vol_str) if vol_str else 0
+                        if vol > best_volume:
+                            best_volume = vol
+                            # 優先用結算價，無結算價用收盤價
+                            price_str = settle_str if settle_str and settle_str != '-' else close_str
+                            futures_price = float(price_str)
+                    except (ValueError, IndexError):
+                        continue
+
                 if futures_price > 0:
                     break
 
-            # 取得加權指數現貨價 (從 TWSE)
+            # 取得加權指數現貨價
             spot_price = self._get_taiex_spot()
 
             if futures_price > 0 and spot_price > 0:
@@ -176,8 +183,8 @@ class TAIFEXData:
                 }
 
             self._cache.set('futures_basis', result)
-            logger.info("Futures basis fetched: basis=%.2f, pct=%.4f%%",
-                        result['basis'], result['basis_pct'])
+            logger.info("Futures basis fetched: futures=%.0f, spot=%.0f, basis=%.2f",
+                        result['futures_price'], result['spot_price'], result['basis'])
 
         except requests.RequestException as e:
             logger.warning("Failed to fetch futures basis (network): %s", e)
@@ -192,6 +199,7 @@ class TAIFEXData:
     def get_put_call_ratio(self) -> Dict[str, Any]:
         """
         Fetch options Put/Call ratio (open interest).
+        使用 CSV 下載端點彙總 TXO 買權/賣權未平倉量。
 
         Returns:
             dict with keys: pc_ratio, call_oi, put_oi, total_oi
@@ -209,53 +217,54 @@ class TAIFEXData:
 
         try:
             today = datetime.now()
-            date_str = today.strftime('%Y/%m/%d')
-
-            url = 'https://www.taifex.com.tw/cht/3/callsAndPutsDate'
-            payload = {
-                'queryType': '1',
-                'marketCode': '0',
-                'commodity_id': 'TXO',
-                'queryDate': date_str,
-            }
-
-            resp = self._session.post(url, data=payload, timeout=REQUEST_TIMEOUT)
-            resp.raise_for_status()
-
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            tables = soup.find_all('table', class_='table_f')
-            if not tables:
-                tables = soup.find_all('table')
-
             call_oi = 0
             put_oi = 0
 
-            # 搜尋「合計」列，取得買權/賣權未平倉量
-            for table in tables:
-                rows = table.find_all('tr')
-                for row in rows:
-                    cells = row.find_all('td')
-                    cell_texts = [c.get_text(strip=True) for c in cells]
+            for delta in range(5):
+                d = today - timedelta(days=delta)
+                date_str = d.strftime('%Y/%m/%d')
 
-                    # 找包含「合計」或「Total」的列
-                    if any('合計' in t or 'Total' in t.lower() for t in cell_texts):
-                        # 嘗試解析 -- 買權未平倉在前半，賣權未平倉在後半
-                        numbers = []
-                        for t in cell_texts:
-                            cleaned = t.replace(',', '').replace(' ', '')
-                            try:
-                                numbers.append(int(cleaned))
-                            except ValueError:
-                                continue
-                        # 通常格式: 買權成交量, 買權未平倉, ..., 賣權成交量, 賣權未平倉
-                        if len(numbers) >= 4:
-                            # 買權未平倉 = 第2個數字, 賣權未平倉 = 第4個數字
-                            call_oi = numbers[1] if len(numbers) > 1 else 0
-                            put_oi = numbers[3] if len(numbers) > 3 else 0
-                        elif len(numbers) >= 2:
-                            call_oi = numbers[0]
-                            put_oi = numbers[1]
-                        break
+                url = 'https://www.taifex.com.tw/cht/3/dlOptDataDown'
+                payload = {
+                    'down_type': '1',
+                    'commodity_id': 'TXO',
+                    'queryStartDate': date_str,
+                    'queryEndDate': date_str,
+                }
+
+                resp = self._session.post(url, data=payload, timeout=REQUEST_TIMEOUT)
+                resp.raise_for_status()
+                content = resp.text.strip()
+                lines = content.split('\n')
+
+                if len(lines) < 10:
+                    continue
+
+                # CSV: 交易日期,契約,到期月份,履約價,買賣權,開盤價,...,結算價,未沖銷契約數,...
+                # 彙總所有履約價的未平倉量
+                call_oi_total = 0
+                put_oi_total = 0
+                for line in lines[1:]:
+                    fields = line.split(',')
+                    if len(fields) < 12:
+                        continue
+                    try:
+                        cp_type = fields[4].strip()  # 買權 or 賣權
+                        oi_str = fields[11].strip()
+                        if not oi_str or oi_str == '-':
+                            continue
+                        oi = int(oi_str)
+                        if cp_type == '買權':
+                            call_oi_total += oi
+                        elif cp_type == '賣權':
+                            put_oi_total += oi
+                    except (ValueError, IndexError):
+                        continue
+
+                if call_oi_total > 0 or put_oi_total > 0:
+                    call_oi = call_oi_total
+                    put_oi = put_oi_total
+                    break
 
             if call_oi > 0:
                 pc_ratio = round(put_oi / call_oi, 4)
