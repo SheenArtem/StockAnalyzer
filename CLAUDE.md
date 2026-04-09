@@ -21,16 +21,23 @@ pip install -r requirements.txt && streamlit run app.py
 ## 模組架構
 
 ```
-app.py (Streamlit UI 入口)
+app.py (Streamlit UI 入口, 6 tabs)
   ├→ technical_analysis.py   — 技術指標計算 + 互動圖表
+  │     含: MA, BB, ATR, RSI, KD, MACD, OBV, DMI, EFI, TD Sequential,
+  │         VWAP, Supertrend, RVOL, Squeeze Momentum
   ├→ analysis_engine.py      — AI 觸發分數計算（最大模組）
   │     ├→ chip_analysis.py       — 台股籌碼（三大法人/融資融券/當沖/持股）
   │     ├→ us_stock_chip.py       — 美股籌碼（機構持股/ETF/空單/內部交易）
   │     ├→ pattern_recognition.py — K線型態辨識
   │     └→ strategy_manager.py    — 買賣閾值管理（讀寫 strategy_config.json）
   ├→ fundamental_analysis.py — 基本面（本益比/ROE/殖利率/財報）
-  ├→ backtest_engine.py      — 歷史回測引擎
-  └→ cache_manager.py        — 本地 CSV 快取（智慧 TTL）
+  ├→ backtest_engine.py      — 回測引擎（含 Walk-Forward, Monte Carlo, Pyramiding）
+  ├→ cache_manager.py        — 本地 CSV 快取（智慧 TTL）
+  ├→ twse_api.py             — TWSE/TPEX Open Data API（免費官方數據源）
+  ├→ taifex_data.py          — TAIFEX 期貨選擇權 + 恐懼貪婪指數
+  ├→ ptt_sentiment.py        — PTT Stock 板情緒分析
+  ├→ dividend_revenue.py     — 除權息行事曆 + 月營收追蹤
+  └→ ml_signal.py            — XGBoost 信號分類器（需 pip install xgboost scikit-learn）
 ```
 
 ## 開發規範

@@ -363,6 +363,29 @@ class TechnicalAnalyzer:
             if potential_risk > 0:
                 rr_ratio = potential_reward / potential_risk
 
+        # Position Sizing (部位管理計算)
+        # 2% 法則: 單筆風險不超過總資金的 2%
+        # Kelly Criterion: f* = (bp - q) / b (簡化版)
+        position_sizing = {}
+        if is_actionable and entry_basis > 0 and rec_sl_price > 0:
+            risk_per_share = entry_basis - rec_sl_price
+            if risk_per_share > 0:
+                # 2% Rule (以 100 萬資金為基準，使用者可在 UI 調整)
+                for capital in [500000, 1000000, 3000000]:
+                    max_risk = capital * 0.02
+                    shares = int(max_risk / risk_per_share)
+                    # 台股 1 張 = 1000 股
+                    lots = shares // 1000
+                    cost = lots * 1000 * entry_basis
+                    loss_if_stopped = lots * 1000 * risk_per_share
+                    position_sizing[capital] = {
+                        "lots": lots,
+                        "shares": lots * 1000,
+                        "cost": cost,
+                        "risk_amount": loss_if_stopped,
+                        "risk_pct": (loss_if_stopped / capital * 100) if capital > 0 else 0
+                    }
+
         return {
             "current_price": close_price,
             "strategy": strategy_text,
@@ -373,13 +396,14 @@ class TechnicalAnalyzer:
             "rec_sl_method": rec_sl_method,
             "rec_sl_price": rec_sl_price,
             "rec_tp_price": rec_tp_price,
-            "rr_ratio": rr_ratio, # [NEW] RR Ratio
+            "rr_ratio": rr_ratio,
             "tp_list": final_tp_list,
             "sl_list": final_sl_list,
             "sl_atr": sl_atr,
             "sl_ma": sl_ma,
-            "sl_key_candle": sl_key, 
-            "sl_low": sl_low
+            "sl_key_candle": sl_key,
+            "sl_low": sl_low,
+            "position_sizing": position_sizing
         }
         
 
@@ -962,7 +986,60 @@ class TechnicalAnalyzer:
              score -= 0.5
              details.append("8️⃣ 神奇九轉【賣出前夕】(數到 8 了) (-0.5)")
 
-        # 13. [UPGRADED] 籌碼面修正 (Chip Factors) - 動態權重
+        # 13. RVOL 相對成交量 (Relative Volume)
+        rvol = self._safe_get(current, 'RVOL', 0)
+        if rvol > 2.0:
+            score += 1.5
+            details.append(f"🔊 爆量確認 RVOL={rvol:.1f}x (>2.0) (+1.5)")
+        elif rvol > 1.5:
+            score += 1
+            details.append(f"🔊 量能放大 RVOL={rvol:.1f}x (>1.5) (+1)")
+        elif rvol < 0.5:
+            score -= 0.5
+            details.append(f"🔇 量能萎縮 RVOL={rvol:.1f}x (<0.5) (-0.5)")
+
+        # 14. Supertrend 趨勢方向
+        st_dir = self._safe_get(current, 'Supertrend_Dir', 0)
+        prev_st_dir = self._safe_get(prev, 'Supertrend_Dir', 0)
+        if st_dir == 1:
+            score += 1
+            details.append("📈 Supertrend 多頭趨勢 (+1)")
+            if prev_st_dir == -1:
+                score += 1
+                details.append("🔄 Supertrend 空轉多翻轉！(+1)")
+        elif st_dir == -1:
+            score -= 1
+            details.append("📉 Supertrend 空頭趨勢 (-1)")
+            if prev_st_dir == 1:
+                score -= 1
+                details.append("🔄 Supertrend 多轉空翻轉！(-1)")
+
+        # 15. Squeeze Momentum (壓縮動量)
+        squeeze_on = self._safe_get(current, 'Squeeze_On', False)
+        squeeze_mom = self._safe_get(current, 'Squeeze_Mom', 0)
+        prev_squeeze_on = self._safe_get(prev, 'Squeeze_On', False)
+        if prev_squeeze_on and not squeeze_on:
+            # 剛從壓縮釋放 — 重要信號
+            if squeeze_mom > 0:
+                score += 1.5
+                details.append("💥 Squeeze 壓縮釋放 + 動量向上 (爆發訊號) (+1.5)")
+            else:
+                score -= 1.5
+                details.append("💥 Squeeze 壓縮釋放 + 動量向下 (崩跌訊號) (-1.5)")
+        elif squeeze_on:
+            details.append("🔸 Squeeze 壓縮中 — 等待方向突破 (0)")
+
+        # 16. VWAP 法人成本線
+        vwap = self._safe_get(current, 'VWAP', 0)
+        if vwap > 0 and close > 0:
+            if close > vwap * 1.02:
+                score += 0.5
+                details.append(f"✅ 站穩 VWAP 之上 ({vwap:.2f}) (+0.5)")
+            elif close < vwap * 0.98:
+                score -= 0.5
+                details.append(f"🔻 跌破 VWAP 之下 ({vwap:.2f}) (-0.5)")
+
+        # 17. [UPGRADED] 籌碼面修正 (Chip Factors) - 動態權重
         c_score, c_details = self._analyze_chip_factors(df, trend_score=trend_score)
         score += c_score
         details.extend(c_details)
