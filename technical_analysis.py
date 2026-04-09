@@ -129,8 +129,8 @@ def calculate_all_indicators(df):
     plus_dm = np.where((up > down) & (up > 0), up, 0.0)
     minus_dm = np.where((down > up) & (down > 0), down, 0.0)
     tr_smooth = df['TR'].rolling(window=14).mean()
-    df['+DI'] = 100 * (pd.Series(plus_dm).rolling(window=14).mean() / tr_smooth)
-    df['-DI'] = 100 * (pd.Series(minus_dm).rolling(window=14).mean() / tr_smooth)
+    df['+DI'] = 100 * (pd.Series(plus_dm, index=df.index).rolling(window=14).mean() / tr_smooth)
+    df['-DI'] = 100 * (pd.Series(minus_dm, index=df.index).rolling(window=14).mean() / tr_smooth)
     df['DX'] = 100 * abs(df['+DI'] - df['-DI']) / (df['+DI'] + df['-DI'])
     df['ADX'] = df['DX'].rolling(window=14).mean()
 
@@ -200,12 +200,14 @@ from FinMind.data import DataLoader
 import datetime
 import functools
 import logging
+import threading
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Global Cache for Stock Info
 _TW_STOCK_INFO_CACHE = None
+_tw_stock_info_lock = threading.Lock()
 
 def get_stock_info_smart(ticker):
     """
@@ -222,9 +224,11 @@ def get_stock_info_smart(ticker):
     if stock_id.isdigit():
         try:
             if _TW_STOCK_INFO_CACHE is None:
-                print("📥 下載台股清單 (Cache)...")
-                dl = DataLoader()
-                _TW_STOCK_INFO_CACHE = dl.taiwan_stock_info()
+                with _tw_stock_info_lock:
+                    if _TW_STOCK_INFO_CACHE is None:
+                        print("📥 下載台股清單 (Cache)...")
+                        dl = DataLoader()
+                        _TW_STOCK_INFO_CACHE = dl.taiwan_stock_info()
             
             # 搜尋
             row = _TW_STOCK_INFO_CACHE[_TW_STOCK_INFO_CACHE['stock_id'] == stock_id]
@@ -313,6 +317,7 @@ def load_and_resample(source, force_update=False):
             
             # Download only new data
             new_df = pd.DataFrame()
+            incremental_failed = False
             try:
                 if raw_input.isdigit():
                      try_ticker = f"{raw_input}.TW"
@@ -332,9 +337,13 @@ def load_and_resample(source, force_update=False):
                      new_df = yf.download(raw_input, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
             except Exception as e:
                 print(f"⚠️ 增量更新失敗 ({e})，將嘗試完整重抓...")
-                status = "miss" # Toggle to miss to trigger full re-download
-            
-            if not new_df.empty:
+                incremental_failed = True
+
+            if incremental_failed:
+                # Force full re-download instead of using stale cache
+                status = "miss"
+                df_day = pd.DataFrame()  # Force the subsequent full-download path
+            elif not new_df.empty:
                  # Standardize Index Name
                  # yf download might have timezone, cache usually doesn't.
                  # Ensure consistency?

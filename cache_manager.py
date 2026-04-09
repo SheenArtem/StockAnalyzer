@@ -1,10 +1,18 @@
 
 import os
+import re
+import logging
+import threading
 import pandas as pd
 import datetime
 import time
 
+logger = logging.getLogger(__name__)
+
 CACHE_DIR = "data_cache"
+
+# Module-level lock for cache write operations
+_cache_lock = threading.Lock()
 
 # 盤中快取過期時間 (秒) - 交易時段內快取僅維持 5 分鐘
 INTRADAY_CACHE_TTL = 60 * 5  # 5 分鐘
@@ -43,6 +51,9 @@ class CacheManager:
         data_type: 'price' or 'chip'
         """
         safe_ticker = ticker.replace('.TW', '').replace('.TWO', '')
+        # Defense-in-depth: strip any path separators
+        safe_ticker = os.path.basename(safe_ticker)
+        safe_ticker = re.sub(r'[^A-Za-z0-9_\-]', '', safe_ticker)
         return os.path.join(CACHE_DIR, f"{safe_ticker}_{data_type}.csv")
 
     def load_cache(self, ticker, data_type, force_reload=False):
@@ -67,7 +78,7 @@ class CacheManager:
         file_age_seconds = time.time() - mtime
         
         try:
-            print(f"📂 Loading {data_type} cache for {ticker}...")
+            logger.debug(f"Loading {data_type} cache for {ticker}...")
             if data_type == 'price':
                 df = pd.read_csv(file_path, index_col=0, parse_dates=True)
                 # Ensure index is datetime
@@ -95,38 +106,51 @@ class CacheManager:
             # 2a. 盤中時段: 若快取超過 INTRADAY_CACHE_TTL (5分鐘)，視為過期需重抓
             if self._is_tw_trading_hours() and data_type == 'price':
                 if file_age_seconds > INTRADAY_CACHE_TTL:
-                    print(f"🔄 盤中模式: 快取已超過 {INTRADAY_CACHE_TTL//60} 分鐘，觸發增量更新...")
+                    logger.info(f"盤中模式: 快取已超過 {INTRADAY_CACHE_TTL//60} 分鐘，觸發增量更新...")
                     last_date = df.index[-1] if isinstance(df.index, pd.DatetimeIndex) and not df.empty else None
                     return df, "partial", last_date
                 else:
                     remaining = int(INTRADAY_CACHE_TTL - file_age_seconds)
-                    print(f"⚡ 盤中模式: 快取仍有效 (剩餘 {remaining} 秒)")
+                    logger.debug(f"盤中模式: 快取仍有效 (剩餘 {remaining} 秒)")
 
             return df, "hit", None
             
         except Exception as e:
-            print(f"❌ Corrupt cache: {e}")
+            logger.error(f"Corrupt cache: {e}", exc_info=True)
             return pd.DataFrame(), "miss", None
 
     def save_cache(self, ticker, df, data_type):
         """
-        Save DataFrame to cache
+        Save DataFrame to cache (atomic write with temp file)
         """
         if df.empty:
             return
-            
+
         file_path = self._get_path(ticker, data_type)
-        try:
-            df.to_csv(file_path)
-            print(f"💾 Saved {data_type} cache for {ticker}")
-        except Exception as e:
-            print(f"❌ Failed to save cache: {e}")
+        tmp_path = file_path + ".tmp"
+        with _cache_lock:
+            try:
+                df.to_csv(tmp_path)
+                os.replace(tmp_path, file_path)
+                logger.info(f"Saved {data_type} cache for {ticker}")
+            except Exception as e:
+                logger.error(f"Failed to save cache: {e}", exc_info=True)
+                # Clean up temp file on failure
+                if os.path.exists(tmp_path):
+                    try:
+                        os.remove(tmp_path)
+                    except OSError:
+                        pass
             
     def clear_cache(self):
         """Delete all files in cache dir"""
         import shutil
-        shutil.rmtree(CACHE_DIR)
-        os.makedirs(CACHE_DIR)
+        with _cache_lock:
+            try:
+                shutil.rmtree(CACHE_DIR)
+            except Exception as e:
+                logger.error(f"Failed to clear cache directory: {e}")
+            os.makedirs(CACHE_DIR, exist_ok=True)
 
     def list_cached_tickers(self):
         """
@@ -161,17 +185,12 @@ class CacheManager:
         if os.path.exists(price_path):
             os.remove(price_path)
             deleted = True
-            
-        # Try delete chip (inst & margin)
-        # Chip keys were like {ticker}_inst, {ticker}_margin
-        inst_path = self._get_path(f"{ticker}_inst", 'chip')
-        if os.path.exists(inst_path):
-            os.remove(inst_path)
-            deleted = True
 
-        margin_path = self._get_path(f"{ticker}_margin", 'chip')
-        if os.path.exists(margin_path):
-            os.remove(margin_path)
-            deleted = True
-            
+        # Try delete chip (inst, margin, day_trading, shareholding)
+        for chip_type in ['inst', 'margin', 'day_trading', 'shareholding']:
+            chip_path = self._get_path(f"{ticker}_{chip_type}", 'chip')
+            if os.path.exists(chip_path):
+                os.remove(chip_path)
+                deleted = True
+
         return deleted

@@ -1,5 +1,8 @@
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class StrategyManager:
     def __init__(self, config_file='strategy_config.json'):
@@ -12,7 +15,8 @@ class StrategyManager:
         try:
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Corrupt strategy config '{self.config_file}', resetting: {e}")
             return {}
 
     def save_strategy(self, ticker, buy_threshold, sell_threshold):
@@ -38,4 +42,4 @@ class StrategyManager:
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self.strategies, f, indent=4, ensure_ascii=False)
         except Exception as e:
-            print(f"Error saving strategy config: {e}")
+            logger.error(f"Error saving strategy config: {e}")

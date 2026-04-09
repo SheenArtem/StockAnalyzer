@@ -39,6 +39,14 @@ class TechnicalAnalyzer:
         
         return False
 
+    @staticmethod
+    def _safe_get(series, key, default=0):
+        """Get value from Series, returning default if key missing or value is NaN."""
+        val = series.get(key, default)
+        if pd.isna(val):
+            return default
+        return val
+
     def run_analysis(self):
         """
         執行完整分析流程
@@ -87,23 +95,23 @@ class TechnicalAnalyzer:
         
         current = df.iloc[-1]
         close = current['Close']
-        ma5 = current.get('MA5', 0)
-        ma20 = current.get('MA20', 0)
-        ma60 = current.get('MA60', 0)
-        vol_ma5 = current.get('Vol_MA5', 0) if 'Vol_MA5' in current else 0
-        
+        ma5 = self._safe_get(current, 'MA5', 0)
+        ma20 = self._safe_get(current, 'MA20', 0)
+        ma60 = self._safe_get(current, 'MA60', 0)
+        vol_ma5 = self._safe_get(current, 'Vol_MA5', 0)
+
         # --- 1. Risk Control (Stop Loss / Trim) ---
         # A. 破線停損
         if close > ma20:
             checklist['risk'].append(f"若收盤跌破 **月線 ({ma20:.2f})**，短期轉弱，建議減碼或停損。")
         elif close > ma60:
              checklist['risk'].append(f"若收盤跌破 **季線 ({ma60:.2f})**，波段轉弱，建議清倉觀望。")
-             
+
         # B. 爆量長黑
         checklist['risk'].append(f"若出現 **爆量長黑** (成交量 > {vol_ma5*2:.0f}) 且收跌，視為主力出貨訊號。")
-        
+
         # C. KD 高檔鈍化結束
-        if current.get('K', 0) > 80:
+        if self._safe_get(current, 'K', 0) > 80:
              checklist['risk'].append("指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。")
 
         # --- 2. Active Entry (Add / Chase) ---
@@ -153,11 +161,11 @@ class TechnicalAnalyzer:
         strategy_text = "觀望"
 
         # Indicators
-        ma5 = current.get('MA5', 0)
-        ma10 = current.get('MA10', 0)
-        ma20 = current.get('MA20', 0)
-        ma60 = current.get('MA60', 0)
-        atr_val = current.get('ATR', 0)
+        ma5 = self._safe_get(current, 'MA5', 0)
+        ma10 = self._safe_get(current, 'MA10', 0)
+        ma20 = self._safe_get(current, 'MA20', 0)
+        ma60 = self._safe_get(current, 'MA60', 0)
+        atr_val = self._safe_get(current, 'ATR', 0)
         sl_low = df['Low'].iloc[-20:].min()
         sl_ma = ma20
         sl_key = sl_low # fallback
@@ -217,7 +225,7 @@ class TechnicalAnalyzer:
 
             elif code == 'C': # Rebound
                 is_actionable = True
-                bb_lo = current.get('BB_Lo', 0)
+                bb_lo = self._safe_get(current, 'BB_Lo', 0)
                 rec_entry_low, rec_entry_high = sl_low * 0.99, (bb_lo if bb_lo > sl_low else sl_low * 1.02)
                 rec_entry_desc = "抄底區間 (前低-布林下)"
                 entry_basis = rec_entry_high
@@ -283,13 +291,6 @@ class TechnicalAnalyzer:
         # Recalculate based on Entry Basis
         rec_sl_price = entry_basis - (2.0 * atr_val) if atr_val > 0 else entry_basis * 0.9
         
-        # Update Method Name to match UI exact string
-        if code == 'C':
-             # Already set above to match UI? 
-             # UI expects: "A. ATR 波動停損 (科學)", "D. 波段低點停損 (形態)"
-             # Let's map it
-             pass 
-             
         # Map simple method string to UI full string
         if "ATR" in rec_sl_method:
              rec_sl_method = "A. ATR 波動停損 (科學)"
@@ -302,10 +303,10 @@ class TechnicalAnalyzer:
         recent_high_20 = df['High'].iloc[-20:].max()
         recent_low_20 = df['Low'].iloc[-20:].min()
         wave_height = recent_high_20 - recent_low_20
-        bb_up = current.get('BB_Up', 0)
-        ma60 = current.get('MA60', 0)
-        ma120 = current.get('MA120', 0)
-        ma240 = current.get('MA240', 0)
+        bb_up = self._safe_get(current, 'BB_Up', 0)
+        ma60 = self._safe_get(current, 'MA60', 0)
+        ma120 = self._safe_get(current, 'MA120', 0)
+        ma240 = self._safe_get(current, 'MA240', 0)
 
         tp_candidates = []
         tp_candidates.append({"method": "N 字測量 (1.0)", "price": entry_basis + wave_height, "desc": "等幅測距"})
@@ -400,34 +401,41 @@ class TechnicalAnalyzer:
 
         # 1. 均線架構 (MA Structure)
         # 多頭排列: 收盤 > MA20 > MA60
-        if current['Close'] > current['MA20'] and current['MA20'] > current['MA60']:
+        close = self._safe_get(current, 'Close', 0)
+        ma20 = self._safe_get(current, 'MA20', 0)
+        ma60 = self._safe_get(current, 'MA60', 0)
+        adx = self._safe_get(current, 'ADX', 0)
+        plus_di = self._safe_get(current, '+DI', 0)
+        minus_di = self._safe_get(current, '-DI', 0)
+
+        if close > ma20 and ma20 > ma60:
             score += 2
             details.append("✅ 週線均線多頭排列 (Close > 20MA > 60MA) (+2)")
-        elif current['Close'] > current['MA20']:
+        elif close > ma20:
             score += 1
             details.append("✅ 股價站上週 20MA (+1)")
-        elif current['Close'] < current['MA20'] and current['MA20'] < current['MA60']:
+        elif close < ma20 and ma20 < ma60:
             score -= 2
             details.append("🔻 均線空頭排列 (Close < 20MA < 60MA) (-2)")
         else:
             details.append("⚠️ 均線糾結混亂 (0)")
 
         # 2. DMI 趨勢強度
-        if current['ADX'] > 25:
-            if current['+DI'] > current['-DI']:
+        if adx > 25:
+            if plus_di > minus_di:
                 score += 1
-                details.append(f"✅ DMI 多方趨勢成形 (ADX={current['ADX']:.1f} > 25, +DI > -DI) (+1)")
+                details.append(f"✅ DMI 多方趨勢成形 (ADX={adx:.1f} > 25, +DI > -DI) (+1)")
             else:
                 score -= 1
-                details.append(f"🔻 DMI 空方趨勢成形 (ADX={current['ADX']:.1f} > 25, -DI > +DI) (-1)")
+                details.append(f"🔻 DMI 空方趨勢成形 (ADX={adx:.1f} > 25, -DI > +DI) (-1)")
         else:
-            details.append(f"⚠️ DMI 趨勢不明 (ADX={current['ADX']:.1f} < 25) (0)")
+            details.append(f"⚠️ DMI 趨勢不明 (ADX={adx:.1f} < 25) (0)")
 
         # 3. OBV 能量潮 (比較近5週趨勢)
         # 簡單邏輯: 現在 OBV > 5週前 OBV
         try:
             obv_5w_ago = df['OBV'].iloc[-5]
-            if current['OBV'] > obv_5w_ago:
+            if self._safe_get(current, 'OBV', 0) > obv_5w_ago:
                 score += 1
                 details.append("✅ OBV 能量潮近 5 週上升 (+1)")
             else:
@@ -436,7 +444,7 @@ class TechnicalAnalyzer:
             logger.debug(f"OBV calculation skipped: {e}")
             
         # 4. EFI 強力指標 (每週資金流向)
-        efi_week = current.get('EFI_EMA13', 0)
+        efi_week = self._safe_get(current, 'EFI_EMA13', 0)
         if efi_week > 0:
              score += 1
              details.append(f"✅ 週線 EFI 主力作多 (EFI={efi_week:,.0f}) (+1)")
@@ -462,6 +470,15 @@ class TechnicalAnalyzer:
 
         return score, details
 
+    @staticmethod
+    def _chip_weight_multiplier(trend_score):
+        """計算籌碼動態權重乘數"""
+        if trend_score >= 3:
+            return 1.5
+        elif trend_score <= -2:
+            return 0.5
+        return 1.0
+
     def _analyze_chip_factors(self, df, trend_score=0):
         """
         [UPGRADED] 籌碼面評分 (Chip Analysis) - 動態權重版
@@ -484,15 +501,8 @@ class TechnicalAnalyzer:
             return 0, []
 
         # === 動態權重計算 ===
-        if trend_score >= 3:
-            weight_multiplier = 1.5
-            weight_label = "多頭加權×1.5"
-        elif trend_score <= -2:
-            weight_multiplier = 0.5
-            weight_label = "空頭減權×0.5"
-        else:
-            weight_multiplier = 1.0
-            weight_label = "標準權重×1.0"
+        weight_multiplier = self._chip_weight_multiplier(trend_score)
+        weight_label = f"{'多頭加權' if weight_multiplier == 1.5 else '空頭減權' if weight_multiplier == 0.5 else '標準權重'}×{weight_multiplier}"
 
         try:
             # 1. 法人動向 (Institutional)
@@ -667,16 +677,9 @@ class TechnicalAnalyzer:
                 return 0, []
         
         # === 動態權重計算 ===
-        if trend_score >= 3:
-            weight_multiplier = 1.5
-            weight_label = "多頭加權×1.5"
-        elif trend_score <= -2:
-            weight_multiplier = 0.5
-            weight_label = "空頭減權×0.5"
-        else:
-            weight_multiplier = 1.0
-            weight_label = "標準權重×1.0"
-        
+        weight_multiplier = self._chip_weight_multiplier(trend_score)
+        weight_label = f"{'多頭加權' if weight_multiplier == 1.5 else '空頭減權' if weight_multiplier == 0.5 else '標準權重'}×{weight_multiplier}"
+
         try:
             # 1. 機構持股分析
             inst = self.us_chip_data.get('institutional', {})
@@ -780,8 +783,8 @@ class TechnicalAnalyzer:
 
     def _calculate_trigger_score(self, df, trend_score=0):
         """
-        計算日線進場訊號 (Trigger Score) -5 ~ +5 (擴大範圍)
-        
+        計算日線進場訊號 (Trigger Score) -10 ~ +10
+
         Args:
             df: 日線 DataFrame
             trend_score: 週線趨勢分數，用於籌碼動態權重計算
@@ -796,7 +799,9 @@ class TechnicalAnalyzer:
         prev = df.iloc[-2]
 
         # 1. 均線位置 (MA Position)
-        if current['Close'] > current['MA20']:
+        close = self._safe_get(current, 'Close', 0)
+        ma20 = self._safe_get(current, 'MA20', 0)
+        if close > ma20:
             score += 1
             details.append("✅ 站上日線 20MA (+1)")
         else:
@@ -805,7 +810,7 @@ class TechnicalAnalyzer:
 
         # 2. 乖離率 (BIAS)
         # 假設: 正乖離 > 10% 過熱, 負乖離 < -10% 超賣
-        bias = current.get('BIAS', 0)
+        bias = self._safe_get(current, 'BIAS', 0)
         if 0 < bias < 10:
             score += 1
             details.append(f"✅ 乖離率健康 ({bias:.1f}%) (+1)")
@@ -817,12 +822,12 @@ class TechnicalAnalyzer:
             details.append(f"🟢 負乖離過大 ({bias:.1f}%) 醞釀反彈 (+1)")
         
         # 3. EFI 埃爾德強力指標 (主力力度)
-        efi_day = current.get('EFI_EMA13', 0)
+        efi_day = self._safe_get(current, 'EFI_EMA13', 0)
         if efi_day > 0:
              score += 1
              details.append(f"✅ EFI 主力資金控盤 (EFI>0) (+1)")
              # 輔助：力道增強中
-             if efi_day > prev.get('EFI_EMA13', 0):
+             if efi_day > self._safe_get(prev, 'EFI_EMA13', 0):
                  score += 0.5
                  details.append("🔥 EFI 買盤力道增強 (+0.5)")
         else:
@@ -830,10 +835,12 @@ class TechnicalAnalyzer:
              details.append(f"🔻 EFI 空方資金控盤 (EFI<0) (-1)")
 
         # 4. MACD 動能與背離
-        if current['Hist'] > 0:
+        hist = self._safe_get(current, 'Hist', 0)
+        prev_hist = self._safe_get(prev, 'Hist', 0)
+        if hist > 0:
             score += 1
             details.append("✅ MACD 柱狀體翻紅 (+1)")
-            if current['Hist'] > prev['Hist']:
+            if hist > prev_hist:
                 score += 0.5
                 details.append("🔥 MACD 動能持續增強 (+0.5)")
         else:
@@ -862,7 +869,9 @@ class TechnicalAnalyzer:
             details.append("📉 MACD 出現【隱藏頂背離】(空頭趨勢延續) (-1)")
 
         # 5. KD指標
-        if current['K'] > current['D']:
+        k_val = self._safe_get(current, 'K', 0)
+        d_val = self._safe_get(current, 'D', 0)
+        if k_val > d_val:
             score += 1
             details.append("✅ KD 黃金交叉/多方排列 (+1)")
         else:
@@ -871,7 +880,7 @@ class TechnicalAnalyzer:
 
         # 6. OBV 籌碼與背離
         # 日線 OBV 趨勢 (簡單看近3日)
-        if len(df) >= 3 and current['OBV'] > df['OBV'].iloc[-3]:
+        if len(df) >= 3 and self._safe_get(current, 'OBV', 0) > df['OBV'].iloc[-3]:
             score += 1
             details.append("✅ 短線 OBV 資金進駐 (+1)")
             
@@ -897,13 +906,16 @@ class TechnicalAnalyzer:
             details.append("📉 OBV 出現【隱藏量價頂背離】(資金持續流出) (-1)")
 
         # 6. DMI 短線趨勢
-        if current['ADX'] > 25:
-             if current['+DI'] > current['-DI']:
+        adx = self._safe_get(current, 'ADX', 0)
+        plus_di = self._safe_get(current, '+DI', 0)
+        minus_di = self._safe_get(current, '-DI', 0)
+        if adx > 25:
+             if plus_di > minus_di:
                  score += 1
-                 details.append(f"✅ 日線 DMI 多方攻擊 (ADX={current['ADX']:.1f}) (+1)")
+                 details.append(f"✅ 日線 DMI 多方攻擊 (ADX={adx:.1f}) (+1)")
              else:
                  score -= 1
-                 details.append(f"🔻 日線 DMI 空方下殺 (ADX={current['ADX']:.1f}) (-1)")
+                 details.append(f"🔻 日線 DMI 空方下殺 (ADX={adx:.1f}) (-1)")
 
         # 7. RSI 背離 (輔助) [UPGRADED - Pivot Points 標準檢測]
         div_rsi = self._detect_divergence(df, 'RSI')
@@ -933,25 +945,30 @@ class TechnicalAnalyzer:
         details.extend(pv_msgs)
 
         # 12. 神奇九轉 (Magic Nine Turns)
-        td_buy = current.get('TD_Buy_Setup', 0)
-        td_sell = current.get('TD_Sell_Setup', 0)
+        td_buy = self._safe_get(current, 'TD_Buy_Setup', 0)
+        td_sell = self._safe_get(current, 'TD_Sell_Setup', 0)
         
         if td_buy == 9:
              score += 2
              details.append("9️⃣ 神奇九轉【買進訊號】(低檔鈍化轉折) (+2)")
         elif td_buy == 8:
+             score += 0.5
              details.append("8️⃣ 神奇九轉【買進前夕】(數到 8 了) (+0.5)")
-             
+
         if td_sell == 9:
              score -= 2
              details.append("9️⃣ 神奇九轉【賣出訊號】(高檔鈍化轉折) (-2)")
         elif td_sell == 8:
+             score -= 0.5
              details.append("8️⃣ 神奇九轉【賣出前夕】(數到 8 了) (-0.5)")
 
         # 13. [UPGRADED] 籌碼面修正 (Chip Factors) - 動態權重
         c_score, c_details = self._analyze_chip_factors(df, trend_score=trend_score)
         score += c_score
         details.extend(c_details)
+
+        # Clamp score to valid range
+        score = max(-10, min(10, score))
 
         return score, details
 
