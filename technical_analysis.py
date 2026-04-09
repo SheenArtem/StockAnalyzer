@@ -561,6 +561,8 @@ def load_and_resample(source, force_update=False):
         agg_logic = {k: v for k, v in logic.items() if k in df_day.columns}
         
         df_week = df_day.resample('W-FRI').agg(agg_logic)
+        # 移除 resample 產生的空週 (連假/無交易日)，避免 rolling 指標被 NaN 行毒化
+        df_week = df_week.dropna(subset=['Close'])
 
     return ticker_name, df_day, df_week, stock_meta
 
