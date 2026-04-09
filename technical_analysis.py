@@ -1,5 +1,14 @@
 # filename: technical_analysis.py
 
+import sys
+import io
+
+# Fix Windows cp950 encoding for emoji output
+if sys.stdout and hasattr(sys.stdout, 'encoding') and sys.stdout.encoding and sys.stdout.encoding.lower() in ('cp950', 'cp936', 'cp932'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if sys.stderr and hasattr(sys.stderr, 'encoding') and sys.stderr.encoding and sys.stderr.encoding.lower() in ('cp950', 'cp936', 'cp932'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 import yfinance as yf
 import mplfinance as mpf
 import pandas as pd

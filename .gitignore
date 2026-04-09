@@ -9,6 +9,9 @@ data_cache/
 # ML model binaries
 ml_models/
 
+# UI test screenshots (auto-generated, auto-cleaned)
+tools/screenshots/
+
 # Environment
 .env
 *.env
