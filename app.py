@@ -472,16 +472,26 @@ if st.session_state.get('analysis_active', False):
                     ps = ap.get('position_sizing', {})
                     if ps:
                         with st.expander("📐 部位管理建議 (2% 風險法則)", expanded=False):
+                            is_us = ap.get('is_us_stock', False)
                             ps_data = []
                             for cap, info in ps.items():
                                 if info['lots'] > 0:
-                                    ps_data.append({
-                                        "資金規模": f"{cap/10000:.0f} 萬",
-                                        "建議張數": f"{info['lots']} 張",
-                                        "所需資金": f"{info['cost']:,.0f}",
-                                        "停損虧損": f"{info['risk_amount']:,.0f}",
-                                        "風險比例": f"{info['risk_pct']:.1f}%"
-                                    })
+                                    if is_us:
+                                        ps_data.append({
+                                            "資金規模": f"${cap:,.0f}",
+                                            "建議股數": f"{info['shares']} 股",
+                                            "所需資金": f"${info['cost']:,.0f}",
+                                            "停損虧損": f"${info['risk_amount']:,.0f}",
+                                            "風險比例": f"{info['risk_pct']:.1f}%"
+                                        })
+                                    else:
+                                        ps_data.append({
+                                            "資金規模": f"{cap/10000:.0f} 萬",
+                                            "建議張數": f"{info['lots']} 張",
+                                            "所需資金": f"{info['cost']:,.0f}",
+                                            "停損虧損": f"{info['risk_amount']:,.0f}",
+                                            "風險比例": f"{info['risk_pct']:.1f}%"
+                                        })
                             if ps_data:
                                 st.table(pd.DataFrame(ps_data))
                                 st.caption("💡 2% 法則：單筆交易最大虧損不超過總資金的 2%")
@@ -525,8 +535,8 @@ if st.session_state.get('analysis_active', False):
                             st.bar_chart(pd.Series(top5))
             except ImportError:
                 pass
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"ML Signal error: {e}")
 
             # 4. 完整價位規劃表 (Detailed Price Levels)
             with st.expander("📊 查看完整支撐壓力與停損清單", expanded=False):

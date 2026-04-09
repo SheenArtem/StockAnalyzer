@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+from scipy.signal import argrelextrema
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -57,10 +58,30 @@ class TechnicalAnalyzer:
         # 傳入趨勢分數以啟用籌碼動態權重
         trigger_score, trigger_details = self._calculate_trigger_score(self.df_day, trend_score=trend_score)
         
-        scenario = self._determine_scenario(trend_score, trigger_details) # Check details for ADX special case
-        
+        scenario = self._determine_scenario(trend_score, trigger_details)
+
+        # 3.5 Strategy Optimizer Override (覆蓋劇本，確保劇本卡與策略建議一致)
+        if self.strategy_params:
+            buy_th = self.strategy_params.get('buy', 3)
+            sell_th = self.strategy_params.get('sell', -2)
+            if trigger_score >= buy_th:
+                scenario = {
+                    "code": "A",
+                    "title": "🔥 劇本 A：AI 最佳化買進",
+                    "color": "red",
+                    "desc": f"AI 評分 ({trigger_score:.1f}) 達買進門檻 ({buy_th})，趨勢+訊號共振，建議積極進場。",
+                    "optimizer": "buy"
+                }
+            elif trigger_score <= sell_th:
+                scenario = {
+                    "code": "D",
+                    "title": "🛑 劇本 D：AI 最佳化賣出",
+                    "color": "green",
+                    "desc": f"AI 評分 ({trigger_score:.1f}) 達賣出門檻 ({sell_th})，建議出場觀望。",
+                    "optimizer": "sell"
+                }
+
         # 4. 操作劇本與風控 (Action Plan & Risk)
-        # Pass trigger_score to link with optimized strategy
         action_plan = self._generate_action_plan(self.df_day, scenario, trigger_score)
         
         # 5. [NEW] Dynamic Monitoring Checklist (Conditional Alerts)
@@ -108,7 +129,8 @@ class TechnicalAnalyzer:
              checklist['risk'].append(f"若收盤跌破 **季線 ({ma60:.2f})**，波段轉弱，建議清倉觀望。")
 
         # B. 爆量長黑
-        checklist['risk'].append(f"若出現 **爆量長黑** (成交量 > {vol_ma5*2:.0f}) 且收跌，視為主力出貨訊號。")
+        if vol_ma5 > 0:
+            checklist['risk'].append(f"若出現 **爆量長黑** (成交量 > {vol_ma5*2:.0f}) 且收跌，視為主力出貨訊號。")
 
         # C. KD 高檔鈍化結束
         if self._safe_get(current, 'K', 0) > 80:
@@ -176,29 +198,23 @@ class TechnicalAnalyzer:
         rec_sl_method = "ATR 波動停損 (科學)" # Updated simplified name logic later if needed
         rec_sl_price = 0
         
-        # [Optimization Override]
+        # [Optimization Override] - 由 run_analysis 層級處理 scenario 覆蓋，這裡讀取 optimizer 標記
         optimizer_active = False
-        if self.strategy_params:
-            buy_th = self.strategy_params.get('buy', 3)
-            sell_th = self.strategy_params.get('sell', -2)
-            
-            if trigger_score >= buy_th:
-                 optimizer_active = True
-                 is_actionable = True
-                 code = 'A' # Treat as Active
-                 strategy_text = f"🔥 **AI 最佳化訊號 (買進)**：評分 ({trigger_score}) 已達買進門檻 ({buy_th})，建議進場。"
-                 # Dynamic Entry
-                 rec_entry_low, rec_entry_high = close_price * 0.99, close_price * 1.01
-                 rec_entry_desc = "現價進場 (AI 訊號)"
-                 entry_basis = close_price
-                 
-            elif trigger_score <= sell_th:
-                 optimizer_active = True
-                 is_actionable = False
-                 code = 'D'
-                 strategy_text = f"🛑 **AI 最佳化訊號 (賣出)**：評分 ({trigger_score}) 已達賣出門檻 ({sell_th})，建議出場觀望。"
+        optimizer = scenario.get('optimizer')
+        if optimizer == 'buy':
+            optimizer_active = True
+            is_actionable = True
+            buy_th = self.strategy_params.get('buy', 3) if self.strategy_params else 3
+            strategy_text = f"🔥 **AI 最佳化訊號 (買進)**：評分 ({trigger_score:.1f}) 已達買進門檻 ({buy_th})，建議進場。"
+            rec_entry_low, rec_entry_high = close_price * 0.99, close_price * 1.01
+            rec_entry_desc = "現價進場 (AI 訊號)"
+            entry_basis = close_price
+        elif optimizer == 'sell':
+            optimizer_active = True
+            is_actionable = False
+            sell_th = self.strategy_params.get('sell', -2) if self.strategy_params else -2
+            strategy_text = f"🛑 **AI 最佳化訊號 (賣出)**：評分 ({trigger_score:.1f}) 已達賣出門檻 ({sell_th})，建議出場觀望。"
 
-        
         # Determine Scenario Intent (Only if not overridden by optimizer)
         if not optimizer_active:
             if code == 'A': # Active
@@ -273,12 +289,12 @@ class TechnicalAnalyzer:
                 "current_price": close_price,
                 "strategy": strategy_text,
                 "is_actionable": False,
+                "is_us_stock": self._is_us_stock,
                 "rec_entry_low": 0, "rec_entry_high": 0, "rec_entry_desc": "",
                 "rec_tp_price": 0, "rec_sl_price": 0,
                 "tp_list": [],
-                "sl_list": final_sl_list, # [FIX] Return SL list even if not actionable
-                # [FIX] Populate missing S/L keys for UI display
-                "rec_sl_method": "N/A", # Or rec_sl_method
+                "sl_list": final_sl_list,
+                "rec_sl_method": "N/A",
                 "sl_atr": sl_atr,
                 "sl_ma": sl_ma,
                 "sl_key_candle": sl_key_candle,
@@ -365,31 +381,46 @@ class TechnicalAnalyzer:
 
         # Position Sizing (部位管理計算)
         # 2% 法則: 單筆風險不超過總資金的 2%
-        # Kelly Criterion: f* = (bp - q) / b (簡化版)
         position_sizing = {}
         if is_actionable and entry_basis > 0 and rec_sl_price > 0:
             risk_per_share = entry_basis - rec_sl_price
             if risk_per_share > 0:
-                # 2% Rule (以 100 萬資金為基準，使用者可在 UI 調整)
-                for capital in [500000, 1000000, 3000000]:
-                    max_risk = capital * 0.02
-                    shares = int(max_risk / risk_per_share)
-                    # 台股 1 張 = 1000 股
-                    lots = shares // 1000
-                    cost = lots * 1000 * entry_basis
-                    loss_if_stopped = lots * 1000 * risk_per_share
-                    position_sizing[capital] = {
-                        "lots": lots,
-                        "shares": lots * 1000,
-                        "cost": cost,
-                        "risk_amount": loss_if_stopped,
-                        "risk_pct": (loss_if_stopped / capital * 100) if capital > 0 else 0
-                    }
+                if self._is_us_stock:
+                    # 美股: 以股為單位，資金以 USD 計
+                    for capital in [10000, 50000, 100000]:
+                        max_risk = capital * 0.02
+                        shares = int(max_risk / risk_per_share)
+                        if shares > 0:
+                            cost = shares * entry_basis
+                            loss_if_stopped = shares * risk_per_share
+                            position_sizing[capital] = {
+                                "lots": shares,
+                                "shares": shares,
+                                "cost": cost,
+                                "risk_amount": loss_if_stopped,
+                                "risk_pct": (loss_if_stopped / capital * 100) if capital > 0 else 0
+                            }
+                else:
+                    # 台股: 1張=1000股
+                    for capital in [500000, 1000000, 3000000]:
+                        max_risk = capital * 0.02
+                        shares = int(max_risk / risk_per_share)
+                        lots = shares // 1000
+                        cost = lots * 1000 * entry_basis
+                        loss_if_stopped = lots * 1000 * risk_per_share
+                        position_sizing[capital] = {
+                            "lots": lots,
+                            "shares": lots * 1000,
+                            "cost": cost,
+                            "risk_amount": loss_if_stopped,
+                            "risk_pct": (loss_if_stopped / capital * 100) if capital > 0 else 0
+                        }
 
         return {
             "current_price": close_price,
             "strategy": strategy_text,
             "is_actionable": True,
+            "is_us_stock": self._is_us_stock,
             "rec_entry_low": rec_entry_low,
             "rec_entry_high": rec_entry_high,
             "rec_entry_desc": rec_entry_desc,
@@ -412,7 +443,9 @@ class TechnicalAnalyzer:
 
     def _calculate_trend_score(self, df):
         """
-        計算週線趨勢分數 (Trend Score) -3 ~ +3
+        計算週線趨勢分數 (Trend Score)
+        範圍: -5 ~ +5 (clamp)
+        因子: MA架構(±2), DMI(±1), OBV(0~+1), EFI(±1), 形態學(±5), 量價(±1)
         """
         score = 0
         details = []
@@ -491,6 +524,9 @@ class TechnicalAnalyzer:
         pv_score, pv_msgs = self._analyze_price_volume(df)
         score += pv_score
         details.extend(pv_msgs)
+
+        # Clamp to valid range
+        score = max(-5, min(5, score))
 
         return score, details
 
@@ -1052,6 +1088,7 @@ class TechnicalAnalyzer:
     def _determine_scenario(self, trend_score, daily_details):
         """
         判斷劇本 Scenario A/B/C/D
+        含 ADX 特殊修正：當日線趨勢方向與週線矛盾且 ADX > 30 時，修正劇本
         """
         scenario = {"code": "N", "title": "觀察中 (Neutral)", "color": "gray", "desc": "多空不明，建議觀望。"}
 
@@ -1063,7 +1100,60 @@ class TechnicalAnalyzer:
             scenario = {"code": "C", "title": "⚠️ 劇本 C：反彈搶短", "color": "blue", "desc": "逆勢操作，嚴設停損。"}
         else:
             scenario = {"code": "D", "title": "🛑 劇本 D：空手/做空", "color": "green", "desc": "趨勢向下，切勿摸底。"}
-            
+
+        # === ADX 特殊修正 ===
+        # 當日線 ADX > 30（強趨勢）且方向與週線劇本矛盾時，進行劇本修正
+        # 直接讀取 self.df_day 而非解析 daily_details 字串，更可靠
+        if not self.df_day.empty and len(self.df_day) >= 20:
+            current_day = self.df_day.iloc[-1]
+            adx = self._safe_get(current_day, 'ADX', 0)
+            plus_di = self._safe_get(current_day, '+DI', 0)
+            minus_di = self._safe_get(current_day, '-DI', 0)
+
+            if adx > 30:
+                daily_bullish = plus_di > minus_di
+                code = scenario['code']
+
+                # 週線強多(A) + 日線強空 → 降級為 B（短線反轉風險高）
+                if code == 'A' and not daily_bullish:
+                    scenario = {
+                        "code": "B",
+                        "title": "⏳ 劇本 B：拉回關注 (ADX 修正)",
+                        "color": "orange",
+                        "desc": f"週線多頭但日線 ADX={adx:.0f} 空方強勢，短線有回檔壓力，等待止穩。"
+                    }
+                    logger.info(f"Scenario A→B: daily ADX={adx:.1f}, -DI>+DI")
+
+                # 週線偏多(B) + 日線強空 → 降級為 C（短線走弱）
+                elif code == 'B' and not daily_bullish:
+                    scenario = {
+                        "code": "C",
+                        "title": "⚠️ 劇本 C：反彈搶短 (ADX 修正)",
+                        "color": "blue",
+                        "desc": f"週線偏多但日線 ADX={adx:.0f} 空方強勢，短線已走弱，嚴設停損。"
+                    }
+                    logger.info(f"Scenario B→C: daily ADX={adx:.1f}, -DI>+DI")
+
+                # 週線偏空(C) + 日線強多 → 升級為 B（反彈動能強）
+                elif code == 'C' and daily_bullish:
+                    scenario = {
+                        "code": "B",
+                        "title": "⏳ 劇本 B：拉回關注 (ADX 修正)",
+                        "color": "orange",
+                        "desc": f"週線偏空但日線 ADX={adx:.0f} 多方強攻，短線有反彈動能，可關注進場。"
+                    }
+                    logger.info(f"Scenario C→B: daily ADX={adx:.1f}, +DI>-DI")
+
+                # 週線空頭(D) + 日線強多 → 升級為 C（可搶反彈）
+                elif code == 'D' and daily_bullish:
+                    scenario = {
+                        "code": "C",
+                        "title": "⚠️ 劇本 C：反彈搶短 (ADX 修正)",
+                        "color": "blue",
+                        "desc": f"週線空頭但日線 ADX={adx:.0f} 多方反攻，可搶反彈但嚴設停損。"
+                    }
+                    logger.info(f"Scenario D→C: daily ADX={adx:.1f}, +DI>-DI")
+
         return scenario
 
     def _detect_kline_patterns(self, df):
@@ -1218,7 +1308,6 @@ class TechnicalAnalyzer:
         """
         W底 (Double Bottom) 與 M頭 (Double Top) - 這裡保留原邏輯但抽離出來
         """
-        from scipy.signal import argrelextrema
         score = 0
         msgs = []
         prices = df['Close'].values
@@ -1260,7 +1349,6 @@ class TechnicalAnalyzer:
         偵測 頭肩頂 / 頭肩底 (Head and Shoulders)
         並且【嚴格要求成交量】驗證
         """
-        from scipy.signal import argrelextrema
         score = 0
         msgs = []
         prices = df['Close'].values
@@ -1400,8 +1488,6 @@ class TechnicalAnalyzer:
         Returns:
             str or None: 背離類型 ('bull', 'bear', 'bull_strong', 'bear_strong', etc.)
         """
-        from scipy.signal import argrelextrema
-        
         if len(df) < window or indicator_name not in df.columns:
             return None
         
@@ -1496,36 +1582,6 @@ class TechnicalAnalyzer:
                 if p2_price < p1_price and ind2_val > ind1_val:
                     return 'bear_weak'
         
-        return None
-    
-    def _detect_divergence_simple(self, df, indicator_name, window=20):
-        """
-        [保留] 簡易背離偵測引擎 (作為備用)
-        當 Pivot Points 方法找不到背離時使用
-        """
-        if len(df) < window + 5:
-            return None
-            
-        recent = df.iloc[-5:]
-        past = df.iloc[-window:-5]
-        
-        ind_recent = recent[indicator_name]
-        ind_past = past[indicator_name]
-        
-        price_recent_low = recent['Low'].min()
-        price_past_low = past['Low'].min()
-        
-        price_recent_high = recent['High'].max()
-        price_past_high = past['High'].max()
-        
-        if price_recent_low < price_past_low:
-             if ind_recent.min() > ind_past.min():
-                 return 'bull'
-                 
-        if price_recent_high > price_past_high:
-            if ind_recent.max() < ind_past.max():
-                return 'bear'
-                
         return None
 
     def _analyze_price_volume(self, df):
