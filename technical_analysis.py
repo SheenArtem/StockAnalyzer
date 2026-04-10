@@ -739,7 +739,15 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
     
     # [FIX] 1. Remove empty rows (essential for Weekly resampled data) to prevents gaps
     plot_df = plot_df.dropna(subset=['Close'])
-    
+
+    # [FIX] 1.5. 指標 NaN 修補 — 孤立 NaN 前向填充 (limit=2)，防止線圖斷裂
+    indicator_cols = [c for c in plot_df.columns if c not in
+                      ['Open','High','Low','Close','Volume','Pattern','Pattern_Type',
+                       'Supertrend_Dir','TD_Buy_Setup','TD_Sell_Setup']]
+    for col in indicator_cols:
+        if col in plot_df.columns and plot_df[col].isna().any():
+            plot_df[col] = plot_df[col].ffill(limit=2)
+
     # [FIX] 2. Format Date Index to String (YYYY-MM-DD) removes HH:MM:SS
     if isinstance(plot_df.index, pd.DatetimeIndex):
         plot_df.index = plot_df.index.strftime('%Y-%m-%d')
@@ -840,8 +848,19 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
 
     # Supertrend (趨勢翻轉指標)
     if 'Supertrend' in plot_df.columns and 'Supertrend_Dir' in plot_df.columns:
-        st_bull = plot_df['Supertrend'].where(plot_df['Supertrend_Dir'] == 1, np.nan)
-        st_bear = plot_df['Supertrend'].where(plot_df['Supertrend_Dir'] == -1, np.nan)
+        st_dir = plot_df['Supertrend_Dir']
+        st_val = plot_df['Supertrend']
+        # 在方向切換處讓兩條線重疊一個點，消除斷口
+        st_bull = st_val.where(st_dir == 1, np.nan).copy()
+        st_bear = st_val.where(st_dir == -1, np.nan).copy()
+        for i in range(1, len(st_dir)):
+            if st_dir.iloc[i] != st_dir.iloc[i-1]:
+                # 切換點: 讓前一方向的線延伸到切換點
+                st_bull.iloc[i] = st_val.iloc[i]
+                st_bear.iloc[i] = st_val.iloc[i]
+                st_bull.iloc[i-1] = st_val.iloc[i-1]
+                st_bear.iloc[i-1] = st_val.iloc[i-1]
+
         st_bull_valid = st_bull.dropna()
         st_bear_valid = st_bear.dropna()
         if not st_bull_valid.empty:
