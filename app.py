@@ -108,7 +108,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.09.03")
+    st.caption("Version: v2026.04.10.01")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -444,10 +444,17 @@ if st.session_state.get('analysis_active', False):
                 
                 if is_actionable:
                     c2, c3, c4, c5 = st.columns(4)
-                    
-                    # 2. 進場
+
+                    # 2. 進場 + 型態信心
+                    confidence = ap.get('entry_confidence', 'standard')
+                    conf_badge = ""
+                    if confidence == "high":
+                        conf_badge = "\n\n**信心: 高**"
+                    elif confidence == "wait":
+                        conf_badge = "\n\n**信心: 等待確認**"
+
                     if ap.get('rec_entry_low', 0) > 0:
-                         c2.warning(f"**建議進場**：\n\n📉 **{ap['rec_entry_low']:.2f}~{ap['rec_entry_high']:.2f}**")
+                         c2.warning(f"**建議進場**：\n\n📉 **{ap['rec_entry_low']:.2f}~{ap['rec_entry_high']:.2f}**{conf_badge}")
                     else:
                          c2.warning(f"**建議進場**：\n\n(暫無建議)")
 
