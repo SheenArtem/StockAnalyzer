@@ -12,6 +12,9 @@ ml_models/
 # UI test screenshots (auto-generated, auto-cleaned)
 tools/screenshots/
 
+# Local-only calibration scripts
+local/
+
 # Environment
 .env
 *.env
