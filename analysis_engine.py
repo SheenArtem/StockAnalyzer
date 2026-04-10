@@ -17,6 +17,8 @@ MORPHOLOGY_CAP = 2              # 形態學分數上限 (±)
 EFI_DEADZONE_RATIO = 0.3       # EFI 死區 = std × 此比例
 CALIBRATION_MEAN = 0.07         # 校準分佈 mean (196K 樣本)
 CALIBRATION_STD = 4.32          # 校準分佈 std
+MARKET_SENTIMENT_CAP = 0.8      # 市場情緒分數上下限 (±) — TAIFEX PCR + 期貨正逆價差
+REVENUE_CATALYST_CAP = 0.5      # 營收催化劑分數上下限 (±) — 營收驚喜 + 連續成長
 
 class TechnicalAnalyzer:
     def __init__(self, ticker, df_week, df_day, strategy_params=None, chip_data=None, us_chip_data=None):
@@ -871,6 +873,113 @@ class TechnicalAnalyzer:
 
         return score, details
 
+    def _analyze_market_sentiment(self):
+        """
+        TAIFEX 市場情緒因子 — 台股限定
+        PCR 極端值 + 期貨正逆價差 → 反向/順向指標
+        Cap: +/- MARKET_SENTIMENT_CAP
+        """
+        score = 0.0
+        details = []
+
+        if self._is_us_stock:
+            return score, details
+
+        try:
+            from taifex_data import TAIFEXData
+            taifex = TAIFEXData()
+
+            # --- PCR (反向指標) ---
+            pcr_data = taifex.get_put_call_ratio()
+            pc_ratio = pcr_data.get('pc_ratio', 0.0)
+            if pc_ratio > 0:
+                if pc_ratio > 1.3:
+                    # 極度恐懼 → 反向看多
+                    score += 0.5
+                    details.append(f"📊 PCR={pc_ratio:.2f} 極度恐懼 → 反向看多 (+0.5)")
+                elif pc_ratio > 1.1:
+                    score += 0.25
+                    details.append(f"📊 PCR={pc_ratio:.2f} 偏恐懼 → 反向偏多 (+0.25)")
+                elif pc_ratio < 0.7:
+                    # 極度貪婪 → 反向看空
+                    score -= 0.5
+                    details.append(f"📊 PCR={pc_ratio:.2f} 極度貪婪 → 反向看空 (-0.5)")
+                elif pc_ratio < 0.9:
+                    score -= 0.25
+                    details.append(f"📊 PCR={pc_ratio:.2f} 偏貪婪 → 反向偏空 (-0.25)")
+                else:
+                    details.append(f"📊 PCR={pc_ratio:.2f} 中性 [資訊]")
+
+            # --- 期貨正逆價差 (順向指標) ---
+            basis_data = taifex.get_futures_basis()
+            basis_pct = basis_data.get('basis_pct', 0.0)
+            if basis_data.get('futures_price', 0) > 0:
+                if basis_pct > 0.3:
+                    # 正價差偏大 → 市場偏多
+                    score += 0.3
+                    details.append(f"📈 期貨正價差 {basis_pct:.2f}% → 偏多 (+0.3)")
+                elif basis_pct < -0.3:
+                    # 逆價差 → 市場偏空
+                    score -= 0.3
+                    details.append(f"📉 期貨逆價差 {basis_pct:.2f}% → 偏空 (-0.3)")
+                else:
+                    details.append(f"📊 期貨價差 {basis_pct:+.2f}% 中性 [資訊]")
+
+        except Exception as e:
+            logger.debug(f"Market sentiment scoring skipped: {e}")
+
+        score = max(-MARKET_SENTIMENT_CAP, min(MARKET_SENTIMENT_CAP, score))
+        return score, details
+
+    def _analyze_revenue_catalyst(self):
+        """
+        營收催化劑因子 — 台股限定
+        營收驚喜 + 連續成長/衰退 → 基本面動能
+        Cap: +/- REVENUE_CATALYST_CAP
+        """
+        score = 0.0
+        details = []
+
+        if self._is_us_stock:
+            return score, details
+
+        ticker = self.ticker.replace('.TW', '').replace('.TWO', '').strip()
+        if not ticker.isdigit():
+            return score, details
+
+        try:
+            from dividend_revenue import RevenueTracker
+            rt = RevenueTracker()
+
+            # --- 營收驚喜 ---
+            surprise = rt.detect_revenue_surprise(ticker)
+            if surprise.get('is_surprise'):
+                magnitude = surprise.get('magnitude', 0)
+                if surprise['direction'] == 'positive':
+                    score += 0.5
+                    details.append(f"🚀 營收正驚喜 +{magnitude:.1f}% → 基本面催化 (+0.5)")
+                else:
+                    score -= 0.5
+                    details.append(f"⚠️ 營收負驚喜 {magnitude:.1f}% → 基本面利空 (-0.5)")
+
+            # --- 連續成長/衰退 ---
+            rev_alert = rt.get_revenue_alert(ticker)
+            consec = rev_alert.get('consecutive_growth_months', 0)
+            if consec >= 3:
+                bonus = min(0.3, consec * 0.1)
+                score += bonus
+                details.append(f"📈 營收連續 {consec} 個月成長 (+{bonus:.1f})")
+            elif consec <= -3:
+                penalty = min(0.3, abs(consec) * 0.1)
+                score -= penalty
+                details.append(f"📉 營收連續 {abs(consec)} 個月衰退 (-{penalty:.1f})")
+
+        except Exception as e:
+            logger.debug(f"Revenue catalyst scoring skipped: {e}")
+
+        score = max(-REVENUE_CATALYST_CAP, min(REVENUE_CATALYST_CAP, score))
+        return score, details
+
     def _calculate_trigger_score(self, df, trend_score=0):
         """
         計算日線進場訊號 (Trigger Score) -10 ~ +10
@@ -1125,6 +1234,20 @@ class TechnicalAnalyzer:
 
         # (矛盾獎勵已移除 — 籌碼 IC=0.006 < 技術面，不應在矛盾時信任籌碼)
 
+        # ============================================================
+        # MARKET SENTIMENT (TAIFEX PCR + Futures Basis, Taiwan only)
+        # ============================================================
+        sentiment_score, sentiment_details = self._analyze_market_sentiment()
+        score += sentiment_score
+        details.extend(sentiment_details)
+
+        # ============================================================
+        # REVENUE CATALYST (Revenue Surprise + Consecutive Growth, Taiwan only)
+        # ============================================================
+        revenue_score, revenue_details = self._analyze_revenue_catalyst()
+        score += revenue_score
+        details.extend(revenue_details)
+
         # Clamp score to valid range
         score = max(TRIGGER_SCORE_RANGE[0], min(TRIGGER_SCORE_RANGE[1], score))
 
@@ -1134,6 +1257,8 @@ class TechnicalAnalyzer:
             'volume_group': volume_median,
             'pattern_group': pattern_median,
             'chip_score': chip_score,
+            'sentiment_score': sentiment_score,
+            'revenue_score': revenue_score,
         }
         return score, details, breakdown
 
