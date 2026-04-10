@@ -308,11 +308,11 @@ if st.session_state.get('analysis_active', False):
         if stock_meta and 'name' in stock_meta:
              st.markdown(f"## 🏢 {display_ticker} {stock_meta.get('name', '')}")
              
-             if not df_day.empty:
+             if not df_day.empty and len(df_day) >= 2:
                  last_price = df_day['Close'].iloc[-1]
                  prev_price = df_day['Close'].iloc[-2]
                  chg = last_price - prev_price
-                 pct = (chg / prev_price) * 100
+                 pct = (chg / prev_price) * 100 if prev_price != 0 else 0
                  
                  # Combine Price and Fundamentals
                  # Row 1: Price | P/E | EPS | Yield | P/B | ROE

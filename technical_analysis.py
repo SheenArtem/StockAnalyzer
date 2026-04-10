@@ -424,13 +424,13 @@ def load_and_resample(source, force_update=False):
                      if new_df.empty:
                          # Fallback: yfinance
                          try_ticker = f"{raw_input}.TW"
-                         new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
+                         new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False, timeout=30)
                          if new_df.empty:
                              try_ticker = f"{raw_input}.TWO"
-                             new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
+                             new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False, timeout=30)
                 else:
                      # 美股: yfinance
-                     new_df = yf.download(raw_input, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
+                     new_df = yf.download(raw_input, start=start_date_new, interval='1d', progress=False, auto_adjust=False, timeout=30)
             except Exception as e:
                 print(f"⚠️ 增量更新失敗 ({e})，將嘗試完整重抓...")
                 incremental_failed = True
@@ -481,7 +481,7 @@ def load_and_resample(source, force_update=False):
                     # Fallback 1: yfinance .TW (上市)
                     try_ticker = f"{raw_input}.TW"
                     print(f"📥 FinMind 無數據，嘗試 {try_ticker} (yfinance)...")
-                    df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False)
+                    df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)
                     if not df_day.empty:
                         ticker_name = try_ticker
 
@@ -489,7 +489,7 @@ def load_and_resample(source, force_update=False):
                     # Fallback 2: yfinance .TWO (上櫃)
                     try_ticker = f"{raw_input}.TWO"
                     print(f"📥 嘗試 {try_ticker} (yfinance)...")
-                    df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False)
+                    df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)
                     if not df_day.empty:
                         ticker_name = try_ticker
                     
@@ -500,7 +500,7 @@ def load_and_resample(source, force_update=False):
                 # 2. 非純數字 (如 TSM, AAPL)，直接透過 yfinance
                 ticker_name = raw_input
                 print(f"📥 正在下載 {ticker_name} (yfinance)...")
-                df_day = yf.download(ticker_name, period='10y', interval='1d', progress=False, auto_adjust=False)
+                df_day = yf.download(ticker_name, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)
                 stock_meta['name'] = ticker_name
             
             # [CACHE] Save to Cache

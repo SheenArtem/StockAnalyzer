@@ -482,7 +482,7 @@ class DividendAnalyzer:
                 ticker_str,
                 start=min_date.strftime('%Y-%m-%d'),
                 end=max_date.strftime('%Y-%m-%d'),
-                progress=False, auto_adjust=True,
+                progress=False, auto_adjust=True, timeout=30,
             )
             if df_price is not None and not df_price.empty:
                 if isinstance(df_price.columns, pd.MultiIndex):
@@ -639,7 +639,7 @@ class DividendAnalyzer:
             try:
                 df_price = yf.download(
                     ticker_str, start=dl_start, end=dl_end,
-                    progress=False, auto_adjust=True,
+                    progress=False, auto_adjust=True, timeout=30,
                 )
                 if df_price is not None and not df_price.empty:
                     # Flatten MultiIndex columns if present (yfinance >= 0.2.x)
@@ -669,7 +669,7 @@ class DividendAnalyzer:
                         ticker_str,
                         start=new_start.strftime('%Y-%m-%d'),
                         end=new_end.strftime('%Y-%m-%d'),
-                        progress=False, auto_adjust=True,
+                        progress=False, auto_adjust=True, timeout=30,
                     )
                     if df_price is not None and not df_price.empty:
                         if isinstance(df_price.columns, pd.MultiIndex):

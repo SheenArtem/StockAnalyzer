@@ -100,26 +100,21 @@ class CacheManager:
                     df.set_index('date', inplace=True)
 
             # Check if stale
-            # 1. If file is from yesterday or older -> Stale (Need new daily candle)
-            if file_time.date() < now.date() and not df.empty:
-                # Return partial hit with last date
-                last_date = df.index[-1] if isinstance(df.index, pd.DatetimeIndex) else None
-                # If last_date is today or later, it's actually fresh
-                if last_date and last_date.date() >= now.date():
-                     return df, "hit", None
-                
-                return df, "partial", last_date
+            last_date = df.index[-1] if (isinstance(df.index, pd.DatetimeIndex) and not df.empty) else None
 
-            # 2. File is from today
-            # 2a. 盤中時段: 若快取超過 INTRADAY_CACHE_TTL (5分鐘)，視為過期需重抓
+            # 1. 盤中時段: 不論檔案日期，只要超過 TTL 就觸發增量更新
             if self._is_tw_trading_hours() and data_type == 'price':
                 if file_age_seconds > INTRADAY_CACHE_TTL:
                     logger.info(f"盤中模式: 快取已超過 {INTRADAY_CACHE_TTL//60} 分鐘，觸發增量更新...")
-                    last_date = df.index[-1] if isinstance(df.index, pd.DatetimeIndex) and not df.empty else None
                     return df, "partial", last_date
                 else:
                     remaining = int(INTRADAY_CACHE_TTL - file_age_seconds)
                     logger.debug(f"盤中模式: 快取仍有效 (剩餘 {remaining} 秒)")
+                    return df, "hit", None
+
+            # 2. 非盤中: 若資料最後日期 < 今天，觸發增量更新
+            if last_date and last_date.date() < now.date():
+                return df, "partial", last_date
 
             return df, "hit", None
             
