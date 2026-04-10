@@ -976,7 +976,42 @@ class TechnicalAnalyzer:
                 details.append(f"🔇 量能萎縮 RVOL={rvol:.1f}x (<0.5) (-0.33)")
         volume_signals.append(v3_raw)
 
-        # (V4 量價關係 removed — IC 無顯著貢獻)
+        # ============================================================
+        # VOLUME ANOMALY DETECTION (不計分，僅資訊提示)
+        # OBV/EFI 的 IC≈0 不適合計分，但極端值可偵測異常事件
+        # ============================================================
+
+        # VA1. 量價背離 — 價格創新高/低但 OBV 未跟隨
+        try:
+            if len(df) >= 20:
+                price_5d = df['Close'].iloc[-5:]
+                obv_5d = df['OBV'].iloc[-5:]
+                price_20d = df['Close'].iloc[-20:]
+                obv_20d = df['OBV'].iloc[-20:]
+
+                price_near_high = close > price_20d.quantile(0.9)
+                obv_declining = obv_5d.iloc[-1] < obv_5d.iloc[0]
+                price_near_low = close < price_20d.quantile(0.1)
+                obv_rising = obv_5d.iloc[-1] > obv_5d.iloc[0]
+
+                if price_near_high and obv_declining:
+                    details.append("⚠️ 量價背離：股價近高但 OBV 下降 (假突破風險) [異常]")
+                elif price_near_low and obv_rising:
+                    details.append("💡 量價背離：股價近低但 OBV 上升 (底部吸籌跡象) [異常]")
+        except (KeyError, IndexError):
+            pass
+
+        # VA2. EFI 極端資金流 — z-score 超過 ±2.0
+        efi_z = self._safe_get(current, 'EFI_z', None)
+        if efi_z is not None and not pd.isna(efi_z):
+            if efi_z > 2.0:
+                details.append(f"🔥 EFI 資金異常流入 (z={efi_z:.1f}) [異常]")
+            elif efi_z < -2.0:
+                details.append(f"💀 EFI 資金異常流出 (z={efi_z:.1f}) [異常]")
+
+        # VA3. 冷門股突爆量 — 平常量能低迷但突然 RVOL > 3.0
+        if rvol > 3.0 and rvol_z is not None and not pd.isna(rvol_z) and rvol_z > 2.5:
+            details.append(f"🚨 異常爆量 RVOL={rvol:.1f}x (z={rvol_z:.1f})，留意消息面 [異常]")
 
         # ============================================================
         # PATTERN GROUP — 已移至進場過濾器 (_generate_action_plan)
