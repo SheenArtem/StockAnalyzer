@@ -90,6 +90,10 @@ class TechnicalAnalyzer:
         # 6. 基本面快照 (台股限定，不計分，資訊提示)
         fundamental_alerts = self._fetch_fundamental_snapshot()
 
+        # 7. 評分百分位 (基於校準分佈 196K 樣本: mean=0.07, std=4.32)
+        from scipy.stats import norm
+        score_percentile = round(norm.cdf(trigger_score, loc=0.07, scale=4.32) * 100, 1)
+
         return {
             "ticker": self.ticker,
             "trend_score": trend_score,
@@ -97,6 +101,7 @@ class TechnicalAnalyzer:
             "trigger_score": trigger_score,
             "trigger_details": trigger_details,
             "trigger_breakdown": trigger_breakdown,
+            "score_percentile": score_percentile,
             "scenario": scenario,
             "action_plan": action_plan,
             "checklist": checklist,
