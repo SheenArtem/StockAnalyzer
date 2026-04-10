@@ -513,7 +513,12 @@ if st.session_state.get('analysis_active', False):
             st.markdown("---")
 
             # 3. 詳細因子分析 (Detailed Breakdown)
-            c1, c2 = st.columns(2)
+            fund_alerts = report.get('fundamental_alerts', [])
+            if fund_alerts:
+                c1, c2, c3 = st.columns(3)
+            else:
+                c1, c2 = st.columns(2)
+                c3 = None
             with c1:
                 st.markdown("#### 📅 週線趨勢因子")
                 for item in report['trend_details']:
@@ -522,6 +527,11 @@ if st.session_state.get('analysis_active', False):
                 st.markdown("#### ⚡ 日線訊號因子")
                 for item in report['trigger_details']:
                     st.write(item)
+            if c3 and fund_alerts:
+                with c3:
+                    st.markdown("#### 📋 基本面快照")
+                    for item in fund_alerts:
+                        st.write(item)
             
             # 3.5 ML Signal (if available)
             try:
