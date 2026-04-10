@@ -340,16 +340,19 @@ def get_stock_info_smart(ticker):
     
     return meta
 
-def fetch_from_finmind(stock_id):
+def fetch_from_finmind(stock_id, start_date=None):
     """
-    從 FinMind 抓取股價資料 (Fallback)
+    從 FinMind 抓取台股股價資料
+    Args:
+        stock_id: 台股代號 (純數字)
+        start_date: 起始日期 (str 'YYYY-MM-DD')，預設抓 10 年
     """
     try:
         print(f"🔄 嘗試從 FinMind 抓取 {stock_id} ...")
         dl = DataLoader()
-        # 抓取近 10 年 (涵蓋週線需求)
-        start_date = '2016-01-01'
-        
+        if start_date is None:
+            start_date = '2016-01-01'
+
         df = dl.taiwan_stock_daily(stock_id=stock_id, start_date=start_date)
         
         if df.empty:
@@ -411,25 +414,22 @@ def load_and_resample(source, force_update=False):
             # Start from next day
             start_date_new = (last_date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
             
-            # Download only new data
+            # Download only new data — 台股優先 FinMind，美股用 yfinance
             new_df = pd.DataFrame()
             incremental_failed = False
             try:
                 if raw_input.isdigit():
-                     try_ticker = f"{raw_input}.TW"
-                     new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
+                     # 台股: FinMind 優先 (格式乾淨，無多層 header 問題)
+                     new_df = fetch_from_finmind(raw_input, start_date=start_date_new)
                      if new_df.empty:
-                         try_ticker = f"{raw_input}.TWO"
+                         # Fallback: yfinance
+                         try_ticker = f"{raw_input}.TW"
                          new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
-                     if new_df.empty:
-                          # Fallback FinMind
-                          dl = DataLoader()
-                          new_df = dl.taiwan_stock_daily(stock_id=raw_input, start_date=start_date_new)
-                          # Normalize FinMind if needed (reuse fetch implementation logic or just trust yf for now)
-                          # To be safe, let's just use the full fetch logic if yf fails, or assume yf works.
-                          # Limitation: FinMind fetcher here returns different columns, need standardization.
-                          # Simplification: If yfinance works, use it.
+                         if new_df.empty:
+                             try_ticker = f"{raw_input}.TWO"
+                             new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
                 else:
+                     # 美股: yfinance
                      new_df = yf.download(raw_input, start=start_date_new, interval='1d', progress=False, auto_adjust=False)
             except Exception as e:
                 print(f"⚠️ 增量更新失敗 ({e})，將嘗試完整重抓...")
@@ -472,24 +472,26 @@ def load_and_resample(source, force_update=False):
             # Cache Miss - Start Download
             # 1. 如果是純數字，啟動智慧判斷序列
             if raw_input.isdigit():
-                # 嘗試 1: .TW (上市)
-                try_ticker = f"{raw_input}.TW"
-                print(f"📥 嘗試下載 {try_ticker} (yfinance)...")
-                df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False)
-                
+                # 台股: FinMind 優先 (格式乾淨、穩定、免費 20 年資料)
+                print(f"📥 下載 {raw_input} (FinMind 優先)...")
+                df_day = fetch_from_finmind(raw_input)
+                ticker_name = raw_input
+
                 if df_day.empty:
-                    # 嘗試 2: .TWO (上櫃)
-                    try_ticker = f"{raw_input}.TWO"
-                    print(f"📥 嘗試下載 {try_ticker} (yfinance)...")
+                    # Fallback 1: yfinance .TW (上市)
+                    try_ticker = f"{raw_input}.TW"
+                    print(f"📥 FinMind 無數據，嘗試 {try_ticker} (yfinance)...")
                     df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False)
-                    
+                    if not df_day.empty:
+                        ticker_name = try_ticker
+
                 if df_day.empty:
-                    # 嘗試 3: FinMind (Fallback)
-                    print(f"⚠️ yfinance 無數據，切換至 FinMind API...")
-                    df_day = fetch_from_finmind(raw_input)
-                    ticker_name = raw_input # FinMind 只用數字
-                else:
-                    ticker_name = try_ticker
+                    # Fallback 2: yfinance .TWO (上櫃)
+                    try_ticker = f"{raw_input}.TWO"
+                    print(f"📥 嘗試 {try_ticker} (yfinance)...")
+                    df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False)
+                    if not df_day.empty:
+                        ticker_name = try_ticker
                     
                 # 取得台股中文資訊
                 stock_meta = get_stock_info_smart(ticker_name)
