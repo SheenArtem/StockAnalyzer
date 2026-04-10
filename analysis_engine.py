@@ -561,15 +561,6 @@ class TechnicalAnalyzer:
 
         return score, details
 
-    @staticmethod
-    def _chip_weight_multiplier(trend_score):
-        """計算籌碼動態權重乘數"""
-        if trend_score >= 3:
-            return 1.5
-        elif trend_score <= -2:
-            return 0.5
-        return 1.0
-
     def _analyze_chip_factors(self, df, trend_score=0):
         """
         籌碼面評分 (Chip Analysis) - 精簡版
@@ -934,8 +925,8 @@ class TechnicalAnalyzer:
         volume_median = _median_of_signals(volume_signals)
         pattern_median = _median_of_signals(pattern_signals)  # 空組 = 0
 
-        # 精簡後 3 個有效組: Trend + Momentum + Volume
-        # IC 加權: Trend(0.011) + Momentum(0.011) + Volume/RVOL(0.013) ≈ 等權
+        # 精簡後 3 個有效組: Trend + Momentum + Volume (等權)
+        # IC 加權測試失敗 (Volume 組只有 RVOL 一個信號，加權過度集中)
         # 3 groups × median in [-1,+1] → sum in [-3,+3] → ×3.33 → [-10,+10]
         score = (trend_median + momentum_median + volume_median) * 3.33
 
