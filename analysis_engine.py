@@ -108,6 +108,13 @@ class TechnicalAnalyzer:
         from scipy.stats import norm
         score_percentile = round(norm.cdf(trigger_score, loc=CALIBRATION_MEAN, scale=CALIBRATION_STD) * 100, 1)
 
+        # 8. PTT 反向提示 (不計分，僅資訊)
+        ptt_hints = self._detect_ptt_contrarian()
+        trigger_details.extend(ptt_hints)
+
+        # 9. Regime Detection (不改分數，提供操作建議)
+        regime = self._detect_regime(self.df_day)
+
         return {
             "ticker": self.ticker,
             "trend_score": trend_score,
@@ -119,7 +126,8 @@ class TechnicalAnalyzer:
             "scenario": scenario,
             "action_plan": action_plan,
             "checklist": checklist,
-            "fundamental_alerts": fundamental_alerts
+            "fundamental_alerts": fundamental_alerts,
+            "regime": regime
         }
 
     def _fetch_fundamental_snapshot(self):
@@ -979,6 +987,135 @@ class TechnicalAnalyzer:
 
         score = max(-REVENUE_CATALYST_CAP, min(REVENUE_CATALYST_CAP, score))
         return score, details
+
+    def _detect_ptt_contrarian(self):
+        """
+        PTT 情緒反向提示 — 台股限定，不計分，僅提示
+        極度看多 → 擦鞋童警告, 極度看空 → 恐慌反向提示
+        """
+        hints = []
+        if self._is_us_stock:
+            return hints
+
+        ticker = self.ticker.replace('.TW', '').replace('.TWO', '').strip()
+        if not ticker.isdigit():
+            return hints
+
+        try:
+            from ptt_sentiment import PTTSentimentAnalyzer
+            ptt = PTTSentimentAnalyzer()
+            sentiment = ptt.get_stock_sentiment(ticker, pages=3)
+
+            if sentiment['total_posts'] >= 3:
+                score = sentiment['sentiment_score']
+                posts = sentiment['total_posts']
+                if score >= 80:
+                    hints.append(f"🗣️ PTT 極度看多 (情緒={score:.0f}, {posts}篇) — 擦鞋童效應，留意過熱 [反向提示]")
+                elif score <= 20:
+                    hints.append(f"🗣️ PTT 極度看空 (情緒={score:.0f}, {posts}篇) — 恐慌可能是反向機會 [反向提示]")
+                elif score >= 65:
+                    hints.append(f"🗣️ PTT 偏多 (情緒={score:.0f}, {posts}篇) [資訊]")
+                elif score <= 35:
+                    hints.append(f"🗣️ PTT 偏空 (情緒={score:.0f}, {posts}篇) [資訊]")
+        except Exception as e:
+            logger.debug(f"PTT contrarian hint skipped: {e}")
+
+        return hints
+
+    def _detect_regime(self, df):
+        """
+        Regime Detection 簡單版 — ADX + Squeeze Momentum
+        判斷趨勢市 vs 盤整市，不改變評分，只提供提示和建議倉位調整
+
+        Returns:
+            dict: regime, confidence, details, position_adj
+        """
+        result = {
+            'regime': 'unknown',
+            'confidence': 0.0,
+            'details': [],
+            'position_adj': 1.0,  # 1.0=正常, 0.5=減半, 1.2=加碼
+        }
+
+        if df.empty or len(df) < 30:
+            return result
+
+        current = df.iloc[-1]
+
+        # --- Signal 1: ADX ---
+        adx = self._safe_get(current, 'ADX', 0)
+        trending_adx = adx > 25
+        strong_trend = adx > 35
+        ranging_adx = adx < 20
+
+        # --- Signal 2: Squeeze Momentum (BB inside KC) ---
+        squeeze_on = False
+        try:
+            bb_upper = self._safe_get(current, 'BB_upper', 0)
+            bb_lower = self._safe_get(current, 'BB_lower', 0)
+            kc_upper = self._safe_get(current, 'KC_upper', 0)
+            kc_lower = self._safe_get(current, 'KC_lower', 0)
+            if kc_upper > 0 and bb_upper > 0:
+                squeeze_on = bb_upper < kc_upper and bb_lower > kc_lower
+        except (KeyError, TypeError):
+            pass
+
+        # --- Signal 3: ATR expansion/contraction ---
+        atr_expanding = False
+        try:
+            if len(df) >= 20:
+                atr_col = 'ATR' if 'ATR' in df.columns else None
+                if atr_col:
+                    atr_now = self._safe_get(current, atr_col, 0)
+                    atr_20ago = self._safe_get(df.iloc[-20], atr_col, 0)
+                    if atr_20ago > 0:
+                        atr_ratio = atr_now / atr_20ago
+                        atr_expanding = atr_ratio > 1.2
+        except (IndexError, KeyError):
+            pass
+
+        # --- Regime classification ---
+        trend_signals = 0
+        range_signals = 0
+
+        if strong_trend:
+            trend_signals += 2
+        elif trending_adx:
+            trend_signals += 1
+
+        if ranging_adx:
+            range_signals += 1
+
+        if squeeze_on:
+            range_signals += 1
+            result['details'].append(f"📦 Squeeze ON — BB 收縮進 KC，波動壓縮中")
+        elif atr_expanding:
+            trend_signals += 1
+            result['details'].append(f"📊 ATR 擴張 — 波動放大，趨勢可能展開")
+
+        # Determine regime
+        if trend_signals >= 2:
+            result['regime'] = 'trending'
+            result['confidence'] = min(1.0, trend_signals / 3)
+            result['position_adj'] = 1.0  # 趨勢市正常操作
+            result['details'].insert(0, f"📈 趨勢市 (ADX={adx:.0f}) — 順勢操作，信任突破信號")
+        elif range_signals >= 2 or (ranging_adx and squeeze_on):
+            result['regime'] = 'ranging'
+            result['confidence'] = min(1.0, range_signals / 2)
+            result['position_adj'] = 0.5  # 盤整市倉位減半
+            result['details'].insert(0, f"📦 盤整市 (ADX={adx:.0f}) — 假突破風險高，建議倉位減半")
+        elif squeeze_on:
+            result['regime'] = 'squeeze'
+            result['confidence'] = 0.6
+            result['position_adj'] = 0.7  # 壓縮期稍微減倉
+            result['details'].insert(0, f"⏳ 波動壓縮中 (ADX={adx:.0f}) — 等待方向突破，先輕倉")
+        else:
+            result['regime'] = 'neutral'
+            result['confidence'] = 0.5
+            result['position_adj'] = 1.0
+            result['details'].insert(0, f"⚖️ 中性狀態 (ADX={adx:.0f}) — 無明確 regime 信號")
+
+        return result
 
     def _calculate_trigger_score(self, df, trend_score=0):
         """

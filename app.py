@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.10.02")
+    st.caption("Version: v2026.04.10.03")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -416,6 +416,26 @@ if st.session_state.get('analysis_active', False):
             pct = report.get('score_percentile', 50)
             pct_label = f"前 {100-pct:.0f}%" if pct >= 50 else f"後 {pct:.0f}%"
             sm3.metric("全市場排名", pct_label, f"百分位 {pct:.0f}%")
+
+            # Regime Detection 提示
+            regime = report.get('regime', {})
+            if regime and regime.get('regime') != 'unknown':
+                regime_icon = {'trending': '📈', 'ranging': '📦', 'squeeze': '⏳', 'neutral': '⚖️'}.get(regime['regime'], '❓')
+                regime_label = {'trending': '趨勢市', 'ranging': '盤整市', 'squeeze': '波動壓縮', 'neutral': '中性'}.get(regime['regime'], '未知')
+                pos_adj = regime.get('position_adj', 1.0)
+                regime_text = f"{regime_icon} **市場狀態: {regime_label}**"
+                if pos_adj < 1.0:
+                    regime_text += f"　｜　建議倉位: **{pos_adj:.0%}** (減碼)"
+                for detail in regime.get('details', []):
+                    regime_text += f"\n- {detail}"
+                if regime['regime'] == 'ranging':
+                    st.warning(regime_text)
+                elif regime['regime'] == 'squeeze':
+                    st.info(regime_text)
+                elif regime['regime'] == 'trending':
+                    st.success(regime_text)
+                else:
+                    st.caption(regime_text)
 
             # [NEW] 🔔 盤中監控看板 (Monitoring & Outlook)
             if 'checklist' in report and report['checklist']:
@@ -1531,34 +1551,40 @@ if st.session_state.get('analysis_active', False):
 
             st.markdown("---")
 
-            # PTT Sentiment
+            # PTT Sentiment (結果存 session_state 避免 rerun 跳 tab)
             try:
                 from ptt_sentiment import PTTSentimentAnalyzer
-                ptt = PTTSentimentAnalyzer()
                 stock_id_clean = display_ticker.split('.')[0] if '.' in display_ticker else display_ticker
 
                 if stock_id_clean.isdigit():
-                    # 取得股票名稱以擴大搜尋範圍
                     ptt_stock_name = stock_meta.get('name', '') if stock_meta else ''
                     search_hint = f"{stock_id_clean}"
                     if ptt_stock_name and ptt_stock_name != stock_id_clean:
                         search_hint += f" / {ptt_stock_name}"
+
+                    ptt_cache_key = f"ptt_result_{stock_id_clean}"
                     if st.button(f"🔍 分析 PTT 情緒 ({search_hint})", key="ptt_btn"):
                         with st.spinner(f"爬取 PTT Stock 板 {search_hint} 相關討論..."):
+                            ptt = PTTSentimentAnalyzer()
                             sentiment = ptt.get_stock_sentiment(stock_id_clean, pages=5, stock_name=ptt_stock_name if ptt_stock_name else None)
-                            if sentiment['total_posts'] > 0:
-                                ps1, ps2, ps3 = st.columns(3)
-                                ps1.metric("相關文章數", sentiment['total_posts'])
-                                ps2.metric("推噓比", f"{sentiment['push_ratio']:.0%}")
-                                ps3.metric("情緒分數", f"{sentiment['sentiment_score']:.0f}", delta=sentiment['sentiment_label'])
-                                if sentiment.get('contrarian_warning'):
-                                    st.warning("⚠️ 極度樂觀！擦鞋童效應警告 — 過度看多可能是頂部信號")
-                                if sentiment.get('recent_posts'):
-                                    with st.expander("相關文章"):
-                                        for post in sentiment['recent_posts'][:10]:
-                                            st.write(f"[{post['date']}] {post['title']} (推{post['push']}/噓{post['boo']})")
-                            else:
-                                st.info(f"PTT 近期無 {stock_id_clean} 相關討論")
+                            st.session_state[ptt_cache_key] = sentiment
+
+                    # 顯示快取結果 (button rerun 後仍可見)
+                    sentiment = st.session_state.get(ptt_cache_key)
+                    if sentiment is not None:
+                        if sentiment['total_posts'] > 0:
+                            ps1, ps2, ps3 = st.columns(3)
+                            ps1.metric("相關文章數", sentiment['total_posts'])
+                            ps2.metric("推噓比", f"{sentiment['push_ratio']:.0%}")
+                            ps3.metric("情緒分數", f"{sentiment['sentiment_score']:.0f}", delta=sentiment['sentiment_label'])
+                            if sentiment.get('contrarian_warning'):
+                                st.warning("⚠️ 極度樂觀！擦鞋童效應警告 — 過度看多可能是頂部信號")
+                            if sentiment.get('recent_posts'):
+                                with st.expander("相關文章"):
+                                    for post in sentiment['recent_posts'][:10]:
+                                        st.write(f"[{post['date']}] {post['title']} (推{post['push']}/噓{post['boo']})")
+                        else:
+                            st.info(f"PTT 近期無 {stock_id_clean} 相關討論")
                 else:
                     st.info("PTT 情緒分析僅支援台股")
             except ImportError:
@@ -1575,42 +1601,47 @@ if st.session_state.get('analysis_active', False):
                 stock_id_gt = display_ticker.split('.')[0] if '.' in display_ticker else display_ticker
                 gt_stock_name = stock_meta.get('name', '') if stock_meta else ''
 
+                gt_cache_key = f"gtrends_result_{stock_id_gt}"
                 if st.button("📊 分析搜尋趨勢", key="gtrends_btn"):
                     with st.spinner("取得 Google Trends 數據 (約 5 秒)..."):
                         gt = GoogleTrendsAnalyzer()
                         gt_result = gt.get_search_trend(stock_id_gt, stock_name=gt_stock_name if gt_stock_name else None)
+                        st.session_state[gt_cache_key] = gt_result
 
-                        if gt_result.get('error'):
-                            st.warning(f"Google Trends: {gt_result['error']}")
-                        else:
-                            gt1, gt2, gt3 = st.columns(3)
-                            gt1.metric("目前搜尋熱度", gt_result['current_interest'])
-                            gt2.metric("近 7 日平均", f"{gt_result['recent_avg']:.0f}")
-                            gt3.metric("變化率", f"{gt_result['change_pct']:+.0f}%", delta=gt_result['trend_label'])
+                # 顯示快取結果 (button rerun 後仍可見)
+                gt_result = st.session_state.get(gt_cache_key)
+                if gt_result is not None:
+                    if gt_result.get('error'):
+                        st.warning(f"Google Trends: {gt_result['error']}")
+                    else:
+                        gt1, gt2, gt3 = st.columns(3)
+                        gt1.metric("目前搜尋熱度", gt_result['current_interest'])
+                        gt2.metric("近 7 日平均", f"{gt_result['recent_avg']:.0f}")
+                        gt3.metric("變化率", f"{gt_result['change_pct']:+.0f}%", delta=gt_result['trend_label'])
 
-                            # 趨勢圖表
-                            trend_df = gt_result.get('trend_df')
-                            if trend_df is not None and not trend_df.empty:
-                                import plotly.express as px
-                                fig_gt = px.line(trend_df, y=trend_df.columns[:2], title="搜尋趨勢 (近 90 天)")
-                                fig_gt.update_layout(
-                                    height=300,
-                                    xaxis_title=None, yaxis_title="搜尋熱度 (0-100)",
-                                    hovermode='x unified',
-                                    margin=dict(l=20, r=20, t=40, b=20)
-                                )
-                                st.plotly_chart(fig_gt, use_container_width=True)
+                        # 趨勢圖表
+                        trend_df = gt_result.get('trend_df')
+                        if trend_df is not None and not trend_df.empty:
+                            import plotly.express as px
+                            fig_gt = px.line(trend_df, y=trend_df.columns[:2], title="搜尋趨勢 (近 90 天)")
+                            fig_gt.update_layout(
+                                height=300,
+                                xaxis_title=None, yaxis_title="搜尋熱度 (0-100)",
+                                hovermode='x unified',
+                                margin=dict(l=20, r=20, t=40, b=20)
+                            )
+                            st.plotly_chart(fig_gt, use_container_width=True)
 
-                            # 相關搜尋
-                            related = gt_result.get('related_queries', [])
-                            if related:
-                                st.caption(f"相關搜尋: {', '.join(related)}")
+                        # 相關搜尋
+                        related = gt_result.get('related_queries', [])
+                        if related:
+                            st.caption(f"相關搜尋: {', '.join(related)}")
 
-                            # 提醒
-                            if gt_result['change_pct'] > 50:
-                                st.warning("⚠️ 搜尋量暴增 — 散戶關注度激增，留意過熱風險")
-                            elif gt_result['change_pct'] < -30:
-                                st.info("💡 搜尋量低迷 — 市場關注度低，可能處於冷門期")
+                        # 提醒
+                        if gt_result['change_pct'] > 50:
+                            st.warning("⚠️ 搜尋量暴增 — 散戶關注度激增，留意過熱風險")
+                        elif gt_result['change_pct'] < -30:
+                            st.info("💡 搜尋量低迷 — 市場關注度低，可能處於冷門期")
             except ImportError:
                 st.caption("💡 安裝 pytrends 可啟用搜尋熱度分析: pip install pytrends")
             except Exception as e:
