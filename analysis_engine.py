@@ -308,6 +308,8 @@ class TechnicalAnalyzer:
                 "strategy": strategy_text,
                 "is_actionable": False,
                 "is_us_stock": self._is_us_stock,
+                "entry_confidence": "n/a",
+                "pattern_note": "",
                 "rec_entry_low": 0, "rec_entry_high": 0, "rec_entry_desc": "",
                 "rec_tp_price": 0, "rec_sl_price": 0,
                 "tp_list": [],
@@ -393,6 +395,71 @@ class TechnicalAnalyzer:
 
 
 
+        # ============================================================
+        # PATTERN ENTRY FILTER — 型態確認進場信心
+        # 型態不預測漲跌 (IC≈0)，但能定義進場信心與停損位
+        # ============================================================
+        entry_confidence = "standard"
+        pattern_note = ""
+        pattern_sl = None  # 型態衍生停損
+
+        if is_actionable and len(df) >= 3:
+            is_buy_direction = code in ('A', 'B', 'C')
+
+            # 收集近 3 根 K 線的型態
+            recent_patterns = []
+            for offset in range(-3, 0):
+                try:
+                    row = df.iloc[offset]
+                    pat = row.get('Pattern', None)
+                    pat_type = row.get('Pattern_Type', None)
+                    if pat and isinstance(pat, str) and pat not in ['None', 'nan', '']:
+                        recent_patterns.append({
+                            'name': pat, 'type': pat_type,
+                            'low': row['Low'], 'high': row['High'],
+                            'offset': offset
+                        })
+                except (IndexError, KeyError):
+                    pass
+
+            if recent_patterns and is_buy_direction:
+                # 優先看最近的型態
+                last = recent_patterns[-1]
+
+                if last['type'] == 'Bullish':
+                    entry_confidence = "high"
+                    pattern_note = f"K線型態【{last['name']}】確認多方進場"
+                    # 型態停損：該型態 K 棒的最低點
+                    if last['low'] > 0 and last['low'] < entry_basis:
+                        pattern_sl = last['low'] * 0.99  # 留 1% buffer
+                elif last['type'] == 'Bearish':
+                    entry_confidence = "wait"
+                    pattern_note = f"K線型態【{last['name']}】與買進方向矛盾，建議等待確認"
+
+                # 特殊: Scenario C (搶反彈) 遇到看漲反轉型態 → 額外加強信心
+                if code == 'C' and entry_confidence == 'high':
+                    reversal_patterns = ['Hammer', 'Morning Star', 'Engulfing', 'Piercing', '槌子', '晨星', '吞噬', '貫穿']
+                    if any(rp in last['name'] for rp in reversal_patterns):
+                        pattern_note += " (反轉型態+搶反彈=高勝率)"
+
+            # 加入型態停損到 SL 列表
+            if pattern_sl and pattern_sl > 0:
+                loss_pct = ((pattern_sl - entry_basis) / entry_basis) * 100 if entry_basis > 0 else 0
+                final_sl_list.append({
+                    "method": "E. 型態停損 (K線)",
+                    "price": pattern_sl,
+                    "desc": f"型態低點",
+                    "loss": round(loss_pct, 2)
+                })
+                final_sl_list.sort(key=lambda x: x['price'], reverse=True)
+
+            # 更新策略文字
+            if pattern_note:
+                if entry_confidence == "high":
+                    strategy_text += f"\n\n**進場信心: 高** — {pattern_note}"
+                elif entry_confidence == "wait":
+                    strategy_text += f"\n\n**進場信心: 等待確認** — {pattern_note}"
+
         # Calculate Risk-Reward Ratio (RR)
         rr_ratio = 0.0
         if is_actionable and entry_basis > 0 and rec_sl_price > 0:
@@ -443,6 +510,8 @@ class TechnicalAnalyzer:
             "strategy": strategy_text,
             "is_actionable": True,
             "is_us_stock": self._is_us_stock,
+            "entry_confidence": entry_confidence,
+            "pattern_note": pattern_note,
             "rec_entry_low": rec_entry_low,
             "rec_entry_high": rec_entry_high,
             "rec_entry_desc": rec_entry_desc,
