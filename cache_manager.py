@@ -80,10 +80,18 @@ class CacheManager:
         try:
             logger.debug(f"Loading {data_type} cache for {ticker}...")
             if data_type == 'price':
-                df = pd.read_csv(file_path, index_col=0, parse_dates=True)
+                df = pd.read_csv(file_path, index_col=0)
+                # [FIX] yfinance 新版多層 header: 移除 "Ticker"/"Price"/"Date" 等非數據行
+                bad_idx = df.index.astype(str).isin(['Ticker', 'Price', 'Date', ''])
+                if bad_idx.any():
+                    df = df[~bad_idx]
                 # Ensure index is datetime
-                if not isinstance(df.index, pd.DatetimeIndex):
-                     df.index = pd.to_datetime(df.index)
+                df.index = pd.to_datetime(df.index, errors='coerce')
+                df = df[df.index.notna()]
+                # Ensure numeric columns
+                for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
+                    if col in df.columns:
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
             else:
                 df = pd.read_csv(file_path)
                 # Chip data usually has 'date' column
