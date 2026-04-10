@@ -402,6 +402,14 @@ if st.session_state.get('analysis_active', False):
             
 
                 
+            # Score Summary (觸發分數 + 趨勢分數 + 百分位)
+            sm1, sm2, sm3 = st.columns(3)
+            sm1.metric("觸發分數 (Trigger)", f"{report['trigger_score']:.1f}")
+            sm2.metric("趨勢分數 (Trend)", f"{report['trend_score']:.0f}")
+            pct = report.get('score_percentile', 50)
+            pct_label = f"前 {100-pct:.0f}%" if pct >= 50 else f"後 {pct:.0f}%"
+            sm3.metric("全市場排名", pct_label, f"百分位 {pct:.0f}%")
+
             # [NEW] 🔔 盤中監控看板 (Monitoring & Outlook)
             if 'checklist' in report and report['checklist']:
                 cl = report['checklist']
