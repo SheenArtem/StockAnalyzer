@@ -25,9 +25,6 @@ st.set_page_config(
 
 # Sidebar
 st.sidebar.title("🔧 設定 (Settings)")
-# User provided Key
-# DEFAULT_KEY removed.
-# Input removed.
 
 # CSS 美化
 st.markdown("""
@@ -216,9 +213,6 @@ def run_analysis(source_data, force_update=False):
     return figures, errors, df_week, df_day, stock_meta
 
 # 主程式邏輯
-# 主程式邏輯
-# run_btn and force_btn usage removed.
-# History auto-run is handled by on_change callback.
 
 
 def validate_ticker(ticker):
@@ -301,9 +295,9 @@ if st.session_state.get('analysis_active', False):
         # ==========================================
         fund_data = None
         if source and isinstance(source, str):
-             # 靜默載入，不顯示 Spinner 以免閃爍
-             fund_data = get_fundamentals(display_ticker)
-             st.session_state['fund_cache'] = fund_data # Cache for Tab
+             with st.spinner("📋 載入基本面資料..."):
+                 fund_data = get_fundamentals(display_ticker)
+             st.session_state['fund_cache'] = fund_data
 
         if stock_meta and 'name' in stock_meta:
              st.markdown(f"## 🏢 {display_ticker} {stock_meta.get('name', '')}")
@@ -341,7 +335,18 @@ if st.session_state.get('analysis_active', False):
                      c_roe.metric("ROE", "N/A")
 
                  # Row 2: Sector | Currency | Market Cap (Optional)
-                 st.caption(f"產業: {stock_meta.get('sector', 'N/A')} | 幣別: {stock_meta.get('currency', 'TWD')} | 更新時間: {df_day.index[-1].strftime('%Y-%m-%d')}")
+                 # 資料新鮮度指示
+                 data_date = df_day.index[-1]
+                 import datetime as _dt
+                 days_ago = (_dt.datetime.now() - data_date).days
+                 freshness = f"📅 {data_date.strftime('%Y-%m-%d')}"
+                 if days_ago == 0:
+                     freshness += " (今日)"
+                 elif days_ago == 1:
+                     freshness += " (昨日)"
+                 elif days_ago > 1:
+                     freshness += f" ({days_ago} 天前)"
+                 st.caption(f"產業: {stock_meta.get('sector', 'N/A')} | 幣別: {stock_meta.get('currency', 'TWD')} | 資料: {freshness}")
         
         # 顯示如果有錯誤
                  
@@ -365,26 +370,28 @@ if st.session_state.get('analysis_active', False):
             # [NEW] 美股籌碼數據預載
             us_chip_data = None
             if source and isinstance(source, str) and not source.isdigit() and not source.endswith('.TW'):
-                try:
-                    from us_stock_chip import USStockChipAnalyzer
-                    us_analyzer = USStockChipAnalyzer()
-                    us_chip_data, us_err = us_analyzer.get_chip_data(source)
-                    if us_err:
-                        logger.warning(f"US Chip Warning: {us_err}")
-                        st.warning(f"⚠️ 美股籌碼資料警告: {us_err}")
-                except Exception as e:
-                    logger.error(f"US Chip Load Error: {e}", exc_info=True)
-                    st.warning(f"⚠️ 美股籌碼預載失敗: {e}")
-            
-            analyzer = TechnicalAnalyzer(
-                display_ticker, 
-                st.session_state['df_week_cache'], 
-                st.session_state['df_day_cache'], 
-                strategy_params, 
-                chip_data=chip_data,
-                us_chip_data=us_chip_data
-            )
-            report = analyzer.run_analysis()
+                with st.spinner("📊 載入美股籌碼..."):
+                    try:
+                        from us_stock_chip import USStockChipAnalyzer
+                        us_analyzer = USStockChipAnalyzer()
+                        us_chip_data, us_err = us_analyzer.get_chip_data(source)
+                        if us_err:
+                            logger.warning(f"US Chip Warning: {us_err}")
+                            st.warning(f"⚠️ 美股籌碼資料警告: {us_err}")
+                    except Exception as e:
+                        logger.error(f"US Chip Load Error: {e}", exc_info=True)
+                        st.warning(f"⚠️ 美股籌碼預載失敗: {e}")
+
+            with st.spinner("🤖 AI 分析中..."):
+                analyzer = TechnicalAnalyzer(
+                    display_ticker,
+                    st.session_state['df_week_cache'],
+                    st.session_state['df_day_cache'],
+                    strategy_params,
+                    chip_data=chip_data,
+                    us_chip_data=us_chip_data
+                )
+                report = analyzer.run_analysis()
             
             st.markdown("---")
             st.subheader("📝 AI 智能分析報告 (Beta)")

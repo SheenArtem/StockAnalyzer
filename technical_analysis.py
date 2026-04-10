@@ -68,11 +68,21 @@ def calculate_volume_profile(df, days=120, bins=50):
     
     return profile_df, poc_price
 
+_indicator_cache = {}  # {cache_key: df_with_indicators}
+
 def calculate_all_indicators(df):
     """
     核心運算引擎：計算所有技術指標
     包含：MA, BB, ATR, Ichimoku, RSI, KD, MACD, OBV, DMI
+    Memoized: 同一 df (相同長度+最後日期) 不重複計算
     """
+    # Memoize key: length + last date + last close
+    if not df.empty and isinstance(df.index, pd.DatetimeIndex):
+        cache_key = (len(df), str(df.index[-1]), round(df['Close'].iloc[-1], 2))
+        if cache_key in _indicator_cache:
+            logger.debug(f"Indicator cache hit: {cache_key}")
+            return _indicator_cache[cache_key]
+
     logger.debug("Calculating indicators (MA120/MA240 & Advanced Targets)")
     # 1. 基礎數據清洗
     if isinstance(df.columns, pd.MultiIndex):
@@ -286,6 +296,14 @@ def calculate_all_indicators(df):
             rolling_std = df[col].rolling(_zscore_window, min_periods=60).std()
             df[z_col] = (df[col] - rolling_mean) / rolling_std.replace(0, np.nan)
 
+    # Store in memoize cache (keep max 20 entries to limit memory)
+    if not df.empty and isinstance(df.index, pd.DatetimeIndex):
+        cache_key = (len(df), str(df.index[-1]), round(df['Close'].iloc[-1], 2))
+        _indicator_cache[cache_key] = df
+        if len(_indicator_cache) > 20:
+            oldest = next(iter(_indicator_cache))
+            del _indicator_cache[oldest]
+
     return df
 
 # ==========================================
@@ -340,44 +358,57 @@ def get_stock_info_smart(ticker):
     
     return meta
 
-def fetch_from_finmind(stock_id, start_date=None):
+def fetch_from_finmind(stock_id, start_date=None, max_retries=3):
     """
-    從 FinMind 抓取台股股價資料
+    從 FinMind 抓取台股股價資料 (含 retry backoff)
     Args:
         stock_id: 台股代號 (純數字)
         start_date: 起始日期 (str 'YYYY-MM-DD')，預設抓 10 年
+        max_retries: 最大重試次數 (429 rate limit 時 backoff)
     """
-    try:
-        print(f"🔄 嘗試從 FinMind 抓取 {stock_id} ...")
-        dl = DataLoader()
-        if start_date is None:
-            start_date = '2016-01-01'
+    import time as _time
+    for attempt in range(max_retries):
+        try:
+            if attempt > 0:
+                wait = 2 ** attempt
+                print(f"⏳ FinMind 重試 ({attempt+1}/{max_retries})，等待 {wait} 秒...")
+                _time.sleep(wait)
 
-        df = dl.taiwan_stock_daily(stock_id=stock_id, start_date=start_date)
-        
-        if df.empty:
-            return pd.DataFrame()
-            
-        # 標準化欄位
-        # FinMind: date, stock_id, Trading_Volume, Trading_money, open, max, min, close, spread, Trading_turnover
-        df['date'] = pd.to_datetime(df['date'])
-        df = df.set_index('date')
-        df = df.rename(columns={
-            'open': 'Open',
-            'max': 'High',
-            'min': 'Low',
-            'close': 'Close',
-            'Trading_Volume': 'Volume'
-        })
-        
-        # 轉換型別
-        cols = ['Open', 'High', 'Low', 'Close', 'Volume']
-        df = df[cols].astype(float)
-        
-        return df
-    except Exception as e:
-        print(f"❌ FinMind Download Error: {e}")
-        return pd.DataFrame()
+            print(f"🔄 嘗試從 FinMind 抓取 {stock_id} ...")
+            dl = DataLoader()
+            if start_date is None:
+                start_date = '2016-01-01'
+
+            df = dl.taiwan_stock_daily(stock_id=stock_id, start_date=start_date)
+
+            if df.empty:
+                return pd.DataFrame()
+
+            # 標準化欄位
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.set_index('date')
+            df = df.rename(columns={
+                'open': 'Open',
+                'max': 'High',
+                'min': 'Low',
+                'close': 'Close',
+                'Trading_Volume': 'Volume'
+            })
+
+            cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+            df = df[cols].astype(float)
+
+            return df
+        except Exception as e:
+            # Rate limit (429) or network error — retry
+            err_str = str(e)
+            if '429' in err_str or 'rate' in err_str.lower():
+                if attempt < max_retries - 1:
+                    continue
+            print(f"❌ FinMind Download Error: {e}")
+            if attempt == max_retries - 1:
+                return pd.DataFrame()
+    return pd.DataFrame()
 
 def load_and_resample(source, force_update=False):
     """

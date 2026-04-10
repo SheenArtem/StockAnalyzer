@@ -6,6 +6,18 @@ from scipy.signal import argrelextrema
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# === 可調參數 (Tunable Constants) ===
+DEFAULT_BUY_THRESHOLD = 3       # 觸發分數買進門檻
+DEFAULT_SELL_THRESHOLD = -2     # 觸發分數賣出門檻
+CHIP_SCORE_CAP = 1.0            # 籌碼分數上下限 (±)
+TREND_SCORE_RANGE = (-5, 5)     # 趨勢分數範圍
+TRIGGER_SCORE_RANGE = (-10, 10) # 觸發分數範圍
+GROUP_SCALE_FACTOR = 3.33       # 3 組 median → [-10,+10] 的縮放因子
+MORPHOLOGY_CAP = 2              # 形態學分數上限 (±)
+EFI_DEADZONE_RATIO = 0.3       # EFI 死區 = std × 此比例
+CALIBRATION_MEAN = 0.07         # 校準分佈 mean (196K 樣本)
+CALIBRATION_STD = 4.32          # 校準分佈 std
+
 class TechnicalAnalyzer:
     def __init__(self, ticker, df_week, df_day, strategy_params=None, chip_data=None, us_chip_data=None):
         self.ticker = ticker
@@ -62,8 +74,8 @@ class TechnicalAnalyzer:
 
         # 3.5 Strategy Optimizer Override (覆蓋劇本，確保劇本卡與策略建議一致)
         if self.strategy_params:
-            buy_th = self.strategy_params.get('buy', 3)
-            sell_th = self.strategy_params.get('sell', -2)
+            buy_th = self.strategy_params.get('buy', DEFAULT_BUY_THRESHOLD)
+            sell_th = self.strategy_params.get('sell', DEFAULT_SELL_THRESHOLD)
             if trigger_score >= buy_th:
                 scenario = {
                     "code": "A",
@@ -92,7 +104,7 @@ class TechnicalAnalyzer:
 
         # 7. 評分百分位 (基於校準分佈 196K 樣本: mean=0.07, std=4.32)
         from scipy.stats import norm
-        score_percentile = round(norm.cdf(trigger_score, loc=0.07, scale=4.32) * 100, 1)
+        score_percentile = round(norm.cdf(trigger_score, loc=CALIBRATION_MEAN, scale=CALIBRATION_STD) * 100, 1)
 
         return {
             "ticker": self.ticker,
@@ -286,7 +298,7 @@ class TechnicalAnalyzer:
         if optimizer == 'buy':
             optimizer_active = True
             is_actionable = True
-            buy_th = self.strategy_params.get('buy', 3) if self.strategy_params else 3
+            buy_th = self.strategy_params.get('buy', DEFAULT_BUY_THRESHOLD) if self.strategy_params else DEFAULT_BUY_THRESHOLD
             strategy_text = f"🔥 **AI 最佳化訊號 (買進)**：評分 ({trigger_score:.1f}) 已達買進門檻 ({buy_th})，建議進場。"
             rec_entry_low, rec_entry_high = close_price * 0.99, close_price * 1.01
             rec_entry_desc = "現價進場 (AI 訊號)"
@@ -294,7 +306,7 @@ class TechnicalAnalyzer:
         elif optimizer == 'sell':
             optimizer_active = True
             is_actionable = False
-            sell_th = self.strategy_params.get('sell', -2) if self.strategy_params else -2
+            sell_th = self.strategy_params.get('sell', DEFAULT_SELL_THRESHOLD) if self.strategy_params else DEFAULT_SELL_THRESHOLD
             strategy_text = f"🛑 **AI 最佳化訊號 (賣出)**：評分 ({trigger_score:.1f}) 已達賣出門檻 ({sell_th})，建議出場觀望。"
 
         # Determine Scenario Intent (Only if not overridden by optimizer)
@@ -664,7 +676,7 @@ class TechnicalAnalyzer:
         # 死區: EFI 接近零時不計分，用近20週 EFI 標準差作門檻
         try:
             efi_series = df['EFI_EMA13'].dropna().iloc[-20:]
-            efi_threshold = efi_series.std() * 0.3 if len(efi_series) >= 10 else 0
+            efi_threshold = efi_series.std() * EFI_DEADZONE_RATIO if len(efi_series) >= 10 else 0
         except (KeyError, IndexError):
             efi_threshold = 0
         if efi_week > efi_threshold:
@@ -679,7 +691,7 @@ class TechnicalAnalyzer:
         # 5. 形態度 (W底/M頭) - 週線級別，cap ±2 避免單一形態主導
         try:
              morph_score, morph_msgs = self._detect_morphology(df)
-             morph_score = max(-2, min(2, morph_score))  # cap 形態分數
+             morph_score = max(-MORPHOLOGY_CAP, min(MORPHOLOGY_CAP, morph_score))
              score += morph_score
              if morph_score != 0:
                  # 修改訊息以標示這是週線
@@ -694,7 +706,7 @@ class TechnicalAnalyzer:
         details.extend(pv_msgs)
 
         # Clamp to valid range
-        score = max(-5, min(5, score))
+        score = max(TREND_SCORE_RANGE[0], min(TREND_SCORE_RANGE[1], score))
 
         return score, details
 
@@ -1100,21 +1112,21 @@ class TechnicalAnalyzer:
         # 精簡後 3 個有效組: Trend + Momentum + Volume (等權)
         # IC 加權測試失敗 (Volume 組只有 RVOL 一個信號，加權過度集中)
         # 3 groups × median in [-1,+1] → sum in [-3,+3] → ×3.33 → [-10,+10]
-        score = (trend_median + momentum_median + volume_median) * 3.33
+        score = (trend_median + momentum_median + volume_median) * GROUP_SCALE_FACTOR
 
         # ============================================================
         # CHIP FACTORS (additive, separate from groups)
         # ============================================================
         chip_score, chip_details = self._analyze_chip_factors(df, trend_score=trend_score)
-        # Cap 籌碼分數至 [-1.0, +1.0]，避免低 IC 信號稀釋技術面
-        chip_score = max(-1.0, min(1.0, chip_score))
+        # Cap 籌碼分數，避免低 IC 信號稀釋技術面
+        chip_score = max(-CHIP_SCORE_CAP, min(CHIP_SCORE_CAP, chip_score))
         score += chip_score
         details.extend(chip_details)
 
         # (矛盾獎勵已移除 — 籌碼 IC=0.006 < 技術面，不應在矛盾時信任籌碼)
 
         # Clamp score to valid range
-        score = max(-10, min(10, score))
+        score = max(TRIGGER_SCORE_RANGE[0], min(TRIGGER_SCORE_RANGE[1], score))
 
         breakdown = {
             'trend_group': trend_median,
