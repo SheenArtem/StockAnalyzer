@@ -56,8 +56,8 @@ class TechnicalAnalyzer:
         """
         trend_score, trend_details = self._calculate_trend_score(self.df_week)
         # 傳入趨勢分數以啟用籌碼動態權重
-        trigger_score, trigger_details = self._calculate_trigger_score(self.df_day, trend_score=trend_score)
-        
+        trigger_score, trigger_details, trigger_breakdown = self._calculate_trigger_score(self.df_day, trend_score=trend_score)
+
         scenario = self._determine_scenario(trend_score, trigger_details)
 
         # 3.5 Strategy Optimizer Override (覆蓋劇本，確保劇本卡與策略建議一致)
@@ -93,6 +93,7 @@ class TechnicalAnalyzer:
             "trend_details": trend_details,
             "trigger_score": trigger_score,
             "trigger_details": trigger_details,
+            "trigger_breakdown": trigger_breakdown,
             "scenario": scenario,
             "action_plan": action_plan,
             "checklist": checklist
@@ -466,7 +467,7 @@ class TechnicalAnalyzer:
         """
         計算週線趨勢分數 (Trend Score)
         範圍: -5 ~ +5 (clamp)
-        因子: MA架構(±2), DMI(±1), OBV(0~+1), EFI(±1), 形態學(±5), 量價(±1)
+        因子: MA架構(±2), DMI(±1), OBV(±1), EFI(±1,含死區), 形態學(±2,cap), 量價(±1)
         """
         score = 0
         details = []
@@ -509,30 +510,39 @@ class TechnicalAnalyzer:
         else:
             details.append(f"⚠️ DMI 趨勢不明 (ADX={adx:.1f} < 25) (0)")
 
-        # 3. OBV 能量潮 (比較近5週趨勢)
-        # 簡單邏輯: 現在 OBV > 5週前 OBV
+        # 3. OBV 能量潮 (比較近5週趨勢) — 對稱化 ±1
         try:
             obv_5w_ago = df['OBV'].iloc[-5]
             if self._safe_get(current, 'OBV', 0) > obv_5w_ago:
                 score += 1
                 details.append("✅ OBV 能量潮近 5 週上升 (+1)")
             else:
-                details.append("🔻 OBV 能量潮下降 (0)")
+                score -= 1
+                details.append("🔻 OBV 能量潮近 5 週下降 (-1)")
         except (KeyError, IndexError) as e:
             logger.debug(f"OBV calculation skipped: {e}")
             
-        # 4. EFI 強力指標 (每週資金流向)
+        # 4. EFI 強力指標 (每週資金流向) — 加死區避免零附近震盪噪音
         efi_week = self._safe_get(current, 'EFI_EMA13', 0)
-        if efi_week > 0:
+        # 死區: EFI 接近零時不計分，用近20週 EFI 標準差作門檻
+        try:
+            efi_series = df['EFI_EMA13'].dropna().iloc[-20:]
+            efi_threshold = efi_series.std() * 0.3 if len(efi_series) >= 10 else 0
+        except (KeyError, IndexError):
+            efi_threshold = 0
+        if efi_week > efi_threshold:
              score += 1
              details.append(f"✅ 週線 EFI 主力作多 (EFI={efi_week:,.0f}) (+1)")
-        else:
+        elif efi_week < -efi_threshold:
              score -= 1
              details.append(f"🔻 週線 EFI 主力調節 (EFI={efi_week:,.0f}) (-1)")
+        else:
+             details.append(f"⚠️ 週線 EFI 力道不明 (EFI={efi_week:,.0f}, 死區內) (0)")
 
-        # 5. 形態度 (W底/M頭) - 週線級別威力更大
+        # 5. 形態度 (W底/M頭) - 週線級別，cap ±2 避免單一形態主導
         try:
              morph_score, morph_msgs = self._detect_morphology(df)
+             morph_score = max(-2, min(2, morph_score))  # cap 形態分數
              score += morph_score
              if morph_score != 0:
                  # 修改訊息以標示這是週線
@@ -562,549 +572,395 @@ class TechnicalAnalyzer:
 
     def _analyze_chip_factors(self, df, trend_score=0):
         """
-        [UPGRADED] 籌碼面評分 (Chip Analysis) - 動態權重版
-        支援台股和美股籌碼分析
-        
-        動態權重邏輯:
-        - 多頭市場 (trend_score >= 3): 籌碼權重 × 1.5 (順勢加碼)
-        - 震盪市場 (-2 < trend_score < 3): 籌碼權重 × 1.0 (標準)
-        - 空頭市場 (trend_score <= -2): 籌碼權重 × 0.5 (減少籌碼影響，避免抄底)
+        籌碼面評分 (Chip Analysis) - 精簡版
+        只保留 IC 有效的子因子:
+        - 台股: 法人動向 (T+1, 最即時的主動交易信號)
+        - 美股: 內部人交易 + 空頭變化
+        移除: 融資水位(慢指標), 當沖佔比(極少觸發), 連續買賣超(與法人重疊),
+              機構持股比例(靜態), 分析師評等(幾乎永遠buy)
+        不使用動態權重乘數 (低 IC 信號不應放大)
         """
         score = 0
         details = []
-        
+
         # === 美股籌碼分析 ===
         if self._is_us_stock:
             return self._analyze_us_chip_factors(df, trend_score)
-        
+
         # === 台股籌碼分析 ===
         if not self.chip_data:
             return 0, []
 
-        # === 動態權重計算 ===
-        weight_multiplier = self._chip_weight_multiplier(trend_score)
-        weight_label = f"{'多頭加權' if weight_multiplier == 1.5 else '空頭減權' if weight_multiplier == 0.5 else '標準權重'}×{weight_multiplier}"
-
         try:
-            # 1. 法人動向 (Institutional)
-            # 檢查近 5 日外資+投信總買賣超
-            # 注意：台股取得的數據單位是「股」，需轉換為「張」(1張=1000股)
+            # 法人動向 (Institutional) — 唯一保留的台股籌碼計分因子
+            # 近 5 日外資+投信總買賣超，需過顯著性門檻
             df_inst = self.chip_data.get('institutional')
             if df_inst is not None and not df_inst.empty and not df.empty:
-                # Just take the last 5 rows available
                 recent_inst = df_inst.iloc[-5:]
-                
-                total_buy_shares = 0  # 單位：股
+
+                total_buy_shares = 0
                 foreign_buy = 0
                 trust_buy = 0
-                
+
                 if '外資' in recent_inst.columns:
                     foreign_buy = recent_inst['外資'].sum()
                     total_buy_shares += foreign_buy
                 if '投信' in recent_inst.columns:
                     trust_buy = recent_inst['投信'].sum()
                     total_buy_shares += trust_buy
-                
-                # 轉換為張數（台股：1000股=1張）
+
                 total_buy_lots = total_buy_shares / 1000
                 foreign_lots = foreign_buy / 1000
                 trust_lots = trust_buy / 1000
-                
-                # 動態門檻：根據股價和成交量調整
+
                 current_price = df.iloc[-1]['Close']
-                
-                # 方法1: 按資金金額（考慮股價高低）
                 buy_amount_million = (abs(total_buy_lots) * current_price * 1000) / 1_000_000
-                
-                # 方法2: 按成交量比例（考慮個股流動性）
                 recent_volume = df.iloc[-5:]['Volume'].mean() / 1000
                 volume_ratio = abs(total_buy_lots) / recent_volume if recent_volume > 0 else 0
-                
-                # 綜合判斷門檻
                 is_significant = (buy_amount_million > 50) or (volume_ratio > 0.15)
-                
-                # === 計算基礎分數 ===
+
                 base_score = 0
-                
                 if total_buy_lots > 0 and is_significant:
-                    # 基礎分 +1，若外資投信同方向再加 0.5
                     base_score = 1.0
                     if foreign_lots > 0 and trust_lots > 0:
-                        base_score += 0.5  # 外資+投信同步買超
-                        
+                        base_score += 0.5
                 elif total_buy_lots < 0 and is_significant:
                     base_score = -1.0
                     if foreign_lots < 0 and trust_lots < 0:
-                        base_score -= 0.5  # 外資+投信同步賣超
-                
-                # === 套用動態權重 ===
-                weighted_score = base_score * weight_multiplier
-                score += weighted_score
-                
-                # 輸出詳細訊息
+                        base_score -= 0.5
+
+                score += base_score
+
                 if base_score != 0:
                     direction = "買超" if total_buy_lots > 0 else "賣超"
                     sync_note = ""
                     if (foreign_lots > 0 and trust_lots > 0) or (foreign_lots < 0 and trust_lots < 0):
                         sync_note = " [外資+投信同步]"
-                    
                     emoji = "💰" if total_buy_lots > 0 else "💸"
                     details.append(
                         f"{emoji} 法人近5日{direction} ({total_buy_lots:,.0f}張, {buy_amount_million:.0f}百萬){sync_note} "
-                        f"({weight_label}: {weighted_score:+.1f})"
+                        f"({base_score:+.1f})"
                     )
 
-            # 2. 融資水位 (Margin) - 套用動態權重
+            # 融資/當沖/連續買賣超 — 僅顯示資訊，不計分
             df_margin = self.chip_data.get('margin')
             if df_margin is not None and not df_margin.empty:
                last_m = df_margin.iloc[-1]
                lim = last_m.get('融資限額', 0)
                bal = last_m.get('融資餘額', 0)
-               
                if lim > 0:
                    util = (bal / lim) * 100
                    if util > 60:
-                       # 融資過熱在空頭市場更危險，權重反向
-                       margin_weight = 1.5 if trend_score <= -2 else 1.0
-                       margin_score = -1 * margin_weight
-                       score += margin_score
-                       details.append(f"⚠️ 融資使用率過熱 ({util:.1f}%) ({margin_score:+.1f})")
-                   elif util < 20 and trend_score >= 1:
-                       # 融資水位低 + 多頭趨勢 = 上漲潛力大
-                       score += 0.5 * weight_multiplier
-                       details.append(f"✨ 融資水位偏低 ({util:.1f}%)，上漲空間大 (+{0.5*weight_multiplier:.1f})")
-            
-            # 3. 當沖佔比 (Day Trading)
-            df_dt = self.chip_data.get('day_trading')
-            if df_dt is not None and not df_dt.empty and not df.empty:
-                last_date = df.index[-1]
-                if last_date in df_dt.index:
-                    dt_row = df_dt.loc[last_date]
-                    if isinstance(dt_row, pd.Series): 
-                        dt_vol = dt_row.get('DayTradingVolume', 0)
-                    else: 
-                        dt_vol = dt_row['DayTradingVolume'].iloc[0]
-
-                    total_vol = df.iloc[-1]['Volume']
-                    if total_vol > 0:
-                        dt_rate = (dt_vol / total_vol) * 100
-                        if dt_rate > 50:
-                            dt_score = -0.5 * weight_multiplier
-                            score += dt_score
-                            details.append(f"🎰 當沖率過高籌碼混亂 ({dt_rate:.1f}%) ({dt_score:+.1f})")
-                        elif dt_rate < 15 and trend_score >= 2:
-                            # 低當沖 + 多頭 = 籌碼穩定
-                            score += 0.3 * weight_multiplier
-                            details.append(f"🔒 當沖率偏低籌碼穩定 ({dt_rate:.1f}%) (+{0.3*weight_multiplier:.1f})")
-
-            # 4. [NEW] 連續買賣超天數分析
-            if df_inst is not None and not df_inst.empty:
-                # 計算連續買超/賣超天數
-                recent_10 = df_inst.iloc[-10:]
-                if '外資' in recent_10.columns:
-                    foreign_series = recent_10['外資']
-                    consecutive_buy = 0
-                    consecutive_sell = 0
-                    
-                    for val in foreign_series.iloc[::-1]:  # 從最近往前數
-                        if val > 0:
-                            consecutive_buy += 1
-                            if consecutive_sell > 0: break
-                        elif val < 0:
-                            consecutive_sell += 1
-                            if consecutive_buy > 0: break
-                        else:
-                            break
-                    
-                    if consecutive_buy >= 5:
-                        streak_score = 0.5 * weight_multiplier
-                        score += streak_score
-                        details.append(f"🔥 外資連續 {consecutive_buy} 日買超 (+{streak_score:.1f})")
-                    elif consecutive_sell >= 5:
-                        streak_score = -0.5 * weight_multiplier
-                        score += streak_score
-                        details.append(f"❄️ 外資連續 {consecutive_sell} 日賣超 ({streak_score:.1f})")
+                       details.append(f"⚠️ 融資使用率偏高 ({util:.1f}%) [資訊]")
+                   elif util < 20:
+                       details.append(f"✨ 融資水位偏低 ({util:.1f}%) [資訊]")
 
         except Exception as e:
             logger.warning(f"Chip scoring error: {e}")
-            
+
         return score, details
 
     def _analyze_us_chip_factors(self, df, trend_score=0):
         """
-        [NEW] 美股籌碼面評分 (US Stock Chip Analysis)
-        
-        分析項目:
-        1. 機構持股比例與變化
-        2. 空頭持倉 (Short Interest)
-        3. 內部人交易
-        4. 分析師評等
+        美股籌碼面評分 (US Stock Chip Analysis) - 精簡版
+        只保留 IC 有效因子:
+        - 內部人交易 (學術驗證最強的籌碼信號)
+        - 空頭變化 (動態指標)
+        移除: 機構持股比例(靜態,幾乎永遠>60%), 分析師評等(幾乎永遠buy)
         """
         score = 0
         details = []
-        
+
         if not self.us_chip_data:
-            # 嘗試動態載入美股籌碼數據
             try:
                 from us_stock_chip import USStockChipAnalyzer
                 us_analyzer = USStockChipAnalyzer()
                 self.us_chip_data, err = us_analyzer.get_chip_data(self.ticker)
-                
+
                 if err or not self.us_chip_data:
                     details.append(f"ℹ️ 美股籌碼數據暫無法取得")
                     return 0, details
             except Exception as e:
                 logger.warning(f"US Chip load error: {e}")
                 return 0, []
-        
-        # === 動態權重計算 ===
-        weight_multiplier = self._chip_weight_multiplier(trend_score)
-        weight_label = f"{'多頭加權' if weight_multiplier == 1.5 else '空頭減權' if weight_multiplier == 0.5 else '標準權重'}×{weight_multiplier}"
 
         try:
-            # 1. 機構持股分析
-            inst = self.us_chip_data.get('institutional', {})
-            inst_pct = inst.get('percent_held', 0)
-            inst_change = inst.get('change_vs_prior', 0)
-            
-            if inst_pct > 80:
-                base_score = 1.5
-                score += base_score * weight_multiplier
-                details.append(f"✅ 機構持股比例極高 ({inst_pct:.1f}%) ({weight_label}: +{base_score * weight_multiplier:.1f})")
-            elif inst_pct > 60:
-                base_score = 1.0
-                score += base_score * weight_multiplier
-                details.append(f"✅ 機構持股比例高 ({inst_pct:.1f}%) ({weight_label}: +{base_score * weight_multiplier:.1f})")
-            elif inst_pct < 20:
-                base_score = -0.5
-                score += base_score * weight_multiplier
-                details.append(f"⚠️ 機構持股比例偏低 ({inst_pct:.1f}%) ({weight_label}: {base_score * weight_multiplier:.1f})")
-            
-            # 機構增減持
-            if inst_change > 5:
-                base_score = 1.0
-                score += base_score * weight_multiplier
-                details.append(f"💰 機構近期增持 ({inst_change:+.1f}%) ({weight_label}: +{base_score * weight_multiplier:.1f})")
-            elif inst_change < -5:
-                base_score = -1.0
-                score += base_score * weight_multiplier
-                details.append(f"💸 機構近期減持 ({inst_change:+.1f}%) ({weight_label}: {base_score * weight_multiplier:.1f})")
-            
-            # 2. 空頭持倉分析
-            short = self.us_chip_data.get('short_interest', {})
-            short_pct = short.get('short_percent_of_float', 0)
-            short_ratio = short.get('short_ratio', 0)
-            short_change = short.get('short_change_pct', 0)
-            
-            # 高空頭比例可能有軋空潛力 (在多頭市場更有意義)
-            if short_pct > 20 and trend_score >= 2:
-                score += 1.0 * weight_multiplier
-                details.append(f"🔥 空頭比例極高 ({short_pct:.1f}%)，軋空潛力大 (+{1.0 * weight_multiplier:.1f})")
-            elif short_pct > 10:
-                details.append(f"⚠️ 空頭比例偏高 ({short_pct:.1f}%) (Info)")
-            
-            # 空頭回補天數
-            if short_ratio > 5 and trend_score >= 1:
-                score += 0.5 * weight_multiplier
-                details.append(f"🔥 空頭回補天數高 ({short_ratio:.1f}天) (+{0.5 * weight_multiplier:.1f})")
-            
-            # 空頭變化
-            if short_change < -20:
-                score += 0.5 * weight_multiplier
-                details.append(f"✅ 空頭大幅回補 ({short_change:+.1f}%) (+{0.5 * weight_multiplier:.1f})")
-            elif short_change > 20:
-                score -= 0.5 * weight_multiplier
-                details.append(f"⚠️ 空頭大幅增加 ({short_change:+.1f}%) (-{0.5 * weight_multiplier:.1f})")
-            
-            # 3. 內部人交易分析
+            # 1. 內部人交易 — 計分因子
             insider = self.us_chip_data.get('insider_trades', {})
             sentiment = insider.get('sentiment', 'neutral')
             buy_count = insider.get('buy_count', 0)
             sell_count = insider.get('sell_count', 0)
-            
+
             if sentiment == 'bullish' and buy_count > 3:
-                base_score = 1.5
-                score += base_score * weight_multiplier
-                details.append(f"💎 內部人積極買入 (買{buy_count}/賣{sell_count}) ({weight_label}: +{base_score * weight_multiplier:.1f})")
+                score += 1.5
+                details.append(f"💎 內部人積極買入 (買{buy_count}/賣{sell_count}) (+1.5)")
             elif sentiment == 'bullish':
-                base_score = 0.5
-                score += base_score * weight_multiplier
-                details.append(f"✅ 內部人偏向買入 (買{buy_count}/賣{sell_count}) (+{base_score * weight_multiplier:.1f})")
+                score += 0.5
+                details.append(f"✅ 內部人偏向買入 (買{buy_count}/賣{sell_count}) (+0.5)")
             elif sentiment == 'bearish' and sell_count > 5:
-                base_score = -1.5
-                score += base_score * weight_multiplier
-                details.append(f"💀 內部人大量拋售 (買{buy_count}/賣{sell_count}) ({weight_label}: {base_score * weight_multiplier:.1f})")
+                score -= 1.5
+                details.append(f"💀 內部人大量拋售 (買{buy_count}/賣{sell_count}) (-1.5)")
             elif sentiment == 'bearish':
-                base_score = -0.5
-                score += base_score * weight_multiplier
-                details.append(f"⚠️ 內部人偏向賣出 (買{buy_count}/賣{sell_count}) ({base_score * weight_multiplier:.1f})")
-            
-            # 4. 分析師評等分析
-            recs = self.us_chip_data.get('recommendations', {})
-            rec_key = recs.get('recommendation', 'N/A')
-            upside = recs.get('upside', 0)
-            
-            if rec_key in ['strong_buy', 'buy'] and upside > 20:
-                score += 1.0 * weight_multiplier
-                details.append(f"📈 分析師看好 ({rec_key})，上漲空間 {upside:.1f}% (+{1.0 * weight_multiplier:.1f})")
-            elif rec_key in ['sell', 'strong_sell']:
-                score -= 1.0 * weight_multiplier
-                details.append(f"📉 分析師看空 ({rec_key})，上漲空間 {upside:.1f}% (-{1.0 * weight_multiplier:.1f})")
-            elif upside > 30:
-                score += 0.5 * weight_multiplier
-                details.append(f"📊 目標價上漲空間大 ({upside:.1f}%) (+{0.5 * weight_multiplier:.1f})")
-            elif upside < -10:
-                score -= 0.5 * weight_multiplier
-                details.append(f"📊 目標價下跌空間 ({upside:.1f}%) (-{0.5 * weight_multiplier:.1f})")
-        
+                score -= 0.5
+                details.append(f"⚠️ 內部人偏向賣出 (買{buy_count}/賣{sell_count}) (-0.5)")
+
+            # 2. 空頭變化 — 計分因子 (只看變化量，不看靜態水位)
+            short = self.us_chip_data.get('short_interest', {})
+            short_change = short.get('short_change_pct', 0)
+            short_pct = short.get('short_percent_of_float', 0)
+
+            if short_change < -20:
+                score += 0.5
+                details.append(f"✅ 空頭大幅回補 ({short_change:+.1f}%) (+0.5)")
+            elif short_change > 20:
+                score -= 0.5
+                details.append(f"⚠️ 空頭大幅增加 ({short_change:+.1f}%) (-0.5)")
+
+            # 空頭比例 — 僅資訊顯示，不計分
+            if short_pct > 10:
+                details.append(f"⚠️ 空頭比例偏高 ({short_pct:.1f}%) [資訊]")
+
+            # 機構持股/分析師 — 僅資訊顯示，不計分
+            inst = self.us_chip_data.get('institutional', {})
+            inst_pct = inst.get('percent_held', 0)
+            if inst_pct > 0:
+                details.append(f"📊 機構持股 {inst_pct:.1f}% [資訊]")
+
         except Exception as e:
             logger.warning(f"US Chip scoring error: {e}")
-        
+
         return score, details
 
     def _calculate_trigger_score(self, df, trend_score=0):
         """
         計算日線進場訊號 (Trigger Score) -10 ~ +10
+        使用四群組中位數架構：Trend / Momentum / Volume / Pattern
+        各群組內信號正規化至 [-1, +1]，取中位數後加總乘以 2.5 映射至 [-10, +10]
+        籌碼面為獨立加項（不參與中位數計算）。
 
         Args:
             df: 日線 DataFrame
             trend_score: 週線趨勢分數，用於籌碼動態權重計算
+        Returns:
+            (score, details, breakdown) — breakdown dict 含各群組中位數與籌碼分數
         """
-        score = 0
         details = []
 
         if df.empty or len(df) < 20:
-            return 0, ["數據不足"]
+            return 0, ["數據不足"], {'trend_group': 0, 'momentum_group': 0, 'volume_group': 0, 'pattern_group': 0, 'chip_score': 0}
 
         current = df.iloc[-1]
         prev = df.iloc[-2]
-
-        # 1. 均線位置 (MA Position)
         close = self._safe_get(current, 'Close', 0)
+
+        def _median_of_signals(signals):
+            """Take median of non-None signals."""
+            valid = [s for s in signals if s is not None]
+            return float(np.median(valid)) if valid else 0.0
+
+        # ============================================================
+        # TREND GROUP (4 signals, each normalized to [-1, +1])
+        # ============================================================
+        trend_signals = []
+
+        # T1. 均線位置 (MA Position): close > MA20 → +1, else -1
         ma20 = self._safe_get(current, 'MA20', 0)
         if close > ma20:
-            score += 1
+            t1 = 1.0
             details.append("✅ 站上日線 20MA (+1)")
         else:
-            score -= 1
+            t1 = -1.0
             details.append("🔻 跌破日線 20MA (-1)")
+        trend_signals.append(t1 / 1.0)
 
-        # 2. 乖離率 (BIAS)
-        # 假設: 正乖離 > 10% 過熱, 負乖離 < -10% 超賣
-        bias = self._safe_get(current, 'BIAS', 0)
-        if 0 < bias < 10:
-            score += 1
-            details.append(f"✅ 乖離率健康 ({bias:.1f}%) (+1)")
-        elif bias > 10:
-            score -= 1
-            details.append(f"⚠️ 正乖離過大 ({bias:.1f}%) 慎防回檔 (-1)")
-        elif bias < -10:
-            score += 1
-            details.append(f"🟢 負乖離過大 ({bias:.1f}%) 醞釀反彈 (+1)")
-        
-        # 3. EFI 埃爾德強力指標 (主力力度)
-        efi_day = self._safe_get(current, 'EFI_EMA13', 0)
-        if efi_day > 0:
-             score += 1
-             details.append(f"✅ EFI 主力資金控盤 (EFI>0) (+1)")
-             # 輔助：力道增強中
-             if efi_day > self._safe_get(prev, 'EFI_EMA13', 0):
-                 score += 0.5
-                 details.append("🔥 EFI 買盤力道增強 (+0.5)")
+        # T2. Supertrend: dir=1 → +1, dir=-1 → -1, flip bonus +/-1 → normalize /2
+        st_dir = self._safe_get(current, 'Supertrend_Dir', 0)
+        prev_st_dir = self._safe_get(prev, 'Supertrend_Dir', 0)
+        t2_raw = 0.0
+        if st_dir == 1:
+            t2_raw += 1
+            details.append("📈 Supertrend 多頭趨勢 (+1)")
+            if prev_st_dir == -1:
+                t2_raw += 1
+                details.append("🔄 Supertrend 空轉多翻轉！(+1)")
+        elif st_dir == -1:
+            t2_raw -= 1
+            details.append("📉 Supertrend 空頭趨勢 (-1)")
+            if prev_st_dir == 1:
+                t2_raw -= 1
+                details.append("🔄 Supertrend 多轉空翻轉！(-1)")
+        trend_signals.append(t2_raw / 2.0)
+
+        # T3. (VWAP removed — 橫截面 IC 無顯著貢獻，已移除)
+
+        # T4. DMI: ADX_z > 1.0 (or ADX > 25 fallback) + DI direction
+        adx = self._safe_get(current, 'ADX', 0)
+        adx_z = self._safe_get(current, 'ADX_z', None)
+        plus_di = self._safe_get(current, '+DI', 0)
+        minus_di = self._safe_get(current, '-DI', 0)
+        t4_raw = None  # None = no signal (ADX too low)
+
+        # Determine if trend is strong enough
+        adx_strong = False
+        if adx_z is not None and not pd.isna(adx_z):
+            adx_strong = adx_z > 1.0
         else:
-             score -= 1
-             details.append(f"🔻 EFI 空方資金控盤 (EFI<0) (-1)")
+            adx_strong = adx > 25
 
-        # 4. MACD 動能與背離
+        if adx_strong:
+            if plus_di > minus_di:
+                t4_raw = 1.0
+                details.append(f"✅ 日線 DMI 多方攻擊 (ADX={adx:.1f}) (+1)")
+            else:
+                t4_raw = -1.0
+                details.append(f"🔻 日線 DMI 空方下殺 (ADX={adx:.1f}) (-1)")
+        trend_signals.append(t4_raw / 1.0 if t4_raw is not None else None)
+
+        # ============================================================
+        # MOMENTUM GROUP (4 signals, each normalized to [-1, +1])
+        # ============================================================
+        momentum_signals = []
+
+        # M1. MACD + divergence: histogram + divergence bonus → range ~[-4.5, +4.5] → /4.5
         hist = self._safe_get(current, 'Hist', 0)
         prev_hist = self._safe_get(prev, 'Hist', 0)
+        m1_raw = 0.0
         if hist > 0:
-            score += 1
+            m1_raw += 1
             details.append("✅ MACD 柱狀體翻紅 (+1)")
             if hist > prev_hist:
-                score += 0.5
+                m1_raw += 0.5
                 details.append("🔥 MACD 動能持續增強 (+0.5)")
         else:
-            score -= 1
+            m1_raw -= 1
             details.append("🔻 MACD 柱狀體翻綠 (-1)")
-            
+
         # MACD 背離偵測 [UPGRADED - Pivot Points 標準檢測]
         div_macd = self._detect_divergence(df, 'MACD')
         if div_macd == 'bull_strong':
-            score += 3
+            m1_raw += 3
             details.append("💎💎 MACD 出現【強烈底背離】訊號 (高勝率反轉) (+3)")
         elif div_macd == 'bull':
-            score += 2
+            m1_raw += 2
             details.append("💎 MACD 出現【底背離】訊號 (+2)")
         elif div_macd == 'bull_weak':
-            score += 1
+            m1_raw += 1
             details.append("📈 MACD 出現【隱藏底背離】(多頭趨勢延續) (+1)")
         elif div_macd == 'bear_strong':
-            score -= 3
+            m1_raw -= 3
             details.append("💀💀 MACD 出現【強烈頂背離】訊號 (高風險反轉) (-3)")
         elif div_macd == 'bear':
-            score -= 2
+            m1_raw -= 2
             details.append("💀 MACD 出現【頂背離】訊號 (-2)")
         elif div_macd == 'bear_weak':
-            score -= 1
+            m1_raw -= 1
             details.append("📉 MACD 出現【隱藏頂背離】(空頭趨勢延續) (-1)")
+        momentum_signals.append(max(-1.0, min(1.0, m1_raw / 4.5)))
 
-        # 5. KD指標
+        # M2. KD: K>D → +1, else -1 → /1
         k_val = self._safe_get(current, 'K', 0)
         d_val = self._safe_get(current, 'D', 0)
         if k_val > d_val:
-            score += 1
+            m2_raw = 1.0
             details.append("✅ KD 黃金交叉/多方排列 (+1)")
         else:
-            score -= 1
+            m2_raw = -1.0
             details.append("🔻 KD 死亡交叉/空方排列 (-1)")
+        momentum_signals.append(m2_raw / 1.0)
 
-        # 6. OBV 籌碼與背離
-        # 日線 OBV 趨勢 (簡單看近3日)
-        if len(df) >= 3 and self._safe_get(current, 'OBV', 0) > df['OBV'].iloc[-3]:
-            score += 1
-            details.append("✅ 短線 OBV 資金進駐 (+1)")
-            
-        # OBV 背離偵測 [UPGRADED - Pivot Points 標準檢測]
-        div_obv = self._detect_divergence(df, 'OBV')
-        if div_obv == 'bull_strong':
-            score += 3
-            details.append("💎💎 OBV 出現【強烈量價底背離】(主力大舉吃貨) (+3)")
-        elif div_obv == 'bull':
-            score += 2
-            details.append("💎 OBV 出現【量價底背離】(主力吃貨) (+2)")
-        elif div_obv == 'bull_weak':
-            score += 1
-            details.append("📈 OBV 出現【隱藏量價背離】(資金持續進駐) (+1)")
-        elif div_obv == 'bear_strong':
-            score -= 3
-            details.append("💀💀 OBV 出現【強烈量價頂背離】(主力大舉出貨) (-3)")
-        elif div_obv == 'bear':
-            score -= 2
-            details.append("💀 OBV 出現【量價頂背離】(主力出貨) (-2)")
-        elif div_obv == 'bear_weak':
-            score -= 1
-            details.append("📉 OBV 出現【隱藏量價頂背離】(資金持續流出) (-1)")
-
-        # 6. DMI 短線趨勢
-        adx = self._safe_get(current, 'ADX', 0)
-        plus_di = self._safe_get(current, '+DI', 0)
-        minus_di = self._safe_get(current, '-DI', 0)
-        if adx > 25:
-             if plus_di > minus_di:
-                 score += 1
-                 details.append(f"✅ 日線 DMI 多方攻擊 (ADX={adx:.1f}) (+1)")
-             else:
-                 score -= 1
-                 details.append(f"🔻 日線 DMI 空方下殺 (ADX={adx:.1f}) (-1)")
-
-        # 7. RSI 背離 (輔助) [UPGRADED - Pivot Points 標準檢測]
+        # M3. RSI divergence: ±1.5 → /1.5
         div_rsi = self._detect_divergence(df, 'RSI')
+        m3_raw = 0.0
         if div_rsi in ['bull_strong', 'bull']:
-            score += 1.5 if div_rsi == 'bull_strong' else 1
-            details.append(f"✅ RSI 出現{'強烈' if div_rsi == 'bull_strong' else ''}底背離 (+{1.5 if div_rsi == 'bull_strong' else 1})")
+            m3_raw = 1.5 if div_rsi == 'bull_strong' else 1.0
+            details.append(f"✅ RSI 出現{'強烈' if div_rsi == 'bull_strong' else ''}底背離 (+{m3_raw})")
         elif div_rsi in ['bear_strong', 'bear']:
-            score -= 1.5 if div_rsi == 'bear_strong' else 1
-            details.append(f"🔻 RSI 出現{'強烈' if div_rsi == 'bear_strong' else ''}頂背離 (-{1.5 if div_rsi == 'bear_strong' else 1})")
+            m3_raw = -1.5 if div_rsi == 'bear_strong' else -1.0
+            details.append(f"🔻 RSI 出現{'強烈' if div_rsi == 'bear_strong' else ''}頂背離 ({m3_raw:+.1f})")
+        momentum_signals.append(m3_raw / 1.5 if m3_raw != 0 else None)
 
-        # 9. K線形態學 (K-Line Patterns)
-        kline_score, kline_msgs = self._detect_kline_patterns(df)
-        score += kline_score
-        details.extend(kline_msgs)
-        
-        # 10. 高階形態學 (W底/M頭) - 新增
-        try:
-             morph_score, morph_msgs = self._detect_morphology(df)
-             score += morph_score
-             details.extend(morph_msgs)
-        except Exception as e:
-             logger.debug(f"Daily morphology detection skipped: {e}")
+        # (Squeeze removed — 橫截面 IC 為負，已從 Momentum 組移除)
 
-        # 11. 量價關係 (Price-Volume)
-        pv_score, pv_msgs = self._analyze_price_volume(df)
-        score += pv_score
-        details.extend(pv_msgs)
+        # ============================================================
+        # VOLUME GROUP (精簡為 RVOL only — OBV/EFI/量價 IC≈0 或為負，已移除)
+        # ============================================================
+        volume_signals = []
 
-        # 12. 神奇九轉 (Magic Nine Turns)
-        td_buy = self._safe_get(current, 'TD_Buy_Setup', 0)
-        td_sell = self._safe_get(current, 'TD_Sell_Setup', 0)
-        
-        if td_buy == 9:
-             score += 2
-             details.append("9️⃣ 神奇九轉【買進訊號】(低檔鈍化轉折) (+2)")
-        elif td_buy == 8:
-             score += 0.5
-             details.append("8️⃣ 神奇九轉【買進前夕】(數到 8 了) (+0.5)")
-
-        if td_sell == 9:
-             score -= 2
-             details.append("9️⃣ 神奇九轉【賣出訊號】(高檔鈍化轉折) (-2)")
-        elif td_sell == 8:
-             score -= 0.5
-             details.append("8️⃣ 神奇九轉【賣出前夕】(數到 8 了) (-0.5)")
-
-        # 13. RVOL 相對成交量 (Relative Volume)
+        # V1. RVOL: 橫截面 IC 最強因子 (+0.013), use z-score if available
         rvol = self._safe_get(current, 'RVOL', 0)
-        if rvol > 2.0:
-            score += 1.5
-            details.append(f"🔊 爆量確認 RVOL={rvol:.1f}x (>2.0) (+1.5)")
-        elif rvol > 1.5:
-            score += 1
-            details.append(f"🔊 量能放大 RVOL={rvol:.1f}x (>1.5) (+1)")
-        elif rvol < 0.5:
-            score -= 0.5
-            details.append(f"🔇 量能萎縮 RVOL={rvol:.1f}x (<0.5) (-0.5)")
-
-        # 14. Supertrend 趨勢方向
-        st_dir = self._safe_get(current, 'Supertrend_Dir', 0)
-        prev_st_dir = self._safe_get(prev, 'Supertrend_Dir', 0)
-        if st_dir == 1:
-            score += 1
-            details.append("📈 Supertrend 多頭趨勢 (+1)")
-            if prev_st_dir == -1:
-                score += 1
-                details.append("🔄 Supertrend 空轉多翻轉！(+1)")
-        elif st_dir == -1:
-            score -= 1
-            details.append("📉 Supertrend 空頭趨勢 (-1)")
-            if prev_st_dir == 1:
-                score -= 1
-                details.append("🔄 Supertrend 多轉空翻轉！(-1)")
-
-        # 15. Squeeze Momentum (壓縮動量)
-        squeeze_on = self._safe_get(current, 'Squeeze_On', False)
-        squeeze_mom = self._safe_get(current, 'Squeeze_Mom', 0)
-        prev_squeeze_on = self._safe_get(prev, 'Squeeze_On', False)
-        if prev_squeeze_on and not squeeze_on:
-            # 剛從壓縮釋放 — 重要信號
-            if squeeze_mom > 0:
-                score += 1.5
-                details.append("💥 Squeeze 壓縮釋放 + 動量向上 (爆發訊號) (+1.5)")
+        rvol_z = self._safe_get(current, 'RVOL_z', None)
+        v3_raw = 0.0
+        if rvol_z is not None and not pd.isna(rvol_z):
+            # z-score based
+            if rvol_z > 1.5:
+                v3_raw = 1.0
+                details.append(f"🔊 爆量確認 RVOL={rvol:.1f}x (z={rvol_z:.1f}) (+1.0)")
+            elif rvol_z < -1.5:
+                v3_raw = -1.0
+                details.append(f"🔇 量能萎縮 RVOL={rvol:.1f}x (z={rvol_z:.1f}) (-1.0)")
             else:
-                score -= 1.5
-                details.append("💥 Squeeze 壓縮釋放 + 動量向下 (崩跌訊號) (-1.5)")
-        elif squeeze_on:
-            details.append("🔸 Squeeze 壓縮中 — 等待方向突破 (0)")
+                # Proportional in [-1, +1]
+                v3_raw = max(-1.0, min(1.0, rvol_z / 1.5))
+                if abs(v3_raw) > 0.3:
+                    details.append(f"📊 RVOL={rvol:.1f}x (z={rvol_z:.1f}) ({v3_raw:+.2f})")
+        else:
+            # Fallback to absolute thresholds
+            if rvol > 2.0:
+                v3_raw = 1.0
+                details.append(f"🔊 爆量確認 RVOL={rvol:.1f}x (>2.0) (+1.0)")
+            elif rvol > 1.5:
+                v3_raw = 0.67
+                details.append(f"🔊 量能放大 RVOL={rvol:.1f}x (>1.5) (+0.67)")
+            elif rvol < 0.5:
+                v3_raw = -0.33
+                details.append(f"🔇 量能萎縮 RVOL={rvol:.1f}x (<0.5) (-0.33)")
+        volume_signals.append(v3_raw)
 
-        # 16. VWAP 法人成本線
-        vwap = self._safe_get(current, 'VWAP', 0)
-        if vwap > 0 and close > 0:
-            if close > vwap * 1.02:
-                score += 0.5
-                details.append(f"✅ 站穩 VWAP 之上 ({vwap:.2f}) (+0.5)")
-            elif close < vwap * 0.98:
-                score -= 0.5
-                details.append(f"🔻 跌破 VWAP 之下 ({vwap:.2f}) (-0.5)")
+        # (V4 量價關係 removed — IC 無顯著貢獻)
 
-        # 17. [UPGRADED] 籌碼面修正 (Chip Factors) - 動態權重
-        c_score, c_details = self._analyze_chip_factors(df, trend_score=trend_score)
-        score += c_score
-        details.extend(c_details)
+        # ============================================================
+        # PATTERN GROUP — 已移至進場過濾器 (_generate_action_plan)
+        # 型態不預測漲跌 (IC=-0.004)，但能定義風險（停損位、進場點）
+        # ============================================================
+        pattern_signals = []  # 空組，不參與評分
+
+        # (BIAS removed — 橫截面 IC 為負，已從 Trend 組移除)
+
+        # ============================================================
+        # GROUP MEDIANS → FINAL SCORE
+        # ============================================================
+        trend_median = _median_of_signals(trend_signals)
+        momentum_median = _median_of_signals(momentum_signals)
+        volume_median = _median_of_signals(volume_signals)
+        pattern_median = _median_of_signals(pattern_signals)  # 空組 = 0
+
+        # 精簡後 3 個有效組: Trend + Momentum + Volume
+        # IC 加權: Trend(0.011) + Momentum(0.011) + Volume/RVOL(0.013) ≈ 等權
+        # 3 groups × median in [-1,+1] → sum in [-3,+3] → ×3.33 → [-10,+10]
+        score = (trend_median + momentum_median + volume_median) * 3.33
+
+        # ============================================================
+        # CHIP FACTORS (additive, separate from groups)
+        # ============================================================
+        chip_score, chip_details = self._analyze_chip_factors(df, trend_score=trend_score)
+        # Cap 籌碼分數至 [-1.0, +1.0]，避免低 IC 信號稀釋技術面
+        chip_score = max(-1.0, min(1.0, chip_score))
+        score += chip_score
+        details.extend(chip_details)
+
+        # (矛盾獎勵已移除 — 籌碼 IC=0.006 < 技術面，不應在矛盾時信任籌碼)
 
         # Clamp score to valid range
         score = max(-10, min(10, score))
 
-        return score, details
+        breakdown = {
+            'trend_group': trend_median,
+            'momentum_group': momentum_median,
+            'volume_group': volume_median,
+            'pattern_group': pattern_median,
+            'chip_score': chip_score,
+        }
+        return score, details, breakdown
 
     def _determine_scenario(self, trend_score, daily_details):
         """
