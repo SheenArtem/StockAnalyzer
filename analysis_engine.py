@@ -86,7 +86,10 @@ class TechnicalAnalyzer:
         
         # 5. [NEW] Dynamic Monitoring Checklist (Conditional Alerts)
         checklist = self._generate_monitoring_checklist(self.df_day, scenario)
-        
+
+        # 6. 基本面快照 (台股限定，不計分，資訊提示)
+        fundamental_alerts = self._fetch_fundamental_snapshot()
+
         return {
             "ticker": self.ticker,
             "trend_score": trend_score,
@@ -96,8 +99,68 @@ class TechnicalAnalyzer:
             "trigger_breakdown": trigger_breakdown,
             "scenario": scenario,
             "action_plan": action_plan,
-            "checklist": checklist
+            "checklist": checklist,
+            "fundamental_alerts": fundamental_alerts
         }
+
+    def _fetch_fundamental_snapshot(self):
+        """
+        基本面快照 — 台股限定，不計分，僅資訊提示
+        整合: 月營收 YoY 驚喜 + PE 本益比位置
+        """
+        alerts = []
+        if self._is_us_stock:
+            return alerts
+
+        ticker = self.ticker.replace('.TW', '').replace('.TWO', '').strip()
+        if not ticker.isdigit():
+            return alerts
+
+        # 1. 月營收驚喜偵測
+        try:
+            from dividend_revenue import RevenueTracker
+            rt = RevenueTracker()
+            surprise = rt.detect_revenue_surprise(ticker)
+            if surprise.get('is_surprise'):
+                direction = surprise['direction']
+                emoji = "🚀" if direction == 'positive' else "⚠️"
+                alerts.append(f"{emoji} {surprise['text']}")
+            else:
+                alerts.append(f"📊 {surprise['text']}")
+
+            # 營收趨勢
+            rev_alert = rt.get_revenue_alert(ticker)
+            trend = rev_alert.get('trend', '')
+            consec = rev_alert.get('consecutive_growth_months', 0)
+            if consec >= 3:
+                alerts.append(f"📈 營收連續 {consec} 個月成長")
+            elif consec <= -3:
+                alerts.append(f"📉 營收連續 {abs(consec)} 個月衰退")
+        except Exception as e:
+            logger.debug(f"Revenue snapshot skipped: {e}")
+
+        # 2. 本益比位置
+        try:
+            from fundamental_analysis import get_taiwan_stock_fundamentals
+            fund = get_taiwan_stock_fundamentals(ticker)
+            if fund:
+                pe_str = fund.get('PE Ratio', 'N/A')
+                pb_str = fund.get('PB Ratio', 'N/A')
+                dy = fund.get('Dividend Yield', 0)
+                if pe_str != 'N/A':
+                    pe = float(pe_str)
+                    if pe < 10:
+                        alerts.append(f"💰 本益比偏低 (PE={pe:.1f})，可能被低估")
+                    elif pe > 30:
+                        alerts.append(f"⚠️ 本益比偏高 (PE={pe:.1f})，評價偏貴")
+                    else:
+                        alerts.append(f"📊 本益比 PE={pe:.1f}, PB={pb_str}")
+                if dy and isinstance(dy, (int, float)) and dy > 3:
+                    alerts.append(f"💵 殖利率 {dy:.2f}% (高息股)")
+        except Exception as e:
+            logger.debug(f"PE snapshot skipped: {e}")
+
+        return alerts
 
     def _generate_monitoring_checklist(self, df, scenario):
         """
