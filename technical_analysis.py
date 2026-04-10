@@ -277,6 +277,15 @@ def calculate_all_indicators(df):
     # 簡化版：使用 Close 相對於 BB 中線的位置
     df['Squeeze_Mom'] = df['Close'] - (df['BB_Up'] + df['BB_Lo']) / 2
 
+    # Z-Score columns for scoring normalization (rolling 252-day)
+    _zscore_window = 252
+    for col, z_col in [('BIAS', 'BIAS_z'), ('ADX', 'ADX_z'), ('RVOL', 'RVOL_z'),
+                        ('EFI_EMA13', 'EFI_z'), ('Squeeze_Mom', 'Squeeze_Mom_z')]:
+        if col in df.columns:
+            rolling_mean = df[col].rolling(_zscore_window, min_periods=60).mean()
+            rolling_std = df[col].rolling(_zscore_window, min_periods=60).std()
+            df[z_col] = (df[col] - rolling_mean) / rolling_std.replace(0, np.nan)
+
     return df
 
 # ==========================================
