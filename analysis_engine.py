@@ -19,6 +19,7 @@ CALIBRATION_MEAN = 0.07         # 校準分佈 mean (196K 樣本)
 CALIBRATION_STD = 4.32          # 校準分佈 std
 MARKET_SENTIMENT_CAP = 0.8      # 市場情緒分數上下限 (±) — TAIFEX PCR + 期貨正逆價差
 REVENUE_CATALYST_CAP = 0.5      # 營收催化劑分數上下限 (±) — 營收驚喜 + 連續成長
+ETF_SIGNAL_CAP = 0.6            # ETF 同步買賣超分數上下限 (±) — 主動型 ETF 持倉變化
 
 class TechnicalAnalyzer:
     def __init__(self, ticker, df_week, df_day, strategy_params=None, chip_data=None, us_chip_data=None):
@@ -1003,6 +1004,55 @@ class TechnicalAnalyzer:
         score = max(-REVENUE_CATALYST_CAP, min(REVENUE_CATALYST_CAP, score))
         return score, details
 
+    def _analyze_etf_signal(self):
+        """
+        主動型 ETF 同步買賣超因子 — 台股限定
+        多檔主動型 ETF 同時增持 → 聰明錢訊號
+        Cap: +/- ETF_SIGNAL_CAP
+        """
+        score = 0.0
+        details = []
+
+        if self._is_us_stock:
+            return score, details
+
+        ticker = self.ticker.replace('.TW', '').replace('.TWO', '').strip()
+        if not ticker.isdigit():
+            return score, details
+
+        try:
+            from etf_signal import ETFSignal
+            etf = ETFSignal()
+            sig = etf.get_stock_signal(ticker, days=5)
+
+            if sig is None:
+                return score, details
+
+            buy_count = sig['buy_count']
+            sell_count = sig['sell_count']
+            net_lots = sig['net_lots']
+
+            if buy_count >= 3 and buy_count > sell_count:
+                score = 0.6
+                details.append(f"🏦 ETF 同步買超 {buy_count} 檔 (淨 {net_lots:+.0f} 張) (+0.6)")
+            elif buy_count >= 2 and buy_count > sell_count:
+                score = 0.3
+                details.append(f"🏦 ETF 買超 {buy_count} 檔 (淨 {net_lots:+.0f} 張) (+0.3)")
+            elif sell_count >= 3 and sell_count > buy_count:
+                score = -0.6
+                details.append(f"🏦 ETF 同步賣超 {sell_count} 檔 (淨 {net_lots:+.0f} 張) (-0.6)")
+            elif sell_count >= 2 and sell_count > buy_count:
+                score = -0.3
+                details.append(f"🏦 ETF 賣超 {sell_count} 檔 (淨 {net_lots:+.0f} 張) (-0.3)")
+            elif buy_count > 0 or sell_count > 0:
+                details.append(f"🏦 ETF 活動: 買 {buy_count} / 賣 {sell_count} 檔 (淨 {net_lots:+.0f} 張) [資訊]")
+
+        except Exception as e:
+            logger.debug(f"ETF signal scoring skipped: {e}")
+
+        score = max(-ETF_SIGNAL_CAP, min(ETF_SIGNAL_CAP, score))
+        return score, details
+
     def _detect_ptt_contrarian(self):
         """
         PTT 情緒反向提示 — 台股限定，不計分，僅提示
@@ -1400,6 +1450,13 @@ class TechnicalAnalyzer:
         score += revenue_score
         details.extend(revenue_details)
 
+        # ============================================================
+        # ETF SIGNAL (Active ETF Sync Buy/Sell, Taiwan only)
+        # ============================================================
+        etf_score, etf_details = self._analyze_etf_signal()
+        score += etf_score
+        details.extend(etf_details)
+
         # Clamp score to valid range
         score = max(TRIGGER_SCORE_RANGE[0], min(TRIGGER_SCORE_RANGE[1], score))
 
@@ -1411,6 +1468,7 @@ class TechnicalAnalyzer:
             'chip_score': chip_score,
             'sentiment_score': sentiment_score,
             'revenue_score': revenue_score,
+            'etf_score': etf_score,
         }
         return score, details, breakdown
 
