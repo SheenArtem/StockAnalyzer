@@ -320,7 +320,7 @@ def calculate_all_indicators(df):
 # 新增模組：數據載入與重採樣 (Data Loader & Resampler)
 # ==========================================
 
-from FinMind.data import DataLoader
+from cache_manager import get_finmind_loader
 import datetime
 import functools
 import logging
@@ -351,7 +351,7 @@ def get_stock_info_smart(ticker):
                 with _tw_stock_info_lock:
                     if _TW_STOCK_INFO_CACHE is None:
                         print("📥 下載台股清單 (Cache)...")
-                        dl = DataLoader()
+                        dl = get_finmind_loader()
                         _TW_STOCK_INFO_CACHE = dl.taiwan_stock_info()
             
             # 搜尋
@@ -385,7 +385,7 @@ def fetch_from_finmind(stock_id, start_date=None, max_retries=3):
                 _time.sleep(wait)
 
             print(f"🔄 嘗試從 FinMind 抓取 {stock_id} ...")
-            dl = DataLoader()
+            dl = get_finmind_loader()
             if start_date is None:
                 start_date = '2016-01-01'
 

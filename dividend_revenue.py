@@ -96,9 +96,9 @@ def _request_goodinfo(url: str, timeout: int = 15):
 
 
 def _get_finmind_loader():
-    """Lazy-init a FinMind DataLoader (shared singleton pattern)."""
-    from FinMind.data import DataLoader
-    return DataLoader()
+    """Get shared FinMind DataLoader with API token."""
+    from cache_manager import get_finmind_loader
+    return get_finmind_loader()
 
 
 # ===================================================================
