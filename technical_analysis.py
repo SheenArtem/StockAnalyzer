@@ -144,6 +144,8 @@ def calculate_all_indicators(df):
 
     # 9. OBV (On-Balance Volume)
     df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
+    # 9b. OBV_Value (Value-weighted OBV) - 成交值加權，跨股票比較更準確
+    df['OBV_Value'] = (np.sign(df['Close'].diff()) * df['Close'] * df['Volume']).fillna(0).cumsum()
 
     # 10. DMI & ADX
     up = df['High'].diff()
@@ -276,6 +278,13 @@ def calculate_all_indicators(df):
     df['RVOL'] = df['Volume'] / vol_ma20
     df['Vol_MA5'] = df['Volume'].rolling(window=5).mean()
 
+    # 15b. Trading Value + RVOL_Value (相對成交值)
+    # 成交值 = 收盤價 * 成交量，跨股票比較時比純成交量更準確
+    df['Trading_Value'] = df['Close'] * df['Volume']
+    tv_ma20 = df['Trading_Value'].rolling(window=20).mean()
+    df['RVOL_Value'] = df['Trading_Value'] / tv_ma20
+    df['TV_MA5'] = df['Trading_Value'].rolling(window=5).mean()
+
     # 16. Squeeze Momentum (布林帶壓縮進 Keltner Channel)
     # 偵測波動壓縮即將爆發的信號
     kc_ema20 = df['Close'].ewm(span=20, adjust=False).mean()
@@ -290,6 +299,7 @@ def calculate_all_indicators(df):
     # Z-Score columns for scoring normalization (rolling 252-day)
     _zscore_window = 252
     for col, z_col in [('BIAS', 'BIAS_z'), ('ADX', 'ADX_z'), ('RVOL', 'RVOL_z'),
+                        ('RVOL_Value', 'RVOL_Value_z'),
                         ('EFI_EMA13', 'EFI_z'), ('Squeeze_Mom', 'Squeeze_Mom_z')]:
         if col in df.columns:
             rolling_mean = df[col].rolling(_zscore_window, min_periods=60).mean()
