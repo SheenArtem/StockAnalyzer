@@ -17,7 +17,7 @@ def get_chip_data_cached(ticker, force):
 
 # 設定頁面配置
 st.set_page_config(
-    page_title="股票右側分析系統",
+    page_title="StockPulse 智能選股分析系統",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -52,7 +52,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 標題
-st.markdown('<div class="main-header">📈 股票右側分析系統</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">📈 StockPulse 智能選股分析系統</div>', unsafe_allow_html=True)
 
 # ==========================================
 # [NEW] 免責聲明與風險提示
@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.11.10")
+    st.caption("Version: v2026.04.11.11")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
