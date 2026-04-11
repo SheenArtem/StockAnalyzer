@@ -329,6 +329,66 @@ class ValueScreener:
         except Exception:
             pass
 
+        # PEG: PE / EPS growth rate (lower = more undervalued)
+        try:
+            from dividend_revenue import RevenueTracker
+            rt = RevenueTracker()
+            rev_df = rt.get_monthly_revenue(stock_id, months=24)
+            if rev_df is not None and not rev_df.empty and 'yoy_pct' in rev_df.columns:
+                yoy = rev_df['yoy_pct'].dropna()
+                if len(yoy) >= 6 and pe > 0:
+                    # Use average of last 6 months revenue YoY as growth proxy
+                    avg_growth = yoy.iloc[-6:].mean()
+                    if avg_growth > 1:
+                        peg = pe / avg_growth
+                        if peg < 0.5:
+                            score += 12
+                            details.append(f"PEG={peg:.2f} 極低 (PE={pe:.1f}/Growth={avg_growth:.1f}%) (+12)")
+                        elif peg < 1.0:
+                            score += 8
+                            details.append(f"PEG={peg:.2f} 被低估 (Growth={avg_growth:.1f}%) (+8)")
+                        elif peg > 3.0:
+                            score -= 5
+                            details.append(f"PEG={peg:.2f} 偏高 (-5)")
+        except Exception:
+            pass
+
+        # DDM: Dividend Discount Model (for stable dividend payers)
+        try:
+            price = row.get('close', 0)
+            if dy > 2 and price > 0:
+                # Estimate cash dividend from yield
+                cash_div = dy * price / 100
+                # Gordon Growth Model: fair_price = D / (r - g)
+                # r = 10% required return, g = estimated from revenue trend
+                discount_rate = 0.10
+                # Conservative growth: use min(revenue_growth, 5%) or 2% default
+                growth_rate = 0.02
+                try:
+                    from dividend_revenue import RevenueTracker
+                    _rt = RevenueTracker()
+                    _alert = _rt.get_revenue_alert(stock_id)
+                    if _alert and _alert.get('last_yoy_pct') is not None:
+                        g_raw = _alert['last_yoy_pct'] / 100
+                        growth_rate = max(0.0, min(0.05, g_raw))  # Cap 0-5%
+                except Exception:
+                    pass
+
+                if discount_rate > growth_rate:
+                    fair_price = cash_div / (discount_rate - growth_rate)
+                    discount_pct = (fair_price - price) / price * 100
+                    if discount_pct > 30:
+                        score += 10
+                        details.append(f"DDM 合理價 {fair_price:.0f} (折價 {discount_pct:.0f}%) (+10)")
+                    elif discount_pct > 10:
+                        score += 5
+                        details.append(f"DDM 合理價 {fair_price:.0f} (折價 {discount_pct:.0f}%) (+5)")
+                    elif discount_pct < -30:
+                        score -= 8
+                        details.append(f"DDM 合理價 {fair_price:.0f} (溢價 {abs(discount_pct):.0f}%) (-8)")
+        except Exception:
+            pass
+
         return max(0, min(100, score))
 
     def _score_quality(self, stock_id, details):
