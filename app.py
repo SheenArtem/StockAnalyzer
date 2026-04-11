@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.11.01")
+    st.caption("Version: v2026.04.11.02")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -156,7 +156,24 @@ with st.sidebar:
     if st.button("🚀 開始分析", type="primary"):
         st.session_state['analysis_active'] = True
         st.session_state['force_run'] = False
-        
+        st.session_state['app_mode'] = 'analysis'
+
+    st.markdown("---")
+
+    # Mode toggle: 個股分析 vs 自動選股
+    app_mode = st.radio(
+        "功能模式",
+        options=['individual', 'screener'],
+        format_func=lambda x: '📈 個股分析' if x == 'individual' else '🔍 自動選股',
+        index=0 if st.session_state.get('app_mode', 'analysis') != 'screener' else 1,
+        key='mode_radio',
+        horizontal=True,
+    )
+    if app_mode == 'screener':
+        st.session_state['app_mode'] = 'screener'
+    else:
+        st.session_state['app_mode'] = 'analysis'
+
     st.markdown("---")
     
     # === 數據來源與風險提示 (側邊欄底部) ===
@@ -226,7 +243,147 @@ def validate_ticker(ticker):
         return False, "股票代號格式不正確 (只允許英數字、點號)"
     return True, ""
 
-if st.session_state.get('analysis_active', False):
+if st.session_state.get('app_mode') == 'screener':
+    # ====================================================================
+    #  自動選股模式 — 讀取掃描結果 + 手動觸發掃描
+    # ====================================================================
+    st.markdown("## 🔍 右側動能選股")
+
+    # --- Load latest scan results ---
+    import json as _json
+    from pathlib import Path as _Path
+
+    latest_file = _Path('data/latest/momentum_result.json')
+    scan_result = None
+    if latest_file.exists():
+        try:
+            with open(latest_file, 'r', encoding='utf-8') as _f:
+                scan_result = _json.load(_f)
+        except Exception:
+            scan_result = None
+
+    # --- Scan controls ---
+    col_scan1, col_scan2, col_scan3 = st.columns([2, 2, 3])
+    with col_scan1:
+        if st.button("⚡ 快速預覽 (Stage 1)", help="只跑初篩，不算觸發分數，約10秒"):
+            st.session_state['screener_run'] = 'stage1'
+    with col_scan2:
+        no_chip = st.checkbox("跳過籌碼 (加速)", value=True, key='screener_no_chip')
+
+    # --- Stage 1 quick preview ---
+    if st.session_state.get('screener_run') == 'stage1':
+        with st.spinner("初篩中..."):
+            from momentum_screener import MomentumScreener
+            _screener = MomentumScreener()
+            _df = _screener.run_stage1_only()
+        st.session_state['screener_run'] = None
+        if not _df.empty:
+            st.success(f"初篩通過: {len(_df)} 檔")
+            # Format for display
+            _df['TV (億)'] = (_df['trading_value'] / 1e8).round(1)
+            _df['漲跌%'] = _df['change_pct'].round(2)
+            _df['佔比%'] = (_df['tv_pct'] * 100).round(3) if 'tv_pct' in _df.columns else 0
+            _show_cols = ['stock_id', 'stock_name', 'market', 'close', '漲跌%', 'TV (億)', '佔比%']
+            _show_cols = [c for c in _show_cols if c in _df.columns]
+            st.dataframe(
+                _df[_show_cols].rename(columns={
+                    'stock_id': '代號', 'stock_name': '名稱', 'market': '市場', 'close': '收盤'
+                }),
+                use_container_width=True,
+                height=500,
+            )
+        else:
+            st.warning("初篩無結果（可能休市）")
+
+    # --- Show latest full scan results ---
+    elif scan_result and scan_result.get('results'):
+        results = scan_result['results']
+        st.caption(
+            f"掃描日期: {scan_result.get('scan_date', '?')} {scan_result.get('scan_time', '')} | "
+            f"全市場 {scan_result.get('total_scanned', 0)} 檔 → "
+            f"初篩 {scan_result.get('passed_initial', 0)} 檔 → "
+            f"評分 {scan_result.get('scored_count', 0)} 檔 | "
+            f"耗時 {scan_result.get('elapsed_seconds', 0):.0f}s"
+        )
+
+        # Build DataFrame for display
+        _rows = []
+        for r in results:
+            _rows.append({
+                '排名': len(_rows) + 1,
+                '代號': r['stock_id'],
+                '名稱': r.get('name', ''),
+                '市場': r.get('market', ''),
+                '收盤': r.get('price', 0),
+                '漲跌%': r.get('change_pct', 0),
+                '觸發分數': r.get('trigger_score', 0),
+                '趨勢分數': r.get('trend_score', 0),
+                '百分位': r.get('score_percentile', ''),
+                'Regime': r.get('regime', ''),
+                '關鍵訊號': ', '.join(r.get('signals', [])[:3]),
+            })
+        _df_results = pd.DataFrame(_rows)
+
+        # Color-code trigger score
+        st.dataframe(
+            _df_results,
+            use_container_width=True,
+            height=600,
+            column_config={
+                '觸發分數': st.column_config.NumberColumn(format="%.1f"),
+                '趨勢分數': st.column_config.NumberColumn(format="%.1f"),
+                '漲跌%': st.column_config.NumberColumn(format="%.1f%%"),
+                '收盤': st.column_config.NumberColumn(format="%.1f"),
+            },
+        )
+
+        # Click to analyze: user can copy stock ID from table and paste to sidebar
+        st.info("點擊表格中的股票代號，複製後切回「個股分析」模式即可深入分析")
+
+        # Show signal distribution
+        if len(results) > 5:
+            with st.expander("訊號統計"):
+                from collections import Counter
+                _sig_counter = Counter()
+                for r in results:
+                    for s in r.get('signals', []):
+                        if not s.startswith('regime_'):
+                            _sig_counter[s] += 1
+                if _sig_counter:
+                    _sig_df = pd.DataFrame(
+                        _sig_counter.most_common(15),
+                        columns=['訊號', '出現次數']
+                    )
+                    st.bar_chart(_sig_df.set_index('訊號'))
+
+        # Detailed trigger breakdown (expandable per stock)
+        with st.expander("個股詳細評分"):
+            _selected = st.selectbox(
+                "選擇股票",
+                options=[f"{r['stock_id']} {r.get('name', '')}" for r in results],
+                key='screener_detail_select',
+            )
+            if _selected:
+                _sid = _selected.split()[0]
+                _match = next((r for r in results if r['stock_id'] == _sid), None)
+                if _match:
+                    st.markdown(f"**{_sid} {_match.get('name', '')}** — "
+                                f"觸發分數: {_match['trigger_score']:+.1f} / "
+                                f"趨勢分數: {_match['trend_score']:+.1f}")
+                    for d in _match.get('trigger_details', []):
+                        st.markdown(f"- {d}")
+
+    else:
+        st.info("尚無掃描結果。\n\n"
+                "**使用方式:**\n"
+                "1. 點擊「快速預覽」查看今日初篩結果\n"
+                "2. 在命令列執行 `python scanner_job.py` 進行完整掃描\n"
+                "3. 完整掃描含觸發分數，約需 15-30 分鐘")
+
+    st.markdown("---")
+    st.caption("💡 完整掃描建議在收盤後執行: `python scanner_job.py --no-chip`")
+
+elif st.session_state.get('analysis_active', False):
     # 決定資料來源
     source = None
     display_ticker = ""

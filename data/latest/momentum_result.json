@@ -1,0 +1,28 @@
+{
+  "scan_date": "2026-04-11",
+  "scan_time": "13:40",
+  "total_scanned": 1960,
+  "passed_initial": 420,
+  "scored_count": 1,
+  "elapsed_seconds": 10.0,
+  "failures": [],
+  "config": {},
+  "results": [
+    {
+      "stock_id": "2330",
+      "name": "TSMC",
+      "market": "twse",
+      "price": 2000,
+      "change_pct": 2.3,
+      "trading_value": 77669362959,
+      "trigger_score": 5.7,
+      "trend_score": 2.5,
+      "score_percentile": 85,
+      "regime": "neutral",
+      "signals": [
+        "regime_neutral"
+      ],
+      "trigger_details": []
+    }
+  ]
+}
