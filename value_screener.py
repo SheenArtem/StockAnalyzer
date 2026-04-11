@@ -23,6 +23,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+_CHECKPOINT_DIR = Path('data/.checkpoints')
+
 logger = logging.getLogger(__name__)
 
 # ================================================================
@@ -63,13 +65,18 @@ class ValueScreener:
     # Public API
     # ================================================================
 
-    def run(self):
+    def run(self, market='tw'):
         """Execute full value screening pipeline."""
         start_time = time.time()
+        self._market = market
 
         # Stage 1
-        self.progress("Stage 1: Fetching market + fundamental data...")
-        candidates = self._stage1_filter()
+        label = 'US' if market == 'us' else 'TW'
+        self.progress(f"Stage 1: Fetching {label} market + fundamental data...")
+        if market == 'us':
+            candidates = self._stage1_filter_us()
+        else:
+            candidates = self._stage1_filter()
         self.progress(f"Stage 1 done: {len(candidates)} candidates")
 
         if candidates.empty:
@@ -86,8 +93,10 @@ class ValueScreener:
         self.progress(f"Scan complete in {elapsed:.0f}s")
         return self._make_result(scored, total_market, len(candidates), elapsed)
 
-    def run_stage1_only(self):
+    def run_stage1_only(self, market='tw'):
         """Only run Stage 1 for quick preview."""
+        if market == 'us':
+            return self._stage1_filter_us()
         return self._stage1_filter()
 
     # ================================================================
@@ -159,17 +168,103 @@ class ValueScreener:
         return result
 
     # ================================================================
+    # Stage 1 US: yfinance batch for S&P 500 fundamentals
+    # ================================================================
+
+    def _stage1_filter_us(self):
+        """
+        Fetch S&P 500 with basic fundamental filter via yfinance batch.
+        Filter: PE > 0, PE < max_pe, volume > threshold.
+        """
+        import yfinance as yf
+        from momentum_screener import MomentumScreener
+        cfg = self.config
+
+        # Reuse S&P 500 list from momentum screener
+        tickers = MomentumScreener._fetch_sp500()
+        if not tickers:
+            return pd.DataFrame()
+
+        self.progress(f"  Downloading {len(tickers)} US tickers (2-day data)...")
+        try:
+            data = yf.download(
+                tickers, period='2d', interval='1d',
+                progress=False, auto_adjust=False, timeout=30,
+            )
+        except Exception as e:
+            logger.error("yfinance batch download failed: %s", e)
+            return pd.DataFrame()
+
+        if data.empty:
+            return pd.DataFrame()
+
+        results = []
+        for ticker in tickers:
+            try:
+                if data.columns.nlevels == 2:
+                    close_s = data[('Close', ticker)].dropna()
+                    vol_s = data[('Volume', ticker)].dropna()
+                else:
+                    close_s = data['Close'].dropna()
+                    vol_s = data['Volume'].dropna()
+
+                if len(close_s) < 1:
+                    continue
+
+                close = float(close_s.iloc[-1])
+                volume = float(vol_s.iloc[-1])
+                change_pct = 0
+                if len(close_s) >= 2:
+                    prev = float(close_s.iloc[-2])
+                    change_pct = (close - prev) / prev * 100 if prev > 0 else 0
+
+                if close < cfg.get('us_min_price', 5) or volume < cfg.get('us_min_volume', 500_000):
+                    continue
+
+                results.append({
+                    'stock_id': ticker,
+                    'stock_name': ticker,
+                    'market': 'us',
+                    'close': close,
+                    'change_pct': round(change_pct, 2),
+                    'volume': int(volume),
+                    'trading_value': int(close * volume),
+                    # PE/PB will be fetched per-stock in Stage 2 via finviz
+                    'PE': 0, 'PB': 0, 'dividend_yield': 0,
+                })
+            except Exception:
+                continue
+
+        if not results:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(results)
+        df.attrs['total_market'] = len(tickers)
+        self.progress(f"  US Stage 1: {len(df)} stocks passed liquidity filter")
+        return df
+
+    # ================================================================
     # Stage 2: Full Value Scoring (0-100)
     # ================================================================
 
     def _stage2_score(self, candidates):
-        """Score each candidate on 5 dimensions."""
-        scored = []
+        """Score each candidate on 5 dimensions. Supports checkpoint/resume."""
+        market = getattr(self, '_market', 'tw')
+        cp_file = _CHECKPOINT_DIR / f'value_{market}.json'
+
+        # Load checkpoint
+        scored, done_ids = self._load_checkpoint(cp_file)
+        if scored:
+            self.progress(f"  Resuming: {len(scored)} stocks already scored, {len(done_ids)} processed")
+
         total = len(candidates)
         consecutive_fails = 0
 
         for idx, row in candidates.iterrows():
             sid = row['stock_id']
+            if sid in done_ids:
+                continue
+
             sname = row.get('stock_name', '')
             pos = len(scored) + len(self._failures) + 1
 
@@ -203,6 +298,9 @@ class ValueScreener:
                 self._failures.append(sid)
                 consecutive_fails += 1
 
+            done_ids.add(sid)
+            self._save_checkpoint(cp_file, scored, done_ids)
+
             if consecutive_fails >= self.config['max_failures']:
                 self.progress(f"  Stopping: {consecutive_fails} consecutive failures")
                 break
@@ -210,29 +308,95 @@ class ValueScreener:
             if self.config['batch_delay'] > 0:
                 time.sleep(self.config['batch_delay'])
 
+        self._clear_checkpoint(cp_file)
         scored.sort(key=lambda x: x['value_score'], reverse=True)
         return scored[:self.config['top_n']]
+
+    # ================================================================
+    # Checkpoint helpers
+    # ================================================================
+
+    @staticmethod
+    def _load_checkpoint(cp_file):
+        if cp_file.exists():
+            try:
+                with open(cp_file, 'r', encoding='utf-8') as f:
+                    cp = json.load(f)
+                return cp.get('scored', []), set(cp.get('done_ids', []))
+            except Exception:
+                pass
+        return [], set()
+
+    @staticmethod
+    def _save_checkpoint(cp_file, scored, done_ids):
+        if len(done_ids) % 5 != 0:
+            return
+        try:
+            _CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+            with open(cp_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'scored': scored,
+                    'done_ids': list(done_ids),
+                    'timestamp': datetime.now().isoformat(),
+                }, f, ensure_ascii=False)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _clear_checkpoint(cp_file):
+        try:
+            if cp_file.exists():
+                cp_file.unlink()
+        except Exception:
+            pass
 
     def _score_single(self, stock_id, market_row):
         """Score a single stock on all 5 dimensions."""
         cfg = self.config
+        is_us = market_row.get('market') == 'us'
         scores = {}
         details = []
+
+        # For US stocks: fetch finviz data to populate PE/PB/PEG/dividend
+        finviz = None
+        if is_us:
+            try:
+                from finviz_data import FinvizData
+                fv = FinvizData()
+                finviz, _ = fv.get_stock_data(stock_id)
+                if finviz:
+                    v = finviz.get('valuation', {})
+                    market_row = dict(market_row)  # make mutable copy
+                    market_row['PE'] = v.get('pe', 0) or 0
+                    market_row['PB'] = v.get('pb', 0) or 0
+                    market_row['dividend_yield'] = v.get('dividend_yield', 0) or 0
+                    market_row['_peg'] = v.get('peg', 0) or 0
+                    market_row['_forward_pe'] = v.get('forward_pe', 0) or 0
+                    a = finviz.get('analyst', {})
+                    market_row['_target_upside'] = a.get('upside_pct', 0) or 0
+            except Exception:
+                pass
 
         # --- 1. Valuation Score (0-100) ---
         scores['valuation'] = self._score_valuation(stock_id, market_row, details)
 
         # --- 2. Quality Score (0-100) ---
-        scores['quality'] = self._score_quality(stock_id, details)
+        if is_us:
+            scores['quality'] = self._score_quality_us(stock_id, finviz, details)
+        else:
+            scores['quality'] = self._score_quality(stock_id, details)
 
         # --- 3. Revenue Trend Score (0-100) ---
-        scores['revenue'] = self._score_revenue(stock_id, details)
+        if is_us:
+            scores['revenue'] = 50  # US revenue from finviz is limited
+        else:
+            scores['revenue'] = self._score_revenue(stock_id, details)
 
         # --- 4. Technical Reversal Score (0-100) ---
         scores['technical'] = self._score_technical(stock_id, details)
 
         # --- 5. Smart Money Score (0-100) ---
-        scores['smart_money'] = self._score_smart_money(stock_id, details)
+        scores['smart_money'] = self._score_smart_money_us(stock_id, finviz, details) if is_us else self._score_smart_money(stock_id, details)
 
         # Weighted total
         total = (
@@ -388,6 +552,28 @@ class ValueScreener:
                         details.append(f"DDM 合理價 {fair_price:.0f} (溢價 {abs(discount_pct):.0f}%) (-8)")
         except Exception:
             pass
+
+        # US: Finviz PEG (already calculated) + analyst target upside
+        peg_fv = row.get('_peg', 0)
+        if peg_fv and peg_fv > 0:
+            if peg_fv < 0.5:
+                score += 12
+                details.append(f"Finviz PEG={peg_fv:.2f} very low (+12)")
+            elif peg_fv < 1.0:
+                score += 8
+                details.append(f"Finviz PEG={peg_fv:.2f} undervalued (+8)")
+            elif peg_fv > 3.0:
+                score -= 5
+                details.append(f"Finviz PEG={peg_fv:.2f} high (-5)")
+
+        target_upside = row.get('_target_upside', 0)
+        if target_upside and target_upside > 0:
+            if target_upside > 30:
+                score += 10
+                details.append(f"Analyst target +{target_upside:.0f}% upside (+10)")
+            elif target_upside > 15:
+                score += 5
+                details.append(f"Analyst target +{target_upside:.0f}% upside (+5)")
 
         return max(0, min(100, score))
 
@@ -620,16 +806,109 @@ class ValueScreener:
 
         return max(0, min(100, score))
 
+    def _score_quality_us(self, stock_id, finviz, details):
+        """US quality score from finviz data."""
+        score = 50
+        if not finviz:
+            return score
+
+        v = finviz.get('valuation', {})
+        t = finviz.get('technical', {})
+
+        # ROE (from finviz)
+        roe = v.get('roe', 0)
+        if roe and roe > 0:
+            if roe > 20:
+                score += 15
+                details.append(f"ROE={roe:.1f}% excellent (+15)")
+            elif roe > 10:
+                score += 8
+                details.append(f"ROE={roe:.1f}% good (+8)")
+        elif roe and roe < 0:
+            score -= 15
+            details.append(f"ROE={roe:.1f}% negative (-15)")
+
+        # Profit margin
+        margin = v.get('profit_margin', 0)
+        if margin and margin > 0:
+            if margin > 20:
+                score += 10
+                details.append(f"Profit margin {margin:.1f}% high (+10)")
+            elif margin > 10:
+                score += 5
+        elif margin and margin < 0:
+            score -= 10
+
+        # EPS growth
+        eps_g = v.get('eps_growth_next_5y', 0)
+        if eps_g and eps_g > 0:
+            if eps_g > 15:
+                score += 10
+                details.append(f"EPS growth 5Y={eps_g:.1f}% (+10)")
+            elif eps_g > 8:
+                score += 5
+
+        return max(0, min(100, score))
+
+    def _score_smart_money_us(self, stock_id, finviz, details):
+        """US smart money: institutional %, short interest, insider activity."""
+        score = 50
+
+        # Try us_stock_chip for detailed data
+        try:
+            from us_stock_chip import USStockChipAnalyzer
+            usc = USStockChipAnalyzer()
+            chip, _ = usc.get_chip_data(stock_id)
+            if chip:
+                # Institutional holding
+                inst = chip.get('institutional', {})
+                inst_pct = inst.get('percent_held', 0)
+                if inst_pct and inst_pct > 80:
+                    score += 10
+                    details.append(f"Institutional {inst_pct:.0f}% (+10)")
+
+                # Short interest
+                short = chip.get('short_interest', {})
+                short_pct = short.get('percent_of_float', 0)
+                if short_pct and short_pct > 10:
+                    score -= 10
+                    details.append(f"Short {short_pct:.1f}% of float (-10)")
+                elif short_pct and short_pct < 2:
+                    score += 5
+
+                # Insider activity
+                insider = chip.get('insider_trades', {})
+                sentiment = insider.get('sentiment', '')
+                if sentiment == 'bullish':
+                    score += 12
+                    details.append(f"Insider buying (+12)")
+                elif sentiment == 'bearish':
+                    score -= 8
+        except Exception:
+            pass
+
+        # Analyst target upside (from finviz)
+        if finviz:
+            a = finviz.get('analyst', {})
+            upside = a.get('upside_pct', 0)
+            if upside and upside > 20:
+                score += 8
+                details.append(f"Analyst consensus +{upside:.0f}% (+8)")
+
+        return max(0, min(100, score))
+
     # ================================================================
     # Result Formatting
     # ================================================================
 
     def _make_result(self, scored, total_scanned, passed_initial, elapsed):
         now = datetime.now()
+        market = getattr(self, '_market', 'tw')
         return {
             'scan_date': now.strftime('%Y-%m-%d'),
             'scan_time': now.strftime('%H:%M'),
             'scan_type': 'value',
+            'market': market,
             'total_scanned': total_scanned,
             'passed_initial': passed_initial,
             'scored_count': len(scored),
@@ -637,9 +916,6 @@ class ValueScreener:
             'failures': self._failures[:20],
             'config': {
                 'max_pe': self.config['max_pe'],
-                'min_pe': self.config['min_pe'],
-                'max_pb': self.config['max_pb'],
-                'min_trading_value': self.config['min_trading_value'],
                 'top_n': self.config['top_n'],
             },
             'results': scored,
@@ -653,12 +929,15 @@ class ValueScreener:
         latest_dir.mkdir(parents=True, exist_ok=True)
         history_dir.mkdir(parents=True, exist_ok=True)
 
-        latest_file = latest_dir / 'value_result.json'
+        market = result.get('market', 'tw')
+        suffix = '_us' if market == 'us' else ''
+
+        latest_file = latest_dir / f'value{suffix}_result.json'
         with open(latest_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         date_str = result.get('scan_date', datetime.now().strftime('%Y-%m-%d'))
-        history_file = history_dir / f'{date_str}_value.json'
+        history_file = history_dir / f'{date_str}_value{suffix}.json'
         with open(history_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 

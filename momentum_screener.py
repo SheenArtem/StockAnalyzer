@@ -49,6 +49,9 @@ DEFAULT_CONFIG = {
 }
 
 
+_CHECKPOINT_DIR = Path('data/.checkpoints')
+
+
 class MomentumScreener:
     """右側動能選股引擎"""
 
@@ -340,15 +343,7 @@ class MomentumScreener:
     def _stage2_analyze(self, candidates):
         """
         Batch-run TechnicalAnalyzer on each candidate.
-
-        For each stock:
-        1. Download historical price data (with caching)
-        2. Calculate technical indicators
-        3. Run trigger score analysis
-        4. Optionally fetch chip data
-
-        Returns:
-            list of dicts, sorted by trigger_score descending
+        Supports checkpoint/resume: saves progress after each stock.
         """
         from technical_analysis import (
             calculate_all_indicators,
@@ -357,12 +352,22 @@ class MomentumScreener:
         from analysis_engine import TechnicalAnalyzer
 
         cfg = self.config
-        scored = []
+        market = getattr(self, '_market', 'tw')
+        cp_file = _CHECKPOINT_DIR / f'momentum_{market}.json'
+
+        # Load checkpoint if exists
+        scored, done_ids = self._load_checkpoint(cp_file)
+        if scored:
+            self.progress(f"  Resuming: {len(scored)} stocks already scored, {len(done_ids)} processed")
+
         total = len(candidates)
         consecutive_fails = 0
 
         for idx, row in candidates.iterrows():
             sid = row['stock_id']
+            if sid in done_ids:
+                continue
+
             sname = row.get('stock_name', '')
             pos = len(scored) + len(self._failures) + 1
 
@@ -380,7 +385,6 @@ class MomentumScreener:
             except Exception as e:
                 err_str = str(type(e).__name__)
                 if 'RateLimit' in err_str or '429' in str(e):
-                    # Rate limit: pause and retry this stock
                     self.progress(f"  [Rate Limit] Pausing 60s then retrying {sid}...")
                     time.sleep(60)
                     try:
@@ -397,18 +401,66 @@ class MomentumScreener:
                 self._failures.append(sid)
                 consecutive_fails += 1
 
-            # Safety: stop if too many consecutive failures
+            # Save checkpoint after each stock
+            done_ids.add(sid)
+            self._save_checkpoint(cp_file, scored, done_ids)
+
             if consecutive_fails >= cfg['max_failures']:
                 self.progress(f"  Stopping: {consecutive_fails} consecutive failures")
                 break
 
-            # Throttle
             if cfg['batch_delay'] > 0:
                 time.sleep(cfg['batch_delay'])
 
-        # Sort by trigger_score descending, take top N
+        # Clean up checkpoint on completion
+        self._clear_checkpoint(cp_file)
+
         scored.sort(key=lambda x: x['trigger_score'], reverse=True)
         return scored[:cfg['top_n']]
+
+    # ================================================================
+    # Checkpoint helpers
+    # ================================================================
+
+    @staticmethod
+    def _load_checkpoint(cp_file):
+        """Load checkpoint: returns (scored_list, done_ids_set)."""
+        if cp_file.exists():
+            try:
+                with open(cp_file, 'r', encoding='utf-8') as f:
+                    cp = json.load(f)
+                scored = cp.get('scored', [])
+                done_ids = set(cp.get('done_ids', []))
+                return scored, done_ids
+            except Exception:
+                pass
+        return [], set()
+
+    @staticmethod
+    def _save_checkpoint(cp_file, scored, done_ids):
+        """Save checkpoint (every N stocks to avoid I/O overhead)."""
+        # Only save every 5 stocks
+        if len(done_ids) % 5 != 0:
+            return
+        try:
+            _CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+            with open(cp_file, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'scored': scored,
+                    'done_ids': list(done_ids),
+                    'timestamp': datetime.now().isoformat(),
+                }, f, ensure_ascii=False)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _clear_checkpoint(cp_file):
+        """Remove checkpoint file after successful completion."""
+        try:
+            if cp_file.exists():
+                cp_file.unlink()
+        except Exception:
+            pass
 
     def _analyze_single(self, stock_id, market_row):
         """
