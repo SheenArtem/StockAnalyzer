@@ -25,6 +25,52 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def send_discord_notification(result, webhook_url=None):
+    """Send scan summary to Discord via webhook."""
+    if not webhook_url:
+        # Try to read from local/.env
+        env_path = Path('local/.env')
+        if env_path.exists():
+            with open(env_path, 'r') as f:
+                for line in f:
+                    if line.startswith('DISCORD_WEBHOOK_URL='):
+                        webhook_url = line.strip().split('=', 1)[1].strip()
+                        break
+    if not webhook_url:
+        return False
+
+    scan_type = result.get('scan_type', 'momentum')
+    market = result.get('market', 'tw')
+    label = {'momentum': 'Momentum', 'value': 'Value'}.get(scan_type, scan_type)
+    mkt_label = {'tw': 'Taiwan', 'us': 'US'}.get(market, market)
+
+    results = result.get('results', [])
+    top5 = results[:5]
+
+    lines = [f"**{label} Screener [{mkt_label}]** — {result.get('scan_date', '?')} {result.get('scan_time', '')}",
+             f"Scanned {result.get('total_scanned', 0)} → Passed {result.get('passed_initial', 0)} → Scored {result.get('scored_count', 0)}",
+             ""]
+
+    if scan_type == 'value':
+        for i, r in enumerate(top5, 1):
+            lines.append(f"{i}. **{r['stock_id']}** {r.get('name', '')[:6]} "
+                         f"PE={r.get('PE', 0):.1f} Score={r.get('value_score', 0):.1f}")
+    else:
+        for i, r in enumerate(top5, 1):
+            sigs = ', '.join(r.get('signals', [])[:2])
+            lines.append(f"{i}. **{r['stock_id']}** {r.get('name', '')[:6]} "
+                         f"Score={r.get('trigger_score', 0):+.1f} [{sigs}]")
+
+    content = '\n'.join(lines)
+    try:
+        import requests
+        resp = requests.post(webhook_url, json={'content': content}, timeout=10)
+        return resp.status_code == 204
+    except Exception as e:
+        logger.error("Discord notification failed: %s", e)
+        return False
+
+
 def git_push_results(data_dir='data'):
     """Stage and push scan results to remote."""
     try:
@@ -155,6 +201,8 @@ def main():
                         help='Number of results (default: 50)')
     parser.add_argument('--push', action='store_true',
                         help='Git push results after scan')
+    parser.add_argument('--notify', action='store_true',
+                        help='Send results to Discord webhook (needs DISCORD_WEBHOOK_URL in local/.env)')
     parser.add_argument('--output-dir', default='data',
                         help='Output directory (default: data)')
     parser.add_argument('--stage1-only', action='store_true',
@@ -194,6 +242,14 @@ def main():
     run_value = args.mode in ('value', 'both')
     markets = ['tw', 'us'] if args.market == 'all' else [args.market]
 
+    # Pre-warm TWSE/TPEX cache if running both screeners (avoid duplicate API calls)
+    if run_momentum and run_value and 'tw' in markets:
+        from twse_api import TWSEOpenData
+        _api = TWSEOpenData()
+        progress("Pre-fetching market data (shared by both screeners)...")
+        _api.get_market_daily_all()
+        _api.get_pe_dividend_all_combined()
+
     # --- Momentum Screener ---
     if run_momentum:
         from momentum_screener import MomentumScreener
@@ -214,6 +270,8 @@ def main():
                 m_result = m_screener.run(market=mkt)
                 MomentumScreener.save_results(m_result, args.output_dir)
                 progress(f"Momentum [{mkt}] results saved")
+                if args.notify:
+                    send_discord_notification(m_result)
                 if not args.quiet:
                     print_summary(m_result)
 
@@ -240,6 +298,8 @@ def main():
             v_result = v_screener.run()
             ValueScreener.save_results(v_result, args.output_dir)
             progress(f"Value results saved")
+            if args.notify:
+                send_discord_notification(v_result)
             if not args.quiet:
                 print_value_summary(v_result)
 

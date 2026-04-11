@@ -21,7 +21,7 @@ REM Log start time
 echo [%date% %time%] Scanner started >> scanner.log
 
 REM Run both momentum + value screener (no chip for speed)
-python scanner_job.py --mode both --no-chip --push >> scanner.log 2>&1
+python scanner_job.py --mode both --no-chip --push --notify >> scanner.log 2>&1
 
 REM Log end time
 echo [%date% %time%] Scanner finished >> scanner.log

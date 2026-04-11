@@ -899,15 +899,17 @@ class TechnicalAnalyzer:
 
     def _analyze_market_sentiment(self):
         """
-        TAIFEX 市場情緒因子 — 台股限定
-        PCR 極端值 + 期貨正逆價差 → 反向/順向指標
+        市場情緒因子
+        - 台股: TAIFEX PCR + 期貨正逆價差
+        - 美股: CNN Fear & Greed Index (反向指標)
         Cap: +/- MARKET_SENTIMENT_CAP
         """
         score = 0.0
         details = []
 
         if self._is_us_stock:
-            return score, details
+            return self._analyze_us_market_sentiment()
+
 
         try:
             from taifex_data import TAIFEXData
@@ -951,6 +953,44 @@ class TechnicalAnalyzer:
 
         except Exception as e:
             logger.debug(f"Market sentiment scoring skipped: {e}")
+
+        score = max(-MARKET_SENTIMENT_CAP, min(MARKET_SENTIMENT_CAP, score))
+        return score, details
+
+    def _analyze_us_market_sentiment(self):
+        """
+        CNN Fear & Greed Index — 美股市場情緒（反向指標）
+        Extreme Fear (<25) → 反向看多; Extreme Greed (>75) → 反向看空
+        Cap: +/- MARKET_SENTIMENT_CAP
+        """
+        score = 0.0
+        details = []
+
+        try:
+            from cnn_fear_greed import CNNFearGreedIndex
+            cnn = CNNFearGreedIndex()
+            fg = cnn.get_index()
+
+            fg_score = fg.get('score', 50)
+            label = fg.get('label', 'Neutral')
+
+            if fg_score < 20:
+                score = 0.6
+                details.append(f"🇺🇸 CNN F&G={fg_score:.0f} Extreme Fear → contrarian bullish (+0.6)")
+            elif fg_score < 35:
+                score = 0.3
+                details.append(f"🇺🇸 CNN F&G={fg_score:.0f} Fear → contrarian bullish (+0.3)")
+            elif fg_score > 80:
+                score = -0.6
+                details.append(f"🇺🇸 CNN F&G={fg_score:.0f} Extreme Greed → contrarian bearish (-0.6)")
+            elif fg_score > 65:
+                score = -0.3
+                details.append(f"🇺🇸 CNN F&G={fg_score:.0f} Greed → contrarian bearish (-0.3)")
+            else:
+                details.append(f"🇺🇸 CNN F&G={fg_score:.0f} {label} [info]")
+
+        except Exception as e:
+            logger.debug(f"CNN F&G scoring skipped: {e}")
 
         score = max(-MARKET_SENTIMENT_CAP, min(MARKET_SENTIMENT_CAP, score))
         return score, details
