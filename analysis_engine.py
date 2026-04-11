@@ -219,8 +219,17 @@ class TechnicalAnalyzer:
         elif close > ma60:
              checklist['risk'].append(f"若收盤跌破 **季線 ({ma60:.2f})**，波段轉弱，建議清倉觀望。")
 
-        # B. 爆量長黑
-        if vol_ma5 > 0:
+        # B. 爆量長黑 — 使用成交值判斷，避免低價股灌量誤觸發
+        tv_ma5 = self._safe_get(current, 'TV_MA5', 0)
+        if tv_ma5 > 0:
+            tv_threshold = tv_ma5 * 2
+            if not self._is_us_stock:
+                tv_display = f"{tv_threshold/1e8:,.1f} 億"
+            else:
+                tv_display = f"${tv_threshold/1e6:,.1f}M"
+            checklist['risk'].append(f"若出現 **爆量長黑** (成交值 > {tv_display}) 且收跌，視為主力出貨訊號。")
+        elif vol_ma5 > 0:
+            # Fallback: TV_MA5 不存在時用傳統成交量
             vol_threshold = vol_ma5 * 2
             if not self._is_us_stock:
                 vol_display = f"{vol_threshold/1000:,.0f} 張"
@@ -669,10 +678,11 @@ class TechnicalAnalyzer:
         else:
             details.append(f"⚠️ DMI 趨勢不明 (ADX={adx:.1f} < 25) (0)")
 
-        # 3. OBV 能量潮 (比較近5週趨勢) — 對稱化 ±1
+        # 3. OBV 能量潮 (比較近5週趨勢) — 使用成交值加權版本 ±1
         try:
-            obv_5w_ago = df['OBV'].iloc[-5]
-            if self._safe_get(current, 'OBV', 0) > obv_5w_ago:
+            obv_col = 'OBV_Value' if 'OBV_Value' in df.columns else 'OBV'
+            obv_5w_ago = df[obv_col].iloc[-5]
+            if self._safe_get(current, obv_col, 0) > obv_5w_ago:
                 score += 1
                 details.append("✅ OBV 能量潮近 5 週上升 (+1)")
             else:
@@ -765,9 +775,14 @@ class TechnicalAnalyzer:
 
                 current_price = df.iloc[-1]['Close']
                 buy_amount_million = (abs(total_buy_lots) * current_price * 1000) / 1_000_000
-                recent_volume = df.iloc[-5:]['Volume'].mean() / 1000
-                volume_ratio = abs(total_buy_lots) / recent_volume if recent_volume > 0 else 0
-                is_significant = (buy_amount_million > 50) or (volume_ratio > 0.15)
+                # 使用成交值比率判斷顯著性（避免高低價股失真）
+                if 'Trading_Value' in df.columns:
+                    recent_tv = df.iloc[-5:]['Trading_Value'].mean()
+                    value_ratio = (buy_amount_million * 1e6) / recent_tv if recent_tv > 0 else 0
+                else:
+                    recent_volume = df.iloc[-5:]['Volume'].mean() / 1000
+                    value_ratio = abs(total_buy_lots) / recent_volume if recent_volume > 0 else 0
+                is_significant = (buy_amount_million > 50) or (value_ratio > 0.15)
 
                 base_score = 0
                 if total_buy_lots > 0 and is_significant:
@@ -1307,13 +1322,13 @@ class TechnicalAnalyzer:
         # OBV/EFI 的 IC≈0 不適合計分，但極端值可偵測異常事件
         # ============================================================
 
-        # VA1. 量價背離 — 價格創新高/低但 OBV 未跟隨
+        # VA1. 量價背離 — 價格創新高/低但 OBV 未跟隨（使用成交值加權版本）
         try:
             if len(df) >= 20:
+                obv_col = 'OBV_Value' if 'OBV_Value' in df.columns else 'OBV'
                 price_5d = df['Close'].iloc[-5:]
-                obv_5d = df['OBV'].iloc[-5:]
+                obv_5d = df[obv_col].iloc[-5:]
                 price_20d = df['Close'].iloc[-20:]
-                obv_20d = df['OBV'].iloc[-20:]
 
                 price_near_high = close > price_20d.quantile(0.9)
                 obv_declining = obv_5d.iloc[-1] < obv_5d.iloc[0]

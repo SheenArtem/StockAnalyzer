@@ -135,7 +135,8 @@ class MLSignalClassifier:
         # --- Volume ---
         features['feat_rvol'] = df.get('RVOL', pd.Series(1.0, index=df.index))
 
-        obv = df.get('OBV', pd.Series(0.0, index=df.index))
+        # OBV: 優先使用成交值加權版本（跨股票比較更準確）
+        obv = df.get('OBV_Value', df.get('OBV', pd.Series(0.0, index=df.index)))
         obv_lag5 = obv.shift(5).replace(0, np.nan)
         features['feat_obv_chg_rate'] = (obv - obv_lag5) / obv_lag5.abs()
 
