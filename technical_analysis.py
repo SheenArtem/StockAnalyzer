@@ -368,13 +368,20 @@ def get_stock_info_smart(ticker):
     
     return meta
 
+class FinMindRateLimitError(Exception):
+    """Raised when FinMind returns 429 rate limit."""
+    pass
+
+
 def fetch_from_finmind(stock_id, start_date=None, max_retries=3):
     """
     從 FinMind 抓取台股股價資料 (含 retry backoff)
     Args:
         stock_id: 台股代號 (純數字)
         start_date: 起始日期 (str 'YYYY-MM-DD')，預設抓 10 年
-        max_retries: 最大重試次數 (429 rate limit 時 backoff)
+        max_retries: 最大重試次數 (一般錯誤用；429 直接拋出讓上層處理)
+    Raises:
+        FinMindRateLimitError: 429 rate limit，上層應暫停而非跳過
     """
     import time as _time
     for attempt in range(max_retries):
@@ -410,11 +417,14 @@ def fetch_from_finmind(stock_id, start_date=None, max_retries=3):
 
             return df
         except Exception as e:
-            # Rate limit (429) or network error — retry
             err_str = str(e)
-            if '429' in err_str or 'rate' in err_str.lower():
-                if attempt < max_retries - 1:
-                    continue
+            is_rate_limit = '429' in err_str or 'rate' in err_str.lower()
+
+            if is_rate_limit:
+                # 429: raise immediately so scanner can pause globally
+                raise FinMindRateLimitError(
+                    f"FinMind 429 rate limit for {stock_id}") from e
+
             print(f"❌ FinMind Download Error: {e}")
             if attempt == max_retries - 1:
                 return pd.DataFrame()
