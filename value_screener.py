@@ -115,8 +115,8 @@ class ValueScreener:
 
         total_market = len(market_df)
 
-        # Get PE/PB/dividend for all TWSE stocks
-        pe_df = api.get_pe_dividend_all()
+        # Get PE/PB/dividend for all stocks (TWSE + TPEX)
+        pe_df = api.get_pe_dividend_all_combined()
 
         if pe_df.empty:
             # Fallback: use market data without PE filter
@@ -402,6 +402,9 @@ class ValueScreener:
                         # Already positive — more right-side than left-side
                         score += 10
                         details.append(f"營收 YoY 已轉正 {latest_yoy:+.1f}% (+10)")
+                    elif abs(latest_yoy - prev_yoy) < 0.5:
+                        # Flat (e.g. 0→0 or -1→-1) — no signal
+                        pass
                     elif latest_yoy > prev_yoy:
                         # Declining but converging — bottom signal
                         improvement = latest_yoy - prev_yoy
