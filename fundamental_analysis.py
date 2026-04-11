@@ -2,21 +2,13 @@ import yfinance as yf
 import pandas as pd
 import datetime
 import logging
-import threading
-from FinMind.data import DataLoader
+from cache_manager import get_finmind_loader
 
 logger = logging.getLogger(__name__)
 
-_data_loader = None
-_data_loader_lock = threading.Lock()
 
 def _get_data_loader():
-    global _data_loader
-    if _data_loader is None:
-        with _data_loader_lock:
-            if _data_loader is None:
-                _data_loader = DataLoader()
-    return _data_loader
+    return get_finmind_loader()
 
 def get_fundamentals(ticker):
     """

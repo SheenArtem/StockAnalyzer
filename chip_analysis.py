@@ -2,13 +2,13 @@
 import logging
 import pandas as pd
 import datetime
-from FinMind.data import DataLoader
+from cache_manager import get_finmind_loader
 
 logger = logging.getLogger(__name__)
 
 class ChipAnalyzer:
     def __init__(self):
-        self.dl = DataLoader()
+        self.dl = get_finmind_loader()
 
     def get_chip_data(self, ticker, force_update=False):
         """

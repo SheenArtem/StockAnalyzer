@@ -14,6 +14,57 @@ CACHE_DIR = "data_cache"
 # Module-level lock for cache write operations
 _cache_lock = threading.Lock()
 
+# ================================================================
+# FinMind DataLoader Factory (shared, token-aware)
+# ================================================================
+_finmind_dl = None
+_finmind_lock = threading.Lock()
+
+
+def get_finmind_loader():
+    """
+    Get a shared FinMind DataLoader instance with API token.
+
+    Token is read from local/.env (FINMIND_API_TOKEN=...).
+    Falls back to anonymous mode if token not found.
+    """
+    global _finmind_dl
+    if _finmind_dl is not None:
+        return _finmind_dl
+
+    with _finmind_lock:
+        if _finmind_dl is not None:
+            return _finmind_dl
+
+        from FinMind.data import DataLoader
+        dl = DataLoader()
+
+        # Try to load token from local/.env
+        env_path = os.path.join(os.path.dirname(__file__), 'local', '.env')
+        token = None
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith('FINMIND_API_TOKEN=') and '=' in line:
+                            token = line.split('=', 1)[1].strip()
+                            break
+            except Exception as e:
+                logger.warning("Failed to read FinMind token: %s", e)
+
+        if token:
+            try:
+                dl.login_by_token(api_token=token)
+                logger.info("FinMind: logged in with API token")
+            except Exception as e:
+                logger.warning("FinMind token login failed: %s", e)
+        else:
+            logger.warning("FinMind: no API token found, using anonymous mode (lower rate limit)")
+
+        _finmind_dl = dl
+        return _finmind_dl
+
 # 盤中快取過期時間 (秒) - 交易時段內快取僅維持 5 分鐘
 INTRADAY_CACHE_TTL = 60 * 5  # 5 分鐘
 
