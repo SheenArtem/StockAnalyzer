@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.11.02")
+    st.caption("Version: v2026.04.11.03")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -320,6 +320,7 @@ if st.session_state.get('app_mode') == 'screener':
                 '趨勢分數': r.get('trend_score', 0),
                 '百分位': r.get('score_percentile', ''),
                 'Regime': r.get('regime', ''),
+                'ETF買超': r.get('etf_buy_count', 0),
                 '關鍵訊號': ', '.join(r.get('signals', [])[:3]),
             })
         _df_results = pd.DataFrame(_rows)

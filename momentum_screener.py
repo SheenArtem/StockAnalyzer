@@ -276,6 +276,13 @@ class MomentumScreener:
         # 5. Extract key signals
         signals = self._extract_signals(report)
 
+        # 6. ETF buy count (for display; scoring already in trigger via analysis_engine)
+        etf_buy_count = 0
+        breakdown = report.get('trigger_breakdown', {})
+        if breakdown.get('etf_score', 0) > 0:
+            # Estimate count from score: 0.3 → 2, 0.6 → 3+
+            etf_buy_count = 3 if breakdown['etf_score'] >= 0.5 else 2
+
         return {
             'stock_id': stock_id,
             'name': market_row.get('stock_name', meta.get('name', '')),
@@ -287,6 +294,7 @@ class MomentumScreener:
             'trend_score': round(trend, 2),
             'score_percentile': report.get('score_percentile', None),
             'regime': report.get('regime', {}).get('regime', 'unknown'),
+            'etf_buy_count': etf_buy_count,
             'signals': signals,
             'trigger_details': report.get('trigger_details', []),
         }
@@ -326,6 +334,14 @@ class MomentumScreener:
             signals.append('inst_buy')
         elif '法人大量賣超' in detail_text:
             signals.append('inst_sell')
+
+        # ETF sync buy/sell
+        if 'ETF 同步買超' in detail_text:
+            signals.append('etf_sync_buy')
+        elif 'ETF 買超' in detail_text:
+            signals.append('etf_buy')
+        elif 'ETF 同步賣超' in detail_text:
+            signals.append('etf_sync_sell')
 
         # Squeeze
         if '壓縮' in detail_text and '釋放' in detail_text:

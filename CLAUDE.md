@@ -43,7 +43,8 @@ app.py (Streamlit UI 入口, 6 tabs)
   ├→ google_trends.py        — Google Trends 搜尋熱度（需 pip install pytrends）
   ├→ finviz_data.py          — Finviz 美股快照（估值/技術/分析師目標價）
   ├→ momentum_screener.py    — 右側動能選股引擎（Stage 1 初篩 + Stage 2 觸發分數）
-  └→ scanner_job.py          — 自動選股 CLI 入口（排程用）
+  ├→ scanner_job.py          — 自動選股 CLI 入口（排程用）
+  └→ etf_signal.py           — 主動型 ETF 同步買賣超訊號（讀取 TWActiveETFCrawler）
 ```
 
 ## 開發規範
