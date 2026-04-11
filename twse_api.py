@@ -847,6 +847,237 @@ class TWSEOpenData:
         self._cache.clear()
         logger.info("Cleared %d cached entries", count)
 
+    # ------------------------------------------------------------------ #
+    #  7. 全市場每日行情 (Screening 用)
+    # ------------------------------------------------------------------ #
+
+    def get_market_daily_twse(self, date=None):
+        """
+        Fetch daily trading summary for ALL TWSE-listed stocks.
+
+        Args:
+            date: datetime object or None (defaults to most recent trading day)
+
+        Returns:
+            DataFrame with columns:
+            ['stock_id', 'stock_name', 'market', 'close', 'change',
+             'open', 'high', 'low', 'volume', 'trading_value', 'trades']
+        """
+        cols = ['stock_id', 'stock_name', 'market', 'close', 'change',
+                'open', 'high', 'low', 'volume', 'trading_value', 'trades']
+        cache_key = f"market_daily_twse_{(date or datetime.now()).strftime('%Y%m%d')}"
+        cached = self._get_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        # Try recent trading dates until we get data
+        if date:
+            dates_to_try = [date]
+        else:
+            dates_to_try = self._get_recent_trading_dates(days=5)
+
+        for dt in dates_to_try:
+            date_str = self._to_twse_date(dt)
+            url = "https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX"
+            params = {'response': 'json', 'date': date_str, 'type': 'ALLBUT0999'}
+
+            data = self._fetch_json(url, params=params)
+            if data is None or data.get('stat') != 'OK':
+                continue
+
+            # TWSE returns stock data in tables array or data9 field
+            tables = data.get('tables', [])
+            rows = None
+            fields = None
+
+            # New format: tables array with title containing stock data
+            for table in tables:
+                title = table.get('title', '')
+                if '每日收盤行情' in title or '全部' in title:
+                    fields = table.get('fields', [])
+                    rows = table.get('data', [])
+                    break
+
+            # Legacy format: data9 / fields9
+            if rows is None:
+                fields = data.get('fields9', [])
+                rows = data.get('data9', [])
+
+            if not rows:
+                continue
+
+            # Build field index map
+            field_map = {f.strip(): i for i, f in enumerate(fields)}
+
+            results = []
+            for row in rows:
+                try:
+                    sid = str(row[field_map.get('證券代號', 0)]).strip()
+                    # Filter: only regular stocks (4-digit numeric IDs)
+                    if not sid.isdigit() or len(sid) != 4:
+                        continue
+
+                    sname = str(row[field_map.get('證券名稱', 1)]).strip()
+
+                    # Parse change direction and value
+                    change_val = 0.0
+                    if '漲跌價差' in field_map:
+                        change_val = self._safe_float(row[field_map['漲跌價差']])
+                    elif '漲跌(+/-)' in field_map:
+                        # Some formats split direction and value
+                        direction = str(row[field_map['漲跌(+/-)']]).strip()
+                        diff_idx = field_map.get('漲跌價差', field_map['漲跌(+/-)'] + 1)
+                        change_val = self._safe_float(row[diff_idx])
+                        if direction == '-':
+                            change_val = -abs(change_val)
+                        elif direction == '+':
+                            change_val = abs(change_val)
+
+                    close_val = self._safe_float(row[field_map.get('收盤價', 8)])
+
+                    results.append({
+                        'stock_id': sid,
+                        'stock_name': sname,
+                        'market': 'twse',
+                        'close': close_val,
+                        'change': change_val,
+                        'open': self._safe_float(row[field_map.get('開盤價', 5)]),
+                        'high': self._safe_float(row[field_map.get('最高價', 6)]),
+                        'low': self._safe_float(row[field_map.get('最低價', 7)]),
+                        'volume': self._safe_int(row[field_map.get('成交股數', 2)]),
+                        'trading_value': self._safe_int(row[field_map.get('成交金額', 4)]),
+                        'trades': self._safe_int(row[field_map.get('成交筆數', 3)]),
+                    })
+                except (IndexError, KeyError) as e:
+                    logger.debug("Error parsing TWSE row: %s", e)
+                    continue
+
+            if results:
+                df = pd.DataFrame(results, columns=cols)
+                df['change_pct'] = df.apply(
+                    lambda r: (r['change'] / (r['close'] - r['change']) * 100)
+                    if (r['close'] - r['change']) != 0 else 0.0, axis=1
+                )
+                logger.info("TWSE market daily: %d stocks fetched (date=%s)", len(df), date_str)
+                self._set_cache(cache_key, df)
+                return df
+
+        logger.warning("Failed to fetch TWSE market daily data")
+        return pd.DataFrame(columns=cols)
+
+    def get_market_daily_tpex(self, date=None):
+        """
+        Fetch daily trading summary for ALL TPEX (OTC) stocks.
+
+        Args:
+            date: datetime object or None (defaults to most recent trading day)
+
+        Returns:
+            DataFrame with same columns as get_market_daily_twse()
+        """
+        cols = ['stock_id', 'stock_name', 'market', 'close', 'change',
+                'open', 'high', 'low', 'volume', 'trading_value', 'trades']
+        cache_key = f"market_daily_tpex_{(date or datetime.now()).strftime('%Y%m%d')}"
+        cached = self._get_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        if date:
+            dates_to_try = [date]
+        else:
+            dates_to_try = self._get_recent_trading_dates(days=5)
+
+        for dt in dates_to_try:
+            date_str = self._to_tpex_date(dt)
+            url = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php"
+            params = {'l': 'zh-tw', 'd': date_str, 'o': 'json'}
+
+            data = self._fetch_json(url, params=params)
+            if data is None:
+                continue
+
+            # TPEX format: tables[0]['data'] (newer) or aaData (legacy)
+            rows = data.get('aaData', [])
+            if not rows:
+                tables = data.get('tables', [])
+                if tables:
+                    rows = tables[0].get('data', [])
+            if not rows:
+                continue
+
+            results = []
+            for row in rows:
+                try:
+                    if len(row) < 10:
+                        continue
+                    sid = str(row[0]).strip()
+                    if not sid.isdigit() or len(sid) != 4:
+                        continue
+
+                    sname = str(row[1]).strip()
+                    close_val = self._safe_float(row[2])
+                    change_val = self._safe_float(row[3])
+
+                    # TPEX volume is in shares, trading_value in TWD
+                    volume_raw = self._safe_int(row[8]) if len(row) > 8 else 0
+                    tv_raw = self._safe_int(row[9]) if len(row) > 9 else 0
+                    trades_raw = self._safe_int(row[10]) if len(row) > 10 else 0
+
+                    results.append({
+                        'stock_id': sid,
+                        'stock_name': sname,
+                        'market': 'tpex',
+                        'close': close_val,
+                        'change': change_val,
+                        'open': self._safe_float(row[4]) if len(row) > 4 else 0.0,
+                        'high': self._safe_float(row[5]) if len(row) > 5 else 0.0,
+                        'low': self._safe_float(row[6]) if len(row) > 6 else 0.0,
+                        'volume': volume_raw,
+                        'trading_value': tv_raw,
+                        'trades': trades_raw,
+                    })
+                except (IndexError, KeyError, ValueError) as e:
+                    logger.debug("Error parsing TPEX row: %s", e)
+                    continue
+
+            if results:
+                df = pd.DataFrame(results, columns=cols)
+                df['change_pct'] = df.apply(
+                    lambda r: (r['change'] / (r['close'] - r['change']) * 100)
+                    if (r['close'] - r['change']) != 0 else 0.0, axis=1
+                )
+                logger.info("TPEX market daily: %d stocks fetched (date=%s)", len(df), date_str)
+                self._set_cache(cache_key, df)
+                return df
+
+        logger.warning("Failed to fetch TPEX market daily data")
+        return pd.DataFrame(columns=cols)
+
+    def get_market_daily_all(self, date=None):
+        """
+        Fetch daily trading data for ALL listed stocks (TWSE + TPEX combined).
+
+        Returns:
+            DataFrame with columns: stock_id, stock_name, market, close, change,
+            change_pct, open, high, low, volume, trading_value, trades
+        """
+        cache_key = f"market_daily_all_{(date or datetime.now()).strftime('%Y%m%d')}"
+        cached = self._get_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        df_twse = self.get_market_daily_twse(date)
+        df_tpex = self.get_market_daily_tpex(date)
+
+        if df_twse.empty and df_tpex.empty:
+            return pd.DataFrame()
+
+        df = pd.concat([df_twse, df_tpex], ignore_index=True)
+        self._set_cache(cache_key, df)
+        logger.info("Market daily all: TWSE=%d + TPEX=%d = %d stocks",
+                     len(df_twse), len(df_tpex), len(df))
+        return df
+
 
 # ====================================================================== #
 #  __main__ test block

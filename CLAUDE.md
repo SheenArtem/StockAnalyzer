@@ -41,7 +41,9 @@ app.py (Streamlit UI 入口, 6 tabs)
   ├→ sec_edgar.py            — SEC EDGAR 申報（13F/Form 4/近期 Filings）
   ├→ cnn_fear_greed.py       — CNN Fear & Greed Index（美股情緒）
   ├→ google_trends.py        — Google Trends 搜尋熱度（需 pip install pytrends）
-  └→ finviz_data.py          — Finviz 美股快照（估值/技術/分析師目標價）
+  ├→ finviz_data.py          — Finviz 美股快照（估值/技術/分析師目標價）
+  ├→ momentum_screener.py    — 右側動能選股引擎（Stage 1 初篩 + Stage 2 觸發分數）
+  └→ scanner_job.py          — 自動選股 CLI 入口（排程用）
 ```
 
 ## 開發規範
