@@ -45,7 +45,8 @@ app.py (Streamlit UI 入口, 6 tabs)
   ├→ momentum_screener.py    — 右側動能選股引擎（Stage 1 初篩 + Stage 2 觸發分數）
   ├→ value_screener.py       — 左側價值選股引擎（估值+體質+營收+技術轉折+聰明錢）
   ├→ scanner_job.py          — 自動選股 CLI 入口（--mode momentum/value/both）
-  └→ etf_signal.py           — 主動型 ETF 同步買賣超訊號（讀取 TWActiveETFCrawler）
+  ├→ etf_signal.py           — 主動型 ETF 同步買賣超訊號（讀取 TWActiveETFCrawler）
+  └→ piotroski.py            — Piotroski F-Score + Altman Z-Score + ROIC/FCF
 ```
 
 ## 開發規範

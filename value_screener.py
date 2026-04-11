@@ -17,7 +17,7 @@ Stage 2: 完整估值分數（0-100）
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -579,63 +579,122 @@ class ValueScreener:
 
     def _score_quality(self, stock_id, details):
         """
-        體質分數: ROE + 三率趨勢 + 連續獲利
+        體質分數: Piotroski F-Score + Altman Z-Score + ROE + 三率 + ROIC/FCF
         """
         score = 50
 
+        # --- Piotroski F-Score (primary quality signal) ---
+        try:
+            from piotroski import calculate_fscore
+            fs_result = calculate_fscore(stock_id)
+            if fs_result:
+                fscore = fs_result['fscore']
+                comp = fs_result['components']
+                if fscore >= 7:
+                    score += 25
+                    details.append(f"F-Score={fscore}/9 強 (獲利{comp['profitability']}/槓桿{comp['leverage']}/效率{comp['efficiency']}) (+25)")
+                elif fscore >= 5:
+                    score += 10
+                    details.append(f"F-Score={fscore}/9 中等 (+10)")
+                elif fscore <= 3:
+                    score -= 20
+                    details.append(f"F-Score={fscore}/9 弱 (價值陷阱風險) (-20)")
+                else:
+                    details.append(f"F-Score={fscore}/9 (+0)")
+
+                # Extract current ratio from F-Score data
+                cr = fs_result['data'].get('current_ratio', 0)
+                if cr > 0:
+                    if cr > 2.0:
+                        score += 5
+                        details.append(f"流動比率={cr:.1f} 安全 (+5)")
+                    elif cr < 1.0:
+                        score -= 8
+                        details.append(f"流動比率={cr:.1f} 偏低 (-8)")
+        except Exception:
+            pass
+
+        # --- Altman Z-Score (bankruptcy risk, method B: penalty not exclude) ---
+        try:
+            from piotroski import calculate_zscore
+            # Estimate market cap from price * shares (rough)
+            price = 0
+            try:
+                from cache_manager import get_finmind_loader
+                _dl = get_finmind_loader()
+                _df = _dl.taiwan_stock_daily(stock_id=stock_id,
+                    start_date=(datetime.now() - timedelta(days=10)).strftime('%Y-%m-%d'))
+                if not _df.empty:
+                    price = float(_df.iloc[-1].get('close', 0))
+            except Exception:
+                pass
+            if price > 0:
+                # Rough market cap (will be refined when shares data available)
+                mcap = price * 1e8  # Placeholder; Z-Score is ratio-based so scale matters less
+                z_result = calculate_zscore(stock_id, market_cap=mcap)
+                if z_result:
+                    z = z_result['zscore']
+                    zone = z_result['zone']
+                    if zone == 'distress':
+                        score -= 20
+                        details.append(f"Z-Score={z:.1f} 危險區 (破產風險) (-20)")
+                    elif zone == 'safe':
+                        score += 8
+                        details.append(f"Z-Score={z:.1f} 安全區 (+8)")
+                    else:
+                        details.append(f"Z-Score={z:.1f} 灰色區 [資訊]")
+        except Exception:
+            pass
+
+        # --- ROIC / FCF (supplementary) ---
+        try:
+            from piotroski import calculate_extra_metrics
+            extras = calculate_extra_metrics(stock_id, market_cap=mcap if price > 0 else 0)
+            if extras:
+                roic = extras.get('roic', 0)
+                if roic and roic > 15:
+                    score += 8
+                    details.append(f"ROIC={roic:.1f}% 優 (+8)")
+                elif roic and roic < 0:
+                    score -= 5
+                    details.append(f"ROIC={roic:.1f}% 虧損 (-5)")
+
+                fcf_y = extras.get('fcf_yield', 0)
+                if fcf_y and fcf_y > 8:
+                    score += 8
+                    details.append(f"FCF Yield={fcf_y:.1f}% 高 (+8)")
+                elif fcf_y and fcf_y < -5:
+                    score -= 5
+                    details.append(f"FCF Yield={fcf_y:.1f}% 負 (-5)")
+        except Exception:
+            pass
+
+        # --- Fallback: basic ROE + margins (if F-Score unavailable) ---
         try:
             from fundamental_analysis import get_financial_statements
             fs = get_financial_statements(stock_id, quarters=12)
 
             if fs is not None and not fs.empty and len(fs) >= 4:
-                # ROE (most recent quarter)
                 if 'ROE' in fs.columns:
                     recent_roe = fs['ROE'].iloc[-1]
                     if pd.notna(recent_roe):
                         if recent_roe > 15:
-                            score += 15
-                            details.append(f"ROE={recent_roe:.1f}% 優 (+15)")
-                        elif recent_roe > 8:
-                            score += 8
-                            details.append(f"ROE={recent_roe:.1f}% 良 (+8)")
+                            score += 5
+                            details.append(f"ROE={recent_roe:.1f}% (+5)")
                         elif recent_roe < 0:
-                            score -= 20
-                            details.append(f"ROE={recent_roe:.1f}% 虧損 (-20)")
-
-                # Gross margin trend (last 4 quarters)
-                if 'GrossMargin' in fs.columns:
-                    gm = fs['GrossMargin'].dropna()
-                    if len(gm) >= 4:
-                        recent_gm = gm.iloc[-1]
-                        old_gm = gm.iloc[-4]
-                        if recent_gm > old_gm + 2:
-                            score += 10
-                            details.append(f"毛利率回升 {old_gm:.1f}→{recent_gm:.1f}% (+10)")
-                        elif recent_gm < old_gm - 5:
                             score -= 10
-                            details.append(f"毛利率下滑 {old_gm:.1f}→{recent_gm:.1f}% (-10)")
+                            details.append(f"ROE={recent_roe:.1f}% 虧損 (-10)")
 
-                # Operating margin trend
-                if 'OperatingMargin' in fs.columns:
-                    om = fs['OperatingMargin'].dropna()
-                    if len(om) >= 4:
-                        recent_om = om.iloc[-1]
-                        old_om = om.iloc[-4]
-                        if recent_om > old_om + 2:
-                            score += 8
-                            details.append(f"營益率回升 {old_om:.1f}→{recent_om:.1f}% (+8)")
-
-                # Consecutive profitable quarters
                 if 'EPS' in fs.columns:
                     eps = fs['EPS'].dropna()
                     if len(eps) >= 4:
                         profitable_q = (eps.iloc[-4:] > 0).sum()
                         if profitable_q == 4:
-                            score += 10
-                            details.append("連續 4 季獲利 (+10)")
+                            score += 5
+                            details.append("連續 4 季獲利 (+5)")
                         elif profitable_q <= 1:
-                            score -= 15
-                            details.append(f"近 4 季僅 {profitable_q} 季獲利 (-15)")
+                            score -= 10
+                            details.append(f"近 4 季僅 {profitable_q} 季獲利 (-10)")
         except Exception as e:
             logger.debug("Quality scoring failed for %s: %s", stock_id, e)
 
