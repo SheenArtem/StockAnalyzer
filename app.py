@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.11.05")
+    st.caption("Version: v2026.04.11.06")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -250,7 +250,7 @@ if st.session_state.get('app_mode') == 'screener':
     import json as _json
     from pathlib import Path as _Path
 
-    screener_tab1, screener_tab2 = st.tabs(["📈 右側動能選股", "💎 左側價值選股"])
+    screener_tab1, screener_tab_us, screener_tab2 = st.tabs(["📈 右側動能 (台股)", "🇺🇸 右側動能 (美股)", "💎 左側價值"])
 
     # ====================================================================
     # Tab 1: 右側動能選股
@@ -386,6 +386,104 @@ if st.session_state.get('app_mode') == 'screener':
                 "3. 完整掃描含觸發分數，約需 15-30 分鐘")
 
         st.caption("💡 完整掃描: `python scanner_job.py --mode momentum --no-chip`")
+
+    # ====================================================================
+    # Tab US: 美股動能選股
+    # ====================================================================
+    with screener_tab_us:
+
+        us_file = _Path('data/latest/momentum_us_result.json')
+        us_result = None
+        if us_file.exists():
+            try:
+                with open(us_file, 'r', encoding='utf-8') as _f:
+                    us_result = _json.load(_f)
+            except Exception:
+                us_result = None
+
+        col_us1, col_us2 = st.columns([2, 3])
+        with col_us1:
+            if st.button("⚡ 快速預覽 (S&P 500)", key='us_stage1_btn',
+                          help="S&P 500 初篩，約15秒"):
+                st.session_state['us_screener_run'] = 'stage1'
+
+        if st.session_state.get('us_screener_run') == 'stage1':
+            with st.spinner("Downloading S&P 500 data..."):
+                from momentum_screener import MomentumScreener as _MS
+                _us_screener = _MS()
+                _us_df = _us_screener.run_stage1_only(market='us')
+            st.session_state['us_screener_run'] = None
+            if not _us_df.empty:
+                st.success(f"S&P 500 passed: {len(_us_df)} stocks")
+                _us_df['TV ($B)'] = (_us_df['trading_value'] / 1e9).round(1)
+                _us_df['Chg%'] = _us_df['change_pct'].round(2)
+                _show = ['stock_id', 'market', 'close', 'Chg%', 'volume', 'TV ($B)']
+                _show = [c for c in _show if c in _us_df.columns]
+                st.dataframe(
+                    _us_df[_show].rename(columns={
+                        'stock_id': 'Ticker', 'market': 'Market', 'close': 'Close'
+                    }),
+                    use_container_width=True,
+                    height=500,
+                )
+            else:
+                st.warning("No data (market may be closed)")
+
+        elif us_result and us_result.get('results'):
+            us_results = us_result['results']
+            st.caption(
+                f"Scan: {us_result.get('scan_date', '?')} {us_result.get('scan_time', '')} | "
+                f"Universe: {us_result.get('total_scanned', 0)} → "
+                f"Passed: {us_result.get('passed_initial', 0)} → "
+                f"Scored: {us_result.get('scored_count', 0)} | "
+                f"Time: {us_result.get('elapsed_seconds', 0):.0f}s"
+            )
+
+            _us_rows = []
+            for r in us_results:
+                _us_rows.append({
+                    '#': len(_us_rows) + 1,
+                    'Ticker': r['stock_id'],
+                    'Price': r.get('price', 0),
+                    'Chg%': r.get('change_pct', 0),
+                    'Score': r.get('trigger_score', 0),
+                    'Trend': r.get('trend_score', 0),
+                    'Regime': r.get('regime', ''),
+                    'Signals': ', '.join(r.get('signals', [])[:3]),
+                })
+            st.dataframe(
+                pd.DataFrame(_us_rows),
+                use_container_width=True,
+                height=600,
+                column_config={
+                    'Score': st.column_config.NumberColumn(format="%.1f"),
+                    'Trend': st.column_config.NumberColumn(format="%.1f"),
+                    'Chg%': st.column_config.NumberColumn(format="%.1f%%"),
+                    'Price': st.column_config.NumberColumn(format="$%.2f"),
+                },
+            )
+
+            with st.expander("Detailed Scores"):
+                _us_selected = st.selectbox(
+                    "Select stock",
+                    options=[r['stock_id'] for r in us_results],
+                    key='us_detail_select',
+                )
+                if _us_selected:
+                    _us_match = next((r for r in us_results if r['stock_id'] == _us_selected), None)
+                    if _us_match:
+                        st.markdown(f"**{_us_selected}** — Score: {_us_match['trigger_score']:+.1f} / Trend: {_us_match['trend_score']:+.1f}")
+                        for d in _us_match.get('trigger_details', []):
+                            st.markdown(f"- {d}")
+
+        else:
+            st.info("No US scan results yet.\n\n"
+                    "**Usage:**\n"
+                    "1. Click 'Quick Preview' for S&P 500 initial filter\n"
+                    "2. Run `python scanner_job.py --mode momentum --market us` for full scan\n"
+                    "3. Full scan takes ~30-60 min for S&P 500")
+
+        st.caption("💡 Full scan: `python scanner_job.py --mode momentum --market us`")
 
     # ====================================================================
     # Tab 2: 左側價值選股

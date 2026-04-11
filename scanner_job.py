@@ -146,6 +146,9 @@ def main():
     parser.add_argument('--mode', choices=['momentum', 'value', 'both'],
                         default='both',
                         help='Scan mode: momentum, value, or both (default: both)')
+    parser.add_argument('--market', choices=['tw', 'us', 'all'],
+                        default='tw',
+                        help='Market: tw (Taiwan), us (S&P 500), all (default: tw)')
     parser.add_argument('--no-chip', action='store_true',
                         help='Skip chip data (faster, ~4min vs ~8min)')
     parser.add_argument('--top', type=int, default=50,
@@ -189,27 +192,30 @@ def main():
 
     run_momentum = args.mode in ('momentum', 'both')
     run_value = args.mode in ('value', 'both')
+    markets = ['tw', 'us'] if args.market == 'all' else [args.market]
 
     # --- Momentum Screener ---
     if run_momentum:
         from momentum_screener import MomentumScreener
-        progress("=== Momentum Screener ===")
-        m_screener = MomentumScreener(config=config, progress_callback=progress)
+        for mkt in markets:
+            mkt_label = 'Taiwan' if mkt == 'tw' else 'US (S&P 500)'
+            progress(f"=== Momentum Screener [{mkt_label}] ===")
+            m_screener = MomentumScreener(config=config, progress_callback=progress)
 
-        if args.stage1_only:
-            df = m_screener.run_stage1_only()
-            print(f"\nMomentum Stage 1: {len(df)} candidates")
-            if not df.empty:
-                cols = ['stock_id', 'stock_name', 'market', 'close',
-                        'change_pct', 'trading_value']
-                show_cols = [c for c in cols if c in df.columns]
-                print(df[show_cols].head(30).to_string(index=False))
-        else:
-            m_result = m_screener.run()
-            MomentumScreener.save_results(m_result, args.output_dir)
-            progress(f"Momentum results saved")
-            if not args.quiet:
-                print_summary(m_result)
+            if args.stage1_only:
+                df = m_screener.run_stage1_only(market=mkt)
+                print(f"\nMomentum Stage 1 [{mkt}]: {len(df)} candidates")
+                if not df.empty:
+                    cols = ['stock_id', 'stock_name', 'market', 'close',
+                            'change_pct', 'trading_value']
+                    show_cols = [c for c in cols if c in df.columns]
+                    print(df[show_cols].head(30).to_string(index=False))
+            else:
+                m_result = m_screener.run(market=mkt)
+                MomentumScreener.save_results(m_result, args.output_dir)
+                progress(f"Momentum [{mkt}] results saved")
+                if not args.quiet:
+                    print_summary(m_result)
 
     # --- Value Screener ---
     if run_value:

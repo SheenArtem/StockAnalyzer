@@ -40,6 +40,12 @@ DEFAULT_CONFIG = {
 
     # 排除清單
     'exclude_ids': set(),        # 手動排除的股票代號
+
+    # US market settings
+    'us_universe': 'sp500',      # 'sp500', 'nasdaq100', or list of tickers
+    'us_min_volume': 500_000,    # Minimum daily volume
+    'us_min_price': 5.0,         # Minimum price (skip penny stocks)
+    'us_include_chip': False,    # US chip data is slow, default off
 }
 
 
@@ -55,28 +61,31 @@ class MomentumScreener:
     # Public API
     # ================================================================
 
-    def run(self):
+    def run(self, market='tw'):
         """
         Execute full screening pipeline.
 
+        Args:
+            market: 'tw' for Taiwan, 'us' for US stocks
+
         Returns:
-            dict: {
-                'scan_date': str,
-                'scan_time': str,
-                'total_scanned': int,
-                'passed_initial': int,
-                'results': [...]
-            }
+            dict with scan_date, total_scanned, passed_initial, results
         """
         start_time = time.time()
+        self._market = market
 
         # --- Stage 1 ---
-        self.progress("Stage 1: Fetching full market data...")
-        market_df = self._fetch_market_data()
+        self.progress(f"Stage 1: Fetching {'US' if market == 'us' else 'TW'} market data...")
+        if market == 'us':
+            market_df = self._fetch_us_market_data()
+            candidates = self._stage1_filter_us(market_df) if not market_df.empty else pd.DataFrame()
+        else:
+            market_df = self._fetch_market_data()
+            candidates = self._stage1_filter(market_df) if not market_df.empty else pd.DataFrame()
+
         if market_df.empty:
             return self._make_result([], 0, 0, time.time() - start_time)
 
-        candidates = self._stage1_filter(market_df)
         self.progress(f"Stage 1 done: {len(candidates)}/{len(market_df)} passed")
 
         if candidates.empty:
@@ -91,8 +100,11 @@ class MomentumScreener:
         self.progress(f"Scan complete in {elapsed:.0f}s")
         return self._make_result(scored, len(market_df), len(candidates), elapsed)
 
-    def run_stage1_only(self):
+    def run_stage1_only(self, market='tw'):
         """Only run Stage 1 for quick preview (no trigger scores)."""
+        if market == 'us':
+            market_df = self._fetch_us_market_data()
+            return self._stage1_filter_us(market_df) if not market_df.empty else pd.DataFrame()
         market_df = self._fetch_market_data()
         if market_df.empty:
             return pd.DataFrame()
@@ -157,6 +169,169 @@ class MomentumScreener:
         # Sort by trading value descending (most liquid first)
         combined.sort_values('trading_value', ascending=False, inplace=True)
         return combined
+
+    # ================================================================
+    # US Market: Fetch + Filter
+    # ================================================================
+
+    def _get_us_universe(self):
+        """Get list of US stock tickers based on config."""
+        universe = self.config.get('us_universe', 'sp500')
+
+        if isinstance(universe, list):
+            return universe
+
+        if universe == 'nasdaq100':
+            return self._fetch_nasdaq100()
+
+        # Default: S&P 500
+        return self._fetch_sp500()
+
+    @staticmethod
+    def _fetch_sp500():
+        """Fetch S&P 500 ticker list from Wikipedia."""
+        try:
+            import requests as _req
+            from io import StringIO
+            headers = {'User-Agent': 'StockAnalyzer/1.0'}
+            resp = _req.get(
+                'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies',
+                headers=headers, timeout=15,
+            )
+            tables = pd.read_html(StringIO(resp.text))
+            tickers = tables[0]['Symbol'].tolist()
+            # Fix BRK.B → BRK-B for yfinance
+            return [t.replace('.', '-') for t in tickers]
+        except Exception as e:
+            logger.error("Failed to fetch S&P 500 list: %s", e)
+            return []
+
+    @staticmethod
+    def _fetch_nasdaq100():
+        """Fetch Nasdaq 100 ticker list from Wikipedia."""
+        try:
+            import requests as _req
+            from io import StringIO
+            headers = {'User-Agent': 'StockAnalyzer/1.0'}
+            resp = _req.get(
+                'https://en.wikipedia.org/wiki/Nasdaq-100',
+                headers=headers, timeout=15,
+            )
+            tables = pd.read_html(StringIO(resp.text))
+            # Nasdaq-100 table usually has 'Ticker' or 'Symbol' column
+            for t in tables:
+                for col in ['Ticker', 'Symbol']:
+                    if col in t.columns:
+                        tickers = t[col].tolist()
+                        return [str(tk).replace('.', '-') for tk in tickers]
+            return []
+        except Exception as e:
+            logger.error("Failed to fetch Nasdaq 100 list: %s", e)
+            return []
+
+    def _fetch_us_market_data(self):
+        """
+        Fetch daily data for US stock universe via yfinance batch download.
+
+        Returns:
+            DataFrame with columns matching TW format:
+            stock_id, stock_name, market, close, change, change_pct,
+            open, high, low, volume, trading_value
+        """
+        import yfinance as yf
+
+        tickers = self._get_us_universe()
+        if not tickers:
+            logger.error("Empty US stock universe")
+            return pd.DataFrame()
+
+        self.progress(f"  Downloading {len(tickers)} US tickers...")
+
+        try:
+            data = yf.download(
+                tickers, period='2d', interval='1d',
+                progress=False, auto_adjust=False, timeout=30,
+            )
+        except Exception as e:
+            logger.error("yfinance batch download failed: %s", e)
+            return pd.DataFrame()
+
+        if data.empty:
+            return pd.DataFrame()
+
+        results = []
+        for ticker in tickers:
+            try:
+                if data.columns.nlevels == 2:
+                    close = data[('Close', ticker)].dropna()
+                    volume = data[('Volume', ticker)].dropna()
+                    _open = data[('Open', ticker)].dropna()
+                    high = data[('High', ticker)].dropna()
+                    low = data[('Low', ticker)].dropna()
+                else:
+                    # Single ticker
+                    close = data['Close'].dropna()
+                    volume = data['Volume'].dropna()
+                    _open = data['Open'].dropna()
+                    high = data['High'].dropna()
+                    low = data['Low'].dropna()
+
+                if len(close) < 1:
+                    continue
+
+                latest_close = float(close.iloc[-1])
+                latest_vol = float(volume.iloc[-1])
+
+                if len(close) >= 2:
+                    prev_close = float(close.iloc[-2])
+                    change = latest_close - prev_close
+                    change_pct = (change / prev_close * 100) if prev_close != 0 else 0
+                else:
+                    change = 0
+                    change_pct = 0
+
+                results.append({
+                    'stock_id': ticker,
+                    'stock_name': ticker,  # yfinance doesn't give names in batch
+                    'market': 'us',
+                    'close': latest_close,
+                    'change': round(change, 2),
+                    'change_pct': round(change_pct, 2),
+                    'open': float(_open.iloc[-1]) if len(_open) > 0 else 0,
+                    'high': float(high.iloc[-1]) if len(high) > 0 else 0,
+                    'low': float(low.iloc[-1]) if len(low) > 0 else 0,
+                    'volume': int(latest_vol),
+                    'trading_value': int(latest_close * latest_vol),
+                })
+            except Exception:
+                continue
+
+        if not results:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(results)
+        logger.info("US market data: %d tickers fetched", len(df))
+        return df
+
+    def _stage1_filter_us(self, df):
+        """
+        Filter US stocks by volume and momentum.
+
+        Criteria:
+        1. Volume > minimum
+        2. Price > minimum (skip penny stocks)
+        3. Change % > momentum minimum
+        """
+        cfg = self.config
+
+        mask = pd.Series(True, index=df.index)
+        mask &= df['volume'] >= cfg.get('us_min_volume', 500_000)
+        mask &= df['close'] >= cfg.get('us_min_price', 5.0)
+        mask &= df['change_pct'] >= cfg['momentum_change_min']
+
+        result = df[mask].copy()
+        result.sort_values('trading_value', ascending=False, inplace=True)
+        return result
 
     # ================================================================
     # Stage 2: Full Trigger Score Analysis
@@ -251,19 +426,32 @@ class MomentumScreener:
 
         # 3. Optionally fetch chip data
         chip_data = None
-        if self.config['include_chip'] and stock_id.isdigit():
-            try:
-                from chip_analysis import ChipAnalyzer
-                ca = ChipAnalyzer()
-                chip_data, _ = ca.get_chip_data(stock_id)
-            except Exception:
-                pass  # Chip data is optional
+        us_chip_data = None
+        is_us = not stock_id.isdigit()
+
+        if is_us:
+            if self.config.get('us_include_chip', False):
+                try:
+                    from us_stock_chip import USStockChipAnalyzer
+                    usc = USStockChipAnalyzer()
+                    us_chip_data, _ = usc.get_chip_data(stock_id)
+                except Exception:
+                    pass
+        else:
+            if self.config['include_chip']:
+                try:
+                    from chip_analysis import ChipAnalyzer
+                    ca = ChipAnalyzer()
+                    chip_data, _ = ca.get_chip_data(stock_id)
+                except Exception:
+                    pass
 
         # 4. Run analysis
         try:
             analyzer = TechnicalAnalyzer(
                 stock_id, df_week, df_day,
                 chip_data=chip_data,
+                us_chip_data=us_chip_data,
             )
             report = analyzer.run_analysis()
         except Exception as e:
@@ -361,20 +549,19 @@ class MomentumScreener:
     def _make_result(self, scored, total_scanned, passed_initial, elapsed):
         """Build the final result dict."""
         now = datetime.now()
+        market = getattr(self, '_market', 'tw')
         return {
             'scan_date': now.strftime('%Y-%m-%d'),
             'scan_time': now.strftime('%H:%M'),
+            'market': market,
             'total_scanned': total_scanned,
             'passed_initial': passed_initial,
             'scored_count': len(scored),
             'elapsed_seconds': round(elapsed, 1),
-            'failures': self._failures[:20],  # Limit failure list
+            'failures': self._failures[:20],
             'config': {
-                'twse_value_pct': self.config['twse_value_pct'],
-                'tpex_value_pct': self.config['tpex_value_pct'],
                 'momentum_change_min': self.config['momentum_change_min'],
                 'top_n': self.config['top_n'],
-                'include_chip': self.config['include_chip'],
             },
             'results': scored,
         }
@@ -394,14 +581,18 @@ class MomentumScreener:
         latest_dir.mkdir(parents=True, exist_ok=True)
         history_dir.mkdir(parents=True, exist_ok=True)
 
+        # Determine filename suffix based on market
+        market = result.get('market', 'tw')
+        suffix = '_us' if market == 'us' else ''
+
         # Latest result (overwritten each run)
-        latest_file = latest_dir / 'momentum_result.json'
+        latest_file = latest_dir / f'momentum{suffix}_result.json'
         with open(latest_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         # History (appended by date)
         date_str = result.get('scan_date', datetime.now().strftime('%Y-%m-%d'))
-        history_file = history_dir / f'{date_str}_momentum.json'
+        history_file = history_dir / f'{date_str}_momentum{suffix}.json'
         with open(history_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
