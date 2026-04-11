@@ -574,11 +574,11 @@ class TWSEOpenData:
                 dy_val = 0.0
                 pb_val = 0.0
 
-                for key in ['證券代號']:
+                for key in ['證券代號', '股票代號']:
                     if key in field_map:
                         stock_id_val = str(row[field_map[key]]).strip()
                         break
-                for key in ['證券名稱']:
+                for key in ['證券名稱', '股票名稱']:
                     if key in field_map:
                         stock_name_val = str(row[field_map[key]]).strip()
                         break

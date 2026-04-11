@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.11.03")
+    st.caption("Version: v2026.04.11.04")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -245,15 +245,19 @@ def validate_ticker(ticker):
 
 if st.session_state.get('app_mode') == 'screener':
     # ====================================================================
-    #  自動選股模式 — 讀取掃描結果 + 手動觸發掃描
+    #  自動選股模式 — 右側動能 + 左側價值
     # ====================================================================
-    st.markdown("## 🔍 右側動能選股")
-
-    # --- Load latest scan results ---
     import json as _json
     from pathlib import Path as _Path
 
-    latest_file = _Path('data/latest/momentum_result.json')
+    screener_tab1, screener_tab2 = st.tabs(["📈 右側動能選股", "💎 左側價值選股"])
+
+    # ====================================================================
+    # Tab 1: 右側動能選股
+    # ====================================================================
+    with screener_tab1:
+
+        latest_file = _Path('data/latest/momentum_result.json')
     scan_result = None
     if latest_file.exists():
         try:
@@ -381,8 +385,133 @@ if st.session_state.get('app_mode') == 'screener':
                 "2. 在命令列執行 `python scanner_job.py` 進行完整掃描\n"
                 "3. 完整掃描含觸發分數，約需 15-30 分鐘")
 
+        st.caption("💡 完整掃描: `python scanner_job.py --mode momentum --no-chip`")
+
+    # ====================================================================
+    # Tab 2: 左側價值選股
+    # ====================================================================
+    with screener_tab2:
+
+        value_file = _Path('data/latest/value_result.json')
+        value_result = None
+        if value_file.exists():
+            try:
+                with open(value_file, 'r', encoding='utf-8') as _f:
+                    value_result = _json.load(_f)
+            except Exception:
+                value_result = None
+
+        # Scan controls
+        col_v1, col_v2 = st.columns([2, 3])
+        with col_v1:
+            if st.button("⚡ 快速預覽 (PE/PB 篩選)", key='value_stage1_btn',
+                          help="用 PE/PB/殖利率快速篩選，約10秒"):
+                st.session_state['value_screener_run'] = 'stage1'
+
+        # Stage 1 preview
+        if st.session_state.get('value_screener_run') == 'stage1':
+            with st.spinner("估值初篩中..."):
+                from value_screener import ValueScreener
+                _v_screener = ValueScreener()
+                _v_df = _v_screener.run_stage1_only()
+            st.session_state['value_screener_run'] = None
+            if not _v_df.empty:
+                st.success(f"初篩通過: {len(_v_df)} 檔")
+                _v_df['TV (億)'] = (_v_df['trading_value'] / 1e8).round(1)
+                _v_df['漲跌%'] = _v_df['change_pct'].round(2)
+                _show = ['stock_id', 'stock_name', 'market', 'close', 'PE', 'PB',
+                          'dividend_yield', '漲跌%', 'TV (億)']
+                _show = [c for c in _show if c in _v_df.columns]
+                st.dataframe(
+                    _v_df[_show].rename(columns={
+                        'stock_id': '代號', 'stock_name': '名稱', 'market': '市場',
+                        'close': '收盤', 'dividend_yield': '殖利率%'
+                    }),
+                    use_container_width=True,
+                    height=500,
+                )
+            else:
+                st.warning("初篩無結果")
+
+        # Show latest full value scan results
+        elif value_result and value_result.get('results'):
+            v_results = value_result['results']
+            st.caption(
+                f"掃描日期: {value_result.get('scan_date', '?')} {value_result.get('scan_time', '')} | "
+                f"全市場 {value_result.get('total_scanned', 0)} 檔 → "
+                f"初篩 {value_result.get('passed_initial', 0)} 檔 → "
+                f"評分 {value_result.get('scored_count', 0)} 檔 | "
+                f"耗時 {value_result.get('elapsed_seconds', 0):.0f}s"
+            )
+
+            _v_rows = []
+            for r in v_results:
+                s = r.get('scores', {})
+                _v_rows.append({
+                    '排名': len(_v_rows) + 1,
+                    '代號': r['stock_id'],
+                    '名稱': r.get('name', ''),
+                    '收盤': r.get('price', 0),
+                    'PE': r.get('PE', 0),
+                    'PB': r.get('PB', 0),
+                    '殖利率%': r.get('dividend_yield', 0),
+                    '綜合分數': r.get('value_score', 0),
+                    '估值': s.get('valuation', 0),
+                    '體質': s.get('quality', 0),
+                    '營收': s.get('revenue', 0),
+                    '技術轉折': s.get('technical', 0),
+                    '聰明錢': s.get('smart_money', 0),
+                })
+            _v_df_results = pd.DataFrame(_v_rows)
+
+            st.dataframe(
+                _v_df_results,
+                use_container_width=True,
+                height=600,
+                column_config={
+                    '綜合分數': st.column_config.NumberColumn(format="%.1f"),
+                    'PE': st.column_config.NumberColumn(format="%.1f"),
+                    'PB': st.column_config.NumberColumn(format="%.2f"),
+                    '殖利率%': st.column_config.NumberColumn(format="%.1f%%"),
+                    '收盤': st.column_config.NumberColumn(format="%.1f"),
+                },
+            )
+
+            # Detailed scoring
+            with st.expander("個股詳細評分"):
+                _v_selected = st.selectbox(
+                    "選擇股票",
+                    options=[f"{r['stock_id']} {r.get('name', '')}" for r in v_results],
+                    key='value_detail_select',
+                )
+                if _v_selected:
+                    _v_sid = _v_selected.split()[0]
+                    _v_match = next((r for r in v_results if r['stock_id'] == _v_sid), None)
+                    if _v_match:
+                        _vs = _v_match.get('scores', {})
+                        st.markdown(
+                            f"**{_v_sid} {_v_match.get('name', '')}** — "
+                            f"綜合: {_v_match['value_score']:.1f} | "
+                            f"估值: {_vs.get('valuation', 0):.0f} | "
+                            f"體質: {_vs.get('quality', 0):.0f} | "
+                            f"營收: {_vs.get('revenue', 0):.0f} | "
+                            f"技術: {_vs.get('technical', 0):.0f} | "
+                            f"聰明錢: {_vs.get('smart_money', 0):.0f}"
+                        )
+                        for d in _v_match.get('details', []):
+                            st.markdown(f"- {d}")
+
+        else:
+            st.info("尚無掃描結果。\n\n"
+                    "**使用方式:**\n"
+                    "1. 點擊「快速預覽」查看 PE/PB 篩選結果\n"
+                    "2. 在命令列執行 `python scanner_job.py --mode value` 進行完整掃描\n"
+                    "3. 完整掃描含 5 維評分，約需 20-40 分鐘")
+
+        st.caption("💡 完整掃描: `python scanner_job.py --mode value --no-chip`")
+
     st.markdown("---")
-    st.caption("💡 完整掃描建議在收盤後執行: `python scanner_job.py --no-chip`")
+    st.caption("💡 完整掃描 (右側+左側): `python scanner_job.py --no-chip`")
 
 elif st.session_state.get('analysis_active', False):
     # 決定資料來源
