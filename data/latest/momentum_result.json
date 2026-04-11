@@ -1,28 +1,915 @@
 {
   "scan_date": "2026-04-11",
-  "scan_time": "13:40",
+  "scan_time": "17:45",
+  "market": "tw",
   "total_scanned": 1960,
   "passed_initial": 420,
-  "scored_count": 1,
-  "elapsed_seconds": 10.0,
+  "scored_count": 30,
+  "elapsed_seconds": 7468.1,
   "failures": [],
-  "config": {},
+  "config": {
+    "momentum_change_min": -1.0,
+    "top_n": 30
+  },
   "results": [
     {
-      "stock_id": "2330",
-      "name": "TSMC",
+      "stock_id": "3450",
+      "name": "聯鈞",
       "market": "twse",
-      "price": 2000,
-      "change_pct": 2.3,
-      "trading_value": 77669362959,
-      "trigger_score": 5.7,
-      "trend_score": 2.5,
-      "score_percentile": 85,
+      "price": 306.5,
+      "change_pct": 5.87,
+      "trading_value": 9530304491,
+      "trigger_score": 10,
+      "trend_score": 5,
+      "score_percentile": 98.9,
       "regime": "neutral",
+      "etf_buy_count": 0,
       "signals": [
         "regime_neutral"
       ],
-      "trigger_details": []
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "✅ RSI 出現強烈底背離 (+1.5)",
+        "📊 RVOL=1.9x (z=1.1) (+0.76)",
+        "🔥 EFI 資金異常流入 (z=2.1) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "📈 營收連續 9 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "8074",
+      "name": "鉅橡",
+      "market": "tpex",
+      "price": 66.8,
+      "change_pct": 3.73,
+      "trading_value": 769906075,
+      "trigger_score": 9.93,
+      "trend_score": 4,
+      "score_percentile": 98.9,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=3.7x (z=1.5) (+1.0)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +33.2% → 基本面催化 (+0.5)"
+      ]
+    },
+    {
+      "stock_id": "3031",
+      "name": "佰鴻",
+      "market": "twse",
+      "price": 28.35,
+      "change_pct": 9.88,
+      "trading_value": 426084048,
+      "trigger_score": 9.93,
+      "trend_score": 5,
+      "score_percentile": 98.9,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=54.5) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=3.8x (z=2.3) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=10.9) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +26.6% → 基本面催化 (+0.5)"
+      ]
+    },
+    {
+      "stock_id": "6829",
+      "name": "千附精密",
+      "market": "tpex",
+      "price": 136.0,
+      "change_pct": 7.51,
+      "trading_value": 379493706,
+      "trigger_score": 9.93,
+      "trend_score": 5,
+      "score_percentile": 98.9,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=59.4) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=3.6x (z=2.7) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=2.5) [異常]",
+        "🚨 異常爆量 RVOL=3.6x (z=2.7)，留意消息面 [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +81.9% → 基本面催化 (+0.5)",
+        "📈 營收連續 3 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "1569",
+      "name": "濱川",
+      "market": "tpex",
+      "price": 56.1,
+      "change_pct": 10.0,
+      "trading_value": 194163982,
+      "trigger_score": 9.93,
+      "trend_score": 2,
+      "score_percentile": 98.9,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=4.7x (z=3.7) (+1.0)",
+        "🚨 異常爆量 RVOL=4.7x (z=3.7)，留意消息面 [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +39.6% → 基本面催化 (+0.5)"
+      ]
+    },
+    {
+      "stock_id": "6245",
+      "name": "立端",
+      "market": "tpex",
+      "price": 74.5,
+      "change_pct": 3.62,
+      "trading_value": 189579843,
+      "trigger_score": 9.93,
+      "trend_score": 5,
+      "score_percentile": 98.9,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=67.6) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.3x (z=1.8) (+1.0)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +25.4% → 基本面催化 (+0.5)"
+      ]
+    },
+    {
+      "stock_id": "8383",
+      "name": "千附",
+      "market": "tpex",
+      "price": 48.75,
+      "change_pct": 1.99,
+      "trading_value": 173849285,
+      "trigger_score": 9.93,
+      "trend_score": 4,
+      "score_percentile": 98.9,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=48.7) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=3.0x (z=2.5) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=2.3) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +49.7% → 基本面催化 (+0.5)",
+        "📈 營收連續 4 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "2489",
+      "name": "瑞軒",
+      "market": "twse",
+      "price": 45.3,
+      "change_pct": 5.96,
+      "trading_value": 9991320000,
+      "trigger_score": 9.73,
+      "trend_score": 4,
+      "score_percentile": 98.7,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=3.8x (z=2.5) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=6.6) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "📈 營收連續 3 個月成長 (+0.3)",
+        "🏦 ETF 活動: 買 0 / 賣 1 檔 (淨 -132 張) [資訊]"
+      ]
+    },
+    {
+      "stock_id": "3455",
+      "name": "由田",
+      "market": "tpex",
+      "price": 193.5,
+      "change_pct": 5.16,
+      "trading_value": 3655320144,
+      "trigger_score": 9.6,
+      "trend_score": 5,
+      "score_percentile": 98.6,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=47.8) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "📈 MACD 出現【隱藏底背離】(多頭趨勢延續) (+1)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=4.7x (z=2.6) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=10.0) [異常]",
+        "🚨 異常爆量 RVOL=4.7x (z=2.6)，留意消息面 [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "⚠️ 營收負驚喜 -74.6% → 基本面利空 (-0.5)",
+        "📈 營收連續 6 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "6488",
+      "name": "環球晶",
+      "market": "tpex",
+      "price": 490.5,
+      "change_pct": 9.61,
+      "trading_value": 4960944230,
+      "trigger_score": 9.43,
+      "trend_score": 4,
+      "score_percentile": 98.5,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.9x (z=2.1) (+1.0)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🏦 ETF 活動: 買 1 / 賣 1 檔 (淨 +535 張) [資訊]"
+      ]
+    },
+    {
+      "stock_id": "8155",
+      "name": "博智",
+      "market": "tpex",
+      "price": 322.0,
+      "change_pct": 5.57,
+      "trading_value": 2298484598,
+      "trigger_score": 9.43,
+      "trend_score": 5,
+      "score_percentile": 98.5,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=49.0) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.9x (z=2.2) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=4.8) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "3706",
+      "name": "神達",
+      "market": "twse",
+      "price": 83.0,
+      "change_pct": 6.14,
+      "trading_value": 2165358450,
+      "trigger_score": 9.43,
+      "trend_score": -0.5,
+      "score_percentile": 98.5,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.5x (z=1.8) (+1.0)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "4576",
+      "name": "大銀微系統",
+      "market": "twse",
+      "price": 165.0,
+      "change_pct": 0.92,
+      "trading_value": 1824530322,
+      "trigger_score": 9.43,
+      "trend_score": 5,
+      "score_percentile": 98.5,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=49.8) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=3.7x (z=2.6) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=3.2) [異常]",
+        "🚨 異常爆量 RVOL=3.7x (z=2.6)，留意消息面 [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "4966",
+      "name": "譜瑞-KY",
+      "market": "tpex",
+      "price": 533.0,
+      "change_pct": 6.39,
+      "trading_value": 1014268858,
+      "trigger_score": 9.43,
+      "trend_score": 0,
+      "score_percentile": 98.5,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.9x (z=2.5) (+1.0)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🏦 ETF 活動: 買 1 / 賣 0 檔 (淨 +5 張) [資訊]"
+      ]
+    },
+    {
+      "stock_id": "6725",
+      "name": "矽科宏晟",
+      "market": "tpex",
+      "price": 341.0,
+      "change_pct": 10.0,
+      "trading_value": 990066935,
+      "trigger_score": 9.43,
+      "trend_score": 5,
+      "score_percentile": 98.5,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=44.6) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.8x (z=1.7) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=8.7) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "6278",
+      "name": "台表科",
+      "market": "twse",
+      "price": 104.0,
+      "change_pct": 9.7,
+      "trading_value": 790817875,
+      "trigger_score": 9.43,
+      "trend_score": 4,
+      "score_percentile": 98.5,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=5.1x (z=5.9) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=6.3) [異常]",
+        "🚨 異常爆量 RVOL=5.1x (z=5.9)，留意消息面 [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "2428",
+      "name": "興勤",
+      "market": "twse",
+      "price": 169.0,
+      "change_pct": 4.32,
+      "trading_value": 353538557,
+      "trigger_score": 9.43,
+      "trend_score": 3,
+      "score_percentile": 98.5,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.7x (z=1.5) (+1.0)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🏦 ETF 活動: 買 0 / 賣 1 檔 (淨 -3050 張) [資訊]"
+      ]
+    },
+    {
+      "stock_id": "2303",
+      "name": "聯電",
+      "market": "twse",
+      "price": 62.0,
+      "change_pct": 3.33,
+      "trading_value": 9466155239,
+      "trigger_score": 9.3,
+      "trend_score": 4,
+      "score_percentile": 98.4,
+      "regime": "neutral",
+      "etf_buy_count": 2,
+      "signals": [
+        "etf_buy",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=1.9x (z=1.2) (+0.78)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "📈 營收連續 5 個月成長 (+0.3)",
+        "🏦 ETF 買超 2 檔 (淨 +2399 張) (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "6139",
+      "name": "亞翔",
+      "market": "twse",
+      "price": 636.0,
+      "change_pct": 5.12,
+      "trading_value": 6006365483,
+      "trigger_score": 9.23,
+      "trend_score": 5,
+      "score_percentile": 98.3,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=1.9x (z=1.2) (+0.79)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +21.7% → 基本面催化 (+0.5)",
+        "📈 營收連續 8 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "6451",
+      "name": "訊芯-KY",
+      "market": "twse",
+      "price": 432.0,
+      "change_pct": 9.92,
+      "trading_value": 5042429974,
+      "trigger_score": 9.19,
+      "trend_score": 5,
+      "score_percentile": 98.3,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=66.6) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=2.4x (z=1.4) (+0.93)",
+        "🔥 EFI 資金異常流入 (z=6.7) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🏦 ETF 活動: 買 1 / 賣 0 檔 (淨 +82 張) [資訊]"
+      ]
+    },
+    {
+      "stock_id": "3583",
+      "name": "辛耘",
+      "market": "twse",
+      "price": 673.0,
+      "change_pct": 9.97,
+      "trading_value": 6153111955,
+      "trigger_score": 9.13,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "trending",
+      "etf_buy_count": 2,
+      "signals": [
+        "etf_buy",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=60.3) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=2.1x (z=1.1) (+0.73)",
+        "🔥 EFI 資金異常流入 (z=9.2) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "📈 營收連續 5 個月成長 (+0.3)",
+        "🏦 ETF 買超 2 檔 (淨 +533 張) (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "8091",
+      "name": "翔名",
+      "market": "tpex",
+      "price": 183.0,
+      "change_pct": -0.81,
+      "trading_value": 450783478,
+      "trigger_score": 9.12,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=53.4) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=2.2x (z=1.1) (+0.76)",
+        "🔥 EFI 資金異常流入 (z=7.6) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +38.0% → 基本面催化 (+0.5)",
+        "📈 營收連續 10 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "2382",
+      "name": "廣達",
+      "market": "twse",
+      "price": 321.5,
+      "change_pct": 2.72,
+      "trading_value": 12576062290,
+      "trigger_score": 9.1,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.1x (z=2.0) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=3.2) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +91.2% → 基本面催化 (+0.5)",
+        "📈 營收連續 12 個月成長 (+0.3)",
+        "🏦 ETF 活動: 買 1 / 賣 0 檔 (淨 +97 張) [資訊]"
+      ]
+    },
+    {
+      "stock_id": "2376",
+      "name": "技嘉",
+      "market": "twse",
+      "price": 262.5,
+      "change_pct": 4.58,
+      "trading_value": 4283798438,
+      "trigger_score": 9.1,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.4x (z=2.0) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=3.9) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +30.3% → 基本面催化 (+0.5)",
+        "📈 營收連續 7 個月成長 (+0.3)",
+        "🏦 ETF 活動: 買 1 / 賣 1 檔 (淨 -368 張) [資訊]"
+      ]
+    },
+    {
+      "stock_id": "6715",
+      "name": "嘉基",
+      "market": "twse",
+      "price": 439.0,
+      "change_pct": 5.91,
+      "trading_value": 1412416134,
+      "trigger_score": 9.1,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.8x (z=1.6) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=6.4) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +33.3% → 基本面催化 (+0.5)",
+        "📈 營收連續 4 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "5284",
+      "name": "jpp-KY",
+      "market": "twse",
+      "price": 308.5,
+      "change_pct": 6.01,
+      "trading_value": 1287688858,
+      "trigger_score": 9.1,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.9x (z=2.4) (+1.0)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +23.8% → 基本面催化 (+0.5)",
+        "📈 營收連續 12 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "5434",
+      "name": "崇越",
+      "market": "twse",
+      "price": 401.0,
+      "change_pct": 9.71,
+      "trading_value": 1030737727,
+      "trigger_score": 9.1,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=3.1x (z=3.4) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=7.3) [異常]",
+        "🚨 異常爆量 RVOL=3.1x (z=3.4)，留意消息面 [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +22.5% → 基本面催化 (+0.5)",
+        "📈 營收連續 5 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "5388",
+      "name": "中磊",
+      "market": "twse",
+      "price": 84.1,
+      "change_pct": 2.81,
+      "trading_value": 1028525084,
+      "trigger_score": 9.1,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "✅ RSI 出現底背離 (+1.0)",
+        "🔊 爆量確認 RVOL=2.8x (z=2.0) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=4.8) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +48.5% → 基本面催化 (+0.5)",
+        "📈 營收連續 9 個月成長 (+0.3)"
+      ]
+    },
+    {
+      "stock_id": "6658",
+      "name": "聯策",
+      "market": "twse",
+      "price": 81.7,
+      "change_pct": 8.79,
+      "trading_value": 425163647,
+      "trigger_score": 9.1,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "trending",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_trending"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=3.0x (z=1.7) (+1.0)",
+        "🔥 EFI 資金異常流入 (z=2.6) [異常]",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +22.1% → 基本面催化 (+0.5)"
+      ]
+    },
+    {
+      "stock_id": "8070",
+      "name": "長華*",
+      "market": "twse",
+      "price": 47.6,
+      "change_pct": 1.6,
+      "trading_value": 376585757,
+      "trigger_score": 9.1,
+      "trend_score": 5,
+      "score_percentile": 98.2,
+      "regime": "neutral",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_high",
+        "regime_neutral"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔊 爆量確認 RVOL=2.7x (z=1.6) (+1.0)",
+        "📊 PCR=1.24 偏恐懼 → 反向偏多 (+0.25)",
+        "📈 期貨正價差 0.43% → 偏多 (+0.3)",
+        "🚀 營收正驚喜 +24.2% → 基本面催化 (+0.5)",
+        "📈 營收連續 12 個月成長 (+0.3)",
+        "🏦 ETF 活動: 買 1 / 賣 0 檔 (淨 +37 張) [資訊]"
+      ]
     }
   ]
 }
