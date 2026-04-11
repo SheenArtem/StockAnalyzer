@@ -612,6 +612,94 @@ class TWSEOpenData:
         logger.info("Fetched PE/dividend data for %d stocks", len(df))
         return df
 
+    def get_pe_dividend_all_tpex(self):
+        """
+        Fetch P/E, P/B, dividend yield for all TPEX (OTC) stocks.
+
+        Returns:
+            DataFrame with columns: ['stock_id', 'stock_name', 'PE', 'dividend_yield', 'PB']
+        """
+        cols = ['stock_id', 'stock_name', 'PE', 'dividend_yield', 'PB']
+        cache_key = "tpex_pe_dividend_all"
+        cached = self._get_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        logger.info("Fetching TPEX P/E, P/B, dividend yield (all OTC stocks)")
+
+        # Try recent trading dates
+        dates_to_try = self._get_recent_trading_dates(days=5)
+        for dt in dates_to_try:
+            date_str = self._to_tpex_date(dt)
+            url = "https://www.tpex.org.tw/web/stock/aftertrading/peratio_analysis/pera_result.php"
+            params = {'l': 'zh-tw', 'd': date_str, 'o': 'json'}
+
+            data = self._fetch_json(url, params=params)
+            if data is None:
+                continue
+
+            tables = data.get('tables', [])
+            rows = tables[0].get('data', []) if tables else []
+            if not rows:
+                continue
+
+            results = []
+            for row in rows:
+                try:
+                    if len(row) < 7:
+                        continue
+                    sid = str(row[0]).strip()
+                    if not sid.isdigit() or len(sid) != 4:
+                        continue
+                    sname = str(row[1]).strip()
+                    pe_val = self._safe_float(row[2])
+                    dy_val = self._safe_float(row[5])
+                    pb_val = self._safe_float(row[6])
+
+                    results.append({
+                        'stock_id': sid,
+                        'stock_name': sname,
+                        'PE': pe_val,
+                        'dividend_yield': dy_val,
+                        'PB': pb_val,
+                    })
+                except (IndexError, KeyError) as e:
+                    logger.debug("Error parsing TPEX PE row: %s", e)
+                    continue
+
+            if results:
+                df = pd.DataFrame(results, columns=cols)
+                self._set_cache(cache_key, df)
+                logger.info("Fetched TPEX PE/dividend data for %d stocks", len(df))
+                return df
+
+        logger.warning("Failed to fetch TPEX PE/dividend data")
+        return pd.DataFrame(columns=cols)
+
+    def get_pe_dividend_all_combined(self):
+        """
+        Fetch P/E, P/B, dividend yield for ALL stocks (TWSE + TPEX combined).
+
+        Returns:
+            DataFrame with columns: ['stock_id', 'stock_name', 'PE', 'dividend_yield', 'PB']
+        """
+        cache_key = "pe_dividend_all_combined"
+        cached = self._get_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        df_twse = self.get_pe_dividend_all()
+        df_tpex = self.get_pe_dividend_all_tpex()
+
+        if df_twse.empty and df_tpex.empty:
+            return pd.DataFrame(columns=['stock_id', 'stock_name', 'PE', 'dividend_yield', 'PB'])
+
+        df = pd.concat([df_twse, df_tpex], ignore_index=True)
+        self._set_cache(cache_key, df)
+        logger.info("Combined PE data: TWSE=%d + TPEX=%d = %d",
+                     len(df_twse), len(df_tpex), len(df))
+        return df
+
     # ------------------------------------------------------------------ #
     #  4. 每月營收 (MOPS 公開資訊觀測站)
     # ------------------------------------------------------------------ #
