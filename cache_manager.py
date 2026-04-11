@@ -15,26 +15,102 @@ CACHE_DIR = "data_cache"
 _cache_lock = threading.Lock()
 
 # ================================================================
-# FinMind DataLoader Factory (shared, token-aware)
+# FinMind DataLoader Factory (shared, token-aware, rate-tracked)
 # ================================================================
-_finmind_dl = None
+_finmind_tracker = None
 _finmind_lock = threading.Lock()
+
+_FINMIND_RATE_LIMIT = 600       # requests per hour (free tier with token)
+_FINMIND_RATE_WARN = 540        # warn threshold
+_FINMIND_RATE_PAUSE = 580       # auto-pause threshold
+
+
+class FinMindTracker:
+    """Wraps DataLoader with request counting and rate limit tracking."""
+
+    def __init__(self, dl, has_token):
+        self._dl = dl
+        self.has_token = has_token
+        self.request_count = 0
+        self._hour_start = time.time()
+        self._lock = threading.Lock()
+
+    def __getattr__(self, name):
+        """Proxy all DataLoader method calls through the tracker."""
+        attr = getattr(self._dl, name)
+        if not callable(attr):
+            return attr
+
+        def tracked_call(*args, **kwargs):
+            self._check_rate_limit()
+            with self._lock:
+                self.request_count += 1
+                count = self.request_count
+            if count % 50 == 0:
+                elapsed = time.time() - self._hour_start
+                rate = count / (elapsed / 3600) if elapsed > 0 else 0
+                logger.info("FinMind API: %d requests (%.0f/hr rate), %.0fs elapsed",
+                            count, rate, elapsed)
+            if count == _FINMIND_RATE_WARN:
+                logger.warning("FinMind API: approaching rate limit (%d/%d)",
+                               count, _FINMIND_RATE_LIMIT)
+            return attr(*args, **kwargs)
+
+        return tracked_call
+
+    def _check_rate_limit(self):
+        """Auto-pause if approaching rate limit, reset counter each hour."""
+        elapsed = time.time() - self._hour_start
+
+        # Reset counter every hour
+        if elapsed >= 3600:
+            with self._lock:
+                old_count = self.request_count
+                self.request_count = 0
+                self._hour_start = time.time()
+            if old_count > 0:
+                logger.info("FinMind API: hour reset (was %d requests)", old_count)
+            return
+
+        if self.request_count >= _FINMIND_RATE_PAUSE:
+            wait_seconds = 3600 - elapsed + 5  # Wait until next hour + buffer
+            logger.warning(
+                "FinMind API: rate limit reached (%d/%d), pausing %.0fs",
+                self.request_count, _FINMIND_RATE_LIMIT, wait_seconds,
+            )
+            print(f"[FinMind] Rate limit ({self.request_count}/{_FINMIND_RATE_LIMIT}), "
+                  f"waiting {wait_seconds:.0f}s...")
+            time.sleep(wait_seconds)
+            with self._lock:
+                self.request_count = 0
+                self._hour_start = time.time()
+
+    def get_stats(self):
+        """Return current API usage stats."""
+        elapsed = time.time() - self._hour_start
+        return {
+            'request_count': self.request_count,
+            'elapsed_seconds': round(elapsed, 1),
+            'rate_per_hour': round(self.request_count / (elapsed / 3600), 1) if elapsed > 0 else 0,
+            'remaining': _FINMIND_RATE_LIMIT - self.request_count,
+            'has_token': self.has_token,
+        }
 
 
 def get_finmind_loader():
     """
-    Get a shared FinMind DataLoader instance with API token.
+    Get a shared FinMind DataLoader with API token and rate tracking.
 
     Token is read from local/.env (FINMIND_API_TOKEN=...).
-    Falls back to anonymous mode if token not found.
+    Tracks API call count, logs every 50 calls, auto-pauses at 580/600.
     """
-    global _finmind_dl
-    if _finmind_dl is not None:
-        return _finmind_dl
+    global _finmind_tracker
+    if _finmind_tracker is not None:
+        return _finmind_tracker
 
     with _finmind_lock:
-        if _finmind_dl is not None:
-            return _finmind_dl
+        if _finmind_tracker is not None:
+            return _finmind_tracker
 
         from FinMind.data import DataLoader
         dl = DataLoader()
@@ -53,17 +129,26 @@ def get_finmind_loader():
             except Exception as e:
                 logger.warning("Failed to read FinMind token: %s", e)
 
+        has_token = False
         if token:
             try:
                 dl.login_by_token(api_token=token)
+                has_token = True
                 logger.info("FinMind: logged in with API token")
             except Exception as e:
                 logger.warning("FinMind token login failed: %s", e)
         else:
-            logger.warning("FinMind: no API token found, using anonymous mode (lower rate limit)")
+            logger.warning("FinMind: no API token, anonymous mode (lower rate limit)")
 
-        _finmind_dl = dl
-        return _finmind_dl
+        _finmind_tracker = FinMindTracker(dl, has_token)
+        return _finmind_tracker
+
+
+def get_finmind_stats():
+    """Get current FinMind API usage stats (or None if not initialized)."""
+    if _finmind_tracker is not None:
+        return _finmind_tracker.get_stats()
+    return None
 
 # 盤中快取過期時間 (秒) - 交易時段內快取僅維持 5 分鐘
 INTRADAY_CACHE_TTL = 60 * 5  # 5 分鐘

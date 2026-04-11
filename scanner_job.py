@@ -243,10 +243,23 @@ def main():
             if not args.quiet:
                 print_value_summary(v_result)
 
+    # Print FinMind API usage stats
+    if not args.quiet:
+        from cache_manager import get_finmind_stats
+        stats = get_finmind_stats()
+        if stats:
+            print(f"\n[FinMind API] Requests: {stats['request_count']}/{_FINMIND_RATE_LIMIT} "
+                  f"| Rate: {stats['rate_per_hour']:.0f}/hr "
+                  f"| Remaining: {stats['remaining']} "
+                  f"| Token: {'Yes' if stats['has_token'] else 'NO!'}")
+
     # Git push
     if args.push and not args.stage1_only:
         progress("Pushing results to remote...")
         git_push_results(args.output_dir)
+
+
+_FINMIND_RATE_LIMIT = 600  # For display only
 
 
 if __name__ == '__main__':
