@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.11.11")
+    st.caption("Version: v2026.04.11.12")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -250,7 +250,9 @@ if st.session_state.get('app_mode') == 'screener':
     import json as _json
     from pathlib import Path as _Path
 
-    screener_tab1, screener_tab_us, screener_tab2 = st.tabs(["📈 右側動能 (台股)", "🇺🇸 右側動能 (美股)", "💎 左側價值"])
+    screener_tab1, screener_tab_us, screener_tab2, screener_tab_us_val = st.tabs(
+        ["📈 動能 (台股)", "🇺🇸 動能 (美股)", "💎 價值 (台股)", "🇺🇸 價值 (美股)"]
+    )
 
     # ====================================================================
     # Tab 1: 右側動能選股
@@ -608,8 +610,67 @@ if st.session_state.get('app_mode') == 'screener':
 
         st.caption("💡 完整掃描: `python scanner_job.py --mode value --no-chip`")
 
+    # ====================================================================
+    # Tab US Value: 美股價值選股
+    # ====================================================================
+    with screener_tab_us_val:
+
+        us_val_file = _Path('data/latest/value_us_result.json')
+        us_val_result = None
+        if us_val_file.exists():
+            try:
+                with open(us_val_file, 'r', encoding='utf-8') as _f:
+                    us_val_result = _json.load(_f)
+            except Exception:
+                us_val_result = None
+
+        if us_val_result and us_val_result.get('results'):
+            uv_results = us_val_result['results']
+            st.caption(
+                f"Scan: {us_val_result.get('scan_date', '?')} {us_val_result.get('scan_time', '')} | "
+                f"Scored: {us_val_result.get('scored_count', 0)} | "
+                f"Time: {us_val_result.get('elapsed_seconds', 0):.0f}s"
+            )
+            _uv_rows = []
+            for r in uv_results:
+                s = r.get('scores', {})
+                _uv_rows.append({
+                    '#': len(_uv_rows) + 1,
+                    'Ticker': r['stock_id'],
+                    'Price': r.get('price', 0),
+                    'PE': r.get('PE', 0),
+                    'PB': r.get('PB', 0),
+                    'DY%': r.get('dividend_yield', 0),
+                    'Score': r.get('value_score', 0),
+                    'Val': s.get('valuation', 0),
+                    'Qual': s.get('quality', 0),
+                    'Tech': s.get('technical', 0),
+                    'Smart$': s.get('smart_money', 0),
+                })
+            st.dataframe(
+                pd.DataFrame(_uv_rows),
+                use_container_width=True, height=600,
+                column_config={
+                    'Score': st.column_config.NumberColumn(format="%.1f"),
+                    'Price': st.column_config.NumberColumn(format="$%.2f"),
+                    'PE': st.column_config.NumberColumn(format="%.1f"),
+                },
+            )
+            with st.expander("Detailed Scores"):
+                _uv_sel = st.selectbox("Select", [r['stock_id'] for r in uv_results], key='us_val_detail')
+                if _uv_sel:
+                    _uv_m = next((r for r in uv_results if r['stock_id'] == _uv_sel), None)
+                    if _uv_m:
+                        for d in _uv_m.get('details', []):
+                            st.markdown(f"- {d}")
+        else:
+            st.info("No US value scan results yet.\n\n"
+                    "Run: `python scanner_job.py --mode value --market us`")
+
+        st.caption("💡 Full scan: `python scanner_job.py --mode value --market us`")
+
     st.markdown("---")
-    st.caption("💡 完整掃描 (右側+左側): `python scanner_job.py --no-chip`")
+    st.caption("💡 完整掃描 (全部): `python scanner_job.py --market all --no-chip`")
 
 elif st.session_state.get('analysis_active', False):
     # 決定資料來源

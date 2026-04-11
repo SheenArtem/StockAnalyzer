@@ -278,28 +278,30 @@ def main():
     # --- Value Screener ---
     if run_value:
         from value_screener import ValueScreener
-        progress("=== Value Screener ===")
-        v_config = {
-            'top_n': args.top,
-            'include_chip': not args.no_chip,
-            'max_pe': args.max_pe,
-        }
-        v_screener = ValueScreener(config=v_config, progress_callback=progress)
+        for mkt in markets:
+            mkt_label = 'Taiwan' if mkt == 'tw' else 'US (S&P 500)'
+            progress(f"=== Value Screener [{mkt_label}] ===")
+            v_config = {
+                'top_n': args.top,
+                'include_chip': not args.no_chip,
+                'max_pe': args.max_pe,
+            }
+            v_screener = ValueScreener(config=v_config, progress_callback=progress)
 
-        if args.stage1_only:
-            df = v_screener.run_stage1_only()
-            print(f"\nValue Stage 1: {len(df)} candidates")
-            if not df.empty:
-                cols = ['stock_id', 'stock_name', 'market', 'close',
-                        'PE', 'PB', 'dividend_yield', 'trading_value']
-                show_cols = [c for c in cols if c in df.columns]
-                print(df[show_cols].head(30).to_string(index=False))
-        else:
-            v_result = v_screener.run()
-            ValueScreener.save_results(v_result, args.output_dir)
-            progress(f"Value results saved")
-            if args.notify:
-                send_discord_notification(v_result)
+            if args.stage1_only:
+                df = v_screener.run_stage1_only(market=mkt)
+                print(f"\nValue Stage 1 [{mkt}]: {len(df)} candidates")
+                if not df.empty:
+                    cols = ['stock_id', 'stock_name', 'market', 'close',
+                            'PE', 'PB', 'dividend_yield', 'trading_value']
+                    show_cols = [c for c in cols if c in df.columns]
+                    print(df[show_cols].head(30).to_string(index=False))
+            else:
+                v_result = v_screener.run(market=mkt)
+                ValueScreener.save_results(v_result, args.output_dir)
+                progress(f"Value [{mkt}] results saved")
+                if args.notify:
+                    send_discord_notification(v_result)
             if not args.quiet:
                 print_value_summary(v_result)
 
