@@ -185,6 +185,20 @@ class ValueScreener:
                     self._failures.append(sid)
                     consecutive_fails += 1
             except Exception as e:
+                err_str = str(type(e).__name__)
+                if 'RateLimit' in err_str or '429' in str(e):
+                    self.progress(f"  [Rate Limit] Pausing 60s then retrying {sid}...")
+                    time.sleep(60)
+                    try:
+                        result = self._score_single(sid, row)
+                        if result:
+                            scored.append(result)
+                            consecutive_fails = 0
+                        else:
+                            self._failures.append(sid)
+                    except Exception:
+                        self._failures.append(sid)
+                    continue
                 logger.warning("Failed to score %s: %s", sid, e)
                 self._failures.append(sid)
                 consecutive_fails += 1
