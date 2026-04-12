@@ -157,19 +157,37 @@ class FinvizAnalyzer:
         }
 
     def _extract_valuation(self, raw: Dict) -> Dict:
-        """擷取估值指標"""
+        """擷取估值 + 基本面指標"""
         return {
-            'pe': raw.get('P/E', 'N/A'),
-            'forward_pe': raw.get('Forward P/E', 'N/A'),
-            'peg': raw.get('PEG', 'N/A'),
-            'ps': raw.get('P/S', 'N/A'),
-            'pb': raw.get('P/B', 'N/A'),
-            'pc': raw.get('P/C', 'N/A'),
-            'pfcf': raw.get('P/FCF', 'N/A'),
-            'eps_ttm': raw.get('EPS (ttm)', 'N/A'),
-            'eps_next_y': raw.get('EPS next Y', 'N/A'),
-            'eps_growth_next_5y': raw.get('EPS next 5Y', 'N/A'),
-            'dividend_yield': raw.get('Dividend %', 'N/A'),
+            'pe': self._safe_float(raw.get('P/E', 'N/A')),
+            'forward_pe': self._safe_float(raw.get('Forward P/E', 'N/A')),
+            'peg': self._safe_float(raw.get('PEG', 'N/A')),
+            'ps': self._safe_float(raw.get('P/S', 'N/A')),
+            'pb': self._safe_float(raw.get('P/B', 'N/A')),
+            'pc': self._safe_float(raw.get('P/C', 'N/A')),
+            'pfcf': self._safe_float(raw.get('P/FCF', 'N/A')),
+            'eps_ttm': self._safe_float(raw.get('EPS (ttm)', 'N/A')),
+            'eps_next_y': self._safe_float(raw.get('EPS next Y', 'N/A')),
+            'eps_growth_next_5y': self._safe_float(raw.get('EPS next 5Y', 'N/A')),
+            'dividend_yield': self._safe_float(raw.get('Dividend %', 'N/A')),
+            # Profitability & quality metrics
+            'roe': self._safe_float(raw.get('ROE', 'N/A')),
+            'roa': self._safe_float(raw.get('ROA', 'N/A')),
+            'roi': self._safe_float(raw.get('ROI', 'N/A')),
+            'profit_margin': self._safe_float(raw.get('Profit Margin', 'N/A')),
+            'operating_margin': self._safe_float(raw.get('Oper. Margin', 'N/A')),
+            'gross_margin': self._safe_float(raw.get('Gross Margin', 'N/A')),
+            # Leverage & liquidity
+            'current_ratio': self._safe_float(raw.get('Current Ratio', 'N/A')),
+            'quick_ratio': self._safe_float(raw.get('Quick Ratio', 'N/A')),
+            'debt_equity': self._safe_float(raw.get('Debt/Eq', 'N/A')),
+            'lt_debt_equity': self._safe_float(raw.get('LT Debt/Eq', 'N/A')),
+            # Growth
+            'eps_growth_this_y': self._safe_float(raw.get('EPS this Y', 'N/A')),
+            'eps_growth_past_5y': self._safe_float(raw.get('EPS past 5Y', 'N/A')),
+            'sales_growth_past_5y': self._safe_float(raw.get('Sales past 5Y', 'N/A')),
+            'sales_growth_qq': self._safe_float(raw.get('Sales Q/Q', 'N/A')),
+            'eps_growth_qq': self._safe_float(raw.get('EPS Q/Q', 'N/A')),
         }
 
     def _extract_technical(self, raw: Dict) -> Dict:

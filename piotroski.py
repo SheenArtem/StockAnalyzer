@@ -489,6 +489,307 @@ def _to_float(val):
 
 
 # ================================================================
+# US Stock Support (yfinance-based)
+# ================================================================
+
+def calculate_fscore_us(ticker):
+    """
+    Calculate Piotroski F-Score (0-9) for a US stock using yfinance.
+
+    Returns same format as calculate_fscore() for compatibility.
+    """
+    try:
+        import yfinance as yf
+    except ImportError:
+        return None
+
+    try:
+        stock = yf.Ticker(ticker)
+        inc = stock.quarterly_income_stmt
+        bal = stock.quarterly_balance_sheet
+        cf = stock.quarterly_cashflow
+    except Exception as e:
+        logger.debug("yfinance data fetch failed for %s: %s", ticker, e)
+        return None
+
+    if inc is None or inc.empty or bal is None or bal.empty:
+        return None
+    if len(inc.columns) < 2 or len(bal.columns) < 2:
+        return None
+
+    # yfinance returns columns as dates (most recent first)
+    curr_date, prev_date = inc.columns[0], inc.columns[1]
+
+    def _get(df, field, col):
+        try:
+            return float(df.loc[field, col])
+        except (KeyError, ValueError, TypeError):
+            return 0.0
+
+    # Income data
+    revenue_curr = _get(inc, 'Total Revenue', curr_date)
+    revenue_prev = _get(inc, 'Total Revenue', prev_date)
+    gross_curr = _get(inc, 'Gross Profit', curr_date)
+    gross_prev = _get(inc, 'Gross Profit', prev_date)
+    net_income_curr = _get(inc, 'Net Income', curr_date)
+    net_income_prev = _get(inc, 'Net Income', prev_date)
+
+    # Balance data
+    bc = bal.columns[0]
+    bp = bal.columns[1] if len(bal.columns) >= 2 else bc
+    ta_curr = _get(bal, 'Total Assets', bc) or 1
+    ta_prev = _get(bal, 'Total Assets', bp) or 1
+    ca_curr = _get(bal, 'Current Assets', bc)
+    ca_prev = _get(bal, 'Current Assets', bp)
+    cl_curr = _get(bal, 'Current Liabilities', bc) or 1
+    cl_prev = _get(bal, 'Current Liabilities', bp) or 1
+    ltd_curr = _get(bal, 'Long Term Debt', bc)
+    ltd_prev = _get(bal, 'Long Term Debt', bp)
+    shares_curr = _get(bal, 'Ordinary Shares Number', bc) or _get(bal, 'Share Issued', bc)
+    shares_prev = _get(bal, 'Ordinary Shares Number', bp) or _get(bal, 'Share Issued', bp)
+
+    # Cashflow data
+    ocf = 0.0
+    if cf is not None and not cf.empty:
+        cf_date = cf.columns[0]
+        ocf = _get(cf, 'Operating Cash Flow', cf_date)
+
+    score = 0
+    details = []
+    raw = {}
+
+    # PROFITABILITY (4 pts)
+    prof_score = 0
+
+    roa = net_income_curr / ta_curr
+    raw['roa'] = roa
+    if roa > 0:
+        prof_score += 1
+        details.append(f"F1 ROA={roa:.3f} > 0 (+1)")
+    else:
+        details.append(f"F1 ROA={roa:.3f} <= 0 (0)")
+
+    raw['operating_cf'] = ocf
+    if ocf > 0:
+        prof_score += 1
+        details.append(f"F2 Operating CF={ocf:,.0f} > 0 (+1)")
+    else:
+        details.append(f"F2 Operating CF={ocf:,.0f} <= 0 (0)")
+
+    roa_prev = net_income_prev / ta_prev
+    raw['roa_prev'] = roa_prev
+    if roa > roa_prev:
+        prof_score += 1
+        details.append(f"F3 ROA {roa_prev:.3f}->{roa:.3f} improving (+1)")
+    else:
+        details.append(f"F3 ROA {roa_prev:.3f}->{roa:.3f} declining (0)")
+
+    cfroa = ocf / ta_curr
+    raw['cfroa'] = cfroa
+    if cfroa > roa:
+        prof_score += 1
+        details.append(f"F4 CFROA={cfroa:.3f} > ROA={roa:.3f} quality (+1)")
+    else:
+        details.append(f"F4 CFROA={cfroa:.3f} <= ROA={roa:.3f} accrual risk (0)")
+
+    # LEVERAGE (3 pts)
+    lev_score = 0
+
+    lev_curr = ltd_curr / ta_curr if ta_curr else 0
+    lev_prev = ltd_prev / ta_prev if ta_prev else 0
+    raw['leverage_curr'] = lev_curr
+    raw['leverage_prev'] = lev_prev
+    if lev_curr < lev_prev:
+        lev_score += 1
+        details.append(f"F5 Leverage {lev_prev:.3f}->{lev_curr:.3f} decreasing (+1)")
+    else:
+        details.append(f"F5 Leverage {lev_prev:.3f}->{lev_curr:.3f} not decreasing (0)")
+
+    cr_curr = ca_curr / cl_curr
+    cr_prev = ca_prev / cl_prev
+    raw['current_ratio'] = cr_curr
+    raw['current_ratio_prev'] = cr_prev
+    if cr_curr > cr_prev:
+        lev_score += 1
+        details.append(f"F6 Current Ratio {cr_prev:.2f}->{cr_curr:.2f} improving (+1)")
+    else:
+        details.append(f"F6 Current Ratio {cr_prev:.2f}->{cr_curr:.2f} declining (0)")
+
+    raw['shares_curr'] = shares_curr
+    raw['shares_prev'] = shares_prev
+    if shares_prev > 0 and shares_curr <= shares_prev:
+        lev_score += 1
+        details.append(f"F7 Shares {shares_prev:,.0f}->{shares_curr:,.0f} no dilution (+1)")
+    elif shares_prev > 0:
+        details.append(f"F7 Shares {shares_prev:,.0f}->{shares_curr:,.0f} diluted (0)")
+    else:
+        details.append("F7 Shares data unavailable (0)")
+
+    # EFFICIENCY (2 pts)
+    eff_score = 0
+
+    gm_curr = _safe_div(gross_curr, revenue_curr) if revenue_curr else 0
+    gm_prev = _safe_div(gross_prev, revenue_prev) if revenue_prev else 0
+    raw['gross_margin'] = gm_curr
+    raw['gross_margin_prev'] = gm_prev
+    if gm_curr > gm_prev:
+        eff_score += 1
+        details.append(f"F8 Gross Margin {gm_prev:.1%}->{gm_curr:.1%} improving (+1)")
+    else:
+        details.append(f"F8 Gross Margin {gm_prev:.1%}->{gm_curr:.1%} declining (0)")
+
+    at_curr = revenue_curr / ta_curr if ta_curr else 0
+    at_prev = revenue_prev / ta_prev if ta_prev else 0
+    raw['asset_turnover'] = at_curr
+    raw['asset_turnover_prev'] = at_prev
+    if at_curr > at_prev:
+        eff_score += 1
+        details.append(f"F9 Asset Turnover {at_prev:.3f}->{at_curr:.3f} improving (+1)")
+    else:
+        details.append(f"F9 Asset Turnover {at_prev:.3f}->{at_curr:.3f} declining (0)")
+
+    score = prof_score + lev_score + eff_score
+
+    return {
+        'fscore': score,
+        'details': details,
+        'components': {
+            'profitability': prof_score,
+            'leverage': lev_score,
+            'efficiency': eff_score,
+        },
+        'data': raw,
+    }
+
+
+def calculate_zscore_us(ticker, market_cap):
+    """
+    Calculate Altman Z-Score for a US stock using yfinance.
+    Z = 1.2(WC/TA) + 1.4(RE/TA) + 3.3(EBIT/TA) + 0.6(MV/TL) + 1.0(Sales/TA)
+    """
+    try:
+        import yfinance as yf
+    except ImportError:
+        return None
+
+    try:
+        stock = yf.Ticker(ticker)
+        inc = stock.quarterly_income_stmt
+        bal = stock.quarterly_balance_sheet
+    except Exception:
+        return None
+
+    if inc is None or inc.empty or bal is None or bal.empty:
+        return None
+
+    def _get(df, field, col):
+        try:
+            return float(df.loc[field, col])
+        except (KeyError, ValueError, TypeError):
+            return 0.0
+
+    bc = bal.columns[0]
+    ta = _get(bal, 'Total Assets', bc)
+    if ta <= 0:
+        return None
+
+    ca = _get(bal, 'Current Assets', bc)
+    cl = _get(bal, 'Current Liabilities', bc)
+    re = _get(bal, 'Retained Earnings', bc)
+    tl = _get(bal, 'Total Liabilities Net Minority Interest', bc)
+    if tl == 0:
+        tl = ta - _get(bal, 'Stockholders Equity', bc)
+
+    ic = inc.columns[0]
+    ebit = _get(inc, 'EBIT', ic) or _get(inc, 'Operating Income', ic)
+    sales = _get(inc, 'Total Revenue', ic)
+
+    wc = ca - cl
+
+    x1 = wc / ta
+    x2 = re / ta
+    x3 = ebit / ta
+    x4 = market_cap / tl if tl > 0 else 5.0
+    x5 = sales / ta
+
+    z = 1.2 * x1 + 1.4 * x2 + 3.3 * x3 + 0.6 * x4 + 1.0 * x5
+
+    if z > 3.0:
+        zone = 'safe'
+    elif z > 1.8:
+        zone = 'grey'
+    else:
+        zone = 'distress'
+
+    return {
+        'zscore': round(z, 2),
+        'zone': zone,
+        'components': {
+            'x1_wc_ta': round(x1, 3),
+            'x2_re_ta': round(x2, 3),
+            'x3_ebit_ta': round(x3, 3),
+            'x4_mv_tl': round(x4, 3),
+            'x5_sales_ta': round(x5, 3),
+        },
+    }
+
+
+def calculate_extra_metrics_us(ticker, market_cap):
+    """
+    Calculate Current Ratio, FCF Yield, ROIC for a US stock via yfinance.
+    """
+    try:
+        import yfinance as yf
+    except ImportError:
+        return None
+
+    try:
+        stock = yf.Ticker(ticker)
+        bal = stock.quarterly_balance_sheet
+        inc = stock.quarterly_income_stmt
+        cf = stock.quarterly_cashflow
+    except Exception:
+        return None
+
+    if bal is None or bal.empty:
+        return None
+
+    def _get(df, field, col):
+        try:
+            return float(df.loc[field, col])
+        except (KeyError, ValueError, TypeError):
+            return 0.0
+
+    bc = bal.columns[0]
+    result = {}
+
+    cl = _get(bal, 'Current Liabilities', bc)
+    if cl > 0:
+        result['current_ratio'] = round(_get(bal, 'Current Assets', bc) / cl, 2)
+
+    if cf is not None and not cf.empty:
+        cc = cf.columns[0]
+        ocf = _get(cf, 'Operating Cash Flow', cc)
+        capex = abs(_get(cf, 'Capital Expenditure', cc))
+        fcf = ocf - capex
+        result['fcf'] = fcf
+        if market_cap > 0:
+            result['fcf_yield'] = round(fcf / market_cap * 100, 2)
+
+    if inc is not None and not inc.empty:
+        ic = inc.columns[0]
+        op_income = _get(inc, 'Operating Income', ic)
+        nopat = op_income * 0.79  # ~21% US corp tax
+        ta = _get(bal, 'Total Assets', bc)
+        cl_val = _get(bal, 'Current Liabilities', bc)
+        invested_capital = ta - cl_val
+        if invested_capital > 0:
+            result['roic'] = round(nopat / invested_capital * 100, 2)
+
+    return result if result else None
+
+
+# ================================================================
 # CLI Test
 # ================================================================
 

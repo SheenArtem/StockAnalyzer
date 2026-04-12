@@ -361,19 +361,22 @@ class ValueScreener:
         finviz = None
         if is_us:
             try:
-                from finviz_data import FinvizData
-                fv = FinvizData()
+                from finviz_data import FinvizAnalyzer
+                fv = FinvizAnalyzer()
                 finviz, _ = fv.get_stock_data(stock_id)
                 if finviz:
                     v = finviz.get('valuation', {})
                     market_row = dict(market_row)  # make mutable copy
-                    market_row['PE'] = v.get('pe', 0) or 0
-                    market_row['PB'] = v.get('pb', 0) or 0
-                    market_row['dividend_yield'] = v.get('dividend_yield', 0) or 0
-                    market_row['_peg'] = v.get('peg', 0) or 0
-                    market_row['_forward_pe'] = v.get('forward_pe', 0) or 0
+                    market_row['PE'] = v.get('pe') or 0
+                    market_row['PB'] = v.get('pb') or 0
+                    market_row['dividend_yield'] = v.get('dividend_yield') or 0
+                    market_row['_peg'] = v.get('peg') or 0
+                    market_row['_forward_pe'] = v.get('forward_pe') or 0
+                    market_row['_eps_growth'] = v.get('eps_growth_next_5y') or 0
+                    market_row['_sales_qq'] = v.get('sales_growth_qq') or 0
+                    market_row['_eps_qq'] = v.get('eps_growth_qq') or 0
                     a = finviz.get('analyst', {})
-                    market_row['_target_upside'] = a.get('upside_pct', 0) or 0
+                    market_row['_target_upside'] = a.get('upside_pct') or 0
             except Exception:
                 pass
 
@@ -388,7 +391,7 @@ class ValueScreener:
 
         # --- 3. Revenue Trend Score (0-100) ---
         if is_us:
-            scores['revenue'] = 50  # US revenue from finviz is limited
+            scores['revenue'] = self._score_revenue_us(stock_id, market_row, details)
         else:
             scores['revenue'] = self._score_revenue(stock_id, details)
 
@@ -472,86 +475,103 @@ class ValueScreener:
                 score += 5
                 details.append(f"殖利率 {dy:.1f}% (+5)")
 
-        # Try to get historical PE percentile
-        try:
-            from fundamental_analysis import get_per_history
-            per_hist = get_per_history(stock_id, days=1200)
-            if per_hist is not None and not per_hist.empty and 'PEratio' in per_hist.columns:
-                hist_pe = per_hist['PEratio'].dropna()
-                hist_pe = hist_pe[hist_pe > 0]
-                if len(hist_pe) > 50 and pe > 0:
-                    percentile = (hist_pe < pe).mean() * 100
-                    if percentile < 20:
-                        score += 15
-                        details.append(f"PE 歷史分位 {percentile:.0f}% (近5年最低20%) (+15)")
-                    elif percentile < 40:
-                        score += 8
-                        details.append(f"PE 歷史分位 {percentile:.0f}% (+8)")
-                    elif percentile > 80:
-                        score -= 10
-                        details.append(f"PE 歷史分位 {percentile:.0f}% (偏高) (-10)")
-        except Exception:
-            pass
+        is_us = row.get('market') == 'us'
 
-        # PEG: PE / EPS growth rate (lower = more undervalued)
-        try:
-            from dividend_revenue import RevenueTracker
-            rt = RevenueTracker()
-            rev_df = rt.get_monthly_revenue(stock_id, months=24)
-            if rev_df is not None and not rev_df.empty and 'yoy_pct' in rev_df.columns:
-                yoy = rev_df['yoy_pct'].dropna()
-                if len(yoy) >= 6 and pe > 0:
-                    # Use average of last 6 months revenue YoY as growth proxy
-                    avg_growth = yoy.iloc[-6:].mean()
-                    if avg_growth > 1:
-                        peg = pe / avg_growth
-                        if peg < 0.5:
-                            score += 12
-                            details.append(f"PEG={peg:.2f} 極低 (PE={pe:.1f}/Growth={avg_growth:.1f}%) (+12)")
-                        elif peg < 1.0:
+        # Historical PE percentile (Taiwan only — FinMind data)
+        if not is_us:
+            try:
+                from fundamental_analysis import get_per_history
+                per_hist = get_per_history(stock_id, days=1200)
+                if per_hist is not None and not per_hist.empty and 'PEratio' in per_hist.columns:
+                    hist_pe = per_hist['PEratio'].dropna()
+                    hist_pe = hist_pe[hist_pe > 0]
+                    if len(hist_pe) > 50 and pe > 0:
+                        percentile = (hist_pe < pe).mean() * 100
+                        if percentile < 20:
+                            score += 15
+                            details.append(f"PE 歷史分位 {percentile:.0f}% (近5年最低20%) (+15)")
+                        elif percentile < 40:
                             score += 8
-                            details.append(f"PEG={peg:.2f} 被低估 (Growth={avg_growth:.1f}%) (+8)")
-                        elif peg > 3.0:
-                            score -= 5
-                            details.append(f"PEG={peg:.2f} 偏高 (-5)")
-        except Exception:
-            pass
+                            details.append(f"PE 歷史分位 {percentile:.0f}% (+8)")
+                        elif percentile > 80:
+                            score -= 10
+                            details.append(f"PE 歷史分位 {percentile:.0f}% (偏高) (-10)")
+            except Exception:
+                pass
+
+        # PEG: PE / EPS growth rate (Taiwan: revenue YoY, US: finviz data)
+        if not is_us:
+            try:
+                from dividend_revenue import RevenueTracker
+                rt = RevenueTracker()
+                rev_df = rt.get_monthly_revenue(stock_id, months=24)
+                if rev_df is not None and not rev_df.empty and 'yoy_pct' in rev_df.columns:
+                    yoy = rev_df['yoy_pct'].dropna()
+                    if len(yoy) >= 6 and pe > 0:
+                        avg_growth = yoy.iloc[-6:].mean()
+                        if avg_growth > 1:
+                            peg = pe / avg_growth
+                            if peg < 0.5:
+                                score += 12
+                                details.append(f"PEG={peg:.2f} 極低 (PE={pe:.1f}/Growth={avg_growth:.1f}%) (+12)")
+                            elif peg < 1.0:
+                                score += 8
+                                details.append(f"PEG={peg:.2f} 被低估 (Growth={avg_growth:.1f}%) (+8)")
+                            elif peg > 3.0:
+                                score -= 5
+                                details.append(f"PEG={peg:.2f} 偏高 (-5)")
+            except Exception:
+                pass
 
         # DDM: Dividend Discount Model (for stable dividend payers)
         try:
             price = row.get('close', 0)
             if dy > 2 and price > 0:
-                # Estimate cash dividend from yield
                 cash_div = dy * price / 100
-                # Gordon Growth Model: fair_price = D / (r - g)
-                # r = 10% required return, g = estimated from revenue trend
                 discount_rate = 0.10
-                # Conservative growth: use min(revenue_growth, 5%) or 2% default
                 growth_rate = 0.02
-                try:
-                    from dividend_revenue import RevenueTracker
-                    _rt = RevenueTracker()
-                    _alert = _rt.get_revenue_alert(stock_id)
-                    if _alert and _alert.get('last_yoy_pct') is not None:
-                        g_raw = _alert['last_yoy_pct'] / 100
-                        growth_rate = max(0.0, min(0.05, g_raw))  # Cap 0-5%
-                except Exception:
-                    pass
+                if not is_us:
+                    try:
+                        from dividend_revenue import RevenueTracker
+                        _rt = RevenueTracker()
+                        _alert = _rt.get_revenue_alert(stock_id)
+                        if _alert and _alert.get('last_yoy_pct') is not None:
+                            g_raw = _alert['last_yoy_pct'] / 100
+                            growth_rate = max(0.0, min(0.05, g_raw))
+                    except Exception:
+                        pass
+                else:
+                    # US: use finviz EPS growth as proxy
+                    eps_g = row.get('_eps_growth', 0)
+                    if eps_g and eps_g > 0:
+                        growth_rate = max(0.0, min(0.05, eps_g / 100))
 
                 if discount_rate > growth_rate:
                     fair_price = cash_div / (discount_rate - growth_rate)
                     discount_pct = (fair_price - price) / price * 100
                     if discount_pct > 30:
                         score += 10
-                        details.append(f"DDM 合理價 {fair_price:.0f} (折價 {discount_pct:.0f}%) (+10)")
+                        details.append(f"DDM fair={fair_price:.0f} (discount {discount_pct:.0f}%) (+10)")
                     elif discount_pct > 10:
                         score += 5
-                        details.append(f"DDM 合理價 {fair_price:.0f} (折價 {discount_pct:.0f}%) (+5)")
+                        details.append(f"DDM fair={fair_price:.0f} (discount {discount_pct:.0f}%) (+5)")
                     elif discount_pct < -30:
                         score -= 8
-                        details.append(f"DDM 合理價 {fair_price:.0f} (溢價 {abs(discount_pct):.0f}%) (-8)")
+                        details.append(f"DDM fair={fair_price:.0f} (premium {abs(discount_pct):.0f}%) (-8)")
         except Exception:
             pass
+
+        # US: Forward PE discount (forward PE < trailing PE = earnings growing)
+        if is_us:
+            fwd_pe = row.get('_forward_pe', 0)
+            if fwd_pe and pe and fwd_pe > 0 and pe > 0:
+                pe_discount = (pe - fwd_pe) / pe * 100
+                if pe_discount > 20:
+                    score += 10
+                    details.append(f"Forward PE={fwd_pe:.1f} vs PE={pe:.1f} ({pe_discount:.0f}% cheaper) (+10)")
+                elif pe_discount > 10:
+                    score += 5
+                    details.append(f"Forward PE={fwd_pe:.1f} vs PE={pe:.1f} ({pe_discount:.0f}% cheaper) (+5)")
 
         # US: Finviz PEG (already calculated) + analyst target upside
         peg_fv = row.get('_peg', 0)
@@ -751,6 +771,72 @@ class ValueScreener:
 
         return max(0, min(100, score))
 
+    def _score_revenue_us(self, stock_id, market_row, details):
+        """US revenue trend score using finviz Q/Q growth + yfinance quarterly data."""
+        score = 50
+
+        # 1) Finviz Sales Q/Q and EPS Q/Q (quick, no extra API call)
+        sales_qq = market_row.get('_sales_qq', 0)
+        eps_qq = market_row.get('_eps_qq', 0)
+
+        if sales_qq:
+            if sales_qq > 20:
+                score += 15
+                details.append(f"Sales Q/Q={sales_qq:+.1f}% strong (+15)")
+            elif sales_qq > 5:
+                score += 8
+                details.append(f"Sales Q/Q={sales_qq:+.1f}% growing (+8)")
+            elif sales_qq < -10:
+                score -= 12
+                details.append(f"Sales Q/Q={sales_qq:+.1f}% declining (-12)")
+            elif sales_qq < 0:
+                score -= 5
+                details.append(f"Sales Q/Q={sales_qq:+.1f}% slightly down (-5)")
+
+        if eps_qq:
+            if eps_qq > 25:
+                score += 10
+                details.append(f"EPS Q/Q={eps_qq:+.1f}% strong (+10)")
+            elif eps_qq > 10:
+                score += 5
+            elif eps_qq < -20:
+                score -= 10
+                details.append(f"EPS Q/Q={eps_qq:+.1f}% weak (-10)")
+
+        # 2) yfinance quarterly revenue YoY trend (deeper analysis)
+        try:
+            import yfinance as yf
+            stock = yf.Ticker(stock_id)
+            inc = stock.quarterly_income_stmt
+            if inc is not None and not inc.empty and len(inc.columns) >= 5:
+                # Compare recent vs year-ago quarters
+                rev_series = inc.loc['Total Revenue'] if 'Total Revenue' in inc.index else None
+                if rev_series is not None:
+                    rev_vals = rev_series.dropna().sort_index()
+                    if len(rev_vals) >= 5:
+                        # YoY: compare Q0 vs Q4 (4 quarters apart)
+                        recent = float(rev_vals.iloc[-1])
+                        year_ago = float(rev_vals.iloc[-5])
+                        if year_ago > 0:
+                            yoy_pct = (recent - year_ago) / year_ago * 100
+                            prev_recent = float(rev_vals.iloc[-2])
+                            prev_year_ago = float(rev_vals.iloc[-6]) if len(rev_vals) >= 6 else year_ago
+                            prev_yoy = (prev_recent - prev_year_ago) / prev_year_ago * 100 if prev_year_ago > 0 else 0
+
+                            # Convergence signal (value pattern)
+                            if yoy_pct < 0 and yoy_pct > prev_yoy:
+                                improvement = yoy_pct - prev_yoy
+                                bonus = min(15, improvement * 1.5)
+                                score += bonus
+                                details.append(f"Revenue decline converging {prev_yoy:.0f}%->{yoy_pct:.0f}% (+{bonus:.0f})")
+                            elif yoy_pct > 0 and prev_yoy < 0:
+                                score += 12
+                                details.append(f"Revenue turned positive YoY={yoy_pct:.0f}% (+12)")
+        except Exception:
+            pass
+
+        return max(0, min(100, score))
+
     def _score_technical(self, stock_id, details):
         """
         技術面轉折分數: RSI 超賣 + 量能萎縮 + Squeeze 壓縮
@@ -866,46 +952,135 @@ class ValueScreener:
         return max(0, min(100, score))
 
     def _score_quality_us(self, stock_id, finviz, details):
-        """US quality score from finviz data."""
+        """US quality score: F-Score + Z-Score + finviz fundamentals."""
         score = 50
-        if not finviz:
-            return score
 
-        v = finviz.get('valuation', {})
-        t = finviz.get('technical', {})
+        # --- Piotroski F-Score (primary quality signal) ---
+        try:
+            from piotroski import calculate_fscore_us
+            fs_result = calculate_fscore_us(stock_id)
+            if fs_result:
+                fscore = fs_result['fscore']
+                comp = fs_result['components']
+                if fscore >= 7:
+                    score += 25
+                    details.append(f"F-Score={fscore}/9 strong (P{comp['profitability']}/L{comp['leverage']}/E{comp['efficiency']}) (+25)")
+                elif fscore >= 5:
+                    score += 10
+                    details.append(f"F-Score={fscore}/9 average (+10)")
+                elif fscore <= 3:
+                    score -= 20
+                    details.append(f"F-Score={fscore}/9 weak (value trap risk) (-20)")
+                else:
+                    details.append(f"F-Score={fscore}/9 (+0)")
 
-        # ROE (from finviz)
-        roe = v.get('roe', 0)
-        if roe and roe > 0:
-            if roe > 20:
-                score += 15
-                details.append(f"ROE={roe:.1f}% excellent (+15)")
-            elif roe > 10:
-                score += 8
-                details.append(f"ROE={roe:.1f}% good (+8)")
-        elif roe and roe < 0:
-            score -= 15
-            details.append(f"ROE={roe:.1f}% negative (-15)")
+                cr = fs_result['data'].get('current_ratio', 0)
+                if cr > 0:
+                    if cr > 2.0:
+                        score += 5
+                        details.append(f"Current Ratio={cr:.1f} safe (+5)")
+                    elif cr < 1.0:
+                        score -= 8
+                        details.append(f"Current Ratio={cr:.1f} low (-8)")
+        except Exception as e:
+            logger.debug("US F-Score failed for %s: %s", stock_id, e)
 
-        # Profit margin
-        margin = v.get('profit_margin', 0)
-        if margin and margin > 0:
-            if margin > 20:
-                score += 10
-                details.append(f"Profit margin {margin:.1f}% high (+10)")
-            elif margin > 10:
-                score += 5
-        elif margin and margin < 0:
-            score -= 10
+        # --- Altman Z-Score ---
+        try:
+            from piotroski import calculate_zscore_us
+            price = 0
+            try:
+                from cache_manager import CacheManager
+                cm = CacheManager()
+                df_price = cm.get_price_data(stock_id, period='5d')
+                if df_price is not None and not df_price.empty:
+                    price = float(df_price['Close'].iloc[-1])
+            except Exception:
+                pass
+            if price > 0:
+                import yfinance as yf
+                info = yf.Ticker(stock_id).info
+                mcap = info.get('marketCap', price * 1e8)
+                z_result = calculate_zscore_us(stock_id, market_cap=mcap)
+                if z_result:
+                    z = z_result['zscore']
+                    zone = z_result['zone']
+                    if zone == 'distress':
+                        score -= 20
+                        details.append(f"Z-Score={z:.1f} distress (-20)")
+                    elif zone == 'safe':
+                        score += 8
+                        details.append(f"Z-Score={z:.1f} safe (+8)")
+                    else:
+                        details.append(f"Z-Score={z:.1f} grey [info]")
+        except Exception as e:
+            logger.debug("US Z-Score failed for %s: %s", stock_id, e)
 
-        # EPS growth
-        eps_g = v.get('eps_growth_next_5y', 0)
-        if eps_g and eps_g > 0:
-            if eps_g > 15:
-                score += 10
-                details.append(f"EPS growth 5Y={eps_g:.1f}% (+10)")
-            elif eps_g > 8:
-                score += 5
+        # --- ROIC / FCF from yfinance ---
+        try:
+            from piotroski import calculate_extra_metrics_us
+            extras = calculate_extra_metrics_us(stock_id, market_cap=mcap if price > 0 else 0)
+            if extras:
+                roic = extras.get('roic', 0)
+                if roic and roic > 15:
+                    score += 8
+                    details.append(f"ROIC={roic:.1f}% high (+8)")
+                elif roic and roic < 0:
+                    score -= 5
+                    details.append(f"ROIC={roic:.1f}% negative (-5)")
+
+                fcf_y = extras.get('fcf_yield', 0)
+                if fcf_y and fcf_y > 8:
+                    score += 8
+                    details.append(f"FCF Yield={fcf_y:.1f}% high (+8)")
+                elif fcf_y and fcf_y < -5:
+                    score -= 5
+                    details.append(f"FCF Yield={fcf_y:.1f}% negative (-5)")
+        except Exception:
+            pass
+
+        # --- Finviz fundamentals (ROE, margins, growth) ---
+        if finviz:
+            v = finviz.get('valuation', {})
+
+            roe = v.get('roe')
+            if roe and roe > 0:
+                if roe > 20:
+                    score += 5
+                    details.append(f"ROE={roe:.1f}% excellent (+5)")
+                elif roe > 10:
+                    score += 3
+            elif roe and roe < 0:
+                score -= 5
+                details.append(f"ROE={roe:.1f}% negative (-5)")
+
+            margin = v.get('profit_margin')
+            if margin and margin > 0:
+                if margin > 20:
+                    score += 5
+                    details.append(f"Profit margin {margin:.1f}% high (+5)")
+                elif margin > 10:
+                    score += 3
+            elif margin and margin < 0:
+                score -= 5
+
+            eps_g = v.get('eps_growth_next_5y')
+            if eps_g and eps_g > 0:
+                if eps_g > 15:
+                    score += 5
+                    details.append(f"EPS growth 5Y={eps_g:.1f}% (+5)")
+                elif eps_g > 8:
+                    score += 3
+
+            # Debt/Equity
+            de = v.get('debt_equity')
+            if de is not None:
+                if de < 0.3:
+                    score += 5
+                    details.append(f"Debt/Eq={de:.2f} low (+5)")
+                elif de > 2.0:
+                    score -= 8
+                    details.append(f"Debt/Eq={de:.2f} high (-8)")
 
         return max(0, min(100, score))
 
