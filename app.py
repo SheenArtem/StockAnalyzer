@@ -895,16 +895,21 @@ elif st.session_state.get('analysis_active', False):
                         logger.error(f"US Chip Load Error: {e}", exc_info=True)
                         st.warning(f"⚠️ 美股籌碼預載失敗: {e}")
 
-            with st.spinner("🤖 AI 分析中..."):
-                analyzer = TechnicalAnalyzer(
-                    display_ticker,
-                    st.session_state['df_week_cache'],
-                    st.session_state['df_day_cache'],
-                    strategy_params,
-                    chip_data=chip_data,
-                    us_chip_data=us_chip_data
-                )
-                report = analyzer.run_analysis()
+            # Cache report in session_state to avoid re-running on every rerun
+            # (prevents widget tree shifts that reset tab selection)
+            _report_cache_key = f"_report_{display_ticker}"
+            if _report_cache_key not in st.session_state or is_force:
+                with st.spinner("🤖 AI 分析中..."):
+                    analyzer = TechnicalAnalyzer(
+                        display_ticker,
+                        st.session_state['df_week_cache'],
+                        st.session_state['df_day_cache'],
+                        strategy_params,
+                        chip_data=chip_data,
+                        us_chip_data=us_chip_data
+                    )
+                    st.session_state[_report_cache_key] = analyzer.run_analysis()
+            report = st.session_state[_report_cache_key]
             
             st.markdown("---")
             st.subheader("📝 AI 智能分析報告 (Beta)")
