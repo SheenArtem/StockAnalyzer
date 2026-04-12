@@ -48,63 +48,83 @@ class ChipAnalyzer:
             return {"institutional": df_inst, "margin": df_margin, "day_trading": df_dt, "shareholding": df_sh}, None
 
         # 準備增量或全量抓取
-        print(f"🔍 正在抓取 {stock_id} 籌碼數據 (FinMind)...")
-        
+        print(f"🔍 正在抓取 {stock_id} 籌碼數據...")
+
         results = {}
         errors = []
 
         # --- 1. Institutional Investors (三大法人) ---
+        # Priority: TWSE/TPEX 官方 API → FinMind fallback
+        # (統一資料源策略: 所有功能共用同一優先順序，避免不同步)
         try:
-            if stat_inst == "partial" and date_inst:
-                 start_date = (date_inst + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-                 print(f"   ↳ 增量更新法人數據 (從 {start_date})...")
-            else:
-                 start_date = '2016-01-01'
-                 print(f"   ↳ 全量下載法人數據...")
+            twse_inst_ok = False
 
-            raw_inst = self.dl.taiwan_stock_institutional_investors(
-                stock_id=stock_id,
-                start_date=start_date
-            )
+            # 1st: try TWSE/TPEX official API (free, no token, no rate limit)
+            try:
+                from twse_api import TWSEOpenData
+                twse = TWSEOpenData()
+                # Determine market: try TWSE first, then TPEX
+                twse_df = twse.get_institutional_trading(stock_id, days=10)
+                if twse_df.empty:
+                    twse_df = twse.get_tpex_institutional(stock_id, days=10)
+                if not twse_df.empty:
+                    print(f"   ↳ 法人數據: TWSE/TPEX 官方 API ({len(twse_df)} 天)")
+                    # Add '合計' alias for compatibility with analysis_engine
+                    if '合計' in twse_df.columns and '三大法人合計' not in twse_df.columns:
+                        twse_df['三大法人合計'] = twse_df['合計']
+                    df_inst = twse_df
+                    results['institutional'] = df_inst
+                    twse_inst_ok = True
+            except Exception as e:
+                logger.debug("TWSE/TPEX institutional failed for %s: %s", stock_id, e)
 
-            processed_inst = pd.DataFrame()
-            if not raw_inst.empty:
-                # Guard: need 'name' and 'date' columns at minimum
-                required_cols = {'name', 'date'}
-                if not required_cols.issubset(raw_inst.columns):
-                    missing = required_cols - set(raw_inst.columns)
-                    logger.warning(f"Institutional data for {stock_id} missing required columns: {missing}, skipping")
-                    raise ValueError(f"Missing required columns: {missing}")
+            # 2nd: fallback to FinMind (for longer history or if TWSE failed)
+            if not twse_inst_ok:
+                print(f"   ↳ 法人數據: FinMind fallback...")
+                if stat_inst == "partial" and date_inst:
+                    start_date = (date_inst + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+                else:
+                    start_date = '2016-01-01'
 
-                raw_inst['name'] = raw_inst['name'].replace({
-                    'Foreign_Investor': '外資',
-                    'Investment_Trust': '投信',
-                    'Dealer_Self': '自營商',
-                    'Dealer_Hedging': '自營商'
-                })
-                # Guard: need buy_sell or buy+sell to compute net
-                if 'buy_sell' not in raw_inst.columns:
-                    if 'buy' in raw_inst.columns and 'sell' in raw_inst.columns:
-                        raw_inst['buy_sell'] = raw_inst['buy'] - raw_inst['sell']
-                    else:
-                        logger.warning(f"Institutional data for {stock_id} has no 'buy_sell', 'buy', or 'sell' columns, skipping")
-                        raise ValueError("Cannot derive buy_sell: missing 'buy_sell', 'buy', and 'sell' columns")
+                raw_inst = self.dl.taiwan_stock_institutional_investors(
+                    stock_id=stock_id,
+                    start_date=start_date
+                )
 
-                processed_inst = raw_inst.groupby(['date', 'name'])['buy_sell'].sum().unstack(fill_value=0)
-                processed_inst.index = pd.to_datetime(processed_inst.index)
-                processed_inst['三大法人合計'] = processed_inst.sum(axis=1)
+                processed_inst = pd.DataFrame()
+                if not raw_inst.empty:
+                    required_cols = {'name', 'date'}
+                    if not required_cols.issubset(raw_inst.columns):
+                        missing = required_cols - set(raw_inst.columns)
+                        raise ValueError(f"Missing required columns: {missing}")
 
-            # Merge with Cache if partial
-            if stat_inst == "partial" and not df_inst.empty:
-                df_inst.index = pd.to_datetime(df_inst.index)
-                if not processed_inst.empty:
-                    df_inst = pd.concat([df_inst, processed_inst])
-                    df_inst = df_inst[~df_inst.index.duplicated(keep='last')]
-                    df_inst.sort_index(inplace=True)
-            else:
-                df_inst = processed_inst
+                    raw_inst['name'] = raw_inst['name'].replace({
+                        'Foreign_Investor': '外資',
+                        'Investment_Trust': '投信',
+                        'Dealer_Self': '自營商',
+                        'Dealer_Hedging': '自營商'
+                    })
+                    if 'buy_sell' not in raw_inst.columns:
+                        if 'buy' in raw_inst.columns and 'sell' in raw_inst.columns:
+                            raw_inst['buy_sell'] = raw_inst['buy'] - raw_inst['sell']
+                        else:
+                            raise ValueError("Cannot derive buy_sell")
 
-            results['institutional'] = df_inst
+                    processed_inst = raw_inst.groupby(['date', 'name'])['buy_sell'].sum().unstack(fill_value=0)
+                    processed_inst.index = pd.to_datetime(processed_inst.index)
+                    processed_inst['三大法人合計'] = processed_inst.sum(axis=1)
+
+                if stat_inst == "partial" and not df_inst.empty:
+                    df_inst.index = pd.to_datetime(df_inst.index)
+                    if not processed_inst.empty:
+                        df_inst = pd.concat([df_inst, processed_inst])
+                        df_inst = df_inst[~df_inst.index.duplicated(keep='last')]
+                        df_inst.sort_index(inplace=True)
+                else:
+                    df_inst = processed_inst
+
+                results['institutional'] = df_inst
+
         except Exception as e:
             logger.warning(f"Institutional data fetch failed for {stock_id}: {e}")
             errors.append(f"法人: {e}")
