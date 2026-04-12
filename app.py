@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.12.2")
+    st.caption("Version: v2026.04.12.3")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -2265,18 +2265,10 @@ elif st.session_state.get('analysis_active', False):
             _ai_cache_key = display_ticker
             _cached_report = st.session_state['ai_report_cache'].get(_ai_cache_key)
 
-            col_ai1, col_ai2 = st.columns([2, 3])
-            with col_ai1:
-                _ai_run = st.button("生成 AI 研究報告", key='ai_report_btn')
-            with col_ai2:
-                _ai_timeout = st.selectbox(
-                    "逾時設定", [60, 120, 180, 300],
-                    index=1, format_func=lambda x: f"{x} 秒",
-                    key='ai_timeout',
-                )
+            _ai_run = st.button("生成 AI 研究報告", key='ai_report_btn')
 
             if _ai_run:
-                with st.spinner("Claude AI 分析中... (可能需要 30-120 秒)"):
+                with st.spinner("Claude AI 分析中，請稍候..."):
                     try:
                         from ai_report import generate_report
                         _success, _content = generate_report(
@@ -2286,7 +2278,6 @@ elif st.session_state.get('analysis_active', False):
                             us_chip_data=us_chip_data,
                             fund_data=fund_data,
                             df_day=st.session_state.get('df_day_cache'),
-                            timeout=_ai_timeout,
                         )
                         if _success:
                             st.session_state['ai_report_cache'][_ai_cache_key] = _content

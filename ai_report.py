@@ -338,7 +338,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
 
 
 def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                    timeout=120):
+                    timeout=300):
     """
     呼叫 Claude CLI 生成 AI 研究報告。
 
