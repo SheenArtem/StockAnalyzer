@@ -168,6 +168,67 @@ def format_news_for_prompt(news_items, max_chars=3000):
     return "\n".join(lines)
 
 
+def extract_analyst_targets(news_items):
+    """
+    Extract analyst target prices and ratings from news titles.
+
+    Returns:
+        list of dict: [{source, rating, target_price, date, raw_title}, ...]
+    """
+    results = []
+    import re
+
+    for n in news_items:
+        title = n.get('title', '')
+
+        # Pattern: 目標價 NNN 元 or 目標價為 NNN 元
+        target_match = re.search(r'目標價[為]?\s*[為]?\s*([\d,]+)\s*元', title)
+        if not target_match:
+            # English: target price $NNN or price target $NNN
+            target_match = re.search(r'(?:target|price target).*?\$?([\d,.]+)', title, re.IGNORECASE)
+
+        if target_match:
+            try:
+                price = float(target_match.group(1).replace(',', ''))
+            except ValueError:
+                continue
+
+            # Extract rating
+            rating = ''
+            for kw, label in [('看多', 'Buy'), ('買進', 'Buy'), ('看空', 'Sell'),
+                               ('賣出', 'Sell'), ('中立', 'Hold'), ('持有', 'Hold'),
+                               ('buy', 'Buy'), ('sell', 'Sell'), ('hold', 'Hold'),
+                               ('overweight', 'Buy'), ('underweight', 'Sell')]:
+                if kw in title.lower():
+                    rating = label
+                    break
+
+            results.append({
+                'source': n.get('source', ''),
+                'rating': rating,
+                'target_price': price,
+                'date': n.get('date', ''),
+                'raw_title': title,
+            })
+
+    return results
+
+
+def format_analyst_targets(targets):
+    """Format analyst targets for prompt."""
+    if not targets:
+        return ""
+
+    lines = ["法人/券商目標價:"]
+    for t in targets:
+        line = f"  [{t['date']}] {t['source']}: "
+        if t['rating']:
+            line += f"{t['rating']}, "
+        line += f"目標價 {t['target_price']:,.0f}"
+        lines.append(line)
+    return "\n".join(lines)
+
+
 # CLI test
 if __name__ == '__main__':
     import sys

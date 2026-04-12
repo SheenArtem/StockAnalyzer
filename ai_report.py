@@ -558,9 +558,10 @@ def _build_pattern_data(df_day):
 
 
 def _build_news_data(ticker, fund_data):
-    """[NEWS_DATA] Recent news from Google News RSS."""
+    """[NEWS_DATA] Recent news + analyst targets from Google News RSS."""
     try:
-        from news_fetcher import fetch_stock_news, format_news_for_prompt
+        from news_fetcher import (fetch_stock_news, format_news_for_prompt,
+                                  extract_analyst_targets, format_analyst_targets)
 
         # Get stock name for better search
         stock_name = ''
@@ -572,11 +573,39 @@ def _build_news_data(ticker, fund_data):
                     break
 
         news = fetch_stock_news(ticker, stock_name=stock_name, max_items=15, days=7)
-        return format_news_for_prompt(news, max_chars=3000)
+        parts = [format_news_for_prompt(news, max_chars=2500)]
+
+        # Extract analyst targets
+        targets = extract_analyst_targets(news)
+        target_text = format_analyst_targets(targets)
+        if target_text:
+            parts.append(f"\n{target_text}")
+
+        return "\n".join(parts)
 
     except Exception as e:
         logger.warning("News fetch failed for %s: %s", ticker, e)
         return f"N/A (news fetch failed: {e})"
+
+
+def _build_peer_data(ticker, fund_data):
+    """[PEER_COMPARISON] Peer industry comparison."""
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+
+    try:
+        if is_us:
+            from peer_comparison import get_us_peer_comparison, format_peer_comparison
+            result = get_us_peer_comparison(ticker)
+        else:
+            from peer_comparison import get_tw_peer_comparison, format_peer_comparison
+            stock_id = ticker.replace('.TW', '')
+            result = get_tw_peer_comparison(stock_id)
+
+        return format_peer_comparison(result)
+
+    except Exception as e:
+        logger.warning("Peer comparison failed for %s: %s", ticker, e)
+        return f"N/A (peer comparison failed: {e})"
 
 
 def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
@@ -610,6 +639,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}")
     data_sections.append(f"[PTT_SENTIMENT]\n{_build_ptt_sentiment(ticker)}")
     data_sections.append(f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}")
+    data_sections.append(f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
 

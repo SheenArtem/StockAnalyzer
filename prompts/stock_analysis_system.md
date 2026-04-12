@@ -142,7 +142,10 @@ K 線型態辨識結果（如有）
 PTT Stock 板情緒數據（台股限定）
 
 [NEWS_DATA]
-近 7 天 Google News 搜尋結果（標題+來源+日期）
+近 7 天 Google News 搜尋結果（標題+來源+日期）+ 法人目標價提取
+
+[PEER_COMPARISON]
+同產業公司估值比較（PE/PB/殖利率排序）
 ```
 
 ## 重要提醒
