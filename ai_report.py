@@ -252,7 +252,7 @@ def _build_chip_data(chip_data, us_chip_data, is_us):
 
 
 def _build_fundamental_data(fund_data, ticker):
-    """[FUNDAMENTAL_DATA] 基本面數據 + Piotroski/Z-Score/ROIC/FCF"""
+    """[FUNDAMENTAL_DATA] 基本面數據 + Piotroski/Z-Score/ROIC/FCF + 月營收"""
     lines = []
 
     # 基本面 (from get_fundamentals)
@@ -270,7 +270,6 @@ def _build_fundamental_data(fund_data, ticker):
     try:
         if is_us:
             from piotroski import calculate_fscore_us, calculate_zscore_us, calculate_extra_metrics_us
-            # 取 market cap
             mc_str = fund_data.get('Market Cap', '0') if fund_data else '0'
             mc = _parse_market_cap(mc_str)
 
@@ -280,6 +279,8 @@ def _build_fundamental_data(fund_data, ticker):
                 lines.append(f"  Profitability: {fs['components']['profitability']}/4")
                 lines.append(f"  Leverage: {fs['components']['leverage']}/3")
                 lines.append(f"  Efficiency: {fs['components']['efficiency']}/2")
+                for d in fs.get('details', []):
+                    lines.append(f"  {d}")
 
             zs = calculate_zscore_us(ticker, mc) if mc > 0 else None
             if zs:
@@ -287,10 +288,10 @@ def _build_fundamental_data(fund_data, ticker):
 
             em = calculate_extra_metrics_us(ticker, mc) if mc > 0 else None
             if em:
-                if 'roic' in em:
-                    lines.append(f"ROIC: {_safe_val(em['roic']*100 if em['roic'] else 0, '.1f')}%")
-                if 'fcf_yield' in em:
-                    lines.append(f"FCF Yield: {_safe_val(em['fcf_yield']*100 if em['fcf_yield'] else 0, '.1f')}%")
+                if em.get('roic'):
+                    lines.append(f"ROIC: {_safe_val(em['roic']*100, '.1f')}%")
+                if em.get('fcf_yield'):
+                    lines.append(f"FCF Yield: {_safe_val(em['fcf_yield']*100, '.1f')}%")
         else:
             from piotroski import calculate_fscore, calculate_zscore, calculate_extra_metrics
             stock_id = ticker.replace('.TW', '')
@@ -303,6 +304,24 @@ def _build_fundamental_data(fund_data, ticker):
                 lines.append(f"  Profitability: {fs['components']['profitability']}/4")
                 lines.append(f"  Leverage: {fs['components']['leverage']}/3")
                 lines.append(f"  Efficiency: {fs['components']['efficiency']}/2")
+                # F-Score 9 項明細
+                for d in fs.get('details', []):
+                    lines.append(f"  {d}")
+                # 從 F-Score 原始數據提取財務指標
+                fd = fs.get('data', {})
+                if fd:
+                    if fd.get('gross_margin') is not None:
+                        lines.append(f"Gross Margin: {_safe_val(fd['gross_margin']*100, '.1f')}% (prev: {_safe_val(fd.get('gross_margin_prev', 0)*100, '.1f')}%)")
+                    if fd.get('roa') is not None:
+                        lines.append(f"ROA: {_safe_val(fd['roa']*100, '.1f')}%")
+                    if fd.get('operating_cf') is not None:
+                        lines.append(f"Operating CF: {fd['operating_cf']:,.0f}")
+                    if fd.get('current_ratio') is not None:
+                        lines.append(f"Current Ratio: {_safe_val(fd['current_ratio'])} (prev: {_safe_val(fd.get('current_ratio_prev', 0))})")
+                    if fd.get('asset_turnover') is not None:
+                        lines.append(f"Asset Turnover: {_safe_val(fd['asset_turnover'])} (prev: {_safe_val(fd.get('asset_turnover_prev', 0))})")
+                    if fd.get('shares_curr') is not None:
+                        lines.append(f"Shares Outstanding: {fd['shares_curr']:,.0f} (prev: {fd.get('shares_prev', 0):,.0f})")
 
             zs = calculate_zscore(stock_id, mc) if mc > 0 else None
             if zs:
@@ -310,15 +329,44 @@ def _build_fundamental_data(fund_data, ticker):
 
             em = calculate_extra_metrics(stock_id, mc) if mc > 0 else None
             if em:
-                if 'roic' in em:
-                    lines.append(f"ROIC: {_safe_val(em['roic']*100 if em['roic'] else 0, '.1f')}%")
-                if 'fcf_yield' in em:
-                    lines.append(f"FCF Yield: {_safe_val(em['fcf_yield']*100 if em['fcf_yield'] else 0, '.1f')}%")
-                if 'current_ratio' in em:
+                if em.get('roic'):
+                    lines.append(f"ROIC: {_safe_val(em['roic'], '.1f')}%")
+                if em.get('fcf') is not None:
+                    lines.append(f"FCF: {em['fcf']:,.0f}")
+                if em.get('fcf_yield'):
+                    lines.append(f"FCF Yield: {_safe_val(em['fcf_yield'], '.1f')}%")
+                if em.get('current_ratio'):
                     lines.append(f"Current Ratio: {_safe_val(em['current_ratio'])}")
     except Exception as e:
         logger.warning("Piotroski/ZScore data fetch failed: %s", e)
         lines.append(f"\nPiotroski/Z-Score: 取得失敗 ({e})")
+
+    # 月營收趨勢 (台股)
+    if not is_us:
+        try:
+            from dividend_revenue import RevenueTracker
+            rt = RevenueTracker()
+            stock_id = ticker.replace('.TW', '')
+            rev_df = rt.get_monthly_revenue(stock_id, months=12)
+            if rev_df is not None and not rev_df.empty:
+                lines.append(f"\n月營收趨勢 (近 12 月):")
+                # Show last 6 months
+                recent = rev_df.tail(6)
+                for _, row in recent.iterrows():
+                    ym = row.get('year_month', '')
+                    rev = row.get('revenue', 0)
+                    yoy = row.get('yoy_pct', 0)
+                    mom = row.get('mom_pct', 0)
+                    lines.append(f"  {ym}: {rev:,.0f} (YoY {yoy:+.1f}%, MoM {mom:+.1f}%)")
+
+            alert = rt.get_revenue_alert(stock_id)
+            if alert and alert.get('alert_text') != '無營收資料':
+                lines.append(f"營收趨勢: {alert.get('trend', 'N/A')}")
+                lines.append(f"連續成長月數: {alert.get('consecutive_growth_months', 0)}")
+                if alert.get('next_announcement_date'):
+                    lines.append(f"下次營收公布: {alert['next_announcement_date']} ({alert.get('days_until', 0)} 天後)")
+        except Exception as e:
+            logger.warning("Revenue data fetch failed: %s", e)
 
     return "\n".join(lines) if lines else "N/A"
 
