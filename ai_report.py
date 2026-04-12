@@ -588,6 +588,100 @@ def _build_news_data(ticker, fund_data):
         return f"N/A (news fetch failed: {e})"
 
 
+def _build_analyst_consensus(ticker):
+    """[ANALYST_CONSENSUS] Analyst target prices, EPS estimates, ratings from yfinance."""
+    try:
+        import yfinance as yf
+
+        # Determine proper Yahoo ticker
+        is_us = ticker and not ticker.replace('.TW', '').isdigit()
+        if is_us:
+            yticker = ticker
+        else:
+            stock_id = ticker.replace('.TW', '').replace('.TWO', '')
+            # Try .TW first, then .TWO
+            yticker = f"{stock_id}.TW"
+            t = yf.Ticker(yticker)
+            if not t.info.get('targetMeanPrice'):
+                yticker = f"{stock_id}.TWO"
+
+        t = yf.Ticker(yticker)
+        info = t.info
+
+        lines = []
+
+        # Analyst ratings
+        n_analysts = info.get('numberOfAnalystOpinions', 0)
+        if n_analysts:
+            rec = info.get('recommendationKey', 'N/A')
+            rec_mean = info.get('recommendationMean', 0)
+            avg_rating = info.get('averageAnalystRating', '')
+            lines.append(f"Analyst Count: {n_analysts}")
+            lines.append(f"Consensus Rating: {rec} (mean: {_safe_val(rec_mean)})")
+            if avg_rating:
+                lines.append(f"Average Rating: {avg_rating}")
+
+        # Target prices
+        tp_mean = info.get('targetMeanPrice')
+        tp_high = info.get('targetHighPrice')
+        tp_low = info.get('targetLowPrice')
+        tp_median = info.get('targetMedianPrice')
+        if tp_mean:
+            lines.append(f"\nTarget Price:")
+            lines.append(f"  Mean: {_safe_val(tp_mean, '.0f')}")
+            lines.append(f"  Median: {_safe_val(tp_median, '.0f')}")
+            lines.append(f"  High: {_safe_val(tp_high, '.0f')}")
+            lines.append(f"  Low: {_safe_val(tp_low, '.0f')}")
+
+            # Upside/downside from current price
+            current = info.get('currentPrice') or info.get('regularMarketPrice', 0)
+            if current and current > 0:
+                upside = (tp_mean - current) / current * 100
+                lines.append(f"  Current: {_safe_val(current, '.0f')} (upside: {upside:+.1f}%)")
+
+        # EPS estimates
+        trailing_eps = info.get('trailingEps')
+        forward_eps = info.get('forwardEps')
+        eps_current_yr = info.get('epsCurrentYear')
+        if trailing_eps or forward_eps:
+            lines.append(f"\nEPS Estimates:")
+            if trailing_eps:
+                lines.append(f"  Trailing (TTM): {_safe_val(trailing_eps)}")
+            if eps_current_yr:
+                lines.append(f"  Current Year: {_safe_val(eps_current_yr)}")
+            if forward_eps:
+                lines.append(f"  Forward: {_safe_val(forward_eps)}")
+
+        # Growth rates
+        eg = info.get('earningsGrowth')
+        rg = info.get('revenueGrowth')
+        eqg = info.get('earningsQuarterlyGrowth')
+        if eg or rg:
+            lines.append(f"\nGrowth:")
+            if eg:
+                lines.append(f"  Earnings Growth: {eg*100:+.1f}%")
+            if eqg:
+                lines.append(f"  Earnings Q/Q Growth: {eqg*100:+.1f}%")
+            if rg:
+                lines.append(f"  Revenue Growth: {rg*100:+.1f}%")
+
+        # Forward PE and PEG
+        fpe = info.get('forwardPE')
+        peg = info.get('pegRatio')
+        if fpe:
+            lines.append(f"\nForward PE: {_safe_val(fpe)}")
+        if peg:
+            lines.append(f"PEG Ratio: {_safe_val(peg)}")
+
+        if not lines:
+            return "N/A (no analyst data)"
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.warning("Analyst consensus fetch failed for %s: %s", ticker, e)
+        return f"N/A (fetch failed: {e})"
+
+
 def _build_peer_data(ticker, fund_data):
     """[PEER_COMPARISON] Peer industry comparison."""
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
@@ -639,6 +733,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}")
     data_sections.append(f"[PTT_SENTIMENT]\n{_build_ptt_sentiment(ticker)}")
     data_sections.append(f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}")
+    data_sections.append(f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}")
     data_sections.append(f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
