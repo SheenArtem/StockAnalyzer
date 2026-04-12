@@ -738,18 +738,42 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
 
     data_block = "\n\n".join(data_sections)
 
+    # Determine stock name for search context
+    stock_name = ''
+    if fund_data:
+        for key in ['stock_name', 'Name', 'shortName', 'Sector']:
+            val = fund_data.get(key, '')
+            if val and str(val) not in ('', 'N/A', 'None'):
+                stock_name = str(val)
+                break
+
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    stock_id = ticker.replace('.TW', '') if not is_us else ticker
+
     full_prompt = f"""{system_prompt}
 
 ---
 
-# 以下是 StockPulse 系統提供的 {ticker} 完整分析數據
+# 以下是 StockPulse 系統提供的 {ticker} ({stock_name}) 完整分析數據
 
 {data_block}
 
 ---
 
-請根據以上所有數據（含近期新聞），產出完整的研究報告。
-新聞資料請用於產業趨勢判斷、市場觀點蒐集、潛在風險識別。"""
+## 你的任務
+
+1. **使用 WebSearch 工具**搜尋以下資訊來補充分析（搜尋 2-4 次即可）：
+   - "{stock_id} {stock_name} 產業趨勢 2026" — 產業動態、上下游供需
+   - "{stock_id} {stock_name} 法說會 營運展望" — 公司最新展望、產品線變化
+   - "{stock_id} 競爭對手 比較" — 主要競爭者的營收/毛利率比較
+   若為美股可搜尋英文: "{ticker} industry outlook 2026", "{ticker} competitors analysis"
+
+2. **整合系統數據 + 搜尋結果**，產出完整研究報告
+   - 系統數據用於量化分析（技術面、籌碼面、評分）
+   - 搜尋結果用於質化分析（產業趨勢、護城河、風險）
+   - 分析師共識數據用於情境目標價推導
+
+3. 報告格式嚴格依照上方 Format 規範的 8 大區塊"""
 
     return full_prompt
 
@@ -757,7 +781,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
 def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
                     timeout=None):
     """
-    呼叫 Claude CLI 生成 AI 研究報告。
+    呼叫 Claude CLI 生成 AI 研究報告（含 WebSearch 能力）。
 
     Args:
         timeout: None = no timeout (default), or seconds
@@ -771,7 +795,9 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 
     try:
         result = subprocess.run(
-            ["claude", "-p", "--output-format", "text"],
+            ["claude", "-p",
+             "--allowedTools", "WebSearch,WebFetch",
+             "--output-format", "text"],
             input=prompt,
             capture_output=True,
             text=True,
