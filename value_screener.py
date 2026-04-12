@@ -27,6 +27,64 @@ _CHECKPOINT_DIR = Path('data/.checkpoints')
 
 logger = logging.getLogger(__name__)
 
+# TradingView batch cache
+_tv_batch_cache = {}
+_tv_batch_ts = 0
+
+
+def _fetch_tradingview_batch(market='tw'):
+    """
+    Batch fetch fundamental data from TradingView for all stocks in a market.
+    Returns dict: { stock_id: {gross_margin, operating_margin, net_margin, ROE, ROA, ...} }
+    """
+    import time
+    global _tv_batch_cache, _tv_batch_ts
+    cache_key = f"tv_{market}"
+    if cache_key in _tv_batch_cache and time.time() - _tv_batch_ts < 3600:
+        return _tv_batch_cache[cache_key]
+
+    try:
+        from tradingview_screener import Query
+
+        tv_market = 'america' if market == 'us' else 'taiwan'
+        result = (Query()
+            .select('name', 'gross_margin', 'operating_margin', 'net_margin',
+                    'return_on_equity', 'return_on_assets',
+                    'total_revenue_yoy_growth_fq', 'debt_to_equity')
+            .set_markets(tv_market)
+            .limit(5000)
+            .get_scanner_data()
+        )
+
+        df = result[1]
+        batch = {}
+        for _, row in df.iterrows():
+            sid = str(row.get('name', '')).strip()
+            if not sid:
+                continue
+            data = {}
+            for field, key in [('gross_margin', 'gross_margin'),
+                               ('operating_margin', 'operating_margin'),
+                               ('net_margin', 'net_margin'),
+                               ('return_on_equity', 'ROE'),
+                               ('return_on_assets', 'ROA'),
+                               ('total_revenue_yoy_growth_fq', 'revenue_yoy'),
+                               ('debt_to_equity', 'debt_to_equity')]:
+                val = row.get(field)
+                if val is not None and not (isinstance(val, float) and np.isnan(val)):
+                    data[key] = val
+            if data:
+                batch[sid] = data
+
+        logger.info("TradingView batch: %d stocks for market %s", len(batch), market)
+        _tv_batch_cache[cache_key] = batch
+        _tv_batch_ts = time.time()
+        return batch
+
+    except Exception as e:
+        logger.warning("TradingView batch failed for %s: %s", market, e)
+        return {}
+
 # ================================================================
 # Default Configuration
 # ================================================================
@@ -262,6 +320,14 @@ class ValueScreener:
                 self.progress(f"  Pre-fetched institutional data: {len(self._inst_batch)} stocks")
             except Exception as e:
                 logger.warning("Batch institutional fetch failed: %s", e)
+
+        # Pre-fetch TradingView fundamental data (三率/ROE/ROA) for quality scoring
+        self._tv_batch = {}
+        try:
+            self._tv_batch = _fetch_tradingview_batch(market)
+            self.progress(f"  Pre-fetched TradingView fundamentals: {len(self._tv_batch)} stocks")
+        except Exception as e:
+            logger.warning("TradingView batch fetch failed: %s", e)
 
         # Load checkpoint
         scored, done_ids = self._load_checkpoint(cp_file)
@@ -740,6 +806,38 @@ class ValueScreener:
                             details.append(f"近 4 季僅 {profitable_q} 季獲利 (-10)")
         except Exception as e:
             logger.debug("Quality scoring failed for %s: %s", stock_id, e)
+
+        # --- TradingView 三率/ROE 補充 (batch pre-fetched) ---
+        tv = getattr(self, '_tv_batch', {}).get(stock_id, {})
+        if tv:
+            gm = tv.get('gross_margin')
+            om = tv.get('operating_margin')
+            roe = tv.get('ROE')
+            de = tv.get('debt_to_equity')
+
+            if gm is not None:
+                if gm > 40:
+                    score += 5
+                    details.append(f"毛利率={gm:.1f}% 高 (+5) [TV]")
+                elif gm < 10:
+                    score -= 5
+                    details.append(f"毛利率={gm:.1f}% 偏低 (-5) [TV]")
+
+            if om is not None:
+                if om > 20:
+                    score += 5
+                    details.append(f"營益率={om:.1f}% 優 (+5) [TV]")
+                elif om < 0:
+                    score -= 8
+                    details.append(f"營益率={om:.1f}% 虧損 (-8) [TV]")
+
+            if roe is not None and roe > 20:
+                score += 5
+                details.append(f"ROE={roe:.1f}% 高 (+5) [TV]")
+
+            if de is not None and de > 2.0:
+                score -= 5
+                details.append(f"負債/權益={de:.2f} 偏高 (-5) [TV]")
 
         return max(0, min(100, score))
 
