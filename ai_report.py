@@ -103,35 +103,45 @@ def _build_technical_data(df_day):
 
     last = df_day.iloc[-1]
 
-    # 收集所有技術指標
+    # 收集所有技術指標 (欄位名對應 technical_analysis.py 實際產出)
     indicators = {
         # 均線
         'MA5': '.2f', 'MA10': '.2f', 'MA20': '.2f', 'MA60': '.2f', 'MA120': '.2f',
         # 布林
-        'BB_upper': '.2f', 'BB_middle': '.2f', 'BB_lower': '.2f',
+        'BB_Up': '.2f', 'BB_Lo': '.2f',
         # RSI / KD
         'RSI': '.1f', 'K': '.1f', 'D': '.1f',
         # MACD
-        'MACD': '.4f', 'MACD_signal': '.4f', 'MACD_hist': '.4f',
+        'MACD': '.4f', 'Signal': '.4f', 'Hist': '.4f',
         # ADX / DMI
-        'ADX': '.1f', 'DI_pos': '.1f', 'DI_neg': '.1f',
+        'ADX': '.1f', '+DI': '.1f', '-DI': '.1f',
         # Supertrend
-        'Supertrend': '.2f', 'Supertrend_direction': '.0f',
+        'Supertrend': '.2f', 'Supertrend_Dir': '.0f',
         # RVOL / OBV
         'RVOL': '.2f', 'OBV': '.0f',
         # ATR
         'ATR': '.2f',
-        # Squeeze
-        'KC_upper': '.2f', 'KC_lower': '.2f',
-        'Squeeze_Momentum': '.4f',
+        # Squeeze Momentum
+        'Squeeze_Mom': '.4f',
         # VWAP
         'VWAP': '.2f',
         # TD Sequential
-        'TD_count': '.0f',
+        'TD_Buy_Setup': '.0f', 'TD_Sell_Setup': '.0f',
         # EFI
         'EFI': '.0f',
         # 型態
         'Pattern': None, 'Pattern_Type': None,
+    }
+
+    # 輸出時用更易讀的名稱
+    display_names = {
+        'BB_Up': 'BB_Upper', 'BB_Lo': 'BB_Lower',
+        'Signal': 'MACD_Signal', 'Hist': 'MACD_Hist',
+        '+DI': 'DI+', '-DI': 'DI-',
+        'Supertrend_Dir': 'Supertrend_Direction (1=多 -1=空)',
+        'Squeeze_Mom': 'Squeeze_Momentum',
+        'TD_Buy_Setup': 'TD_Buy_Setup (連續計數)',
+        'TD_Sell_Setup': 'TD_Sell_Setup (連續計數)',
     }
 
     lines = []
@@ -139,10 +149,11 @@ def _build_technical_data(df_day):
         if col in df_day.columns:
             val = last.get(col, None)
             if val is not None and not (isinstance(val, float) and (np.isnan(val) or np.isinf(val))):
+                name = display_names.get(col, col)
                 if fmt is None:
-                    lines.append(f"{col}: {val}")
+                    lines.append(f"{name}: {val}")
                 else:
-                    lines.append(f"{col}: {_safe_val(val, fmt)}")
+                    lines.append(f"{name}: {_safe_val(val, fmt)}")
 
     # 額外計算: 價格相對均線位置
     close = last.get('Close', 0)
@@ -154,21 +165,43 @@ def _build_technical_data(df_day):
                     pct = (close - ma_val) / ma_val * 100
                     lines.append(f"Close vs {ma_col}: {pct:+.1f}%")
 
-    # BB 位置
-    bb_upper = last.get('BB_upper', 0)
-    bb_lower = last.get('BB_lower', 0)
+    # BB %B 位置
+    bb_upper = last.get('BB_Up', 0)
+    bb_lower = last.get('BB_Lo', 0)
     if bb_upper and bb_lower and bb_upper > bb_lower:
+        bb_mid = (bb_upper + bb_lower) / 2
         bb_pct = (close - bb_lower) / (bb_upper - bb_lower) * 100
         lines.append(f"BB %B: {bb_pct:.1f}%")
-        lines.append(f"BB Width: {(bb_upper - bb_lower) / last.get('BB_middle', close) * 100:.2f}%")
+        lines.append(f"BB Width: {(bb_upper - bb_lower) / bb_mid * 100:.2f}%")
 
-    # Squeeze 狀態
-    if 'KC_upper' in df_day.columns and 'BB_upper' in df_day.columns:
-        kc_upper = last.get('KC_upper', 0)
-        kc_lower = last.get('KC_lower', 0)
-        if kc_upper > 0 and bb_upper > 0:
-            squeeze_on = bb_upper < kc_upper and bb_lower > kc_lower
-            lines.append(f"Squeeze: {'ON (壓縮中)' if squeeze_on else 'OFF'}")
+    # DMI 方向判斷
+    di_pos = last.get('+DI', 0)
+    di_neg = last.get('-DI', 0)
+    if di_pos and di_neg:
+        if di_pos > di_neg:
+            lines.append(f"DMI Direction: Bullish (DI+ {di_pos:.1f} > DI- {di_neg:.1f})")
+        else:
+            lines.append(f"DMI Direction: Bearish (DI- {di_neg:.1f} > DI+ {di_pos:.1f})")
+
+    # OBV 趨勢 (近 20 日斜率)
+    if 'OBV' in df_day.columns and len(df_day) >= 20:
+        obv_recent = df_day['OBV'].tail(20).dropna()
+        if len(obv_recent) >= 10:
+            obv_slope = (obv_recent.iloc[-1] - obv_recent.iloc[0]) / len(obv_recent)
+            obv_dir = "Rising" if obv_slope > 0 else "Falling"
+            lines.append(f"OBV Trend (20d): {obv_dir} (slope={obv_slope:+.0f}/day)")
+
+    # Squeeze 狀態 (從 Squeeze_Mom 判斷)
+    sq_mom = last.get('Squeeze_Mom', None)
+    if sq_mom is not None and not np.isnan(sq_mom):
+        # 檢查前一根的值來判斷是否剛突破
+        if len(df_day) >= 2:
+            prev_sq = df_day.iloc[-2].get('Squeeze_Mom', 0)
+            if prev_sq is not None and not np.isnan(prev_sq):
+                if abs(sq_mom) > abs(prev_sq):
+                    lines.append("Squeeze: Expanding (momentum accelerating)")
+                else:
+                    lines.append("Squeeze: Contracting (momentum decelerating)")
 
     return "\n".join(lines) if lines else "N/A"
 
@@ -218,21 +251,123 @@ def _build_chip_data(chip_data, us_chip_data, is_us):
     return "\n".join(lines) if lines else "N/A"
 
 
-def _build_fundamental_data(fund_data):
-    """[FUNDAMENTAL_DATA] 基本面數據"""
-    if not fund_data:
-        return "N/A"
-
+def _build_fundamental_data(fund_data, ticker):
+    """[FUNDAMENTAL_DATA] 基本面數據 + Piotroski/Z-Score/ROIC/FCF"""
     lines = []
-    for key in ['PE Ratio', 'Forward PE', 'PB Ratio', 'PEG Ratio',
-                'EPS (TTM)', 'ROE', 'Profit Margin', 'Dividend Yield',
-                'Market Cap', 'Revenue YoY', 'Monthly Revenue',
-                'Cash Dividend', 'Stock Dividend', 'Payout Ratio']:
-        val = fund_data.get(key, '')
-        if val and str(val) not in ('', 'N/A', 'nan', 'None'):
-            lines.append(f"{key}: {val}")
+
+    # 基本面 (from get_fundamentals)
+    if fund_data:
+        for key in ['PE Ratio', 'Forward PE', 'PB Ratio', 'PEG Ratio',
+                    'EPS (TTM)', 'ROE', 'Profit Margin', 'Dividend Yield',
+                    'Market Cap', 'Revenue YoY', 'Monthly Revenue',
+                    'Cash Dividend', 'Stock Dividend', 'Payout Ratio']:
+            val = fund_data.get(key, '')
+            if val and str(val) not in ('', 'N/A', 'nan', 'None'):
+                lines.append(f"{key}: {val}")
+
+    # Piotroski F-Score + Altman Z-Score + ROIC/FCF
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    try:
+        if is_us:
+            from piotroski import calculate_fscore_us, calculate_zscore_us, calculate_extra_metrics_us
+            # 取 market cap
+            mc_str = fund_data.get('Market Cap', '0') if fund_data else '0'
+            mc = _parse_market_cap(mc_str)
+
+            fs = calculate_fscore_us(ticker)
+            if fs:
+                lines.append(f"\nPiotroski F-Score: {fs['fscore']}/9")
+                lines.append(f"  Profitability: {fs['components']['profitability']}/4")
+                lines.append(f"  Leverage: {fs['components']['leverage']}/3")
+                lines.append(f"  Efficiency: {fs['components']['efficiency']}/2")
+
+            zs = calculate_zscore_us(ticker, mc) if mc > 0 else None
+            if zs:
+                lines.append(f"Altman Z-Score: {_safe_val(zs['zscore'])} ({zs['zone']})")
+
+            em = calculate_extra_metrics_us(ticker, mc) if mc > 0 else None
+            if em:
+                if 'roic' in em:
+                    lines.append(f"ROIC: {_safe_val(em['roic']*100 if em['roic'] else 0, '.1f')}%")
+                if 'fcf_yield' in em:
+                    lines.append(f"FCF Yield: {_safe_val(em['fcf_yield']*100 if em['fcf_yield'] else 0, '.1f')}%")
+        else:
+            from piotroski import calculate_fscore, calculate_zscore, calculate_extra_metrics
+            stock_id = ticker.replace('.TW', '')
+            mc_str = fund_data.get('Market Cap', '0') if fund_data else '0'
+            mc = _parse_market_cap(mc_str)
+
+            fs = calculate_fscore(stock_id)
+            if fs:
+                lines.append(f"\nPiotroski F-Score: {fs['fscore']}/9")
+                lines.append(f"  Profitability: {fs['components']['profitability']}/4")
+                lines.append(f"  Leverage: {fs['components']['leverage']}/3")
+                lines.append(f"  Efficiency: {fs['components']['efficiency']}/2")
+
+            zs = calculate_zscore(stock_id, mc) if mc > 0 else None
+            if zs:
+                lines.append(f"Altman Z-Score: {_safe_val(zs['zscore'])} ({zs['zone']})")
+
+            em = calculate_extra_metrics(stock_id, mc) if mc > 0 else None
+            if em:
+                if 'roic' in em:
+                    lines.append(f"ROIC: {_safe_val(em['roic']*100 if em['roic'] else 0, '.1f')}%")
+                if 'fcf_yield' in em:
+                    lines.append(f"FCF Yield: {_safe_val(em['fcf_yield']*100 if em['fcf_yield'] else 0, '.1f')}%")
+                if 'current_ratio' in em:
+                    lines.append(f"Current Ratio: {_safe_val(em['current_ratio'])}")
+    except Exception as e:
+        logger.warning("Piotroski/ZScore data fetch failed: %s", e)
+        lines.append(f"\nPiotroski/Z-Score: 取得失敗 ({e})")
 
     return "\n".join(lines) if lines else "N/A"
+
+
+def _parse_market_cap(mc_str):
+    """解析 Market Cap 字串為數值 (e.g. '1.5T' -> 1500000000000)"""
+    if not mc_str or mc_str in ('N/A', 'None', '0'):
+        return 0
+    mc_str = str(mc_str).strip().upper()
+    try:
+        if mc_str.endswith('T'):
+            return float(mc_str[:-1]) * 1e12
+        elif mc_str.endswith('B'):
+            return float(mc_str[:-1]) * 1e9
+        elif mc_str.endswith('M'):
+            return float(mc_str[:-1]) * 1e6
+        # 台股可能是純數字 (單位: 元)
+        cleaned = mc_str.replace(',', '').replace('$', '')
+        return float(cleaned)
+    except (ValueError, TypeError):
+        return 0
+
+
+def _build_ptt_sentiment(ticker):
+    """[PTT_SENTIMENT] PTT 情緒數據 (台股限定)"""
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (美股不適用)"
+
+    try:
+        from ptt_sentiment import PTTSentimentAnalyzer
+        analyzer = PTTSentimentAnalyzer()
+        stock_id = ticker.replace('.TW', '')
+        result = analyzer.get_stock_sentiment(stock_id, pages=3)
+        if not result:
+            return "N/A (無 PTT 討論)"
+
+        lines = []
+        lines.append(f"文章數: {result.get('total_posts', 0)}")
+        lines.append(f"推/噓: {result.get('total_push', 0)}/{result.get('total_boo', 0)}")
+        lines.append(f"推文比: {_safe_val(result.get('push_ratio', 0), '.1%')}")
+        lines.append(f"情緒分數: {_safe_val(result.get('sentiment_score', 0), '.1f')} (-100~+100)")
+        lines.append(f"情緒標籤: {result.get('sentiment_label', 'N/A')}")
+        if result.get('contrarian_warning'):
+            lines.append("*** 反向指標警告: 過度樂觀，注意回檔風險 ***")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning("PTT sentiment fetch failed: %s", e)
+        return f"N/A (取得失敗: {e})"
 
 
 def _build_market_context(report):
@@ -316,9 +451,10 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[TRIGGER_DETAILS]\n{_build_trigger_details(report)}")
     data_sections.append(f"[TECHNICAL_DATA]\n{_build_technical_data(df_day)}")
     data_sections.append(f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us)}")
-    data_sections.append(f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data)}")
+    data_sections.append(f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data, ticker)}")
     data_sections.append(f"[MARKET_CONTEXT]\n{_build_market_context(report)}")
     data_sections.append(f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}")
+    data_sections.append(f"[PTT_SENTIMENT]\n{_build_ptt_sentiment(ticker)}")
 
     data_block = "\n\n".join(data_sections)
 
