@@ -355,6 +355,17 @@ class MomentumScreener:
         market = getattr(self, '_market', 'tw')
         cp_file = _CHECKPOINT_DIR / f'momentum_{market}.json'
 
+        # Pre-fetch batch institutional data (TWSE/TPEX) as FinMind fallback
+        self._inst_batch = {}
+        if market == 'tw' and cfg.get('include_chip', True):
+            try:
+                from twse_api import TWSEOpenData
+                twse = TWSEOpenData()
+                self._inst_batch = twse.get_institutional_batch(days=5)
+                self.progress(f"  Pre-fetched institutional data: {len(self._inst_batch)} stocks")
+            except Exception as e:
+                logger.warning("Batch institutional fetch failed: %s", e)
+
         # Load checkpoint if exists
         scored, done_ids = self._load_checkpoint(cp_file)
         if scored:
@@ -512,6 +523,15 @@ class MomentumScreener:
                     chip_data, _ = ca.get_chip_data(stock_id)
                 except Exception:
                     pass
+
+            # Fallback: inject TWSE/TPEX batch data if FinMind failed
+            batch = getattr(self, '_inst_batch', {})
+            if stock_id in batch:
+                inst_df = batch[stock_id]
+                if chip_data is None:
+                    chip_data = {'institutional': inst_df}
+                elif 'institutional' not in chip_data or chip_data['institutional'].empty:
+                    chip_data['institutional'] = inst_df
 
         # 4. Run analysis
         try:

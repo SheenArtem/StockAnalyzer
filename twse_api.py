@@ -868,35 +868,54 @@ class TWSEOpenData:
             if data is None:
                 continue
 
-            # TPEX 回應格式: reportDate, iTotalRecords, aaData
-            total = data.get('iTotalRecords', 0)
-            if total == 0:
+            # TPEX 回應格式 (新版): tables[0]['data'], (舊版): aaData
+            rows = data.get('aaData', [])
+            if not rows:
+                tables = data.get('tables', [])
+                if tables and isinstance(tables[0], dict):
+                    rows = tables[0].get('data', [])
+            if not rows:
                 logger.debug("No TPEX data for date %s", roc_date)
                 continue
 
-            rows = data.get('aaData', [])
-            if not rows:
-                continue
+            # 新版 24 欄: [代號, 名稱,
+            #   外資及陸資(不含自營)-買進, 賣出, 買賣超,
+            #   外資自營商-買進, 賣出, 買賣超,
+            #   外資及陸資合計-買進, 賣出, 買賣超,
+            #   投信-買進, 賣出, 買賣超,
+            #   自營商(自行)-買進, 賣出, 買賣超,
+            #   自營商(避險)-買進, 賣出, 買賣超,
+            #   自營商合計-買進, 賣出, 買賣超,
+            #   三大法人買賣超合計]
+            # 舊版 15 欄: [代號, 名稱, 外資-買進, 賣出, 買賣超,
+            #   投信-買進, 賣出, 買賣超,
+            #   自營商(自行)-買進, 賣出, 買賣超,
+            #   自營商(避險)-買進, 賣出, 買賣超,
+            #   三大法人買賣超]
+            is_new_fmt = len(rows[0]) >= 24 if rows else False
 
-            # aaData 每一行: [代號, 名稱, 外資及陸資-買進, 外資及陸資-賣出, 外資及陸資-買賣超,
-            #                 投信-買進, 投信-賣出, 投信-買賣超,
-            #                 自營商(自行)-買進, 自營商(自行)-賣出, 自營商(自行)-買賣超,
-            #                 自營商(避險)-買進, 自營商(避險)-賣出, 自營商(避險)-買賣超,
-            #                 三大法人買賣超]
             for row in rows:
                 if len(row) < 15:
                     continue
                 row_id = str(row[0]).strip()
                 if row_id == stock_id:
                     try:
-                        foreign_net = self._safe_int(row[4])    # 外資買賣超
-                        trust_net = self._safe_int(row[7])      # 投信買賣超
-                        dealer_self = self._safe_int(row[10])   # 自營商(自行)
-                        dealer_hedge = self._safe_int(row[13])  # 自營商(避險)
-                        dealer_net = dealer_self + dealer_hedge
-                        total_net = self._safe_int(row[14]) if len(row) > 14 else (
-                            foreign_net + trust_net + dealer_net
-                        )
+                        if is_new_fmt:
+                            # 新版: 外資合計買賣超=idx10, 投信買賣超=idx13,
+                            #       自營商合計買賣超=idx22, 三大法人合計=idx23
+                            foreign_net = self._safe_int(row[10])
+                            trust_net = self._safe_int(row[13])
+                            dealer_net = self._safe_int(row[22])
+                            total_net = self._safe_int(row[23])
+                        else:
+                            foreign_net = self._safe_int(row[4])
+                            trust_net = self._safe_int(row[7])
+                            dealer_self = self._safe_int(row[10])
+                            dealer_hedge = self._safe_int(row[13])
+                            dealer_net = dealer_self + dealer_hedge
+                            total_net = self._safe_int(row[14]) if len(row) > 14 else (
+                                foreign_net + trust_net + dealer_net
+                            )
 
                         results.append({
                             'date': dt.strftime('%Y-%m-%d'),
@@ -924,6 +943,161 @@ class TWSEOpenData:
         self._set_cache(cache_key, df)
         logger.info("Fetched %d days of TPEX institutional data for %s", len(df), stock_id)
         return df
+
+    # ------------------------------------------------------------------ #
+    #  Batch: 全市場三大法人 (供 scanner 批次使用)
+    # ------------------------------------------------------------------ #
+
+    def get_institutional_batch(self, days=5):
+        """
+        Fetch institutional trading data for ALL stocks over recent N days.
+        Returns dict: { stock_id: DataFrame(外資, 投信, 自營商, 合計) }
+
+        Only N+few API calls total (not per-stock), suitable for scanner.
+        """
+        cache_key = f"inst_batch_{days}"
+        cached = self._get_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        logger.info("Batch fetching institutional data for last %d trading days", days)
+
+        # Collect per-stock records: { stock_id: [{date, ...}, ...] }
+        all_records = {}
+        dates = self._get_recent_trading_dates(days=days + 10)
+        fetched_days = 0
+
+        for dt in dates:
+            if fetched_days >= days:
+                break
+
+            # --- TWSE ---
+            date_str = self._to_twse_date(dt)
+            url = "https://www.twse.com.tw/rwd/zh/fund/T86"
+            params = {'date': date_str, 'selectType': 'ALL', 'response': 'json'}
+            data = self._fetch_json(url, params=params)
+
+            twse_ok = False
+            if data and data.get('stat') == 'OK':
+                fields = data.get('fields', [])
+                rows = data.get('data', [])
+                if fields and rows:
+                    twse_ok = True
+                    field_map = {f.strip(): i for i, f in enumerate(fields)}
+                    for row in rows:
+                        if len(row) < 2:
+                            continue
+                        sid = str(row[0]).strip()
+                        if not sid.isdigit():
+                            continue
+                        try:
+                            foreign_net = 0
+                            for key in ['外陸資買賣超股數(不含外資自營商)', '外資及陸資買賣超股數', '外資買賣超股數']:
+                                if key in field_map:
+                                    foreign_net = self._safe_int(row[field_map[key]])
+                                    break
+                            for key in ['外資自營商買賣超股數']:
+                                if key in field_map:
+                                    foreign_net += self._safe_int(row[field_map[key]])
+                                    break
+                            trust_net = 0
+                            for key in ['投信買賣超股數']:
+                                if key in field_map:
+                                    trust_net = self._safe_int(row[field_map[key]])
+                                    break
+                            dealer_net = 0
+                            for key in ['自營商買賣超股數']:
+                                if key in field_map:
+                                    dealer_net = self._safe_int(row[field_map[key]])
+                                    break
+                            if dealer_net == 0:
+                                d1 = d2 = 0
+                                for key in ['自營商(自行)買賣超股數']:
+                                    if key in field_map:
+                                        d1 = self._safe_int(row[field_map[key]])
+                                        break
+                                for key in ['自營商(避險)買賣超股數']:
+                                    if key in field_map:
+                                        d2 = self._safe_int(row[field_map[key]])
+                                        break
+                                if d1 != 0 or d2 != 0:
+                                    dealer_net = d1 + d2
+                            total_net = 0
+                            for key in ['三大法人買賣超股數']:
+                                if key in field_map:
+                                    total_net = self._safe_int(row[field_map[key]])
+                                    break
+                            if total_net == 0:
+                                total_net = foreign_net + trust_net + dealer_net
+
+                            all_records.setdefault(sid, []).append({
+                                'date': dt.strftime('%Y-%m-%d'),
+                                '外資': foreign_net, '投信': trust_net,
+                                '自營商': dealer_net, '合計': total_net,
+                            })
+                        except Exception:
+                            continue
+
+            # --- TPEX ---
+            roc_date = self._to_tpex_date(dt)
+            url_tpex = "https://www.tpex.org.tw/web/stock/3insti/daily_trade/3itrade_hedge_result.php"
+            params_tpex = {'l': 'zh-tw', 'o': 'json', 'se': 'EW', 't': 'D', 'd': roc_date, 's': '0,asc,0'}
+            data_tpex = self._fetch_json(url_tpex, params=params_tpex)
+
+            tpex_ok = False
+            if data_tpex:
+                tpex_rows = data_tpex.get('aaData', [])
+                if not tpex_rows:
+                    tables = data_tpex.get('tables', [])
+                    if tables and isinstance(tables[0], dict):
+                        tpex_rows = tables[0].get('data', [])
+                is_new_fmt = len(tpex_rows[0]) >= 24 if tpex_rows else False
+
+                if tpex_rows:
+                    tpex_ok = True
+                    for row in tpex_rows:
+                        if len(row) < 15:
+                            continue
+                        sid = str(row[0]).strip()
+                        if not sid.isdigit():
+                            continue
+                        try:
+                            if is_new_fmt:
+                                foreign_net = self._safe_int(row[10])
+                                trust_net = self._safe_int(row[13])
+                                dealer_net = self._safe_int(row[22])
+                                total_net = self._safe_int(row[23])
+                            else:
+                                foreign_net = self._safe_int(row[4])
+                                trust_net = self._safe_int(row[7])
+                                dealer_self = self._safe_int(row[10])
+                                dealer_hedge = self._safe_int(row[13])
+                                dealer_net = dealer_self + dealer_hedge
+                                total_net = self._safe_int(row[14]) if len(row) > 14 else (
+                                    foreign_net + trust_net + dealer_net)
+
+                            all_records.setdefault(sid, []).append({
+                                'date': dt.strftime('%Y-%m-%d'),
+                                '外資': foreign_net, '投信': trust_net,
+                                '自營商': dealer_net, '合計': total_net,
+                            })
+                        except Exception:
+                            continue
+
+            if twse_ok or tpex_ok:
+                fetched_days += 1
+
+        # Convert to DataFrames
+        result = {}
+        for sid, records in all_records.items():
+            df = pd.DataFrame(records)
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.set_index('date').sort_index()
+            result[sid] = df
+
+        logger.info("Batch institutional: %d stocks, %d days fetched", len(result), fetched_days)
+        self._set_cache(cache_key, result)
+        return result
 
     # ------------------------------------------------------------------ #
     #  Utility: 清除快取

@@ -252,6 +252,17 @@ class ValueScreener:
         market = getattr(self, '_market', 'tw')
         cp_file = _CHECKPOINT_DIR / f'value_{market}.json'
 
+        # Pre-fetch batch institutional data (TWSE/TPEX) for smart money scoring
+        self._inst_batch = {}
+        if market == 'tw' and self.config.get('include_chip', True):
+            try:
+                from twse_api import TWSEOpenData
+                twse = TWSEOpenData()
+                self._inst_batch = twse.get_institutional_batch(days=5)
+                self.progress(f"  Pre-fetched institutional data: {len(self._inst_batch)} stocks")
+            except Exception as e:
+                logger.warning("Batch institutional fetch failed: %s", e)
+
         # Load checkpoint
         scored, done_ids = self._load_checkpoint(cp_file)
         if scored:
@@ -939,27 +950,40 @@ class ValueScreener:
             pass
 
         # Institutional accumulation
-        if self.config['include_chip'] and stock_id.isdigit():
-            try:
-                from chip_analysis import ChipAnalyzer
-                ca = ChipAnalyzer()
-                chip_data, _ = ca.get_chip_data(stock_id)
+        if self.config.get('include_chip', True) and stock_id.isdigit():
+            inst = None
 
-                if chip_data and 'institutional' in chip_data:
-                    inst = chip_data['institutional']
-                    if not inst.empty and len(inst) >= 5:
-                        # Sum last 5 days net buy
-                        cols = [c for c in inst.columns if c in ['外資', '投信', '合計']]
-                        if '合計' in cols:
-                            recent_net = inst['合計'].iloc[-5:].sum()
-                            if recent_net > 0:
-                                score += 10
-                                details.append(f"法人近 5 日淨買 {recent_net:+,.0f} (+10)")
-                            elif recent_net < -1000:
-                                score -= 10
-                                details.append(f"法人近 5 日淨賣 {recent_net:+,.0f} (-10)")
-            except Exception:
-                pass
+            # 1st: use pre-fetched TWSE/TPEX batch data (fast, no extra API calls)
+            batch = getattr(self, '_inst_batch', {})
+            if stock_id in batch:
+                inst = batch[stock_id]
+
+            # 2nd: fallback to FinMind via ChipAnalyzer
+            if inst is None or inst.empty:
+                try:
+                    from chip_analysis import ChipAnalyzer
+                    ca = ChipAnalyzer()
+                    chip_data, _ = ca.get_chip_data(stock_id)
+                    if chip_data and 'institutional' in chip_data:
+                        inst = chip_data['institutional']
+                except Exception:
+                    pass
+
+            if inst is not None and not inst.empty and len(inst) >= 5:
+                # Find total column (TWSE/TPEX: '合計', FinMind: '三大法人合計')
+                total_col = None
+                for col in ['合計', '三大法人合計']:
+                    if col in inst.columns:
+                        total_col = col
+                        break
+                if total_col:
+                    recent_net = inst[total_col].iloc[-5:].sum()
+                    if recent_net > 0:
+                        score += 10
+                        details.append(f"法人近 5 日淨買 {recent_net:+,.0f} (+10)")
+                    elif recent_net < -1000:
+                        score -= 10
+                        details.append(f"法人近 5 日淨賣 {recent_net:+,.0f} (-10)")
 
         return max(0, min(100, score))
 
