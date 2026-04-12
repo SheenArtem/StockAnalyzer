@@ -557,6 +557,28 @@ def _build_pattern_data(df_day):
     return "\n".join(patterns) if patterns else "近 10 日無明確 K 線型態"
 
 
+def _build_news_data(ticker, fund_data):
+    """[NEWS_DATA] Recent news from Google News RSS."""
+    try:
+        from news_fetcher import fetch_stock_news, format_news_for_prompt
+
+        # Get stock name for better search
+        stock_name = ''
+        if fund_data:
+            for key in ['stock_name', 'Name', 'shortName']:
+                val = fund_data.get(key, '')
+                if val and str(val) not in ('', 'N/A', 'None'):
+                    stock_name = str(val)
+                    break
+
+        news = fetch_stock_news(ticker, stock_name=stock_name, max_items=15, days=7)
+        return format_news_for_prompt(news, max_chars=3000)
+
+    except Exception as e:
+        logger.warning("News fetch failed for %s: %s", ticker, e)
+        return f"N/A (news fetch failed: {e})"
+
+
 def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     """
     組裝完整的 AI 分析 prompt。
@@ -587,6 +609,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}")
     data_sections.append(f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}")
     data_sections.append(f"[PTT_SENTIMENT]\n{_build_ptt_sentiment(ticker)}")
+    data_sections.append(f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
 
@@ -600,7 +623,8 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
 
 ---
 
-請根據以上所有數據，產出完整的研究報告。"""
+請根據以上所有數據（含近期新聞），產出完整的研究報告。
+新聞資料請用於產業趨勢判斷、市場觀點蒐集、潛在風險識別。"""
 
     return full_prompt
 
