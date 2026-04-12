@@ -538,6 +538,15 @@ class MomentumScreener:
             # Estimate count from score: 0.3 → 2, 0.6 → 3+
             etf_buy_count = 3 if breakdown['etf_score'] >= 0.5 else 2
 
+        # 7. 近 5 日平均成交值
+        avg_tv_5d = 0
+        try:
+            if 'Close' in df_day.columns and 'Volume' in df_day.columns:
+                tv = (df_day['Close'] * df_day['Volume']).tail(5)
+                avg_tv_5d = int(tv.mean()) if len(tv) > 0 else 0
+        except Exception:
+            pass
+
         return {
             'stock_id': stock_id,
             'name': market_row.get('stock_name', meta.get('name', '')),
@@ -545,6 +554,7 @@ class MomentumScreener:
             'price': market_row.get('close', 0),
             'change_pct': round(market_row.get('change_pct', 0), 2),
             'trading_value': int(market_row.get('trading_value', 0)),
+            'avg_trading_value_5d': avg_tv_5d,
             'trigger_score': round(trigger, 2),
             'trend_score': round(trend, 2),
             'score_percentile': report.get('score_percentile', None),

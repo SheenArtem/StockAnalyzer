@@ -410,6 +410,17 @@ class ValueScreener:
             scores['smart_money'] * cfg['weight_smart_money']
         )
 
+        # 近 5 日平均成交值
+        avg_tv_5d = 0
+        try:
+            from technical_analysis import load_and_resample
+            _, _df, _, _ = load_and_resample(stock_id)
+            if not _df.empty and 'Close' in _df.columns and 'Volume' in _df.columns:
+                tv = (_df['Close'] * _df['Volume']).tail(5)
+                avg_tv_5d = int(tv.mean()) if len(tv) > 0 else 0
+        except Exception:
+            pass
+
         return {
             'stock_id': stock_id,
             'name': market_row.get('stock_name', ''),
@@ -417,6 +428,7 @@ class ValueScreener:
             'price': market_row.get('close', 0),
             'change_pct': round(market_row.get('change_pct', 0), 2),
             'trading_value': int(market_row.get('trading_value', 0)),
+            'avg_trading_value_5d': avg_tv_5d,
             'PE': market_row.get('PE', 0),
             'PB': market_row.get('PB', 0),
             'dividend_yield': market_row.get('dividend_yield', 0),

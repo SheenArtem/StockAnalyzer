@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.11.13")
+    st.caption("Version: v2026.04.12.1")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -259,140 +259,164 @@ if st.session_state.get('app_mode') == 'screener':
     # ====================================================================
     with screener_tab1:
 
+        with st.expander("📋 篩選條件說明"):
+            st.markdown("""
+**Stage 1 初篩（全市場日行情快篩）**
+
+| 條件 | 門檻 | 說明 |
+|------|------|------|
+| 上市成交值佔比 | > 0.02% | 約 6000 萬以上，過濾冷門股 |
+| 上櫃成交值佔比 | > 0.05% | 約 3000 萬以上 |
+| 當日漲跌幅 | > -1% | 允許微跌，排除大跌股 |
+
+**Stage 2 評分（觸發分數 + 趨勢分數）**
+
+由 `analysis_engine.py` 計算，綜合技術面、籌碼面、型態辨識等指標。
+
+**訊號代碼對照表**
+
+| 訊號 | 中文 | 說明 |
+|------|------|------|
+| `supertrend_bull` | Supertrend 多方 | 價格在趨勢線上方，趨勢向上 |
+| `supertrend_bear` | Supertrend 空方 | 價格在趨勢線下方，趨勢向下 |
+| `macd_golden` | MACD 黃金交叉 | MACD 線突破訊號線 / 柱狀體翻正 |
+| `macd_dead` | MACD 死亡交叉 | MACD 線跌破訊號線 / 柱狀體翻負 |
+| `rsi_bull_div` | RSI 底背離 | 價格創新低但 RSI 沒有，反彈訊號 |
+| `rsi_bear_div` | RSI 頂背離 | 價格創新高但 RSI 沒有，轉弱訊號 |
+| `rvol_high` | 爆量確認 | 成交量放大，突破有量能支撐 |
+| `rvol_low` | 量能萎縮 | 成交量極低，賣壓枯竭訊號 |
+| `inst_buy` | 法人買超 | 三大法人積極或持續買超 |
+| `inst_sell` | 法人賣超 | 三大法人大量賣超 |
+| `etf_sync_buy` | ETF 同步買超 | 多檔主動型 ETF 同時買入 |
+| `etf_buy` | ETF 買超 | 主動型 ETF 買超 |
+| `etf_sync_sell` | ETF 同步賣超 | 多檔主動型 ETF 同時賣出 |
+| `squeeze_fire` | 壓縮釋放 | 布林帶壓縮後突破，波動率擴張 |
+""")
+
         latest_file = _Path('data/latest/momentum_result.json')
-    scan_result = None
-    if latest_file.exists():
-        try:
-            with open(latest_file, 'r', encoding='utf-8') as _f:
-                scan_result = _json.load(_f)
-        except Exception:
-            scan_result = None
+        scan_result = None
+        if latest_file.exists():
+            try:
+                with open(latest_file, 'r', encoding='utf-8') as _f:
+                    scan_result = _json.load(_f)
+            except Exception:
+                scan_result = None
 
-    # --- Scan controls ---
-    col_scan1, col_scan2, col_scan3 = st.columns([2, 2, 3])
-    with col_scan1:
-        if st.button("⚡ 快速預覽 (Stage 1)", help="只跑初篩，不算觸發分數，約10秒"):
-            st.session_state['screener_run'] = 'stage1'
-    with col_scan2:
-        no_chip = st.checkbox("跳過籌碼 (加速)", value=True, key='screener_no_chip')
+        if scan_result and scan_result.get('results'):
+            results = scan_result['results']
+            st.caption(
+                f"掃描日期: {scan_result.get('scan_date', '?')} {scan_result.get('scan_time', '')} | "
+                f"全市場 {scan_result.get('total_scanned', 0)} 檔 → "
+                f"初篩 {scan_result.get('passed_initial', 0)} 檔 → "
+                f"評分 {scan_result.get('scored_count', 0)} 檔 | "
+                f"耗時 {scan_result.get('elapsed_seconds', 0):.0f}s"
+            )
 
-    # --- Stage 1 quick preview ---
-    if st.session_state.get('screener_run') == 'stage1':
-        with st.spinner("初篩中..."):
-            from momentum_screener import MomentumScreener
-            _screener = MomentumScreener()
-            _df = _screener.run_stage1_only()
-        st.session_state['screener_run'] = None
-        if not _df.empty:
-            st.success(f"初篩通過: {len(_df)} 檔")
-            # Format for display
-            _df['TV (億)'] = (_df['trading_value'] / 1e8).round(1)
-            _df['漲跌%'] = _df['change_pct'].round(2)
-            _df['佔比%'] = (_df['tv_pct'] * 100).round(3) if 'tv_pct' in _df.columns else 0
-            _show_cols = ['stock_id', 'stock_name', 'market', 'close', '漲跌%', 'TV (億)', '佔比%']
-            _show_cols = [c for c in _show_cols if c in _df.columns]
+            # Build DataFrame for display
+            _rows = []
+            for r in results:
+                _rows.append({
+                    '排名': len(_rows) + 1,
+                    '代號': r['stock_id'],
+                    '名稱': r.get('name', ''),
+                    '市場': r.get('market', ''),
+                    '收盤': r.get('price', 0),
+                    '漲跌%': r.get('change_pct', 0),
+                    '5日均量值': r.get('avg_trading_value_5d', 0),
+                    '觸發分數': r.get('trigger_score', 0),
+                    '趨勢分數': r.get('trend_score', 0),
+                    '百分位': r.get('score_percentile', ''),
+                    'Regime': r.get('regime', ''),
+                    'ETF買超': r.get('etf_buy_count', 0),
+                    '關鍵訊號': ', '.join(r.get('signals', [])[:3]),
+                })
+            _df_results = pd.DataFrame(_rows)
+
+            # Sorting
+            _sort_options_m = {
+                '觸發分數 (高→低)': ('觸發分數', False),
+                '趨勢分數 (高→低)': ('趨勢分數', False),
+                '5日均量值 (高→低)': ('5日均量值', False),
+                '漲跌% (高→低)': ('漲跌%', False),
+            }
+            _sort_choice = st.selectbox(
+                "排序方式", list(_sort_options_m.keys()),
+                key='momentum_tw_sort',
+            )
+            _sort_col, _sort_asc = _sort_options_m[_sort_choice]
+            _df_results = _df_results.sort_values(_sort_col, ascending=_sort_asc).reset_index(drop=True)
+            _df_results['排名'] = range(1, len(_df_results) + 1)
+
             st.dataframe(
-                _df[_show_cols].rename(columns={
-                    'stock_id': '代號', 'stock_name': '名稱', 'market': '市場', 'close': '收盤'
-                }),
+                _df_results,
                 use_container_width=True,
-                height=500,
+                height=600,
+                column_config={
+                    '觸發分數': st.column_config.NumberColumn(format="%.1f"),
+                    '趨勢分數': st.column_config.NumberColumn(format="%.1f"),
+                    '漲跌%': st.column_config.NumberColumn(format="%.1f%%"),
+                    '收盤': st.column_config.NumberColumn(format="%.1f"),
+                    '5日均量值': st.column_config.NumberColumn(format="%d"),
+                },
             )
+
+            # Click to analyze: user can copy stock ID from table and paste to sidebar
+            st.info("點擊表格中的股票代號，複製後切回「個股分析」模式即可深入分析")
+
+            # Detailed trigger breakdown (expandable per stock)
+            with st.expander("個股詳細評分"):
+                _selected = st.selectbox(
+                    "選擇股票",
+                    options=[f"{r['stock_id']} {r.get('name', '')}" for r in results],
+                    key='screener_detail_select',
+                )
+                if _selected:
+                    _sid = _selected.split()[0]
+                    _match = next((r for r in results if r['stock_id'] == _sid), None)
+                    if _match:
+                        st.markdown(f"**{_sid} {_match.get('name', '')}** — "
+                                    f"觸發分數: {_match['trigger_score']:+.1f} / "
+                                    f"趨勢分數: {_match['trend_score']:+.1f}")
+                        for d in _match.get('trigger_details', []):
+                            st.markdown(f"- {d}")
+
         else:
-            st.warning("初篩無結果（可能休市）")
-
-    # --- Show latest full scan results ---
-    elif scan_result and scan_result.get('results'):
-        results = scan_result['results']
-        st.caption(
-            f"掃描日期: {scan_result.get('scan_date', '?')} {scan_result.get('scan_time', '')} | "
-            f"全市場 {scan_result.get('total_scanned', 0)} 檔 → "
-            f"初篩 {scan_result.get('passed_initial', 0)} 檔 → "
-            f"評分 {scan_result.get('scored_count', 0)} 檔 | "
-            f"耗時 {scan_result.get('elapsed_seconds', 0):.0f}s"
-        )
-
-        # Build DataFrame for display
-        _rows = []
-        for r in results:
-            _rows.append({
-                '排名': len(_rows) + 1,
-                '代號': r['stock_id'],
-                '名稱': r.get('name', ''),
-                '市場': r.get('market', ''),
-                '收盤': r.get('price', 0),
-                '漲跌%': r.get('change_pct', 0),
-                '觸發分數': r.get('trigger_score', 0),
-                '趨勢分數': r.get('trend_score', 0),
-                '百分位': r.get('score_percentile', ''),
-                'Regime': r.get('regime', ''),
-                'ETF買超': r.get('etf_buy_count', 0),
-                '關鍵訊號': ', '.join(r.get('signals', [])[:3]),
-            })
-        _df_results = pd.DataFrame(_rows)
-
-        # Color-code trigger score
-        st.dataframe(
-            _df_results,
-            use_container_width=True,
-            height=600,
-            column_config={
-                '觸發分數': st.column_config.NumberColumn(format="%.1f"),
-                '趨勢分數': st.column_config.NumberColumn(format="%.1f"),
-                '漲跌%': st.column_config.NumberColumn(format="%.1f%%"),
-                '收盤': st.column_config.NumberColumn(format="%.1f"),
-            },
-        )
-
-        # Click to analyze: user can copy stock ID from table and paste to sidebar
-        st.info("點擊表格中的股票代號，複製後切回「個股分析」模式即可深入分析")
-
-        # Show signal distribution
-        if len(results) > 5:
-            with st.expander("訊號統計"):
-                from collections import Counter
-                _sig_counter = Counter()
-                for r in results:
-                    for s in r.get('signals', []):
-                        if not s.startswith('regime_'):
-                            _sig_counter[s] += 1
-                if _sig_counter:
-                    _sig_df = pd.DataFrame(
-                        _sig_counter.most_common(15),
-                        columns=['訊號', '出現次數']
-                    )
-                    st.bar_chart(_sig_df.set_index('訊號'))
-
-        # Detailed trigger breakdown (expandable per stock)
-        with st.expander("個股詳細評分"):
-            _selected = st.selectbox(
-                "選擇股票",
-                options=[f"{r['stock_id']} {r.get('name', '')}" for r in results],
-                key='screener_detail_select',
-            )
-            if _selected:
-                _sid = _selected.split()[0]
-                _match = next((r for r in results if r['stock_id'] == _sid), None)
-                if _match:
-                    st.markdown(f"**{_sid} {_match.get('name', '')}** — "
-                                f"觸發分數: {_match['trigger_score']:+.1f} / "
-                                f"趨勢分數: {_match['trend_score']:+.1f}")
-                    for d in _match.get('trigger_details', []):
-                        st.markdown(f"- {d}")
-
-    else:
-        st.info("尚無掃描結果。\n\n"
-                "**使用方式:**\n"
-                "1. 點擊「快速預覽」查看今日初篩結果\n"
-                "2. 在命令列執行 `python scanner_job.py` 進行完整掃描\n"
-                "3. 完整掃描含觸發分數，約需 15-30 分鐘")
-
-        st.caption("💡 完整掃描: `python scanner_job.py --mode momentum --no-chip`")
+            st.info("尚無掃描結果。\n\n"
+                    "在命令列執行 `python scanner_job.py --mode momentum` 進行完整掃描\n"
+                    "（含觸發分數，約需 15-30 分鐘）")
 
     # ====================================================================
     # Tab US: 美股動能選股
     # ====================================================================
     with screener_tab_us:
+
+        with st.expander("📋 Screening Criteria"):
+            st.markdown("""
+**Stage 1 Initial Filter**
+
+| Criteria | Threshold | Description |
+|----------|-----------|-------------|
+| Universe | S&P 500 | 美股以 S&P 500 成分股為掃描範圍 |
+| Min Volume | > 500,000 | 日均成交量，過濾低流動性 |
+| Min Price | > $5.00 | 排除低價股 (penny stocks) |
+| Daily Change | > -1% | 允許微跌，排除大跌股 |
+
+**Stage 2 Scoring**
+
+同台股動能評分，由 `analysis_engine.py` 計算觸發分數 + 趨勢分數。
+
+**Signal Reference**
+
+| Signal | 中文 | Description |
+|--------|------|-------------|
+| `supertrend_bull` | Supertrend 多方 | Price above Supertrend line |
+| `macd_golden` | MACD 黃金交叉 | MACD line crosses above signal |
+| `rsi_bull_div` | RSI 底背離 | Bullish divergence |
+| `rsi_bear_div` | RSI 頂背離 | Bearish divergence |
+| `rvol_high` | 爆量確認 | Volume surge confirms breakout |
+| `rvol_low` | 量能萎縮 | Volume dry-up, selling exhaustion |
+| `squeeze_fire` | 壓縮釋放 | Bollinger squeeze breakout |
+""")
 
         us_file = _Path('data/latest/momentum_us_result.json')
         us_result = None
@@ -403,35 +427,7 @@ if st.session_state.get('app_mode') == 'screener':
             except Exception:
                 us_result = None
 
-        col_us1, col_us2 = st.columns([2, 3])
-        with col_us1:
-            if st.button("⚡ 快速預覽 (S&P 500)", key='us_stage1_btn',
-                          help="S&P 500 初篩，約15秒"):
-                st.session_state['us_screener_run'] = 'stage1'
-
-        if st.session_state.get('us_screener_run') == 'stage1':
-            with st.spinner("Downloading S&P 500 data..."):
-                from momentum_screener import MomentumScreener as _MS
-                _us_screener = _MS()
-                _us_df = _us_screener.run_stage1_only(market='us')
-            st.session_state['us_screener_run'] = None
-            if not _us_df.empty:
-                st.success(f"S&P 500 passed: {len(_us_df)} stocks")
-                _us_df['TV ($B)'] = (_us_df['trading_value'] / 1e9).round(1)
-                _us_df['Chg%'] = _us_df['change_pct'].round(2)
-                _show = ['stock_id', 'market', 'close', 'Chg%', 'volume', 'TV ($B)']
-                _show = [c for c in _show if c in _us_df.columns]
-                st.dataframe(
-                    _us_df[_show].rename(columns={
-                        'stock_id': 'Ticker', 'market': 'Market', 'close': 'Close'
-                    }),
-                    use_container_width=True,
-                    height=500,
-                )
-            else:
-                st.warning("No data (market may be closed)")
-
-        elif us_result and us_result.get('results'):
+        if us_result and us_result.get('results'):
             us_results = us_result['results']
             st.caption(
                 f"Scan: {us_result.get('scan_date', '?')} {us_result.get('scan_time', '')} | "
@@ -448,13 +444,27 @@ if st.session_state.get('app_mode') == 'screener':
                     'Ticker': r['stock_id'],
                     'Price': r.get('price', 0),
                     'Chg%': r.get('change_pct', 0),
+                    'AvgTV5d': r.get('avg_trading_value_5d', 0),
                     'Score': r.get('trigger_score', 0),
                     'Trend': r.get('trend_score', 0),
                     'Regime': r.get('regime', ''),
                     'Signals': ', '.join(r.get('signals', [])[:3]),
                 })
+            _us_df = pd.DataFrame(_us_rows)
+
+            _sort_opts_us_m = {
+                'Score (High→Low)': ('Score', False),
+                'Trend (High→Low)': ('Trend', False),
+                'AvgTV5d (High→Low)': ('AvgTV5d', False),
+                'Chg% (High→Low)': ('Chg%', False),
+            }
+            _us_sort = st.selectbox("Sort by", list(_sort_opts_us_m.keys()), key='momentum_us_sort')
+            _us_sc, _us_sa = _sort_opts_us_m[_us_sort]
+            _us_df = _us_df.sort_values(_us_sc, ascending=_us_sa).reset_index(drop=True)
+            _us_df['#'] = range(1, len(_us_df) + 1)
+
             st.dataframe(
-                pd.DataFrame(_us_rows),
+                _us_df,
                 use_container_width=True,
                 height=600,
                 column_config={
@@ -462,6 +472,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'Trend': st.column_config.NumberColumn(format="%.1f"),
                     'Chg%': st.column_config.NumberColumn(format="%.1f%%"),
                     'Price': st.column_config.NumberColumn(format="$%.2f"),
+                    'AvgTV5d': st.column_config.NumberColumn(format="%d"),
                 },
             )
 
@@ -492,6 +503,38 @@ if st.session_state.get('app_mode') == 'screener':
     # ====================================================================
     with screener_tab2:
 
+        with st.expander("📋 篩選條件說明"):
+            st.markdown("""
+**Stage 1 初篩**
+
+| 條件 | 門檻 | 說明 |
+|------|------|------|
+| PE (本益比) | 0.1 ~ 30 | 排除虧損股 (PE<0) 和高估值股 |
+| PB (股價淨值比) | ≤ 5.0 | 排除資產泡沫股 |
+| 成交值 | > 500 萬 | 過濾極低流動性 |
+
+**Stage 2 綜合評分（0-100 分）**
+
+| 面向 | 權重 | 評分項目 | 加分/扣分規則 |
+|------|------|----------|---------------|
+| **估值** | 30% | PE/PB 高低、歷史分位、殖利率、PEG、DDM 折價 | PE<8 +25, PB<1 +15, 殖利率>6% +10, PEG<0.5 +12 |
+| **體質** | 25% | Piotroski F-Score、Altman Z-Score、ROIC、FCF Yield | F≥7/9 +25, Z-Score 安全 +8, ROIC>15% +8 |
+| **營收** | 15% | 月營收 YoY 趨勢、營收驚喜 | YoY轉正 +10, 衰退收斂 +改善幅度×2, 驚喜 +12 |
+| **技術轉折** | 15% | RSI 超賣、量能萎縮、BB 壓縮、距 52 週低點 | RSI<30 +20, RVOL<0.5 +15, 近低點10% +15 |
+| **聰明錢** | 15% | ETF 同步買超、法人累積 | ETF≥3檔買超 +20, 法人5日淨買 +10 |
+
+**體質指標說明**
+
+| 指標 | 說明 |
+|------|------|
+| **Piotroski F-Score** | 9 項財務健康指標（獲利/槓桿/效率），7 分以上為強健 |
+| **Altman Z-Score** | 破產風險指標，>2.99 安全，<1.81 有風險 |
+| **ROIC** | 投入資本報酬率，衡量公司用資本賺錢的效率 |
+| **FCF Yield** | 自由現金流殖利率，衡量實際產生的現金回報 |
+| **PEG** | PE / 盈餘成長率，<1 表示成長相對估值便宜 |
+| **DDM** | 股利折現模型，估算合理股價與目前折溢價 |
+""")
+
         value_file = _Path('data/latest/value_result.json')
         value_result = None
         if value_file.exists():
@@ -501,40 +544,7 @@ if st.session_state.get('app_mode') == 'screener':
             except Exception:
                 value_result = None
 
-        # Scan controls
-        col_v1, col_v2 = st.columns([2, 3])
-        with col_v1:
-            if st.button("⚡ 快速預覽 (PE/PB 篩選)", key='value_stage1_btn',
-                          help="用 PE/PB/殖利率快速篩選，約10秒"):
-                st.session_state['value_screener_run'] = 'stage1'
-
-        # Stage 1 preview
-        if st.session_state.get('value_screener_run') == 'stage1':
-            with st.spinner("估值初篩中..."):
-                from value_screener import ValueScreener
-                _v_screener = ValueScreener()
-                _v_df = _v_screener.run_stage1_only()
-            st.session_state['value_screener_run'] = None
-            if not _v_df.empty:
-                st.success(f"初篩通過: {len(_v_df)} 檔")
-                _v_df['TV (億)'] = (_v_df['trading_value'] / 1e8).round(1)
-                _v_df['漲跌%'] = _v_df['change_pct'].round(2)
-                _show = ['stock_id', 'stock_name', 'market', 'close', 'PE', 'PB',
-                          'dividend_yield', '漲跌%', 'TV (億)']
-                _show = [c for c in _show if c in _v_df.columns]
-                st.dataframe(
-                    _v_df[_show].rename(columns={
-                        'stock_id': '代號', 'stock_name': '名稱', 'market': '市場',
-                        'close': '收盤', 'dividend_yield': '殖利率%'
-                    }),
-                    use_container_width=True,
-                    height=500,
-                )
-            else:
-                st.warning("初篩無結果")
-
-        # Show latest full value scan results
-        elif value_result and value_result.get('results'):
+        if value_result and value_result.get('results'):
             v_results = value_result['results']
             st.caption(
                 f"掃描日期: {value_result.get('scan_date', '?')} {value_result.get('scan_time', '')} | "
@@ -555,6 +565,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'PE': r.get('PE', 0),
                     'PB': r.get('PB', 0),
                     '殖利率%': r.get('dividend_yield', 0),
+                    '5日均量值': r.get('avg_trading_value_5d', 0),
                     '綜合分數': r.get('value_score', 0),
                     '估值': s.get('valuation', 0),
                     '體質': s.get('quality', 0),
@@ -563,6 +574,17 @@ if st.session_state.get('app_mode') == 'screener':
                     '聰明錢': s.get('smart_money', 0),
                 })
             _v_df_results = pd.DataFrame(_v_rows)
+
+            _sort_opts_v = {
+                '綜合分數 (高→低)': ('綜合分數', False),
+                '5日均量值 (高→低)': ('5日均量值', False),
+                '殖利率% (高→低)': ('殖利率%', False),
+                'PE (低→高)': ('PE', True),
+            }
+            _v_sort = st.selectbox("排序方式", list(_sort_opts_v.keys()), key='value_tw_sort')
+            _v_sc, _v_sa = _sort_opts_v[_v_sort]
+            _v_df_results = _v_df_results.sort_values(_v_sc, ascending=_v_sa).reset_index(drop=True)
+            _v_df_results['排名'] = range(1, len(_v_df_results) + 1)
 
             st.dataframe(
                 _v_df_results,
@@ -574,6 +596,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'PB': st.column_config.NumberColumn(format="%.2f"),
                     '殖利率%': st.column_config.NumberColumn(format="%.1f%%"),
                     '收盤': st.column_config.NumberColumn(format="%.1f"),
+                    '5日均量值': st.column_config.NumberColumn(format="%d"),
                 },
             )
 
@@ -603,17 +626,46 @@ if st.session_state.get('app_mode') == 'screener':
 
         else:
             st.info("尚無掃描結果。\n\n"
-                    "**使用方式:**\n"
-                    "1. 點擊「快速預覽」查看 PE/PB 篩選結果\n"
-                    "2. 在命令列執行 `python scanner_job.py --mode value` 進行完整掃描\n"
-                    "3. 完整掃描含 5 維評分，約需 20-40 分鐘")
-
-        st.caption("💡 完整掃描: `python scanner_job.py --mode value --no-chip`")
+                    "在命令列執行 `python scanner_job.py --mode value` 進行完整掃描\n"
+                    "（含 5 維評分，約需 20-40 分鐘）")
 
     # ====================================================================
     # Tab US Value: 美股價值選股
     # ====================================================================
     with screener_tab_us_val:
+
+        with st.expander("📋 Screening Criteria"):
+            st.markdown("""
+**Stage 1 Initial Filter**
+
+| Criteria | Threshold | Description |
+|----------|-----------|-------------|
+| Universe | S&P 500 | 掃描範圍 |
+| Min Price | > $5.00 | 排除低價股 |
+| Min Volume | > 500,000 | 過濾低流動性 |
+
+**Stage 2 Scoring (0-100)**
+
+| Dimension | Weight | Metrics | Scoring Examples |
+|-----------|--------|---------|------------------|
+| **Valuation** | 30% | PE/PB, Forward PE, Finviz PEG, DDM, Analyst Target | PEG<0.5 +12, Target>30% +10 |
+| **Quality** | 25% | F-Score, Z-Score, ROIC, FCF Yield | F≥7/9 +25, ROIC>15% +8 |
+| **Revenue** | 15% | Sales Q/Q, EPS Q/Q, Revenue YoY trend | Sales Q/Q>20% +15, EPS Q/Q>25% +10 |
+| **Technical** | 15% | RSI oversold, Volume dry-up, BB squeeze, 52W low | RSI<30 +20, Near 52W low +15 |
+| **Smart Money** | 15% | Institutional %, Short interest, Insider activity | Inst>80% +10, Insider bullish +12, Short>10% -10 |
+
+**Key Metrics**
+
+| Metric | Description |
+|--------|-------------|
+| **F-Score** | Piotroski 9-point financial health (≥7 = strong) |
+| **Z-Score** | Altman bankruptcy risk (>2.99 safe, <1.81 distress) |
+| **ROIC** | Return on invested capital |
+| **FCF Yield** | Free cash flow yield |
+| **PEG** | PE / Earnings growth, <1 = undervalued |
+| **Forward PE** | PE based on estimated future earnings |
+| **Short %** | Short interest as % of float, >10% = risky |
+""")
 
         us_val_file = _Path('data/latest/value_us_result.json')
         us_val_result = None
@@ -641,19 +693,34 @@ if st.session_state.get('app_mode') == 'screener':
                     'PE': r.get('PE', 0),
                     'PB': r.get('PB', 0),
                     'DY%': r.get('dividend_yield', 0),
+                    'AvgTV5d': r.get('avg_trading_value_5d', 0),
                     'Score': r.get('value_score', 0),
                     'Val': s.get('valuation', 0),
                     'Qual': s.get('quality', 0),
                     'Tech': s.get('technical', 0),
                     'Smart$': s.get('smart_money', 0),
                 })
+            _uv_df = pd.DataFrame(_uv_rows)
+
+            _sort_opts_uv = {
+                'Score (High→Low)': ('Score', False),
+                'AvgTV5d (High→Low)': ('AvgTV5d', False),
+                'DY% (High→Low)': ('DY%', False),
+                'PE (Low→High)': ('PE', True),
+            }
+            _uv_sort = st.selectbox("Sort by", list(_sort_opts_uv.keys()), key='value_us_sort')
+            _uv_sc, _uv_sa = _sort_opts_uv[_uv_sort]
+            _uv_df = _uv_df.sort_values(_uv_sc, ascending=_uv_sa).reset_index(drop=True)
+            _uv_df['#'] = range(1, len(_uv_df) + 1)
+
             st.dataframe(
-                pd.DataFrame(_uv_rows),
+                _uv_df,
                 use_container_width=True, height=600,
                 column_config={
                     'Score': st.column_config.NumberColumn(format="%.1f"),
                     'Price': st.column_config.NumberColumn(format="$%.2f"),
                     'PE': st.column_config.NumberColumn(format="%.1f"),
+                    'AvgTV5d': st.column_config.NumberColumn(format="%d"),
                 },
             )
             with st.expander("Detailed Scores"):
