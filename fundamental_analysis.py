@@ -10,6 +10,80 @@ logger = logging.getLogger(__name__)
 def _get_data_loader():
     return get_finmind_loader()
 
+
+# TradingView data cache
+_tv_cache = {}
+_tv_cache_ttl = 3600  # 1 hour
+
+def _get_tradingview_fundamentals(ticker):
+    """
+    Fetch fundamental data from TradingView Screener API.
+    Works for both TW and US stocks. Free, no token needed.
+
+    Returns:
+        dict or None: {gross_margin, operating_margin, net_margin, ROE, ROA, ...}
+    """
+    import time
+    cache_key = f"tv_{ticker}"
+    if cache_key in _tv_cache:
+        data, ts = _tv_cache[cache_key]
+        if time.time() - ts < _tv_cache_ttl:
+            return data
+
+    try:
+        from tradingview_screener import Query, Column
+
+        # Determine market
+        clean = ticker.replace('.TW', '').replace('.TWO', '')
+        is_us = not clean.isdigit()
+
+        market = 'america' if is_us else 'taiwan'
+        search_name = ticker if is_us else clean
+
+        result = (Query()
+            .select('name', 'description', 'close',
+                    'gross_margin', 'operating_margin', 'net_margin',
+                    'return_on_equity', 'return_on_assets',
+                    'total_revenue_yoy_growth_fq',
+                    'debt_to_equity', 'market_cap_basic')
+            .set_markets(market)
+            .where(Column('name') == search_name)
+            .limit(1)
+            .get_scanner_data()
+        )
+
+        if result[0] == 0:
+            _tv_cache[cache_key] = (None, time.time())
+            return None
+
+        row = result[1].iloc[0]
+        data = {
+            'description': row.get('description', ''),
+            'gross_margin': row.get('gross_margin'),
+            'operating_margin': row.get('operating_margin'),
+            'net_margin': row.get('net_margin'),
+            'ROE': row.get('return_on_equity'),
+            'ROA': row.get('return_on_assets'),
+            'revenue_yoy': row.get('total_revenue_yoy_growth_fq'),
+            'debt_to_equity': row.get('debt_to_equity'),
+            'market_cap': row.get('market_cap_basic'),
+        }
+        # Remove NaN values
+        data = {k: v for k, v in data.items() if v is not None and (not isinstance(v, float) or not pd.isna(v))}
+
+        _tv_cache[cache_key] = (data, time.time())
+        logger.info("TradingView data fetched for %s: %d fields", ticker, len(data))
+        return data
+
+    except ImportError:
+        logger.debug("tradingview-screener not installed")
+        return None
+    except Exception as e:
+        logger.warning("TradingView data fetch failed for %s: %s", ticker, e)
+        _tv_cache[cache_key] = (None, time.time())
+        return None
+
+
 def get_fundamentals(ticker):
     """
     Fetch fundamental data for a given ticker.
@@ -125,13 +199,42 @@ def get_fundamentals(ticker):
              data['ROE'] = f"{roe*100:.2f}%"
         else:
              data['ROE'] = "N/A"
-             
+
         # Handle Profit Margin
         pm = info.get('profitMargins')
         if pm:
             data['Profit Margin'] = f"{pm*100:.2f}%"
         else:
             data['Profit Margin'] = "N/A"
+
+        # [TradingView] 補充三率/ROE/ROA — 統一資料源，台股美股都用
+        # (yfinance 台股常回 N/A，TradingView 更完整)
+        try:
+            tv_data = _get_tradingview_fundamentals(ticker)
+            if tv_data:
+                # 只補缺的，不覆蓋已有的
+                if data.get('ROE') == 'N/A' and tv_data.get('ROE'):
+                    data['ROE'] = f"{tv_data['ROE']:.2f}%"
+                if data.get('Profit Margin') == 'N/A' and tv_data.get('net_margin'):
+                    data['Profit Margin'] = f"{tv_data['net_margin']:.2f}%"
+                # 新增欄位（之前完全沒有）
+                if tv_data.get('gross_margin'):
+                    data['Gross Margin'] = f"{tv_data['gross_margin']:.2f}%"
+                if tv_data.get('operating_margin'):
+                    data['Operating Margin'] = f"{tv_data['operating_margin']:.2f}%"
+                if tv_data.get('net_margin'):
+                    data['Net Margin'] = f"{tv_data['net_margin']:.2f}%"
+                if tv_data.get('ROA'):
+                    data['ROA'] = f"{tv_data['ROA']:.2f}%"
+                if tv_data.get('debt_to_equity'):
+                    data['Debt/Equity'] = f"{tv_data['debt_to_equity']:.2f}"
+                if tv_data.get('revenue_yoy') and data.get('Revenue YoY') == 'N/A':
+                    data['Revenue YoY'] = f"{tv_data['revenue_yoy']:.2f}%"
+                # Store raw stock_name for news search
+                if tv_data.get('description'):
+                    data['stock_name'] = tv_data['description']
+        except Exception as e:
+            logger.debug(f"TradingView data overlay failed: {e}")
 
         return data
     except Exception as e:

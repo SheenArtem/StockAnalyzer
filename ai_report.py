@@ -255,10 +255,12 @@ def _build_fundamental_data(fund_data, ticker):
     """[FUNDAMENTAL_DATA] 基本面數據 + Piotroski/Z-Score/ROIC/FCF + 月營收"""
     lines = []
 
-    # 基本面 (from get_fundamentals)
+    # 基本面 (from get_fundamentals, includes TradingView overlay)
     if fund_data:
         for key in ['PE Ratio', 'Forward PE', 'PB Ratio', 'PEG Ratio',
-                    'EPS (TTM)', 'ROE', 'Profit Margin', 'Dividend Yield',
+                    'EPS (TTM)', 'ROE', 'ROA',
+                    'Gross Margin', 'Operating Margin', 'Net Margin', 'Profit Margin',
+                    'Dividend Yield', 'Debt/Equity',
                     'Market Cap', 'Revenue YoY', 'Monthly Revenue',
                     'Cash Dividend', 'Stock Dividend', 'Payout Ratio']:
             val = fund_data.get(key, '')
