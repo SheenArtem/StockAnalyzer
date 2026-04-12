@@ -349,7 +349,7 @@ if st.session_state.get('app_mode') == 'screener':
 
             st.dataframe(
                 _df_results,
-                use_container_width=True,
+                width='stretch',
                 height=600,
                 column_config={
                     '觸發分數': st.column_config.NumberColumn(format="%.1f"),
@@ -465,7 +465,7 @@ if st.session_state.get('app_mode') == 'screener':
 
             st.dataframe(
                 _us_df,
-                use_container_width=True,
+                width='stretch',
                 height=600,
                 column_config={
                     'Score': st.column_config.NumberColumn(format="%.1f"),
@@ -588,7 +588,7 @@ if st.session_state.get('app_mode') == 'screener':
 
             st.dataframe(
                 _v_df_results,
-                use_container_width=True,
+                width='stretch',
                 height=600,
                 column_config={
                     '綜合分數': st.column_config.NumberColumn(format="%.1f"),
@@ -715,7 +715,7 @@ if st.session_state.get('app_mode') == 'screener':
 
             st.dataframe(
                 _uv_df,
-                use_container_width=True, height=600,
+                width='stretch', height=600,
                 column_config={
                     'Score': st.column_config.NumberColumn(format="%.1f"),
                     'Price': st.column_config.NumberColumn(format="$%.2f"),
@@ -1138,7 +1138,7 @@ elif st.session_state.get('analysis_active', False):
         
         with tab1:
             if 'Weekly' in figures:
-                st.plotly_chart(figures['Weekly'], use_container_width=True)
+                st.plotly_chart(figures['Weekly'], width='stretch')
                 
 
                 
@@ -1151,14 +1151,14 @@ elif st.session_state.get('analysis_active', False):
                     fig_efi_w = px.line(df_week.iloc[-100:], y=['EFI_EMA13'])
                     fig_efi_w.update_layout(xaxis_title=None, yaxis_title=None, showlegend=True, margin=dict(l=0, r=0, t=10, b=0))
                     # Disable Zoom via config
-                    st.plotly_chart(fig_efi_w, use_container_width=True, config={'staticPlot': True})
+                    st.plotly_chart(fig_efi_w, width='stretch', config={'staticPlot': True})
                     
             else:
                 st.warning("⚠️ 無法產生週線圖表 (請查看上方錯誤訊息)")
         
         with tab2:
             if 'Daily' in figures:
-                st.plotly_chart(figures['Daily'], use_container_width=True)
+                st.plotly_chart(figures['Daily'], width='stretch')
                 
 
 
@@ -1171,7 +1171,7 @@ elif st.session_state.get('analysis_active', False):
                     import plotly.express as px
                     fig_efi_d = px.line(df_day.iloc[-60:], y=['EFI_EMA13', 'EFI_EMA2'])
                     fig_efi_d.update_layout(xaxis_title=None, yaxis_title=None, showlegend=True, margin=dict(l=0, r=0, t=10, b=0))
-                    st.plotly_chart(fig_efi_d, use_container_width=True, config={'staticPlot': True})
+                    st.plotly_chart(fig_efi_d, width='stretch', config={'staticPlot': True})
                     
                     # 簡易解讀
                     last_efi = df_day['EFI_EMA13'].iloc[-1]
@@ -1250,7 +1250,7 @@ elif st.session_state.get('analysis_active', False):
                             margin=dict(l=20, r=20, t=40, b=20),
                             hovermode="y unified"
                         )
-                        st.plotly_chart(fig_vp, use_container_width=True)
+                        st.plotly_chart(fig_vp, width='stretch')
                         
                         # Interpretation Text
                         if curr_price > poc_price:
@@ -1410,7 +1410,7 @@ elif st.session_state.get('analysis_active', False):
                                          margin=dict(l=20, r=20, t=30, b=20),
                                          hovermode='x unified'
                                      )
-                                     st.plotly_chart(fig_sh, use_container_width=True)
+                                     st.plotly_chart(fig_sh, width='stretch')
                              else:
                                  st.caption("⚠️ 尚無足夠的外資持股比率數據")
 
@@ -1526,7 +1526,7 @@ elif st.session_state.get('analysis_active', False):
                                  zerolinewidth=1.5
                              )
                              
-                             st.plotly_chart(fig_chip, use_container_width=True)
+                             st.plotly_chart(fig_chip, width='stretch')
                              
                          else:
                              st.warning("⚠️ 查無法人數據")
@@ -1580,7 +1580,7 @@ elif st.session_state.get('analysis_active', False):
                         top_holders = inst.get('top_holders', pd.DataFrame())
                         if not top_holders.empty:
                             with st.expander("📊 查看前十大機構持股"):
-                                st.dataframe(top_holders, use_container_width=True)
+                                st.dataframe(top_holders, width='stretch')
                         
                         st.markdown("---")
                         
@@ -1629,7 +1629,7 @@ elif st.session_state.get('analysis_active', False):
                         recent_trades = insider.get('recent_trades', pd.DataFrame())
                         if not recent_trades.empty:
                             with st.expander("📋 查看內部人交易明細"):
-                                st.dataframe(recent_trades.head(10), use_container_width=True)
+                                st.dataframe(recent_trades.head(10), width='stretch')
                         
                         st.markdown("---")
                         
@@ -1838,7 +1838,7 @@ elif st.session_state.get('analysis_active', False):
                              hovermode='x unified',
                              legend=dict(orientation="h", y=1.1)
                          )
-                         st.plotly_chart(fig_rev, use_container_width=True)
+                         st.plotly_chart(fig_rev, width='stretch')
                  
                  # B. PE/PB History
                  per_df = get_per_history(stock_id_pure)
@@ -1865,7 +1865,7 @@ elif st.session_state.get('analysis_active', False):
                          hovermode='x unified',
                          legend=dict(orientation="h", y=1.1)
                      )
-                     st.plotly_chart(fig_pe, use_container_width=True)
+                     st.plotly_chart(fig_pe, width='stretch')
 
                  # C. Profitability (EPS & Margins)
                  fin_df = get_financial_statements(stock_id_pure)
@@ -1886,7 +1886,7 @@ elif st.session_state.get('analysis_active', False):
                              hovermode='x unified',
                              margin=dict(l=20, r=20, t=40, b=20)
                          )
-                         st.plotly_chart(fig_eps, use_container_width=True)
+                         st.plotly_chart(fig_eps, width='stretch')
                          
                      # 2. Three Rates Chart
                      fig_margin = go.Figure()
@@ -1919,7 +1919,7 @@ elif st.session_state.get('analysis_active', False):
                              legend=dict(orientation="h", y=1.2),
                              margin=dict(l=20, r=20, t=40, b=20)
                          )
-                         st.plotly_chart(fig_margin, use_container_width=True)
+                         st.plotly_chart(fig_margin, width='stretch')
              else:
                 st.info("💡 歷史基本面圖表僅支援台股代號")
 
@@ -2143,7 +2143,7 @@ elif st.session_state.get('analysis_active', False):
                                 hovermode='x unified',
                                 margin=dict(l=20, r=20, t=40, b=20)
                             )
-                            st.plotly_chart(fig_gt, use_container_width=True)
+                            st.plotly_chart(fig_gt, width='stretch')
 
                         # 相關搜尋
                         related = gt_result.get('related_queries', [])
@@ -2180,7 +2180,7 @@ elif st.session_state.get('analysis_active', False):
                         with st.spinner("載入股利資料..."):
                             div_hist = da.get_dividend_history(stock_id_clean)
                             if not div_hist.empty:
-                                st.dataframe(div_hist, use_container_width=True)
+                                st.dataframe(div_hist, width='stretch')
 
                                 # Fill-gap stats
                                 fg_stats = da.get_fill_gap_stats(stock_id_clean)
@@ -2228,7 +2228,7 @@ elif st.session_state.get('analysis_active', False):
                                     hovermode='x unified',
                                     margin=dict(l=20, r=60, t=40, b=20)
                                 )
-                                st.plotly_chart(fig_rev, use_container_width=True)
+                                st.plotly_chart(fig_rev, width='stretch')
                             else:
                                 st.info("查無營收資料")
 
@@ -2259,8 +2259,8 @@ elif st.session_state.get('analysis_active', False):
 
         bc1, bc2 = st.columns(2)
         
-        run_default = bc1.button("🚀 執行 AI 策略 (預設參數)", use_container_width=True)
-        run_opt = bc2.button("✨ 自動最佳化 (Auto Optimize)", use_container_width=True)
+        run_default = bc1.button("🚀 執行 AI 策略 (預設參數)", width='stretch')
+        run_opt = bc2.button("✨ 自動最佳化 (Auto Optimize)", width='stretch')
 
         if run_default or run_opt:
             # [Visual Feedback] Progress Bar
@@ -2351,7 +2351,7 @@ elif st.session_state.get('analysis_active', False):
 
                         # === 績效曲線 (含大盤基準) ===
                         fig_bt = engine.plot_results(results)
-                        st.plotly_chart(fig_bt, use_container_width=True)
+                        st.plotly_chart(fig_bt, width='stretch')
 
                         # === 進階分析 (展開式) ===
                         with st.expander("📊 進階風險指標 & 交易統計", expanded=False):
@@ -2404,13 +2404,13 @@ elif st.session_state.get('analysis_active', False):
                         wf_col, mc_col = st.columns(2)
 
                         with wf_col:
-                            if st.button("🔄 Walk-Forward 前推驗證", use_container_width=True):
+                            if st.button("🔄 Walk-Forward 前推驗證", width='stretch'):
                                 with st.spinner("執行 Walk-Forward 最佳化... (分段驗證防過擬合)"):
                                     try:
                                         wf_result = engine.walk_forward_optimize()
                                         st.success(f"✅ Walk-Forward 完成！OOS 總報酬: {wf_result['total_return']:.2f}%")
                                         fig_wf = engine.plot_walk_forward(wf_result)
-                                        st.plotly_chart(fig_wf, use_container_width=True)
+                                        st.plotly_chart(fig_wf, width='stretch')
                                         with st.expander("各段詳細結果"):
                                             for i, seg in enumerate(wf_result['windows']):
                                                 st.write(f"**Window {i+1}**: 買={seg['best_params']['buy']}, 賣={seg['best_params']['sell']} → OOS報酬={seg['oos_return']:.2f}%")
@@ -2418,13 +2418,13 @@ elif st.session_state.get('analysis_active', False):
                                         st.error(f"Walk-Forward 失敗: {e}")
 
                         with mc_col:
-                            if st.button("🎲 Monte Carlo 模擬", use_container_width=True):
+                            if st.button("🎲 Monte Carlo 模擬", width='stretch'):
                                 with st.spinner("執行 Monte Carlo 模擬 (1000 次隨機排列)..."):
                                     try:
                                         mc_result = engine.monte_carlo(results)
                                         st.success(f"✅ Monte Carlo 完成！95% 信心區間: {mc_result['p5_return']:.1f}% ~ {mc_result['p95_return']:.1f}%")
                                         fig_mc = engine.plot_monte_carlo(mc_result)
-                                        st.plotly_chart(fig_mc, use_container_width=True)
+                                        st.plotly_chart(fig_mc, width='stretch')
                                         mc_data = {
                                             "平均報酬": f"{mc_result['mean_return']:.2f}%",
                                             "中位數報酬": f"{mc_result['median_return']:.2f}%",
@@ -2438,7 +2438,7 @@ elif st.session_state.get('analysis_active', False):
                                         st.error(f"Monte Carlo 失敗: {e}")
 
                         # === Pyramiding 分批進場回測 ===
-                        if st.button("📐 Pyramiding 分批進場回測", use_container_width=True):
+                        if st.button("📐 Pyramiding 分批進場回測", width='stretch'):
                             with st.spinner("執行金字塔分批回測 (1/3 + 1/3 + 1/3)..."):
                                 try:
                                     pyr_result = engine.run_pyramid(
@@ -2451,7 +2451,7 @@ elif st.session_state.get('analysis_active', False):
                                     pc3.metric("最大回撤", f"{pyr_result['max_drawdown']:.2f}%")
                                     pc4.metric("平均批次", f"{pyr_result['avg_batches']:.1f}")
                                     fig_pyr = engine.plot_pyramid_results(pyr_result)
-                                    st.plotly_chart(fig_pyr, use_container_width=True)
+                                    st.plotly_chart(fig_pyr, width='stretch')
                                     if not pyr_result['trades'].empty:
                                         with st.expander("Pyramiding 交易紀錄"):
                                             st.dataframe(pyr_result['trades'])
