@@ -1,14 +1,15 @@
 # StockAnalyzer — 台股/美股右側交易分析系統
 
 ## 概述
-基於 Streamlit 的股票分析工具，結合技術面、籌碼面、基本面與 AI 觸發分數，輔助右側交易決策。主要針對台股（FinMind + Yahoo Finance），兼容美股（Yahoo Finance）。
+基於 Streamlit 的股票分析工具，結合技術面、籌碼面、基本面與 AI 觸發分數，輔助右側交易決策。主要針對台股（FinMind + TWSE/TPEX + TradingView），兼容美股（Yahoo Finance + Finviz + TradingView）。
 
 ## 技術棧
 - **Python 3.14** / **Streamlit 1.52**
-- 數據源：`yfinance`、`FinMind`
+- 數據源：`yfinance`、`FinMind`、`TWSE/TPEX 官方 API`、`TradingView Screener`
 - 技術分析：`ta`、`mplfinance`
 - 圖表：`plotly`
 - 網頁爬蟲：`beautifulsoup4`、`curl_cffi`
+- AI：Claude CLI（`claude -p --allowedTools "WebSearch,WebFetch"`）
 
 ## 啟動方式
 ```bash
@@ -18,36 +19,74 @@ run_app.bat
 pip install -r requirements.txt && streamlit run app.py
 ```
 
+## 三大功能模式
+
+```
+📈 個股分析 — 6 tabs (週K/日K/籌碼面/基本面/情緒期權/除息營收)
+🔍 自動選股 — 5 tabs (動能台股/動能美股/價值台股/價值美股/績效追蹤)
+📝 AI 報告 — 2 tabs (生成報告/報告庫)
+```
+
 ## 模組架構
 
 ```
-app.py (Streamlit UI 入口, 6 tabs)
-  ├→ technical_analysis.py   — 技術指標計算 + 互動圖表
-  │     含: MA, BB, ATR, RSI, KD, MACD, OBV, DMI, EFI, TD Sequential,
-  │         VWAP, Supertrend, RVOL, Squeeze Momentum
-  ├→ analysis_engine.py      — AI 觸發分數計算（最大模組）
-  │     ├→ chip_analysis.py       — 台股籌碼（三大法人/融資融券/當沖/持股）
-  │     ├→ us_stock_chip.py       — 美股籌碼（機構持股/ETF/空單/內部交易）
-  │     ├→ pattern_recognition.py — K線型態辨識
-  │     └→ strategy_manager.py    — 買賣閾值管理（讀寫 strategy_config.json）
-  ├→ fundamental_analysis.py — 基本面（本益比/ROE/殖利率/財報）
-  ├→ backtest_engine.py      — 回測引擎（含 Walk-Forward, Monte Carlo, Pyramiding）
-  ├→ cache_manager.py        — 本地 CSV 快取（智慧 TTL）
-  ├→ twse_api.py             — TWSE/TPEX Open Data API（免費官方數據源）
-  ├→ taifex_data.py          — TAIFEX 期貨選擇權 + 恐懼貪婪指數
-  ├→ ptt_sentiment.py        — PTT Stock 板情緒分析
-  ├→ dividend_revenue.py     — 除權息行事曆 + 月營收追蹤
-  ├→ ml_signal.py            — XGBoost 信號分類器（需 pip install xgboost scikit-learn）
-  ├→ sec_edgar.py            — SEC EDGAR 申報（13F/Form 4/近期 Filings）
-  ├→ cnn_fear_greed.py       — CNN Fear & Greed Index（美股情緒）
-  ├→ google_trends.py        — Google Trends 搜尋熱度（需 pip install pytrends）
-  ├→ finviz_data.py          — Finviz 美股快照（估值/技術/分析師目標價）
-  ├→ momentum_screener.py    — 右側動能選股引擎（Stage 1 初篩 + Stage 2 觸發分數）
-  ├→ value_screener.py       — 左側價值選股引擎（估值+體質+營收+技術轉折+聰明錢）
-  ├→ scanner_job.py          — 自動選股 CLI 入口（--mode momentum/value/both）
-  ├→ etf_signal.py           — 主動型 ETF 同步買賣超訊號（讀取 TWActiveETFCrawler）
-  └→ piotroski.py            — Piotroski F-Score + Altman Z-Score + ROIC/FCF
+app.py (Streamlit UI 入口, 3 模式)
+  │
+  ├─ 個股分析 ─────────────────────────────────────────────
+  │  ├→ technical_analysis.py   — 技術指標計算 + 互動圖表
+  │  │     含: MA, BB, ATR, RSI, KD, MACD, OBV, DMI, EFI, TD Sequential,
+  │  │         VWAP, Supertrend, RVOL, Squeeze Momentum
+  │  ├→ analysis_engine.py      — AI 觸發分數計算（最大模組）
+  │  │     ├→ chip_analysis.py       — 台股籌碼（TWSE/TPEX優先 → FinMind fallback）
+  │  │     ├→ us_stock_chip.py       — 美股籌碼（機構持股/ETF/空單/內部交易）
+  │  │     └→ pattern_recognition.py — K線型態辨識
+  │  ├→ fundamental_analysis.py — 基本面（yfinance + FinMind + TradingView overlay）
+  │  ├→ taifex_data.py          — TAIFEX 期貨選擇權 + 恐懼貪婪指數
+  │  ├→ ptt_sentiment.py        — PTT Stock 板情緒分析
+  │  ├→ dividend_revenue.py     — 除權息行事曆 + 月營收追蹤
+  │  ├→ google_trends.py        — Google Trends 搜尋熱度（需 pytrends）
+  │  └→ cnn_fear_greed.py       — CNN Fear & Greed Index（美股情緒）
+  │
+  ├─ 自動選股 ─────────────────────────────────────────────
+  │  ├→ momentum_screener.py    — 右側動能選股（Stage 1 初篩 + Stage 2 觸發分數）
+  │  ├→ value_screener.py       — 左側價值選股（估值+體質+營收+技術轉折+聰明錢）
+  │  ├→ scanner_job.py          — CLI 入口（--mode momentum/value/both --market tw/us/all）
+  │  └→ scan_tracker.py         — 績效追蹤（追蹤 picks 的 5/10/20 日報酬+勝率）
+  │
+  ├─ AI 報告 ──────────────────────────────────────────────
+  │  ├→ ai_report.py            — 14 區塊 prompt 組裝 + Claude CLI 呼叫 + 報告庫
+  │  │     ├→ news_fetcher.py        — Google News RSS 新聞搜尋 + 法人目標價提取
+  │  │     └→ peer_comparison.py     — 同業 PE/PB/殖利率比較
+  │  └→ prompts/stock_analysis_system.md — 系統 prompt 模板
+  │
+  ├─ 共用模組 ─────────────────────────────────────────────
+  │  ├→ cache_manager.py        — 本地 CSV 快取（智慧 TTL）+ FinMind loader
+  │  ├→ twse_api.py             — TWSE/TPEX 官方 API（法人/融資/PE/全市場行情）
+  │  ├→ piotroski.py            — Piotroski F-Score + Altman Z-Score + ROIC/FCF
+  │  ├→ etf_signal.py           — 主動型 ETF 同步買賣超（TWActiveETFCrawler）
+  │  ├→ sec_edgar.py            — SEC EDGAR（13F/Form 4）
+  │  └→ finviz_data.py          — Finviz 美股快照（估值/技術/分析師目標價）
+  │
+  └─ 閒置模組（保留未使用）────────────────────────────────
+     ├→ backtest_engine.py      — 回測引擎（Walk-Forward/Monte Carlo/Pyramiding）
+     ├→ strategy_manager.py     — 買賣閾值管理
+     └→ ml_signal.py            — XGBoost 信號分類器
 ```
+
+## 資料源優先順序（統一策略）
+
+所有功能必須遵循同一優先順序，避免資料不同步：
+
+| 資料類型 | 優先 | Fallback | 說明 |
+|----------|------|----------|------|
+| 法人買賣超 | TWSE/TPEX 官方 | FinMind | ChipAnalyzer 底層已統一 |
+| 價量日線 | 磁碟快取 | FinMind → yfinance | load_and_resample() |
+| 基本面(PE/PB) | yfinance + FinMind | TradingView 補缺 | get_fundamentals() |
+| 三率/ROE/ROA | TradingView Screener | — | 台股美股統一 |
+| 融資融券/當沖/持股 | FinMind | — | 無替代 |
+| 新聞 | Google News RSS | — | news_fetcher.py |
+| 分析師共識 | yfinance | — | 目標價/Forward EPS/評級 |
+| 同業比較 | TWSE/TPEX PER + FinMind 產業分類 | — | peer_comparison.py |
 
 ## 開發規範
 
@@ -65,16 +104,19 @@ app.py (Streamlit UI 入口, 6 tabs)
 - 收盤後：TTL = 整日
 - 籌碼數據：每日 21:30 後更新
 - 快取目錄：`data_cache/`（CSV 格式）
+- TradingView / Google News：記憶體快取 30 分鐘 ~ 1 小時
 - `cache_manager.py` 有 `_cache_lock` 確保執行緒安全
 
 ### 台股/美股判斷
-- 純數字或含 `.TW` → 台股（使用 FinMind + Yahoo Finance）
-- 英文字母 → 美股（使用 Yahoo Finance）
+- 純數字或含 `.TW` → 台股（使用 FinMind + TWSE/TPEX + TradingView）
+- 英文字母 → 美股（使用 Yahoo Finance + Finviz + TradingView）
 
 ## 注意事項
 
 - **無正式測試套件** — `tools/` 下有手動驗證腳本（verify_/debug_/test_），但無 pytest
-- **strategy_config.json** 存放每檔股票的買賣閾值，`StrategyManager` 讀寫此檔
 - **analysis_engine.py** 是最大且最複雜的模組（~67KB），修改時注意影響範圍
-- **無 .env** — 設定值以硬編碼預設值 + Streamlit session state + JSON 檔為主
+- **FinMind 免費額度** — 600 req/hr，容易爆。法人已改 TWSE/TPEX 優先
+- **無 .env** — FinMind token 在 `local/.env`，其他設定以硬編碼 + session state + JSON 為主
 - **Windows 平台** — `.bat` 啟動腳本、路徑處理需注意 Windows 相容性
+- **Scanner 排程** — `run_scanner.bat` 每日 22:00 via Windows Task Scheduler
+- **AI 報告** — 使用 Claude CLI `claude -p --allowedTools "WebSearch,WebFetch"`，Team Plan 額度
