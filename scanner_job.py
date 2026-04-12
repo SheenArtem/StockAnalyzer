@@ -193,8 +193,8 @@ def main():
                         default='both',
                         help='Scan mode: momentum, value, or both (default: both)')
     parser.add_argument('--market', choices=['tw', 'us', 'all'],
-                        default='tw',
-                        help='Market: tw (Taiwan), us (S&P 500), all (default: tw)')
+                        default='all',
+                        help='Market: tw (Taiwan), us (S&P 500), all (default: all)')
     parser.add_argument('--no-chip', action='store_true',
                         help='Skip chip data (faster, ~4min vs ~8min)')
     parser.add_argument('--top', type=int, default=50,

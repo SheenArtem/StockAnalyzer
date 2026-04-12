@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+import time
 from scipy.signal import argrelextrema
 
 # Configure logging
@@ -20,6 +21,175 @@ CALIBRATION_STD = 4.32          # 校準分佈 std
 MARKET_SENTIMENT_CAP = 0.8      # 市場情緒分數上下限 (±) — TAIFEX PCR + 期貨正逆價差
 REVENUE_CATALYST_CAP = 0.5      # 營收催化劑分數上下限 (±) — 營收驚喜 + 連續成長
 ETF_SIGNAL_CAP = 0.6            # ETF 同步買賣超分數上下限 (±) — 主動型 ETF 持倉變化
+
+# === Regime HMM -- Group weight profiles per market regime ===
+# Weights are relative multipliers; normalized before use so score range is preserved.
+# trending: trust trend signals, discount volume noise
+# ranging:  discount trend (false breakouts), trust volume confirmation
+# volatile: reduce all group confidence, emphasize volume
+# neutral:  equal weights (fallback)
+REGIME_GROUP_WEIGHTS = {
+    'trending': {'trend': 1.3, 'momentum': 1.0, 'volume': 0.7},
+    'ranging':  {'trend': 0.7, 'momentum': 1.0, 'volume': 1.3},
+    'volatile': {'trend': 0.9, 'momentum': 0.9, 'volume': 1.2},
+    'neutral':  {'trend': 1.0, 'momentum': 1.0, 'volume': 1.0},
+}
+# Add-on factor cap multipliers per regime
+REGIME_ADDON_MULT = {
+    'trending': {'chip': 0.8, 'sentiment': 0.7, 'revenue': 1.0, 'etf': 1.0},
+    'ranging':  {'chip': 1.2, 'sentiment': 1.2, 'revenue': 1.0, 'etf': 1.0},
+    'volatile': {'chip': 0.8, 'sentiment': 1.0, 'revenue': 1.0, 'etf': 0.8},
+    'neutral':  {'chip': 1.0, 'sentiment': 1.0, 'revenue': 1.0, 'etf': 1.0},
+}
+
+# ====================================================================
+# Module-level HMM market regime cache (shared across all analyzers)
+# ====================================================================
+_hmm_cache = {}  # key: market ('tw'/'us') -> {'regime', 'confidence', 'ts'}
+_HMM_CACHE_TTL = 3600  # 1 hour
+
+
+def detect_market_regime_hmm(market='tw'):
+    """
+    HMM-based market regime detection using index data.
+    Fits a 3-state GaussianHMM on recent index returns + volatility,
+    then labels states as trending / ranging / volatile.
+
+    Args:
+        market: 'tw' or 'us'
+
+    Returns:
+        dict: {'regime': str, 'confidence': float, 'details': str}
+    """
+    fallback = {'regime': 'neutral', 'confidence': 0.0, 'details': 'HMM unavailable'}
+
+    # Check cache
+    cached = _hmm_cache.get(market)
+    if cached and (time.time() - cached['ts']) < _HMM_CACHE_TTL:
+        return {k: v for k, v in cached.items() if k != 'ts'}
+
+    try:
+        from hmmlearn.hmm import GaussianHMM
+        import yfinance as yf
+    except ImportError:
+        logger.warning("hmmlearn not installed, falling back to neutral regime")
+        return fallback
+
+    # Fetch index data
+    index_ticker = '^TWII' if market == 'tw' else '^GSPC'
+    try:
+        idx = yf.download(index_ticker, period='8mo', interval='1d',
+                          progress=False, auto_adjust=True)
+        if idx is None or len(idx) < 60:
+            logger.warning("Insufficient index data for HMM (%s)", index_ticker)
+            return fallback
+        # Flatten MultiIndex columns if present (yfinance >= 0.2)
+        if isinstance(idx.columns, pd.MultiIndex):
+            idx.columns = idx.columns.get_level_values(0)
+    except Exception as e:
+        logger.warning("Failed to fetch index data for HMM: %s", e)
+        return fallback
+
+    try:
+        close = idx['Close'].dropna()
+        if len(close) < 60:
+            return fallback
+
+        # Features: log returns, 10d rolling volatility, 20d rolling volatility
+        log_ret = np.log(close / close.shift(1)).dropna()
+        vol_10 = log_ret.rolling(10).std().dropna()
+        vol_20 = log_ret.rolling(20).std().dropna()
+
+        # Align all series
+        common_idx = vol_20.index
+        features = pd.DataFrame({
+            'ret': log_ret.reindex(common_idx),
+            'vol_10': vol_10.reindex(common_idx),
+            'vol_20': vol_20.reindex(common_idx),
+        }).dropna()
+
+        if len(features) < 40:
+            return fallback
+
+        X_raw = features.values
+
+        # Standardize features for numerical stability
+        X_mean = X_raw.mean(axis=0)
+        X_std = X_raw.std(axis=0)
+        X_std[X_std < 1e-10] = 1.0  # avoid division by zero
+        X = (X_raw - X_mean) / X_std
+
+        # Fit 3-state GaussianHMM (diag covariance for robustness)
+        model = GaussianHMM(
+            n_components=3, covariance_type='diag',
+            n_iter=100, random_state=42, verbose=False,
+        )
+        model.fit(X)
+        states = model.predict(X)
+        current_state = int(states[-1])
+
+        # Label states by mean return and mean volatility
+        # Use standardized X for classification, raw X for display
+        state_stats = []
+        state_raw = []
+        for s in range(3):
+            mask = states == s
+            if mask.sum() == 0:
+                state_stats.append({'ret': 0, 'vol': 999})
+                state_raw.append({'ret': 0, 'vol': 0})
+                continue
+            state_stats.append({
+                'ret': float(np.mean(X[mask, 0])),
+                'vol': float(np.mean(X[mask, 1])),
+            })
+            state_raw.append({
+                'ret': float(np.mean(X_raw[mask, 0])),
+                'vol': float(np.mean(X_raw[mask, 1])),
+            })
+
+        # Sort states: trending = highest abs(mean return), ranging = lowest vol,
+        # volatile = highest vol
+        abs_rets = [abs(s['ret']) for s in state_stats]
+        vols = [s['vol'] for s in state_stats]
+
+        # Identify: highest vol = volatile, lowest vol = ranging, other = trending
+        volatile_state = int(np.argmax(vols))
+        ranging_state = int(np.argmin(vols))
+        trending_state = [i for i in range(3) if i != volatile_state and i != ranging_state][0]
+
+        # If two states tie (e.g. volatile == ranging), use abs return as tiebreaker
+        if volatile_state == ranging_state:
+            # Fallback: highest abs return = trending, lowest = ranging, middle = volatile
+            sorted_by_absret = sorted(range(3), key=lambda i: abs_rets[i])
+            ranging_state, volatile_state, trending_state = sorted_by_absret
+
+        state_map = {
+            trending_state: 'trending',
+            ranging_state: 'ranging',
+            volatile_state: 'volatile',
+        }
+
+        regime = state_map[current_state]
+
+        # Confidence from posterior probability
+        posteriors = model.predict_proba(X)
+        confidence = float(posteriors[-1, current_state])
+
+        # State info for details (use raw values for interpretability)
+        cur_raw = state_raw[current_state]
+        detail = (f"HMM {regime} (conf={confidence:.0%}, "
+                  f"avg ret={cur_raw['ret']*100:.2f}%/d, vol={cur_raw['vol']*100:.1f}%)")
+
+        result = {'regime': regime, 'confidence': confidence, 'details': detail}
+
+        # Cache result
+        _hmm_cache[market] = {**result, 'ts': time.time()}
+        logger.info("HMM regime [%s]: %s (conf=%.2f)", market, regime, confidence)
+        return result
+
+    except Exception as e:
+        logger.warning("HMM fitting failed: %s", e)
+        return fallback
 
 class TechnicalAnalyzer:
     def __init__(self, ticker, df_week, df_day, strategy_params=None, chip_data=None, us_chip_data=None):
@@ -70,8 +240,14 @@ class TechnicalAnalyzer:
             dict: 包含 趨勢分數, 觸發分數, 劇本, 詳細評分項目
         """
         trend_score, trend_details = self._calculate_trend_score(self.df_week)
-        # 傳入趨勢分數以啟用籌碼動態權重
-        trigger_score, trigger_details, trigger_breakdown = self._calculate_trigger_score(self.df_day, trend_score=trend_score)
+
+        # Regime detection (HMM market-level + per-stock ADX/Squeeze)
+        # Must run BEFORE trigger scoring so weights can be adjusted
+        regime = self._detect_regime(self.df_day)
+
+        # 傳入趨勢分數 + regime 以啟用動態權重
+        trigger_score, trigger_details, trigger_breakdown = self._calculate_trigger_score(
+            self.df_day, trend_score=trend_score, regime=regime)
 
         scenario = self._determine_scenario(trend_score, trigger_details)
 
@@ -113,8 +289,7 @@ class TechnicalAnalyzer:
         ptt_hints = self._detect_ptt_contrarian()
         trigger_details.extend(ptt_hints)
 
-        # 9. Regime Detection (不改分數，提供操作建議)
-        regime = self._detect_regime(self.df_day)
+        # 9. Regime — already computed before scoring (line 233)
 
         return {
             "ticker": self.ticker,
@@ -1129,100 +1304,129 @@ class TechnicalAnalyzer:
 
     def _detect_regime(self, df):
         """
-        Regime Detection 簡單版 — ADX + Squeeze Momentum
-        判斷趨勢市 vs 盤整市，不改變評分，只提供提示和建議倉位調整
+        Regime Detection — HMM market-level + per-stock ADX/Squeeze
+
+        1. HMM on market index (TAIEX / S&P 500) -> market regime
+        2. Per-stock ADX + Squeeze -> stock-level context
+        3. Final regime = HMM primary, per-stock as modifier
 
         Returns:
-            dict: regime, confidence, details, position_adj
+            dict: regime, confidence, details, position_adj, hmm_state
         """
         result = {
-            'regime': 'unknown',
-            'confidence': 0.0,
+            'regime': 'neutral',
+            'confidence': 0.5,
             'details': [],
-            'position_adj': 1.0,  # 1.0=正常, 0.5=減半, 1.2=加碼
+            'position_adj': 1.0,
+            'hmm_state': None,
         }
 
-        if df.empty or len(df) < 30:
-            return result
+        # --- Step 1: HMM market-level regime ---
+        market = 'us' if self._is_us_stock else 'tw'
+        hmm = detect_market_regime_hmm(market)
+        hmm_regime = hmm['regime']
+        hmm_conf = hmm['confidence']
+        result['hmm_state'] = hmm_regime
+        result['details'].append(hmm['details'])
 
-        current = df.iloc[-1]
-
-        # --- Signal 1: ADX ---
-        adx = self._safe_get(current, 'ADX', 0)
-        trending_adx = adx > 25
-        strong_trend = adx > 35
-        ranging_adx = adx < 20
-
-        # --- Signal 2: Squeeze Momentum (BB inside KC) ---
+        # --- Step 2: Per-stock ADX + Squeeze signals ---
+        adx = 0
         squeeze_on = False
-        try:
-            bb_upper = self._safe_get(current, 'BB_upper', 0)
-            bb_lower = self._safe_get(current, 'BB_lower', 0)
-            kc_upper = self._safe_get(current, 'KC_upper', 0)
-            kc_lower = self._safe_get(current, 'KC_lower', 0)
-            if kc_upper > 0 and bb_upper > 0:
-                squeeze_on = bb_upper < kc_upper and bb_lower > kc_lower
-        except (KeyError, TypeError):
-            pass
-
-        # --- Signal 3: ATR expansion/contraction ---
         atr_expanding = False
-        try:
-            if len(df) >= 20:
-                atr_col = 'ATR' if 'ATR' in df.columns else None
-                if atr_col:
-                    atr_now = self._safe_get(current, atr_col, 0)
-                    atr_20ago = self._safe_get(df.iloc[-20], atr_col, 0)
-                    if atr_20ago > 0:
-                        atr_ratio = atr_now / atr_20ago
-                        atr_expanding = atr_ratio > 1.2
-        except (IndexError, KeyError):
-            pass
 
-        # --- Regime classification ---
-        trend_signals = 0
-        range_signals = 0
+        if not df.empty and len(df) >= 30:
+            current = df.iloc[-1]
+            adx = self._safe_get(current, 'ADX', 0)
 
-        if strong_trend:
-            trend_signals += 2
-        elif trending_adx:
-            trend_signals += 1
+            try:
+                bb_upper = self._safe_get(current, 'BB_upper', 0)
+                bb_lower = self._safe_get(current, 'BB_lower', 0)
+                kc_upper = self._safe_get(current, 'KC_upper', 0)
+                kc_lower = self._safe_get(current, 'KC_lower', 0)
+                if kc_upper > 0 and bb_upper > 0:
+                    squeeze_on = bb_upper < kc_upper and bb_lower > kc_lower
+            except (KeyError, TypeError):
+                pass
 
-        if ranging_adx:
-            range_signals += 1
+            try:
+                if len(df) >= 20:
+                    atr_col = 'ATR' if 'ATR' in df.columns else None
+                    if atr_col:
+                        atr_now = self._safe_get(current, atr_col, 0)
+                        atr_20ago = self._safe_get(df.iloc[-20], atr_col, 0)
+                        if atr_20ago > 0:
+                            atr_expanding = (atr_now / atr_20ago) > 1.2
+            except (IndexError, KeyError):
+                pass
 
+        # Per-stock signal tally
+        stock_trend = 0
+        stock_range = 0
+        if adx > 35:
+            stock_trend += 2
+        elif adx > 25:
+            stock_trend += 1
+        if adx < 20:
+            stock_range += 1
         if squeeze_on:
-            range_signals += 1
-            result['details'].append(f"📦 Squeeze ON — BB 收縮進 KC，波動壓縮中")
+            stock_range += 1
+            result['details'].append(f"Squeeze ON -- BB inside KC")
         elif atr_expanding:
-            trend_signals += 1
-            result['details'].append(f"📊 ATR 擴張 — 波動放大，趨勢可能展開")
+            stock_trend += 1
+            result['details'].append(f"ATR expanding -- volatility rising")
 
-        # Determine regime
-        if trend_signals >= 2:
-            result['regime'] = 'trending'
-            result['confidence'] = min(1.0, trend_signals / 3)
-            result['position_adj'] = 1.0  # 趨勢市正常操作
-            result['details'].insert(0, f"📈 趨勢市 (ADX={adx:.0f}) — 順勢操作，信任突破信號")
-        elif range_signals >= 2 or (ranging_adx and squeeze_on):
-            result['regime'] = 'ranging'
-            result['confidence'] = min(1.0, range_signals / 2)
-            result['position_adj'] = 0.5  # 盤整市倉位減半
-            result['details'].insert(0, f"📦 盤整市 (ADX={adx:.0f}) — 假突破風險高，建議倉位減半")
-        elif squeeze_on:
-            result['regime'] = 'squeeze'
-            result['confidence'] = 0.6
-            result['position_adj'] = 0.7  # 壓縮期稍微減倉
-            result['details'].insert(0, f"⏳ 波動壓縮中 (ADX={adx:.0f}) — 等待方向突破，先輕倉")
+        # --- Step 3: Combine HMM + per-stock ---
+        # HMM is primary (market-level); per-stock can override if strong disagreement
+        if hmm_conf >= 0.5:
+            # Trust HMM as primary
+            regime = hmm_regime
+            confidence = hmm_conf
+
+            # Per-stock override: if HMM says trending but stock ADX < 20, downgrade
+            if regime == 'trending' and stock_range >= 2:
+                regime = 'ranging'
+                confidence *= 0.7
+                result['details'].append(
+                    f"Stock ADX={adx:.0f} disagrees with market trend -- downgraded to ranging")
+            # If HMM says ranging but stock has strong trend, upgrade
+            elif regime == 'ranging' and stock_trend >= 2:
+                regime = 'trending'
+                confidence *= 0.7
+                result['details'].append(
+                    f"Stock ADX={adx:.0f} strong trend despite ranging market -- upgraded to trending")
         else:
-            result['regime'] = 'neutral'
-            result['confidence'] = 0.5
-            result['position_adj'] = 1.0
-            result['details'].insert(0, f"⚖️ 中性狀態 (ADX={adx:.0f}) — 無明確 regime 信號")
+            # Low HMM confidence -- fall back to per-stock signals
+            if stock_trend >= 2:
+                regime = 'trending'
+                confidence = min(1.0, stock_trend / 3)
+            elif stock_range >= 2:
+                regime = 'ranging'
+                confidence = min(1.0, stock_range / 2)
+            elif squeeze_on:
+                regime = 'volatile'
+                confidence = 0.6
+            else:
+                regime = 'neutral'
+                confidence = 0.5
+
+        # Position adjustment
+        pos_map = {'trending': 1.0, 'ranging': 0.5, 'volatile': 0.7, 'neutral': 1.0}
+        result['regime'] = regime
+        result['confidence'] = confidence
+        result['position_adj'] = pos_map.get(regime, 1.0)
+
+        # Summary detail
+        label_map = {
+            'trending': f"Trending (ADX={adx:.0f}) -- trust breakout signals",
+            'ranging':  f"Ranging (ADX={adx:.0f}) -- beware false breakouts, halve position",
+            'volatile': f"Volatile (ADX={adx:.0f}) -- wait for direction, reduce position",
+            'neutral':  f"Neutral (ADX={adx:.0f}) -- no clear regime signal",
+        }
+        result['details'].insert(0, label_map.get(regime, 'Unknown'))
 
         return result
 
-    def _calculate_trigger_score(self, df, trend_score=0):
+    def _calculate_trigger_score(self, df, trend_score=0, regime=None):
         """
         計算日線進場訊號 (Trigger Score) -10 ~ +10
         使用四群組中位數架構：Trend / Momentum / Volume / Pattern
@@ -1453,33 +1657,45 @@ class TechnicalAnalyzer:
         # (BIAS removed — 橫截面 IC 為負，已從 Trend 組移除)
 
         # ============================================================
-        # GROUP MEDIANS → FINAL SCORE
+        # GROUP MEDIANS → FINAL SCORE (with Regime HMM dynamic weights)
         # ============================================================
         trend_median = _median_of_signals(trend_signals)
         momentum_median = _median_of_signals(momentum_signals)
         volume_median = _median_of_signals(volume_signals)
-        pattern_median = _median_of_signals(pattern_signals)  # 空組 = 0
+        pattern_median = _median_of_signals(pattern_signals)  # empty = 0
 
-        # 精簡後 3 個有效組: Trend + Momentum + Volume (等權)
-        # IC 加權測試失敗 (Volume 組只有 RVOL 一個信號，加權過度集中)
-        # 3 groups × median in [-1,+1] → sum in [-3,+3] → ×3.33 → [-10,+10]
-        score = (trend_median + momentum_median + volume_median) * GROUP_SCALE_FACTOR
+        # Regime-dependent group weights
+        regime_name = regime.get('regime', 'neutral') if regime else 'neutral'
+        gw = REGIME_GROUP_WEIGHTS.get(regime_name, REGIME_GROUP_WEIGHTS['neutral'])
+        am = REGIME_ADDON_MULT.get(regime_name, REGIME_ADDON_MULT['neutral'])
+
+        # Weighted sum, normalized to preserve [-3,+3] range before scaling
+        w_sum = gw['trend'] + gw['momentum'] + gw['volume']
+        weighted_raw = (trend_median * gw['trend']
+                        + momentum_median * gw['momentum']
+                        + volume_median * gw['volume'])
+        score = weighted_raw / w_sum * 3 * GROUP_SCALE_FACTOR
+
+        if regime_name != 'neutral':
+            details.append(
+                f"[Regime] {regime_name} -- weights: "
+                f"T={gw['trend']:.1f} M={gw['momentum']:.1f} V={gw['volume']:.1f}")
 
         # ============================================================
-        # CHIP FACTORS (additive, separate from groups)
+        # CHIP FACTORS (additive, cap adjusted by regime)
         # ============================================================
         chip_score, chip_details = self._analyze_chip_factors(df, trend_score=trend_score)
-        # Cap 籌碼分數，避免低 IC 信號稀釋技術面
-        chip_score = max(-CHIP_SCORE_CAP, min(CHIP_SCORE_CAP, chip_score))
+        chip_cap = CHIP_SCORE_CAP * am['chip']
+        chip_score = max(-chip_cap, min(chip_cap, chip_score))
         score += chip_score
         details.extend(chip_details)
-
-        # (矛盾獎勵已移除 — 籌碼 IC=0.006 < 技術面，不應在矛盾時信任籌碼)
 
         # ============================================================
         # MARKET SENTIMENT (TAIFEX PCR + Futures Basis, Taiwan only)
         # ============================================================
         sentiment_score, sentiment_details = self._analyze_market_sentiment()
+        sent_cap = MARKET_SENTIMENT_CAP * am['sentiment']
+        sentiment_score = max(-sent_cap, min(sent_cap, sentiment_score))
         score += sentiment_score
         details.extend(sentiment_details)
 
@@ -1487,6 +1703,8 @@ class TechnicalAnalyzer:
         # REVENUE CATALYST (Revenue Surprise + Consecutive Growth, Taiwan only)
         # ============================================================
         revenue_score, revenue_details = self._analyze_revenue_catalyst()
+        rev_cap = REVENUE_CATALYST_CAP * am['revenue']
+        revenue_score = max(-rev_cap, min(rev_cap, revenue_score))
         score += revenue_score
         details.extend(revenue_details)
 
@@ -1494,6 +1712,8 @@ class TechnicalAnalyzer:
         # ETF SIGNAL (Active ETF Sync Buy/Sell, Taiwan only)
         # ============================================================
         etf_score, etf_details = self._analyze_etf_signal()
+        etf_cap = ETF_SIGNAL_CAP * am['etf']
+        etf_score = max(-etf_cap, min(etf_cap, etf_score))
         score += etf_score
         details.extend(etf_details)
 
@@ -1509,6 +1729,8 @@ class TechnicalAnalyzer:
             'sentiment_score': sentiment_score,
             'revenue_score': revenue_score,
             'etf_score': etf_score,
+            'regime': regime_name,
+            'regime_weights': gw,
         }
         return score, details, breakdown
 
