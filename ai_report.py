@@ -370,6 +370,89 @@ def _build_ptt_sentiment(ticker):
         return f"N/A (取得失敗: {e})"
 
 
+def _build_value_score(ticker, fund_data, df_day):
+    """[VALUE_SCORE] ValueScreener 5 維評分 (估值/體質/營收/技術轉折/聰明錢)"""
+    try:
+        from value_screener import ValueScreener
+
+        is_us = ticker and not ticker.replace('.TW', '').isdigit()
+        stock_id = ticker if is_us else ticker.replace('.TW', '')
+
+        # 從現有數據組裝 market_row
+        close = 0
+        change_pct = 0
+        volume = 0
+        trading_value = 0
+        if df_day is not None and not df_day.empty and len(df_day) >= 2:
+            last = df_day.iloc[-1]
+            prev = df_day.iloc[-2]
+            close = float(last.get('Close', 0))
+            prev_close = float(prev.get('Close', 0))
+            if prev_close > 0:
+                change_pct = (close - prev_close) / prev_close * 100
+            volume = int(last.get('Volume', 0))
+            trading_value = int(close * volume) if close > 0 else 0
+
+        # 從 fund_data 取 PE/PB/Dividend
+        pe = _parse_fund_float(fund_data, 'PE Ratio')
+        pb = _parse_fund_float(fund_data, 'PB Ratio')
+        div_yield = _parse_fund_float(fund_data, 'Dividend Yield')
+
+        market_row = {
+            'stock_id': stock_id,
+            'stock_name': '',
+            'market': 'us' if is_us else 'tw',
+            'close': close,
+            'change_pct': round(change_pct, 2),
+            'volume': volume,
+            'trading_value': trading_value,
+            'PE': pe,
+            'PB': pb,
+            'dividend_yield': div_yield,
+        }
+
+        screener = ValueScreener()
+        result = screener._score_single(stock_id, market_row)
+
+        if not result:
+            return "N/A (評分失敗)"
+
+        lines = []
+        lines.append(f"綜合分數: {_safe_val(result.get('value_score', 0), '.1f')} / 100")
+        scores = result.get('scores', {})
+        lines.append(f"  估值 (30%): {_safe_val(scores.get('valuation', 0), '.1f')}")
+        lines.append(f"  體質 (25%): {_safe_val(scores.get('quality', 0), '.1f')}")
+        lines.append(f"  營收 (15%): {_safe_val(scores.get('revenue', 0), '.1f')}")
+        lines.append(f"  技術轉折 (15%): {_safe_val(scores.get('technical', 0), '.1f')}")
+        lines.append(f"  聰明錢 (15%): {_safe_val(scores.get('smart_money', 0), '.1f')}")
+
+        details = result.get('details', [])
+        if details:
+            lines.append(f"\n評分明細:")
+            for d in details:
+                lines.append(f"  - {d}")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.warning("Value score failed: %s", e)
+        return f"N/A (評分失敗: {e})"
+
+
+def _parse_fund_float(fund_data, key):
+    """從 fund_data 解析數值，處理百分比和字串"""
+    if not fund_data:
+        return 0
+    val = fund_data.get(key, '')
+    if not val or str(val) in ('N/A', 'None', 'nan', ''):
+        return 0
+    try:
+        s = str(val).replace('%', '').replace(',', '').strip()
+        return float(s)
+    except (ValueError, TypeError):
+        return 0
+
+
 def _build_market_context(report):
     """[MARKET_CONTEXT] 市場環境"""
     lines = []
@@ -454,6 +537,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data, ticker)}")
     data_sections.append(f"[MARKET_CONTEXT]\n{_build_market_context(report)}")
     data_sections.append(f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}")
+    data_sections.append(f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}")
     data_sections.append(f"[PTT_SENTIMENT]\n{_build_ptt_sentiment(ticker)}")
 
     data_block = "\n\n".join(data_sections)
