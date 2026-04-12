@@ -160,17 +160,23 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Mode toggle: 個股分析 vs 自動選股
+    # Mode toggle: 個股分析 / 自動選股 / AI 報告庫
+    _mode_options = ['individual', 'screener', 'ai_reports']
+    _mode_labels = {'individual': '📈 個股分析', 'screener': '🔍 自動選股', 'ai_reports': '📝 AI 報告'}
+    _current_mode = st.session_state.get('app_mode', 'analysis')
+    _mode_idx = 1 if _current_mode == 'screener' else (2 if _current_mode == 'ai_reports' else 0)
     app_mode = st.radio(
         "功能模式",
-        options=['individual', 'screener'],
-        format_func=lambda x: '📈 個股分析' if x == 'individual' else '🔍 自動選股',
-        index=0 if st.session_state.get('app_mode', 'analysis') != 'screener' else 1,
+        options=_mode_options,
+        format_func=lambda x: _mode_labels[x],
+        index=_mode_idx,
         key='mode_radio',
         horizontal=True,
     )
     if app_mode == 'screener':
         st.session_state['app_mode'] = 'screener'
+    elif app_mode == 'ai_reports':
+        st.session_state['app_mode'] = 'ai_reports'
     else:
         st.session_state['app_mode'] = 'analysis'
 
@@ -822,6 +828,150 @@ if st.session_state.get('app_mode') == 'screener':
 
     st.markdown("---")
     st.caption("💡 完整掃描 (全部): `python scanner_job.py --market all --no-chip`")
+
+elif st.session_state.get('app_mode') == 'ai_reports':
+    # ====================================================================
+    #  AI 研究報告庫
+    # ====================================================================
+    from ai_report import (
+        generate_report as _gen_report,
+        save_report as _save_report,
+        load_report_index as _load_index,
+        load_report_content as _load_content,
+        delete_report as _delete_report,
+    )
+
+    _report_tab_gen, _report_tab_lib = st.tabs(["✏️ 生成報告", "📚 報告庫"])
+
+    # --- Tab 1: Generate ---
+    with _report_tab_gen:
+        st.markdown("輸入股票代號，Claude AI 將根據系統所有數據生成深度研究報告。")
+
+        _ai_ticker = st.text_input("股票代號", placeholder="例: 2330, AAPL", key='ai_report_ticker')
+
+        if st.button("生成研究報告", type="primary", key='ai_gen_btn'):
+            if not _ai_ticker or not _ai_ticker.strip():
+                st.error("請輸入股票代號")
+            else:
+                _ai_ticker = _ai_ticker.strip().upper()
+                is_valid, err_msg = validate_ticker(_ai_ticker)
+                if not is_valid:
+                    st.error(f"代號格式不正確: {err_msg}")
+                else:
+                    with st.status(f"正在生成 {_ai_ticker} 研究報告...", expanded=True) as _status:
+                        try:
+                            # 1. Load data
+                            st.write("載入價量資料...")
+                            figures, errors, df_week, df_day, stock_meta = run_analysis(_ai_ticker, force_update=False)
+
+                            # 2. Load chip data
+                            st.write("載入籌碼資料...")
+                            _chip = None
+                            _us_chip = None
+                            if _ai_ticker.isdigit() or _ai_ticker.endswith('.TW'):
+                                try:
+                                    _chip, _ = get_chip_data_cached(_ai_ticker, False)
+                                except Exception:
+                                    pass
+                            else:
+                                try:
+                                    from us_stock_chip import USStockChipAnalyzer
+                                    _usc = USStockChipAnalyzer()
+                                    _us_chip, _ = _usc.get_chip_data(_ai_ticker)
+                                except Exception:
+                                    pass
+
+                            # 3. Load fundamentals
+                            st.write("載入基本面資料...")
+                            try:
+                                _fund = get_fundamentals(_ai_ticker)
+                            except Exception:
+                                _fund = None
+
+                            # 4. Run analysis
+                            st.write("計算技術分析...")
+                            from analysis_engine import TechnicalAnalyzer as _TA
+                            _analyzer = _TA(_ai_ticker, df_week, df_day, chip_data=_chip, us_chip_data=_us_chip)
+                            _report = _analyzer.run_analysis()
+
+                            # 5. Generate AI report (no timeout)
+                            st.write("Claude AI 生成報告中（不設逾時）...")
+                            _ok, _content = _gen_report(
+                                _ai_ticker, _report, _chip, _us_chip, _fund, df_day,
+                                timeout=None,
+                            )
+
+                            if _ok:
+                                # 6. Save to library
+                                _rid = _save_report(
+                                    _ai_ticker, _content,
+                                    trigger_score=_report.get('trigger_score'),
+                                    trend_score=_report.get('trend_score'),
+                                )
+                                _status.update(label=f"{_ai_ticker} 報告生成完成！", state="complete")
+                                st.success(f"報告已儲存到報告庫 (ID: {_rid})，請切到「📚 報告庫」tab 查看。")
+                            else:
+                                _status.update(label="生成失敗", state="error")
+                                st.error(_content)
+
+                        except Exception as _e:
+                            _status.update(label="生成失敗", state="error")
+                            st.error(f"報告生成失敗: {_e}")
+
+    # --- Tab 2: Library ---
+    with _report_tab_lib:
+        _index = _load_index()
+
+        if not _index:
+            st.info("報告庫是空的。請先在「✏️ 生成報告」tab 生成報告。")
+        else:
+            # Filter
+            _all_tickers = sorted(set(r['ticker'] for r in _index))
+            _filter_ticker = st.selectbox(
+                "篩選股票", ['全部'] + _all_tickers, key='report_filter_ticker')
+
+            _filtered = _index if _filter_ticker == '全部' else [
+                r for r in _index if r['ticker'] == _filter_ticker]
+            _filtered = sorted(_filtered, key=lambda x: x.get('date', '') + x.get('time', ''), reverse=True)
+
+            st.caption(f"共 {len(_filtered)} 篇報告")
+
+            # Report list
+            _list_rows = []
+            for _r in _filtered:
+                _list_rows.append({
+                    '日期': f"{_r.get('date', '')} {_r.get('time', '')[:5]}",
+                    '股票': _r['ticker'],
+                    '觸發分數': _r.get('trigger_score') or '',
+                    '趨勢分數': _r.get('trend_score') or '',
+                    'ID': _r['report_id'],
+                })
+            if _list_rows:
+                st.dataframe(pd.DataFrame(_list_rows), use_container_width=True, hide_index=True)
+
+            # Report viewer
+            _report_options = [f"{r.get('date', '')} {r['ticker']}" for r in _filtered]
+            _report_ids = [r['report_id'] for r in _filtered]
+
+            if _report_options:
+                _sel_idx = st.selectbox(
+                    "選擇報告", range(len(_report_options)),
+                    format_func=lambda i: _report_options[i],
+                    key='report_viewer_sel',
+                )
+                _sel_id = _report_ids[_sel_idx]
+                _sel_content = _load_content(_sel_id)
+
+                if _sel_content:
+                    st.markdown("---")
+                    st.markdown(_sel_content)
+                    st.markdown("---")
+                    st.caption("此報告由 Claude AI 基於系統數據自動生成，僅供參考，不構成投資建議。")
+
+                    if st.button("🗑️ 刪除此報告", key='report_delete_btn'):
+                        _delete_report(_sel_id)
+                        st.success("報告已刪除")
+                        st.rerun()
 
 elif st.session_state.get('analysis_active', False):
     # 決定資料來源
@@ -2359,7 +2509,7 @@ elif st.session_state.get('analysis_active', False):
             if _ai_run:
                 with st.spinner("Claude AI 分析中，請稍候..."):
                     try:
-                        from ai_report import generate_report
+                        from ai_report import generate_report, save_report
                         _success, _content = generate_report(
                             ticker=display_ticker,
                             report=report,
@@ -2370,6 +2520,12 @@ elif st.session_state.get('analysis_active', False):
                         )
                         if _success:
                             st.session_state['ai_report_cache'][_ai_cache_key] = _content
+                            # Auto-save to report library
+                            save_report(
+                                display_ticker, _content,
+                                trigger_score=report.get('trigger_score'),
+                                trend_score=report.get('trend_score'),
+                            )
                         else:
                             st.error(_content)
                     except Exception as e:

@@ -606,9 +606,12 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
 
 
 def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                    timeout=300):
+                    timeout=None):
     """
     呼叫 Claude CLI 生成 AI 研究報告。
+
+    Args:
+        timeout: None = no timeout (default), or seconds
 
     Returns:
         tuple: (success: bool, content: str)
@@ -647,3 +650,103 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     except Exception as e:
         logger.error("AI Report generation failed: %s", e, exc_info=True)
         return False, f"生成失敗: {e}"
+
+
+# ================================================================
+# Report Library — Save / Load / List
+# ================================================================
+
+_REPORTS_DIR = os.path.join(os.path.dirname(__file__), 'data', 'ai_reports')
+_INDEX_PATH = os.path.join(_REPORTS_DIR, 'index.json')
+
+
+def _ensure_reports_dir():
+    os.makedirs(_REPORTS_DIR, exist_ok=True)
+
+
+def save_report(ticker, content, trigger_score=None, trend_score=None, value_score=None):
+    """
+    Save a generated report to the library.
+
+    Returns:
+        str: report_id
+    """
+    _ensure_reports_dir()
+
+    now = datetime.now()
+    report_id = f"{ticker}_{now.strftime('%Y%m%d_%H%M%S')}"
+    filename = f"{report_id}.md"
+    filepath = os.path.join(_REPORTS_DIR, filename)
+
+    # Save markdown content
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    # Update index
+    index = load_report_index()
+    index.append({
+        'report_id': report_id,
+        'ticker': ticker,
+        'date': now.strftime('%Y-%m-%d'),
+        'time': now.strftime('%H:%M:%S'),
+        'filename': filename,
+        'trigger_score': trigger_score,
+        'trend_score': trend_score,
+        'value_score': value_score,
+    })
+
+    with open(_INDEX_PATH, 'w', encoding='utf-8') as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+
+    logger.info("Report saved: %s", report_id)
+    return report_id
+
+
+def load_report_index():
+    """Load the report index (list of metadata dicts)."""
+    if os.path.exists(_INDEX_PATH):
+        try:
+            with open(_INDEX_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return []
+
+
+def load_report_content(report_id):
+    """Load a report's markdown content by report_id."""
+    filename = f"{report_id}.md"
+    filepath = os.path.join(_REPORTS_DIR, filename)
+    if os.path.exists(filepath):
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return f.read()
+    return None
+
+
+def delete_report(report_id):
+    """Delete a report from the library."""
+    filename = f"{report_id}.md"
+    filepath = os.path.join(_REPORTS_DIR, filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+
+    index = load_report_index()
+    index = [r for r in index if r['report_id'] != report_id]
+    _ensure_reports_dir()
+    with open(_INDEX_PATH, 'w', encoding='utf-8') as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+
+    logger.info("Report deleted: %s", report_id)
+
+
+def list_reports_for_ticker(ticker):
+    """List all reports for a specific ticker, newest first."""
+    index = load_report_index()
+    return sorted(
+        [r for r in index if r['ticker'] == ticker],
+        key=lambda x: x.get('date', '') + x.get('time', ''),
+        reverse=True,
+    )
+
+
+from datetime import datetime
