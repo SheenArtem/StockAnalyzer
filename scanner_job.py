@@ -315,6 +315,24 @@ def main():
                   f"| Remaining: {stats['remaining']} "
                   f"| Token: {'Yes' if stats['has_token'] else 'NO!'}")
 
+    # Performance tracking: update historical picks with latest prices
+    if not args.stage1_only:
+        try:
+            from scan_tracker import ScanTracker
+            progress("=== Performance Tracking ===")
+            tracker = ScanTracker(progress_callback=progress)
+            track_result = tracker.run()
+            summary = track_result.get('summary', {})
+            for key, s in summary.items():
+                for d in [5, 10, 20]:
+                    tracked = s.get(f'tracked_{d}d', 0)
+                    if tracked > 0:
+                        wr = s.get(f'win_rate_{d}d', 0)
+                        avg = s.get(f'avg_return_{d}d', 0)
+                        progress(f"  {key} {d}d: {tracked} tracked, Win {wr:.1f}%, Avg {avg:+.2f}%")
+        except Exception as e:
+            progress(f"Tracking update failed: {e}")
+
     # Git push
     if args.push and not args.stage1_only:
         progress("Pushing results to remote...")

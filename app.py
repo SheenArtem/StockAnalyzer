@@ -250,8 +250,8 @@ if st.session_state.get('app_mode') == 'screener':
     import json as _json
     from pathlib import Path as _Path
 
-    screener_tab1, screener_tab_us, screener_tab2, screener_tab_us_val = st.tabs(
-        ["📈 動能 (台股)", "🇺🇸 動能 (美股)", "💎 價值 (台股)", "🇺🇸 價值 (美股)"]
+    screener_tab1, screener_tab_us, screener_tab2, screener_tab_us_val, screener_tab_track = st.tabs(
+        ["📈 動能 (台股)", "🇺🇸 動能 (美股)", "💎 價值 (台股)", "🇺🇸 價值 (美股)", "📊 績效追蹤"]
     )
 
     # ====================================================================
@@ -735,6 +735,90 @@ if st.session_state.get('app_mode') == 'screener':
                     "Run: `python scanner_job.py --mode value --market us`")
 
         st.caption("💡 Full scan: `python scanner_job.py --mode value --market us`")
+
+    # ====================================================================
+    # Tab: 績效追蹤
+    # ====================================================================
+    with screener_tab_track:
+
+        st.markdown("""
+**選股績效追蹤** — 追蹤 Scanner 選出的股票在 5 / 10 / 20 個交易日後的表現。
+每次掃描後自動更新，資料越多越有參考價值。
+""")
+
+        try:
+            from scan_tracker import ScanTracker
+            _tracker = ScanTracker()
+            _track_data = _tracker.load_latest()
+            _summary = _track_data.get('summary', {})
+            _updated = _track_data.get('updated_at', '')
+
+            if _summary:
+                if _updated:
+                    st.caption(f"最後更新: {_updated[:19]}")
+
+                for _tk, _ts in _summary.items():
+                    _label = f"{'動能' if _ts['scan_type'] == 'momentum' else '價值'} ({'台股' if _ts['market'] == 'tw' else '美股'})"
+                    st.markdown(f"#### {_label}")
+                    st.caption(f"掃描次數: {_ts['total_scans']} | 總選股: {_ts['total_picks']}")
+
+                    _perf_rows = []
+                    for _d in [5, 10, 20]:
+                        _tracked = _ts.get(f'tracked_{_d}d', 0)
+                        if _tracked > 0:
+                            _perf_rows.append({
+                                '追蹤天數': f'{_d}d',
+                                '追蹤檔數': _tracked,
+                                '勝率': f"{_ts.get(f'win_rate_{_d}d', 0):.1f}%",
+                                '平均報酬': f"{_ts.get(f'avg_return_{_d}d', 0):+.2f}%",
+                                '中位數': f"{_ts.get(f'median_return_{_d}d', 0):+.2f}%",
+                                '最佳': f"{_ts.get(f'best_{_d}d', 0):+.2f}%",
+                                '最差': f"{_ts.get(f'worst_{_d}d', 0):+.2f}%",
+                            })
+                        else:
+                            _perf_rows.append({
+                                '追蹤天數': f'{_d}d',
+                                '追蹤檔數': 0,
+                                '勝率': '—',
+                                '平均報酬': '—',
+                                '中位數': '—',
+                                '最佳': '—',
+                                '最差': '—',
+                            })
+
+                    if _perf_rows:
+                        st.dataframe(pd.DataFrame(_perf_rows), use_container_width=True, hide_index=True)
+
+                # Detailed picks table
+                with st.expander("個股追蹤明細"):
+                    _track_type = st.selectbox("選股模式", ['momentum', 'value'], key='track_type_sel',
+                                               format_func=lambda x: '動能' if x == 'momentum' else '價值')
+                    _track_mkt = st.selectbox("市場", ['tw', 'us'], key='track_mkt_sel',
+                                              format_func=lambda x: '台股' if x == 'tw' else '美股')
+                    _picks_df = _tracker.get_picks_dataframe(_track_type, _track_mkt)
+                    if not _picks_df.empty:
+                        _show_cols = ['scan_date', 'stock_id', 'name', 'price_at_scan']
+                        if 'trigger_score' in _picks_df.columns:
+                            _show_cols.append('trigger_score')
+                        if 'value_score' in _picks_df.columns:
+                            _show_cols.append('value_score')
+                        for _d in [5, 10, 20]:
+                            col = f'return_{_d}d'
+                            if col in _picks_df.columns:
+                                _show_cols.append(col)
+                        _show_cols = [c for c in _show_cols if c in _picks_df.columns]
+                        st.dataframe(_picks_df[_show_cols], use_container_width=True, height=400)
+                    else:
+                        st.info("尚無追蹤資料")
+
+            else:
+                st.info("尚無績效追蹤資料。\n\n"
+                        "Scanner 每次執行後會自動追蹤歷史選股表現。\n"
+                        "需要累積至少 5 個交易日的掃描歷史才會出現數據。\n\n"
+                        "手動更新: `python scan_tracker.py`")
+
+        except Exception as _track_err:
+            st.warning(f"追蹤模組載入失敗: {_track_err}")
 
     st.markdown("---")
     st.caption("💡 完整掃描 (全部): `python scanner_job.py --market all --no-chip`")
