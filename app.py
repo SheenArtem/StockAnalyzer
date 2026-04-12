@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.12.1")
+    st.caption("Version: v2026.04.12.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -1134,7 +1134,8 @@ elif st.session_state.get('analysis_active', False):
 
 
         # 顯示圖表
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["週K", "日K", "籌碼面", "🏢 基本面", "🔮 情緒/期權", "📊 除息/營收"])
+        tab1, tab2, tab3, tab4, tab5, tab6, tab_ai = st.tabs(
+            ["週K", "日K", "籌碼面", "🏢 基本面", "🔮 情緒/期權", "📊 除息/營收", "🤖 AI 研究報告"])
         
         with tab1:
             if 'Weekly' in figures:
@@ -2249,6 +2250,62 @@ elif st.session_state.get('analysis_active', False):
 
                 except ImportError:
                     st.info("dividend_revenue 模組尚未安裝")
+
+        # ==========================================
+        # AI 研究報告 Tab
+        # ==========================================
+        with tab_ai:
+            st.markdown("##### Claude AI 深度研究報告")
+            st.caption("基於系統所有數據（技術/籌碼/基本面/Regime），由 Claude 生成專業研究報告")
+
+            # 初始化 session state
+            if 'ai_report_cache' not in st.session_state:
+                st.session_state['ai_report_cache'] = {}
+
+            _ai_cache_key = display_ticker
+            _cached_report = st.session_state['ai_report_cache'].get(_ai_cache_key)
+
+            col_ai1, col_ai2 = st.columns([2, 3])
+            with col_ai1:
+                _ai_run = st.button("生成 AI 研究報告", key='ai_report_btn')
+            with col_ai2:
+                _ai_timeout = st.selectbox(
+                    "逾時設定", [60, 120, 180, 300],
+                    index=1, format_func=lambda x: f"{x} 秒",
+                    key='ai_timeout',
+                )
+
+            if _ai_run:
+                with st.spinner("Claude AI 分析中... (可能需要 30-120 秒)"):
+                    try:
+                        from ai_report import generate_report
+                        _success, _content = generate_report(
+                            ticker=display_ticker,
+                            report=report,
+                            chip_data=chip_data,
+                            us_chip_data=us_chip_data,
+                            fund_data=fund_data,
+                            df_day=st.session_state.get('df_day_cache'),
+                            timeout=_ai_timeout,
+                        )
+                        if _success:
+                            st.session_state['ai_report_cache'][_ai_cache_key] = _content
+                        else:
+                            st.error(_content)
+                    except Exception as e:
+                        st.error(f"AI 報告生成失敗: {e}")
+
+            # 顯示報告 (從 cache 或剛生成的)
+            _display_report = st.session_state['ai_report_cache'].get(_ai_cache_key)
+            if _display_report:
+                st.markdown("---")
+                st.markdown(_display_report)
+                st.markdown("---")
+                st.caption("此報告由 Claude AI 基於系統數據自動生成，僅供參考，不構成投資建議。")
+            elif not _ai_run:
+                st.info("點擊「生成 AI 研究報告」開始分析。\n\n"
+                        "報告將包含：核心摘要、技術面總覽、籌碼面分析、基本面與體質、"
+                        "市場環境、多空對照、投資建議、資訊空白與不確定性。")
 
         # ==========================================
         # 6. 策略回測系統 (Strategy Backtester)
