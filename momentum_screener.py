@@ -517,21 +517,18 @@ class MomentumScreener:
                     pass
         else:
             if self.config['include_chip']:
-                try:
-                    from chip_analysis import ChipAnalyzer
-                    ca = ChipAnalyzer()
-                    chip_data, _ = ca.get_chip_data(stock_id)
-                except Exception:
-                    pass
-
-            # Fallback: inject TWSE/TPEX batch data if FinMind failed
-            batch = getattr(self, '_inst_batch', {})
-            if stock_id in batch:
-                inst_df = batch[stock_id]
-                if chip_data is None:
-                    chip_data = {'institutional': inst_df}
-                elif 'institutional' not in chip_data or chip_data['institutional'].empty:
-                    chip_data['institutional'] = inst_df
+                # 1st: use pre-fetched TWSE/TPEX batch for institutional (no FinMind cost)
+                batch = getattr(self, '_inst_batch', {})
+                if stock_id in batch:
+                    chip_data = {'institutional': batch[stock_id]}
+                else:
+                    # 2nd: fallback to FinMind (institutional + margin + day_trading + shareholding)
+                    try:
+                        from chip_analysis import ChipAnalyzer
+                        ca = ChipAnalyzer()
+                        chip_data, _ = ca.get_chip_data(stock_id)
+                    except Exception:
+                        pass
 
         # 4. Run analysis
         try:
