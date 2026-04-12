@@ -1373,8 +1373,8 @@ elif st.session_state.get('analysis_active', False):
 
 
         # 顯示圖表
-        tab1, tab2, tab3, tab4, tab5, tab6, tab_ai = st.tabs(
-            ["週K", "日K", "籌碼面", "🏢 基本面", "🔮 情緒/期權", "📊 除息/營收", "🤖 AI 研究報告"])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+            ["週K", "日K", "籌碼面", "🏢 基本面", "🔮 情緒/期權", "📊 除息/營收"])
         
         with tab1:
             if 'Weekly' in figures:
@@ -2489,59 +2489,6 @@ elif st.session_state.get('analysis_active', False):
 
                 except ImportError:
                     st.info("dividend_revenue 模組尚未安裝")
-
-        # ==========================================
-        # AI 研究報告 Tab
-        # ==========================================
-        with tab_ai:
-            st.markdown("##### Claude AI 深度研究報告")
-            st.caption("基於系統所有數據（技術/籌碼/基本面/Regime），由 Claude 生成專業研究報告")
-
-            # 初始化 session state
-            if 'ai_report_cache' not in st.session_state:
-                st.session_state['ai_report_cache'] = {}
-
-            _ai_cache_key = display_ticker
-            _cached_report = st.session_state['ai_report_cache'].get(_ai_cache_key)
-
-            _ai_run = st.button("生成 AI 研究報告", key='ai_report_btn')
-
-            if _ai_run:
-                with st.spinner("Claude AI 分析中，請稍候..."):
-                    try:
-                        from ai_report import generate_report, save_report
-                        _success, _content = generate_report(
-                            ticker=display_ticker,
-                            report=report,
-                            chip_data=chip_data,
-                            us_chip_data=us_chip_data,
-                            fund_data=fund_data,
-                            df_day=st.session_state.get('df_day_cache'),
-                        )
-                        if _success:
-                            st.session_state['ai_report_cache'][_ai_cache_key] = _content
-                            # Auto-save to report library
-                            save_report(
-                                display_ticker, _content,
-                                trigger_score=report.get('trigger_score'),
-                                trend_score=report.get('trend_score'),
-                            )
-                        else:
-                            st.error(_content)
-                    except Exception as e:
-                        st.error(f"AI 報告生成失敗: {e}")
-
-            # 顯示報告 (從 cache 或剛生成的)
-            _display_report = st.session_state['ai_report_cache'].get(_ai_cache_key)
-            if _display_report:
-                st.markdown("---")
-                st.markdown(_display_report)
-                st.markdown("---")
-                st.caption("此報告由 Claude AI 基於系統數據自動生成，僅供參考，不構成投資建議。")
-            elif not _ai_run:
-                st.info("點擊「生成 AI 研究報告」開始分析。\n\n"
-                        "報告將包含：核心摘要、技術面總覽、籌碼面分析、基本面與體質、"
-                        "市場環境、多空對照、投資建議、資訊空白與不確定性。")
 
         # ==========================================
         # 6. 策略回測系統 (Strategy Backtester)
