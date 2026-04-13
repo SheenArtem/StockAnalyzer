@@ -105,7 +105,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.13.1")
+    st.caption("Version: v2026.04.13.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -1517,6 +1517,47 @@ elif st.session_state.get('analysis_active', False):
                          elif not df_m.empty:
                              st.warning("⚠️ 檢測到舊的快取數據，缺少「融資限額」欄位。請勾選側邊欄的 **強制更新數據 (Force Update)** 以取得最新資料。")
 
+                         # [NEW] SBL (借券賣出) — 法人放空管道
+                         df_sbl = chip_data.get('sbl', pd.DataFrame())
+                         if not df_sbl.empty and '借券賣出餘額' in df_sbl.columns:
+                             try:
+                                 latest_sbl = df_sbl.iloc[-1]
+                                 bal_sbl = latest_sbl.get('借券賣出餘額', 0) / 1000  # 股 -> 張
+                                 sold_today = latest_sbl.get('借券賣出', 0) / 1000
+
+                                 # 5 日累計
+                                 recent5 = df_sbl.iloc[-5:] if len(df_sbl) >= 5 else df_sbl
+                                 net5d = (recent5['借券賣出'].sum() - recent5['借券還券'].sum()) / 1000
+
+                                 # 趨勢判斷：餘額 vs 30 日平均
+                                 if len(df_sbl) >= 30:
+                                     ma30_bal = df_sbl['借券賣出餘額'].iloc[-30:].mean() / 1000
+                                     trend_pct = (bal_sbl / ma30_bal - 1) * 100 if ma30_bal > 0 else 0
+                                 else:
+                                     trend_pct = 0
+
+                                 st.markdown("#### 🏦 借券賣出 (法人放空)")
+                                 c_s1, c_s2, c_s3 = st.columns(3)
+                                 c_s1.metric("借券餘額", f"{bal_sbl:,.0f} 張")
+                                 c_s2.metric("當日新借", f"{sold_today:,.0f} 張")
+
+                                 if net5d > 0:
+                                     net_label = f"⚠️ 法人加空 (+{net5d:,.0f})"
+                                     net_color = "inverse"
+                                 elif net5d < 0:
+                                     net_label = f"✅ 法人回補 ({net5d:,.0f})"
+                                     net_color = "normal"
+                                 else:
+                                     net_label = "持平"
+                                     net_color = "off"
+                                 c_s3.metric("5日淨增", f"{net5d:+,.0f} 張", delta=net_label, delta_color=net_color)
+
+                                 if abs(trend_pct) > 1:
+                                     trend_emoji = "📈" if trend_pct > 0 else "📉"
+                                     st.caption(f"{trend_emoji} 借券餘額相對近 30 日均值 {trend_pct:+.1f}%")
+                             except Exception as e:
+                                 st.caption(f"借券數據計算異常: {e}")
+
                          # [NEW] Day Trading Rate (當沖率)
                          df_dt = chip_data.get('day_trading')
                          if df_dt is not None and not df_dt.empty and not df_day.empty:
@@ -1626,25 +1667,37 @@ elif st.session_state.get('analysis_active', False):
                          
                          df_inst = chip_data.get('institutional', pd.DataFrame())
                          df_margin = chip_data.get('margin', pd.DataFrame())
-                         
+                         df_sbl_chart = chip_data.get('sbl', pd.DataFrame())
+
                          # Data Slicing (Last 120 days for clear view)
                          days_show = 120
                          df_inst_plot = df_inst.iloc[-days_show:] if not df_inst.empty else pd.DataFrame()
                          df_margin_plot = df_margin.iloc[-days_show:] if not df_margin.empty else pd.DataFrame()
-                         
+                         df_sbl_plot = df_sbl_chart.iloc[-days_show:] if not df_sbl_chart.empty else pd.DataFrame()
+
                          if not df_inst_plot.empty:
                              # Import Plotly
                              import plotly.graph_objects as go
                              from plotly.subplots import make_subplots
-                             
-                             # Create Subplots: Row 1 = Investors (Bar), Row 2 = Margin (Line)
-                             fig_chip = make_subplots(
-                                 rows=2, cols=1,
-                                 shared_xaxes=True,
-                                 vertical_spacing=0.05,
-                                 subplot_titles=("三大法人買賣超 (張)", "融資融券餘額 (張)"),
-                                 row_heights=[0.6, 0.4]
-                             )
+
+                             # Create Subplots: Row 1 = Investors, Row 2 = Margin, Row 3 = SBL
+                             has_sbl = not df_sbl_plot.empty and '借券賣出餘額' in df_sbl_plot.columns
+                             if has_sbl:
+                                 fig_chip = make_subplots(
+                                     rows=3, cols=1,
+                                     shared_xaxes=True,
+                                     vertical_spacing=0.04,
+                                     subplot_titles=("三大法人買賣超 (張)", "融資融券餘額 (張)", "借券賣出餘額 (張)"),
+                                     row_heights=[0.5, 0.25, 0.25]
+                                 )
+                             else:
+                                 fig_chip = make_subplots(
+                                     rows=2, cols=1,
+                                     shared_xaxes=True,
+                                     vertical_spacing=0.05,
+                                     subplot_titles=("三大法人買賣超 (張)", "融資融券餘額 (張)"),
+                                     row_heights=[0.6, 0.4]
+                                 )
                              
                              # Utils for color
                              def get_color(val): return 'red' if val > 0 else 'green'
@@ -1702,9 +1755,30 @@ elif st.session_state.get('analysis_active', False):
                                      hovertemplate="融券: %{y:,.0f} 張<extra></extra>"
                                  ), row=2, col=1)
 
+                             # --- Row 3: SBL (借券賣出) ---
+                             if has_sbl:
+                                 sbl_bal_zhang = df_sbl_plot['借券賣出餘額'] / 1000
+                                 fig_chip.add_trace(go.Scatter(
+                                     x=df_sbl_plot.index, y=sbl_bal_zhang,
+                                     name='借券餘額', mode='lines',
+                                     line=dict(color='purple', width=2),
+                                     fill='tozeroy', fillcolor='rgba(128,0,128,0.1)',
+                                     hovertemplate="借券餘額: %{y:,.0f} 張<extra></extra>"
+                                 ), row=3, col=1)
+
+                                 # Daily new shorts (bar)
+                                 if '借券賣出' in df_sbl_plot.columns:
+                                     daily_short = df_sbl_plot['借券賣出'] / 1000
+                                     fig_chip.add_trace(go.Bar(
+                                         x=df_sbl_plot.index, y=daily_short,
+                                         name='當日新借', marker_color='rgba(255,140,0,0.6)',
+                                         yaxis='y4',
+                                         hovertemplate="當日新借: %{y:,.0f} 張<extra></extra>"
+                                     ), row=3, col=1)
+
                              # Layout
                              fig_chip.update_layout(
-                                 height=600,
+                                 height=750 if has_sbl else 600,
                                  hovermode='x unified', # Key requirement: Unified Hover
                                  barmode='group',
                                  bargap=0.3,  # 增加柱狀圖之間的間隙（0-1之間，0.3表示30%間隙）
