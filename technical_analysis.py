@@ -468,20 +468,28 @@ def load_and_resample(source, force_update=False):
             # Download only new data — 台股優先 FinMind，美股用 yfinance
             new_df = pd.DataFrame()
             incremental_failed = False
+            # Skip yfinance if start_date_new is past UTC today — yfinance uses
+            # UTC for its default "end=today" and will error with start>end when
+            # the scanner runs past local midnight but before UTC midnight
+            # (e.g., 00:00-08:00 TW time on day D means UTC is still day D-1).
+            today_utc = datetime.datetime.now(datetime.timezone.utc).date()
+            start_dt_parsed = datetime.datetime.strptime(start_date_new, '%Y-%m-%d').date()
+            yf_would_error = start_dt_parsed > today_utc
             try:
                 if raw_input.isdigit():
                      # 台股: FinMind 優先 (格式乾淨，無多層 header 問題)
                      new_df = fetch_from_finmind(raw_input, start_date=start_date_new)
-                     if new_df.empty:
+                     if new_df.empty and not yf_would_error:
                          # Fallback: yfinance
                          try_ticker = f"{raw_input}.TW"
                          new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False, timeout=30)
                          if new_df.empty:
                              try_ticker = f"{raw_input}.TWO"
                              new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False, timeout=30)
-                else:
+                elif not yf_would_error:
                      # 美股: yfinance
                      new_df = yf.download(raw_input, start=start_date_new, interval='1d', progress=False, auto_adjust=False, timeout=30)
+                # else: start_dt is beyond UTC today, skip yf (no data possible anyway)
             except Exception as e:
                 print(f"⚠️ 增量更新失敗 ({e})，將嘗試完整重抓...")
                 incremental_failed = True

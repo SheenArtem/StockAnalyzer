@@ -21,7 +21,9 @@ echo [%date% %time%] Scanner started >> scanner.log
 
 REM Run both momentum + value screener, all markets (with chip data for accuracy)
 python scanner_job.py --mode both --market all --push --notify >> scanner.log 2>&1
+set PY_EXIT=%ERRORLEVEL%
 
-REM Log end time
-echo [%date% %time%] Scanner finished >> scanner.log
+REM Log end time (include python exit code so Task Scheduler shows non-zero on failure)
+echo [%date% %time%] Scanner finished (exit=%PY_EXIT%) >> scanner.log
 echo. >> scanner.log
+exit /b %PY_EXIT%
