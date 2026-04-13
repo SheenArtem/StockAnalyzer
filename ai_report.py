@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 # Prompt 模板路徑
 _PROMPT_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'stock_analysis_system.md')
+_DASHBOARD_PROMPT_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'stock_analysis_dashboard.md')
+_DASHBOARD_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'report_dashboard_template.html')
 
 
 def _load_system_prompt():
@@ -22,6 +24,26 @@ def _load_system_prompt():
             return f.read()
     except FileNotFoundError:
         logger.error("System prompt template not found: %s", _PROMPT_TEMPLATE_PATH)
+        return ""
+
+
+def _load_dashboard_prompt():
+    """載入儀表板模式的 system prompt"""
+    try:
+        with open(_DASHBOARD_PROMPT_PATH, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.error("Dashboard prompt not found: %s", _DASHBOARD_PROMPT_PATH)
+        return ""
+
+
+def _load_dashboard_template():
+    """載入儀表板 HTML 模板"""
+    try:
+        with open(_DASHBOARD_TEMPLATE_PATH, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.error("Dashboard template not found: %s", _DASHBOARD_TEMPLATE_PATH)
         return ""
 
 
@@ -831,6 +853,160 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 
 
 # ================================================================
+# Dashboard Mode — 輸出 HTML 互動儀表板
+# ================================================================
+
+def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
+    """組裝儀表板模式 prompt（要求 Claude 輸出 JSON）"""
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    system_prompt = _load_dashboard_prompt()
+
+    data_sections = [
+        f"[STOCK_INFO]\n{_build_stock_info(ticker, report, fund_data, df_day)}",
+        f"[TRIGGER_SCORE]\n{_build_trigger_score(report)}",
+        f"[TRIGGER_DETAILS]\n{_build_trigger_details(report)}",
+        f"[TECHNICAL_DATA]\n{_build_technical_data(df_day)}",
+        f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us)}",
+        f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data, ticker)}",
+        f"[MARKET_CONTEXT]\n{_build_market_context(report)}",
+        f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}",
+        f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}",
+        f"[PTT_SENTIMENT]\n{_build_ptt_sentiment(ticker)}",
+        f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}",
+        f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}",
+        f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}",
+    ]
+    data_block = "\n\n".join(data_sections)
+
+    stock_name = ''
+    if fund_data:
+        for key in ['stock_name', 'Name', 'shortName']:
+            val = fund_data.get(key, '')
+            if val and str(val) not in ('', 'N/A', 'None'):
+                stock_name = str(val)
+                break
+
+    stock_id = ticker.replace('.TW', '') if not is_us else ticker
+
+    full_prompt = f"""{system_prompt}
+
+---
+
+# 以下是 StockPulse 系統提供的 {ticker} ({stock_name}) 完整分析數據
+
+{data_block}
+
+---
+
+## 你的任務
+
+1. **可選搜尋補充**（2-3 次即可）:
+   - "{stock_id} {stock_name} 產業趨勢 2026"
+   - "{stock_id} 競爭對手 比較"
+   - 美股: "{ticker} industry outlook 2026"
+
+2. **輸出嚴格符合 schema 的純 JSON**，必含 5 個頂層物件：meta / summary / technical / chip / valuation / bull_bear
+
+3. **第一個字元必為 `{{`，最後一個字元必為 `}}`**。禁止輸出 markdown 程式碼圍欄、說明文字、或任何非 JSON 內容。"""
+
+    return full_prompt
+
+
+def _extract_json_from_output(text):
+    """從 Claude 輸出提取 JSON。處理常見污染（markdown 圍欄、前後文字）。"""
+    text = text.strip()
+    # 剝除 markdown 程式碼圍欄
+    if text.startswith('```'):
+        # 移除第一行（```json 或 ```）
+        first_nl = text.find('\n')
+        if first_nl > 0:
+            text = text[first_nl+1:]
+        # 移除尾部圍欄
+        text = text.rstrip()
+        if text.endswith('```'):
+            text = text[:-3].rstrip()
+    # 若前後還有非 JSON 文字，嘗試找第一個 { 和最後一個 }
+    if not text.startswith('{'):
+        first_brace = text.find('{')
+        if first_brace >= 0:
+            text = text[first_brace:]
+    if not text.endswith('}'):
+        last_brace = text.rfind('}')
+        if last_brace >= 0:
+            text = text[:last_brace+1]
+    return text
+
+
+def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_day,
+                         timeout=None):
+    """
+    生成 HTML 互動儀表板報告。
+
+    Returns:
+        tuple: (success: bool, html_or_error_msg: str, json_data: dict | None)
+    """
+    prompt = assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day)
+    logger.info("Dashboard prompt assembled for %s (%d chars)", ticker, len(prompt))
+
+    try:
+        result = subprocess.run(
+            ["claude", "-p",
+             "--allowedTools", "WebSearch,WebFetch",
+             "--output-format", "text"],
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            encoding='utf-8',
+        )
+
+        if result.returncode != 0:
+            err = result.stderr.strip() if result.stderr else "Unknown error"
+            logger.error("Claude CLI error: %s", err)
+            return False, f"Claude CLI 錯誤 (exit code {result.returncode}):\n{err}", None
+
+        raw_output = result.stdout.strip()
+        if not raw_output:
+            return False, "Claude CLI 回傳空白結果", None
+
+        # 提取 + 解析 JSON
+        json_text = _extract_json_from_output(raw_output)
+        try:
+            data = json.loads(json_text)
+        except json.JSONDecodeError as e:
+            logger.error("JSON parse failed: %s", e)
+            logger.error("First 1000 chars of output: %s", json_text[:1000])
+            return False, f"Claude 回傳的 JSON 格式錯誤: {e}\n\n前 1000 字:\n{json_text[:1000]}", None
+
+        # 驗證必要欄位
+        required = ['meta', 'summary', 'technical', 'chip', 'valuation', 'bull_bear']
+        missing = [k for k in required if k not in data]
+        if missing:
+            return False, f"JSON 缺少必要欄位: {missing}", data
+
+        # 注入 HTML 模板
+        template = _load_dashboard_template()
+        if not template:
+            return False, "HTML 模板載入失敗", data
+
+        meta = data.get('meta', {})
+        title = f"{meta.get('ticker', ticker)} {meta.get('name', '')} 研究報告"
+        html = template.replace('__TITLE__', title)
+        html = html.replace('__REPORT_JSON__', json.dumps(data, ensure_ascii=False))
+
+        logger.info("HTML dashboard generated for %s (%d bytes)", ticker, len(html))
+        return True, html, data
+
+    except subprocess.TimeoutExpired:
+        return False, f"Claude CLI 逾時 ({timeout} 秒)", None
+    except FileNotFoundError:
+        return False, "找不到 claude 指令。請確認已安裝 Claude Code CLI", None
+    except Exception as e:
+        logger.error("HTML report generation failed: %s", e, exc_info=True)
+        return False, f"生成失敗: {e}", None
+
+
+# ================================================================
 # Report Library — Save / Load / List
 # ================================================================
 
@@ -844,7 +1020,7 @@ def _ensure_reports_dir():
 
 def save_report(ticker, content, trigger_score=None, trend_score=None, value_score=None):
     """
-    Save a generated report to the library.
+    Save a markdown report to the library.
 
     Returns:
         str: report_id
@@ -868,6 +1044,7 @@ def save_report(ticker, content, trigger_score=None, trend_score=None, value_sco
         'date': now.strftime('%Y-%m-%d'),
         'time': now.strftime('%H:%M:%S'),
         'filename': filename,
+        'format': 'md',
         'trigger_score': trigger_score,
         'trend_score': trend_score,
         'value_score': value_score,
@@ -877,6 +1054,54 @@ def save_report(ticker, content, trigger_score=None, trend_score=None, value_sco
         json.dump(index, f, ensure_ascii=False, indent=2)
 
     logger.info("Report saved: %s", report_id)
+    return report_id
+
+
+def save_report_html(ticker, html_content, trigger_score=None, trend_score=None,
+                     value_score=None, json_data=None):
+    """
+    Save an HTML dashboard report to the library.
+    選擇性把 JSON 原始資料一併保存（sidecar .json，利於日後換模板重新渲染）。
+
+    Returns:
+        str: report_id
+    """
+    _ensure_reports_dir()
+
+    now = datetime.now()
+    report_id = f"{ticker}_{now.strftime('%Y%m%d_%H%M%S')}"
+    filename = f"{report_id}.html"
+    filepath = os.path.join(_REPORTS_DIR, filename)
+
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(html_content)
+
+    # Sidecar JSON (便於重新渲染 / 版本比對)
+    if json_data is not None:
+        try:
+            json_path = os.path.join(_REPORTS_DIR, f"{report_id}.json")
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, ensure_ascii=False, indent=2)
+        except Exception as _e:
+            logger.warning("Sidecar JSON save failed: %s", _e)
+
+    index = load_report_index()
+    index.append({
+        'report_id': report_id,
+        'ticker': ticker,
+        'date': now.strftime('%Y-%m-%d'),
+        'time': now.strftime('%H:%M:%S'),
+        'filename': filename,
+        'format': 'html',
+        'trigger_score': trigger_score,
+        'trend_score': trend_score,
+        'value_score': value_score,
+    })
+
+    with open(_INDEX_PATH, 'w', encoding='utf-8') as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+
+    logger.info("HTML Report saved: %s", report_id)
     return report_id
 
 
@@ -892,21 +1117,55 @@ def load_report_index():
 
 
 def load_report_content(report_id):
-    """Load a report's markdown content by report_id."""
-    filename = f"{report_id}.md"
-    filepath = os.path.join(_REPORTS_DIR, filename)
-    if os.path.exists(filepath):
-        with open(filepath, 'r', encoding='utf-8') as f:
-            return f.read()
+    """
+    Load a report's content by report_id. 支援 .md 與 .html 兩種格式。
+    會優先從 index 查 filename，查不到再 fallback 用副檔名猜測。
+    """
+    # 優先查 index
+    index = load_report_index()
+    for r in index:
+        if r.get('report_id') == report_id:
+            filename = r.get('filename', f"{report_id}.md")
+            filepath = os.path.join(_REPORTS_DIR, filename)
+            if os.path.exists(filepath):
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    return f.read()
+            break
+    # Fallback: 嘗試兩種副檔名
+    for ext in ('md', 'html'):
+        filepath = os.path.join(_REPORTS_DIR, f"{report_id}.{ext}")
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                return f.read()
+    return None
+
+
+def get_report_filepath(report_id):
+    """回傳報告的絕對路徑（供『在瀏覽器開啟』功能使用）。"""
+    index = load_report_index()
+    for r in index:
+        if r.get('report_id') == report_id:
+            filename = r.get('filename', f"{report_id}.md")
+            filepath = os.path.join(_REPORTS_DIR, filename)
+            if os.path.exists(filepath):
+                return filepath
+            break
+    for ext in ('html', 'md'):
+        filepath = os.path.join(_REPORTS_DIR, f"{report_id}.{ext}")
+        if os.path.exists(filepath):
+            return filepath
     return None
 
 
 def delete_report(report_id):
-    """Delete a report from the library."""
-    filename = f"{report_id}.md"
-    filepath = os.path.join(_REPORTS_DIR, filename)
-    if os.path.exists(filepath):
-        os.remove(filepath)
+    """Delete a report (both .md / .html / sidecar .json) from the library."""
+    for ext in ('md', 'html', 'json'):
+        filepath = os.path.join(_REPORTS_DIR, f"{report_id}.{ext}")
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception as _e:
+                logger.warning("Failed to remove %s: %s", filepath, _e)
 
     index = load_report_index()
     index = [r for r in index if r['report_id'] != report_id]
