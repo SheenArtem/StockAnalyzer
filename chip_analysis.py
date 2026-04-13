@@ -31,21 +31,24 @@ class ChipAnalyzer:
         cache_key_inst = f"{stock_id}_inst"
         cache_key_margin = f"{stock_id}_margin"
         cache_key_dt = f"{stock_id}_day_trading"
-        cache_key_sh = f"{stock_id}_shareholding" # [NEW]
-        
+        cache_key_sh = f"{stock_id}_shareholding"
+        cache_key_sbl = f"{stock_id}_sbl"
+
         df_inst, stat_inst, date_inst = cm.load_cache(cache_key_inst, 'chip', force_reload=force_update)
         df_margin, stat_margin, date_margin = cm.load_cache(cache_key_margin, 'chip', force_reload=force_update)
         df_dt, stat_dt, date_dt = cm.load_cache(cache_key_dt, 'chip', force_reload=force_update)
-        df_sh, stat_sh, date_sh = cm.load_cache(cache_key_sh, 'chip', force_reload=force_update) # [NEW]
-        
+        df_sh, stat_sh, date_sh = cm.load_cache(cache_key_sh, 'chip', force_reload=force_update)
+        df_sbl, stat_sbl, date_sbl = cm.load_cache(cache_key_sbl, 'chip', force_reload=force_update)
+
         # 判斷是否為「完全命中」
-        if stat_inst == "hit" and stat_margin == "hit" and stat_dt == "hit" and stat_sh == "hit":
+        if stat_inst == "hit" and stat_margin == "hit" and stat_dt == "hit" and stat_sh == "hit" and stat_sbl == "hit":
             print(f"⚡ [Cache Hit] 讀取 {stock_id} 籌碼快取")
             if not df_inst.empty: df_inst.index = pd.to_datetime(df_inst.index)
             if not df_margin.empty: df_margin.index = pd.to_datetime(df_margin.index)
             if not df_dt.empty: df_dt.index = pd.to_datetime(df_dt.index)
             if not df_sh.empty: df_sh.index = pd.to_datetime(df_sh.index)
-            return {"institutional": df_inst, "margin": df_margin, "day_trading": df_dt, "shareholding": df_sh}, None
+            if not df_sbl.empty: df_sbl.index = pd.to_datetime(df_sbl.index)
+            return {"institutional": df_inst, "margin": df_margin, "day_trading": df_dt, "shareholding": df_sh, "sbl": df_sbl}, None
 
         # 準備增量或全量抓取
         print(f"🔍 正在抓取 {stock_id} 籌碼數據...")
@@ -270,7 +273,57 @@ class ChipAnalyzer:
             logger.warning(f"Shareholding data fetch failed for {stock_id}: {e}")
             errors.append(f"持股: {e}")
 
-        # --- All 4 failed: return error ---
+        # --- 5. Securities Lending (借券賣出) ---
+        try:
+            if stat_sbl == "partial" and date_sbl:
+                start_date_sbl = (date_sbl + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+                print(f"   ↳ 增量更新借券數據 (從 {start_date_sbl})...")
+            else:
+                start_date_sbl = '2016-01-01'
+                print(f"   ↳ 全量下載借券數據...")
+
+            raw_sbl = self.dl.get_data(
+                dataset="TaiwanDailyShortSaleBalances",
+                data_id=stock_id,
+                start_date=start_date_sbl
+            )
+
+            processed_sbl = pd.DataFrame()
+            if not raw_sbl.empty and 'date' in raw_sbl.columns:
+                raw_sbl['date'] = pd.to_datetime(raw_sbl['date'])
+                raw_sbl.set_index('date', inplace=True)
+                keep_cols = [
+                    'SBLShortSalesCurrentDayBalance',
+                    'SBLShortSalesShortSales',
+                    'SBLShortSalesReturns',
+                    'SBLShortSalesAdjustments',
+                ]
+                avail_cols = [c for c in keep_cols if c in raw_sbl.columns]
+                if avail_cols:
+                    processed_sbl = raw_sbl[avail_cols].copy()
+                    col_map = {
+                        'SBLShortSalesCurrentDayBalance': '借券賣出餘額',
+                        'SBLShortSalesShortSales': '借券賣出',
+                        'SBLShortSalesReturns': '借券還券',
+                        'SBLShortSalesAdjustments': '借券調整',
+                    }
+                    processed_sbl.rename(columns=col_map, inplace=True)
+
+            if stat_sbl == "partial" and not df_sbl.empty:
+                df_sbl.index = pd.to_datetime(df_sbl.index)
+                if not processed_sbl.empty:
+                    df_sbl = pd.concat([df_sbl, processed_sbl])
+                    df_sbl = df_sbl[~df_sbl.index.duplicated(keep='last')]
+                    df_sbl.sort_index(inplace=True)
+            else:
+                df_sbl = processed_sbl
+
+            results['sbl'] = df_sbl
+        except Exception as e:
+            logger.warning(f"SBL data fetch failed for {stock_id}: {e}")
+            errors.append(f"借券: {e}")
+
+        # --- All failed: return error ---
         if not results:
             combined_err = "; ".join(errors)
             return None, f"FinMind 資料抓取全部失敗: {combined_err}"
@@ -284,6 +337,8 @@ class ChipAnalyzer:
             cm.save_cache(cache_key_dt, results['day_trading'], 'chip')
         if 'shareholding' in results and not results['shareholding'].empty:
             cm.save_cache(cache_key_sh, results['shareholding'], 'chip')
+        if 'sbl' in results and not results['sbl'].empty:
+            cm.save_cache(cache_key_sbl, results['sbl'], 'chip')
 
         # --- Return partial results with combined error string (or None if no errors) ---
         error_str = "; ".join(errors) if errors else None
