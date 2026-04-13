@@ -2,3 +2,5 @@
 history/
 # Scan checkpoints (temporary, auto-cleaned on completion)
 .checkpoints/
+# Tracking data (local performance tracking state, grows over time)
+tracking/
