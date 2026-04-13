@@ -191,6 +191,9 @@ class ValueScreener:
         if market_df.empty:
             return pd.DataFrame()
 
+        # 排除 ETF (台股 ETF 以 "00" 開頭，如 0050/0056/0061)
+        market_df = market_df[~market_df['stock_id'].str.startswith('00')].copy()
+
         total_market = len(market_df)
 
         pe_df = api.get_pe_dividend_all_combined()
@@ -299,10 +302,11 @@ class ValueScreener:
         from momentum_screener import MomentumScreener
         cfg = self.config
 
-        # Reuse S&P 500 list from momentum screener
+        # Reuse S&P 500 list from momentum screener (共用 _US_ETF_EXCLUDE 防禦 set)
         tickers = MomentumScreener._fetch_sp500()
         if not tickers:
             return pd.DataFrame()
+        tickers = [t for t in tickers if t not in MomentumScreener._US_ETF_EXCLUDE]
 
         self.progress(f"  Downloading {len(tickers)} US tickers (2-day data)...")
         try:

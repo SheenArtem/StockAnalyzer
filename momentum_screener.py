@@ -163,6 +163,10 @@ class MomentumScreener:
             if exclude:
                 passed = passed[~passed['stock_id'].isin(exclude)]
 
+            # 5. 排除 ETF (台股 ETF 以 "00" 開頭，如 0050/0056/0061；
+            #    5+ 位 ETF 如 00878/006208 已被 twse_api len==4 上游擋掉)
+            passed = passed[~passed['stock_id'].str.startswith('00')]
+
             results.append(passed)
 
         if not results:
@@ -177,18 +181,29 @@ class MomentumScreener:
     # US Market: Fetch + Filter
     # ================================================================
 
+    # 防禦性排除常見美股 ETF（S&P 500 / Nasdaq 100 清單本身是成分公司，
+    # 不含 ETF，但若未來 us_universe 改用其他清單，這層過濾可避免 ETF 混入）
+    _US_ETF_EXCLUDE = frozenset({
+        'SPY', 'IVV', 'VOO', 'QQQ', 'DIA', 'IWM', 'VTI', 'VEA', 'VWO',
+        'ARKK', 'ARKG', 'ARKW', 'ARKF', 'ARKQ', 'RSP', 'XLK', 'XLF',
+        'XLE', 'XLV', 'XLY', 'XLP', 'XLI', 'XLU', 'XLB', 'XLRE', 'XLC',
+        'SMH', 'SOXX', 'TQQQ', 'SQQQ', 'UPRO', 'SPXL', 'GLD', 'SLV',
+        'TLT', 'HYG', 'LQD', 'EEM', 'EFA', 'FXI', 'GDX', 'USO', 'UNG',
+    })
+
     def _get_us_universe(self):
-        """Get list of US stock tickers based on config."""
+        """Get list of US stock tickers based on config (ETF excluded)."""
         universe = self.config.get('us_universe', 'sp500')
 
         if isinstance(universe, list):
-            return universe
+            tickers = universe
+        elif universe == 'nasdaq100':
+            tickers = self._fetch_nasdaq100()
+        else:
+            # Default: S&P 500
+            tickers = self._fetch_sp500()
 
-        if universe == 'nasdaq100':
-            return self._fetch_nasdaq100()
-
-        # Default: S&P 500
-        return self._fetch_sp500()
+        return [t for t in tickers if t not in self._US_ETF_EXCLUDE]
 
     @staticmethod
     def _fetch_sp500():
