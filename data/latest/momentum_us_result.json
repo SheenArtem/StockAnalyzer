@@ -1,11 +1,11 @@
 {
-  "scan_date": "2026-04-13",
-  "scan_time": "00:12",
+  "scan_date": "2026-04-14",
+  "scan_time": "00:18",
   "market": "us",
   "total_scanned": 503,
-  "passed_initial": 286,
+  "passed_initial": 219,
   "scored_count": 50,
-  "elapsed_seconds": 944.1,
+  "elapsed_seconds": 556.4,
   "failures": [],
   "config": {
     "momentum_change_min": -1.0,
@@ -13,959 +13,20 @@
   },
   "results": [
     {
-      "stock_id": "FRT",
-      "name": "FRT",
-      "market": "us",
-      "price": 109.05000305175781,
-      "change_pct": 1.55,
-      "trading_value": 223737891,
-      "avg_trading_value_5d": 136006588,
-      "trigger_score": 9.68,
-      "trend_score": 5,
-      "score_percentile": 98.7,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "rvol_high",
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "🔄 Supertrend 空轉多翻轉！(+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "🔊 爆量確認 RVOL=1.9x (z=2.1) (+1.0)",
-        "🔥 EFI 資金異常流入 (z=2.6) [異常]",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買24/賣0) (+1.5)",
-        "✅ 空頭大幅回補 (-99.5%) (+0.5)",
-        "📊 機構持股 99.7% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "STZ",
-      "name": "STZ",
-      "market": "us",
-      "price": 166.14999389648438,
-      "change_pct": 1.89,
-      "trading_value": 626186096,
-      "avg_trading_value_5d": 524444824,
-      "trigger_score": 8.58,
-      "trend_score": 5,
-      "score_percentile": 97.6,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現底背離 (+1.0)",
-        "📊 RVOL=1.6x (z=1.5) (+0.99)",
-        "🔥 EFI 資金異常流入 (z=2.4) [異常]",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買73/賣0) (+1.5)",
-        "📊 機構持股 78.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "LII",
-      "name": "LII",
-      "market": "us",
-      "price": 505.30999755859375,
-      "change_pct": 3.4,
-      "trading_value": 265338279,
-      "avg_trading_value_5d": 169755690,
-      "trigger_score": 7.44,
-      "trend_score": -3.5,
-      "score_percentile": 95.6,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "🔄 Supertrend 空轉多翻轉！(+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買99/賣0) (+1.5)",
-        "📊 機構持股 75.6% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "AMAT",
-      "name": "AMAT",
-      "market": "us",
-      "price": 399.489990234375,
-      "change_pct": 0.42,
-      "trading_value": 2555697263,
-      "avg_trading_value_5d": 1988982266,
-      "trigger_score": 7.41,
-      "trend_score": 4.5,
-      "score_percentile": 95.5,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現強烈底背離 (+1.5)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買64/賣0) (+1.5)",
-        "📊 機構持股 85.4% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "TER",
-      "name": "TER",
-      "market": "us",
-      "price": 367.989990234375,
-      "change_pct": 1.04,
-      "trading_value": 1145258447,
-      "avg_trading_value_5d": 1204948991,
-      "trigger_score": 7.36,
-      "trend_score": 5,
-      "score_percentile": 95.4,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現強烈底背離 (+1.5)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買104/賣0) (+1.5)",
-        "📊 機構持股 98.4% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "AMZN",
-      "name": "AMZN",
-      "market": "us",
-      "price": 238.3800048828125,
-      "change_pct": 2.02,
-      "trading_value": 13550043913,
-      "avg_trading_value_5d": 10321891744,
-      "trigger_score": 7.28,
-      "trend_score": 5,
-      "score_percentile": 95.3,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=1.3x (z=0.7) (+0.44)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買150/賣0) (+1.5)",
-        "📊 機構持股 67.1% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "REG",
-      "name": "REG",
-      "market": "us",
-      "price": 78.4000015258789,
-      "change_pct": 0.06,
-      "trading_value": 115671362,
-      "avg_trading_value_5d": 102574825,
-      "trigger_score": 7.27,
-      "trend_score": 5,
-      "score_percentile": 95.2,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=46.6) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買77/賣0) (+1.5)",
-        "📊 機構持股 103.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "SBAC",
-      "name": "SBAC",
-      "market": "us",
-      "price": 223.75,
-      "change_pct": 2.42,
-      "trading_value": 348244500,
-      "avg_trading_value_5d": 528750148,
-      "trigger_score": 7.22,
-      "trend_score": 4,
-      "score_percentile": 95.1,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=58.2) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "🔥 EFI 資金異常流入 (z=4.9) [異常]",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買77/賣0) (+1.5)",
-        "📊 機構持股 100.0% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "O",
-      "name": "O",
-      "market": "us",
-      "price": 63.75,
-      "change_pct": 0.87,
-      "trading_value": 355406250,
-      "avg_trading_value_5d": 335589719,
-      "trigger_score": 7.06,
-      "trend_score": 3.5,
-      "score_percentile": 94.7,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "🔄 Supertrend 空轉多翻轉！(+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買43/賣0) (+1.5)",
-        "📊 機構持股 80.0% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "SMCI",
-      "name": "SMCI",
-      "market": "us",
-      "price": 25.260000228881836,
-      "change_pct": 8.79,
-      "trading_value": 1097875389,
-      "avg_trading_value_5d": 720249930,
-      "trigger_score": 7.01,
-      "trend_score": -3.5,
-      "score_percentile": 94.6,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📉 Supertrend 空頭趨勢 (-1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=52.4) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買128/賣0) (+1.5)",
-        "⚠️ 空頭比例偏高 (19.7%) [資訊]",
-        "📊 機構持股 56.3% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "IBKR",
-      "name": "IBKR",
-      "market": "us",
-      "price": 71.20999908447266,
-      "change_pct": -1.0,
-      "trading_value": 263334576,
-      "avg_trading_value_5d": 278576507,
-      "trigger_score": 6.96,
-      "trend_score": 0.5,
-      "score_percentile": 94.5,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "💎 MACD 出現【底背離】訊號 (+2)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現強烈底背離 (+1.5)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買63/賣0) (+1.5)",
-        "📊 機構持股 88.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "AMT",
-      "name": "AMT",
-      "market": "us",
-      "price": 179.2899932861328,
-      "change_pct": -0.36,
-      "trading_value": 570088391,
-      "avg_trading_value_5d": 580483742,
-      "trigger_score": 6.83,
-      "trend_score": 0,
-      "score_percentile": 94.1,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📉 Supertrend 空頭趨勢 (-1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=43.6) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買76/賣0) (+1.5)",
-        "📊 機構持股 96.0% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "ANET",
-      "name": "ANET",
-      "market": "us",
-      "price": 147.35000610351562,
-      "change_pct": 0.89,
-      "trading_value": 1038699663,
-      "avg_trading_value_5d": 958818774,
-      "trigger_score": 6.78,
-      "trend_score": 3,
-      "score_percentile": 94.0,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=38.6) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買150/賣0) (+1.5)",
-        "📊 機構持股 71.0% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "COHR",
-      "name": "COHR",
-      "market": "us",
-      "price": 307.5,
-      "change_pct": 8.21,
-      "trading_value": 2448099750,
-      "avg_trading_value_5d": 1610990073,
-      "trigger_score": 6.77,
-      "trend_score": 4.5,
-      "score_percentile": 94.0,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "🔄 Supertrend 空轉多翻轉！(+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買146/賣0) (+1.5)",
-        "⚠️ 空頭大幅增加 (+88.5%) (-0.5)",
-        "📊 機構持股 87.8% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "KIM",
-      "name": "KIM",
-      "market": "us",
-      "price": 23.170000076293945,
-      "change_pct": 0.43,
-      "trading_value": 140822626,
-      "avg_trading_value_5d": 95388632,
-      "trigger_score": 6.74,
-      "trend_score": 4.5,
-      "score_percentile": 93.9,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📉 Supertrend 空頭趨勢 (-1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=53.7) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買26/賣0) (+1.5)",
-        "📊 機構持股 97.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "IEX",
-      "name": "IEX",
-      "market": "us",
-      "price": 201.08999633789062,
-      "change_pct": 0.68,
-      "trading_value": 128838360,
-      "avg_trading_value_5d": 131014327,
-      "trigger_score": 6.69,
-      "trend_score": 4.5,
-      "score_percentile": 93.7,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "🔄 Supertrend 空轉多翻轉！(+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "💎 MACD 出現【底背離】訊號 (+2)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現底背離 (+1.0)",
-        "📊 RVOL=0.7x (z=-0.7) (-0.44)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買42/賣0) (+1.5)",
-        "📊 機構持股 107.8% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "AVGO",
-      "name": "AVGO",
-      "market": "us",
-      "price": 371.54998779296875,
-      "change_pct": 4.69,
-      "trading_value": 11120342514,
-      "avg_trading_value_5d": 8819355622,
-      "trigger_score": 6.66,
-      "trend_score": 1.5,
-      "score_percentile": 93.6,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買109/賣0) (+1.5)",
-        "📊 機構持股 79.5% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "UDR",
-      "name": "UDR",
-      "market": "us",
-      "price": 35.11000061035156,
-      "change_pct": 0.72,
-      "trading_value": 123200992,
-      "avg_trading_value_5d": 95448216,
-      "trigger_score": 6.59,
-      "trend_score": -2.5,
-      "score_percentile": 93.4,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📉 Supertrend 空頭趨勢 (-1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=67.1) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=0.8x (z=-0.5) (-0.33)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買20/賣0) (+1.5)",
-        "📊 機構持股 108.0% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "CARR",
-      "name": "CARR",
-      "market": "us",
-      "price": 63.34000015258789,
-      "change_pct": 3.06,
-      "trading_value": 470527525,
-      "avg_trading_value_5d": 342345861,
-      "trigger_score": 6.56,
-      "trend_score": 2.5,
-      "score_percentile": 93.4,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買36/賣0) (+1.5)",
-        "📊 機構持股 90.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "KEYS",
-      "name": "KEYS",
-      "market": "us",
-      "price": 324.17999267578125,
-      "change_pct": 0.38,
-      "trading_value": 382013703,
-      "avg_trading_value_5d": 312175239,
-      "trigger_score": 6.48,
-      "trend_score": 4.5,
-      "score_percentile": 93.1,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現強烈底背離 (+1.5)",
-        "📊 RVOL=0.8x (z=-0.6) (-0.39)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買98/賣0) (+1.5)",
-        "✅ 空頭大幅回補 (-20.3%) (+0.5)",
-        "📊 機構持股 93.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "AMD",
-      "name": "AMD",
-      "market": "us",
-      "price": 245.0399932861328,
-      "change_pct": 3.55,
-      "trading_value": 8919112699,
-      "avg_trading_value_5d": 7217702162,
-      "trigger_score": 6.42,
-      "trend_score": 1.5,
-      "score_percentile": 92.9,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買138/賣0) (+1.5)",
-        "📊 機構持股 72.2% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "CRH",
-      "name": "CRH",
-      "market": "us",
-      "price": 117.88999938964844,
-      "change_pct": 2.07,
-      "trading_value": 749532827,
-      "avg_trading_value_5d": 540367118,
-      "trigger_score": 6.33,
-      "trend_score": -0.5,
-      "score_percentile": 92.6,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買33/賣0) (+1.5)",
-        "📊 機構持股 90.1% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "KLAC",
-      "name": "KLAC",
-      "market": "us",
-      "price": 1737.280029296875,
-      "change_pct": 0.58,
-      "trading_value": 1192469012,
-      "avg_trading_value_5d": 1194375433,
-      "trigger_score": 6.26,
-      "trend_score": 4.5,
-      "score_percentile": 92.4,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "💎💎 MACD 出現【強烈底背離】訊號 (高勝率反轉) (+3)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=0.7x (z=-0.7) (-0.48)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買75/賣0) (+1.5)",
-        "📊 機構持股 93.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "GRMN",
-      "name": "GRMN",
-      "market": "us",
-      "price": 256.8900146484375,
-      "change_pct": 0.14,
-      "trading_value": 182751556,
-      "avg_trading_value_5d": 195305768,
-      "trigger_score": 6.25,
-      "trend_score": 4,
-      "score_percentile": 92.4,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現底背離 (+1.0)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買145/賣0) (+1.5)",
-        "📊 機構持股 57.8% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "XYZ",
-      "name": "XYZ",
-      "market": "us",
-      "price": 62.20000076293945,
-      "change_pct": -0.78,
-      "trading_value": 375706664,
-      "avg_trading_value_5d": 320870345,
-      "trigger_score": 6.24,
-      "trend_score": 2.5,
-      "score_percentile": 92.3,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買150/賣0) (+1.5)",
-        "📊 機構持股 83.4% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "SATS",
-      "name": "SATS",
-      "market": "us",
-      "price": 128.58999633789062,
-      "change_pct": 7.08,
-      "trading_value": 1169731760,
-      "avg_trading_value_5d": 728178829,
-      "trigger_score": 6.22,
-      "trend_score": 3.5,
-      "score_percentile": 92.3,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "⚠️ 量價背離：股價近高但 OBV 下降 (假突破風險) [異常]",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買49/賣0) (+1.5)",
-        "⚠️ 空頭比例偏高 (27.2%) [資訊]",
-        "📊 機構持股 99.1% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "PCAR",
-      "name": "PCAR",
-      "market": "us",
-      "price": 127.19000244140625,
-      "change_pct": 0.11,
-      "trading_value": 313892207,
-      "avg_trading_value_5d": 288484735,
-      "trigger_score": 6.22,
-      "trend_score": 4.5,
-      "score_percentile": 92.3,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買103/賣0) (+1.5)",
-        "📊 機構持股 75.3% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "JCI",
-      "name": "JCI",
-      "market": "us",
-      "price": 142.52999877929688,
-      "change_pct": 0.48,
-      "trading_value": 510799009,
-      "avg_trading_value_5d": 385696637,
-      "trigger_score": 6.21,
-      "trend_score": 3.5,
-      "score_percentile": 92.2,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "🔄 Supertrend 空轉多翻轉！(+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現底背離 (+1.0)",
-        "📊 RVOL=0.7x (z=-0.7) (-0.49)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買146/賣0) (+1.5)",
-        "📊 機構持股 95.0% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "ABNB",
-      "name": "ABNB",
-      "market": "us",
-      "price": 128.9600067138672,
-      "change_pct": -0.15,
-      "trading_value": 460670935,
-      "avg_trading_value_5d": 411664996,
-      "trigger_score": 6.2,
-      "trend_score": 3.5,
-      "score_percentile": 92.2,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現底背離 (+1.0)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買150/賣0) (+1.5)",
-        "📊 機構持股 87.1% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "MPWR",
-      "name": "MPWR",
-      "market": "us",
-      "price": 1353.8499755859375,
-      "change_pct": 1.47,
-      "trading_value": 707251227,
-      "avg_trading_value_5d": 777804182,
-      "trigger_score": 6.19,
-      "trend_score": 5,
-      "score_percentile": 92.2,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "🔥 EFI 資金異常流入 (z=2.9) [異常]",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買140/賣0) (+1.5)",
-        "📊 機構持股 101.7% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "D",
-      "name": "D",
-      "market": "us",
-      "price": 64.2300033569336,
-      "change_pct": 0.19,
-      "trading_value": 302317779,
-      "avg_trading_value_5d": 211983003,
-      "trigger_score": 6.14,
-      "trend_score": 4.5,
-      "score_percentile": 92.0,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買42/賣0) (+1.5)",
-        "📊 機構持股 83.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "MCHP",
-      "name": "MCHP",
-      "market": "us",
-      "price": 71.55999755859375,
-      "change_pct": 0.48,
-      "trading_value": 577117068,
-      "avg_trading_value_5d": 590085689,
-      "trigger_score": 6.13,
-      "trend_score": 5,
-      "score_percentile": 92.0,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買90/賣0) (+1.5)",
-        "📊 機構持股 99.7% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
       "stock_id": "INTC",
       "name": "INTC",
       "market": "us",
-      "price": 62.380001068115234,
-      "change_pct": 1.07,
-      "trading_value": 6140668591,
+      "price": 64.56999969482422,
+      "change_pct": 3.51,
+      "trading_value": 3549901871,
       "avg_trading_value_5d": 7504199792,
-      "trigger_score": 6.07,
+      "trigger_score": 4.71,
       "trend_score": 5,
-      "score_percentile": 91.8,
-      "regime": "trending",
+      "score_percentile": 85.8,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
@@ -974,27 +35,27 @@
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
         "🔥 EFI 資金異常流入 (z=2.7) [異常]",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
         "💎 內部人積極買入 (買85/賣0) (+1.5)",
         "📊 機構持股 61.8% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
       "stock_id": "NVDA",
       "name": "NVDA",
       "market": "us",
-      "price": 188.6300048828125,
-      "change_pct": 2.57,
-      "trading_value": 30199569466,
+      "price": 188.2899932861328,
+      "change_pct": -0.18,
+      "trading_value": 12205133604,
       "avg_trading_value_5d": 24218111827,
-      "trigger_score": 6.05,
+      "trigger_score": 4.68,
       "trend_score": 0.5,
-      "score_percentile": 91.7,
-      "regime": "trending",
+      "score_percentile": 85.7,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
@@ -1002,236 +63,115 @@
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
         "💎 內部人積極買入 (買150/賣0) (+1.5)",
         "📊 機構持股 69.7% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
-      "stock_id": "DHI",
-      "name": "DHI",
+      "stock_id": "ALB",
+      "name": "ALB",
       "market": "us",
-      "price": 142.63999938964844,
-      "change_pct": -0.77,
-      "trading_value": 554299037,
-      "avg_trading_value_5d": 432141086,
-      "trigger_score": 6.01,
-      "trend_score": 2,
-      "score_percentile": 91.5,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📉 Supertrend 空頭趨勢 (-1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現強烈底背離 (+1.5)",
-        "📊 RVOL=1.2x (z=0.5) (+0.34)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買142/賣0) (+1.5)",
-        "📊 機構持股 88.1% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "LITE",
-      "name": "LITE",
-      "market": "us",
-      "price": 897.2999877929688,
-      "change_pct": 0.35,
-      "trading_value": 6390660243,
-      "avg_trading_value_5d": 5584471354,
-      "trigger_score": 5.98,
-      "trend_score": 4.5,
-      "score_percentile": 91.4,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "🔥 EFI 資金異常流入 (z=2.3) [異常]",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買89/賣0) (+1.5)",
-        "⚠️ 空頭比例偏高 (18.0%) [資訊]",
-        "📊 機構持股 113.5% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "ETN",
-      "name": "ETN",
-      "market": "us",
-      "price": 403.0,
-      "change_pct": 0.64,
-      "trading_value": 893934600,
-      "avg_trading_value_5d": 783838574,
-      "trigger_score": 5.98,
-      "trend_score": 5,
-      "score_percentile": 91.5,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現底背離 (+1.0)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買124/賣0) (+1.5)",
-        "📊 機構持股 85.4% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "ADI",
-      "name": "ADI",
-      "market": "us",
-      "price": 350.1400146484375,
-      "change_pct": -0.35,
-      "trading_value": 876820624,
-      "avg_trading_value_5d": 1001794875,
-      "trigger_score": 5.98,
-      "trend_score": 4.5,
-      "score_percentile": 91.4,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "💎 MACD 出現【底背離】訊號 (+2)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=0.7x (z=-0.7) (-0.44)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買131/賣0) (+1.5)",
-        "📊 機構持股 93.3% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "CVS",
-      "name": "CVS",
-      "market": "us",
-      "price": 79.33000183105469,
-      "change_pct": 0.62,
-      "trading_value": 543934090,
-      "avg_trading_value_5d": 626103139,
-      "trigger_score": 5.96,
-      "trend_score": -1,
-      "score_percentile": 91.4,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "✅ RSI 出現底背離 (+1.0)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買68/賣0) (+1.5)",
-        "📊 機構持股 90.2% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "ES",
-      "name": "ES",
-      "market": "us",
-      "price": 69.97000122070312,
-      "change_pct": -0.85,
-      "trading_value": 156536886,
-      "avg_trading_value_5d": 131597444,
-      "trigger_score": 5.95,
+      "price": 188.11000061035156,
+      "change_pct": 8.33,
+      "trading_value": 259137703,
+      "avg_trading_value_5d": 249722382,
+      "trigger_score": 4.55,
       "trend_score": 2.5,
-      "score_percentile": 91.3,
-      "regime": "trending",
+      "score_percentile": 85.0,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.8x (z=-0.5) (-0.31)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買70/賣0) (+1.5)",
+        "✅ 空頭大幅回補 (-99.6%) (+0.5)",
+        "📊 機構持股 95.8% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "FCX",
+      "name": "FCX",
+      "market": "us",
+      "price": 67.87999725341797,
+      "change_pct": 0.12,
+      "trading_value": 255295176,
+      "avg_trading_value_5d": 957300326,
+      "trigger_score": 4.18,
+      "trend_score": 4.5,
+      "score_percentile": 82.9,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買76/賣0) (+1.5)",
+        "📊 機構持股 88.6% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "ORCL",
+      "name": "ORCL",
+      "market": "us",
+      "price": 150.56700134277344,
+      "change_pct": 9.04,
+      "trading_value": 3284248438,
+      "avg_trading_value_5d": 3384365444,
+      "trigger_score": 4.04,
+      "trend_score": -5,
+      "score_percentile": 82.1,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
         "📉 Supertrend 空頭趨勢 (-1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=49.2) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=0.6x (z=-0.9) (-0.60)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買70/賣0) (+1.5)",
-        "⚠️ 空頭大幅增加 (+21.5%) (-0.5)",
-        "📊 機構持股 87.5% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "MAR",
-      "name": "MAR",
-      "market": "us",
-      "price": 354.1000061035156,
-      "change_pct": 0.33,
-      "trading_value": 397583486,
-      "avg_trading_value_5d": 453288382,
-      "trigger_score": 5.94,
-      "trend_score": 4.5,
-      "score_percentile": 91.3,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "💎 MACD 出現【底背離】訊號 (+2)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=0.8x (z=-0.7) (-0.46)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買131/賣0) (+1.5)",
-        "📊 機構持股 65.5% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買115/賣0) (+1.5)",
+        "📊 機構持股 44.3% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
-      "stock_id": "STT",
-      "name": "STT",
+      "stock_id": "MCHP",
+      "name": "MCHP",
       "market": "us",
-      "price": 139.4199981689453,
-      "change_pct": 0.67,
-      "trading_value": 327860067,
-      "avg_trading_value_5d": 229501127,
-      "trigger_score": 5.93,
-      "trend_score": 4.5,
-      "score_percentile": 91.3,
-      "regime": "trending",
+      "price": 71.93000030517578,
+      "change_pct": 0.52,
+      "trading_value": 132652515,
+      "avg_trading_value_5d": 590085689,
+      "trigger_score": 4.01,
+      "trend_score": 5,
+      "score_percentile": 81.9,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
@@ -1239,28 +179,26 @@
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買123/賣0) (+1.5)",
-        "✅ 空頭大幅回補 (-98.9%) (+0.5)",
-        "📊 機構持股 96.4% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "📊 機構持股 99.7% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
       "stock_id": "STX",
       "name": "STX",
       "market": "us",
-      "price": 503.1300048828125,
-      "change_pct": 0.47,
-      "trading_value": 1726490611,
+      "price": 502.6700134277344,
+      "change_pct": -0.09,
+      "trading_value": 484233585,
       "avg_trading_value_5d": 2037054998,
-      "trigger_score": 5.89,
+      "trigger_score": 3.59,
       "trend_score": 5,
-      "score_percentile": 91.1,
-      "regime": "trending",
+      "score_percentile": 79.3,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
@@ -1268,27 +206,268 @@
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
         "📊 機構持股 89.6% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
-      "stock_id": "HWM",
-      "name": "HWM",
+      "stock_id": "META",
+      "name": "META",
       "market": "us",
-      "price": 252.6699981689453,
-      "change_pct": -0.55,
-      "trading_value": 299944554,
-      "avg_trading_value_5d": 394176302,
-      "trigger_score": 5.88,
-      "trend_score": 2.5,
-      "score_percentile": 91.1,
-      "regime": "trending",
+      "price": 627.489990234375,
+      "change_pct": -0.38,
+      "trading_value": 2631692391,
+      "avg_trading_value_5d": 10172634326,
+      "trigger_score": 3.58,
+      "trend_score": 1,
+      "score_percentile": 79.2,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.7x (z=-0.5) (-0.37)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 78.7% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "IBKR",
+      "name": "IBKR",
+      "market": "us",
+      "price": 72.88999938964844,
+      "change_pct": 2.36,
+      "trading_value": 87994556,
+      "avg_trading_value_5d": 261899106,
+      "trigger_score": 3.47,
+      "trend_score": 2.5,
+      "score_percentile": 78.4,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "💎 MACD 出現【底背離】訊號 (+2)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "✅ RSI 出現強烈底背離 (+1.5)",
+        "📊 RVOL=0.3x (z=-1.0) (-0.64)",
+        "⚠️ 量價背離：股價近高但 OBV 下降 (假突破風險) [異常]",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買63/賣0) (+1.5)",
+        "📊 機構持股 88.9% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "CVNA",
+      "name": "CVNA",
+      "market": "us",
+      "price": 344.5400085449219,
+      "change_pct": 2.45,
+      "trading_value": 260099454,
+      "avg_trading_value_5d": 638417579,
+      "trigger_score": 3.01,
+      "trend_score": -0.5,
+      "score_percentile": 75.2,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "✅ RSI 出現底背離 (+1.0)",
+        "📊 RVOL=0.3x (z=-1.0) (-0.70)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "⚠️ 空頭比例偏高 (14.6%) [資訊]",
+        "📊 機構持股 104.8% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "SLB",
+      "name": "SLB",
+      "market": "us",
+      "price": 52.3849983215332,
+      "change_pct": 0.9,
+      "trading_value": 206240157,
+      "avg_trading_value_5d": 698549518,
+      "trigger_score": 2.85,
+      "trend_score": 4.5,
+      "score_percentile": 74.0,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.6x (z=-0.8) (-0.51)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買117/賣0) (+1.5)",
+        "📊 機構持股 87.6% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "DELL",
+      "name": "DELL",
+      "market": "us",
+      "price": 187.50999450683594,
+      "change_pct": 5.46,
+      "trading_value": 922128213,
+      "avg_trading_value_5d": 951183436,
+      "trigger_score": 2.81,
+      "trend_score": 4.5,
+      "score_percentile": 73.7,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.6x (z=-0.8) (-0.56)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 85.3% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "SNDK",
+      "name": "SNDK",
+      "market": "us",
+      "price": 903.7000122070312,
+      "change_pct": 6.1,
+      "trading_value": 8530511509,
+      "avg_trading_value_5d": 11592493811,
+      "trigger_score": 2.79,
+      "trend_score": 4.5,
+      "score_percentile": 73.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "📈 MACD 出現【隱藏底背離】(多頭趨勢延續) (+1)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.5x (z=-1.0) (-0.65)",
+        "🔥 EFI 資金異常流入 (z=2.7) [異常]",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買28/賣0) (+1.5)",
+        "📊 機構持股 82.5% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "SMCI",
+      "name": "SMCI",
+      "market": "us",
+      "price": 25.655000686645508,
+      "change_pct": 1.56,
+      "trading_value": 405289773,
+      "avg_trading_value_5d": 697645416,
+      "trigger_score": 2.69,
+      "trend_score": -3.5,
+      "score_percentile": 72.8,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=51.8) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.3x (z=-1.2) (-0.78)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買128/賣0) (+1.5)",
+        "⚠️ 空頭比例偏高 (19.7%) [資訊]",
+        "📊 機構持股 56.3% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "XYZ",
+      "name": "XYZ",
+      "market": "us",
+      "price": 62.689998626708984,
+      "change_pct": 0.79,
+      "trading_value": 108983490,
+      "avg_trading_value_5d": 303887684,
+      "trigger_score": 2.61,
+      "trend_score": 4.5,
+      "score_percentile": 72.2,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.3x (z=-0.9) (-0.61)",
+        "⚠️ 量價背離：股價近高但 OBV 下降 (假突破風險) [異常]",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 83.4% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "IR",
+      "name": "IR",
+      "market": "us",
+      "price": 85.93000030517578,
+      "change_pct": 0.64,
+      "trading_value": 78347193,
+      "avg_trading_value_5d": 214652160,
+      "trigger_score": 2.53,
+      "trend_score": 4.5,
+      "score_percentile": 71.5,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
@@ -1297,58 +476,778 @@
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
         "✅ RSI 出現強烈底背離 (+1.5)",
-        "📊 RVOL=0.5x (z=-1.0) (-0.64)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買76/賣0) (+1.5)",
-        "📊 機構持股 94.3% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "📊 RVOL=0.3x (z=-1.3) (-0.88)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買114/賣0) (+1.5)",
+        "📊 機構持股 96.9% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
-      "stock_id": "SBUX",
-      "name": "SBUX",
+      "stock_id": "UNH",
+      "name": "UNH",
       "market": "us",
-      "price": 96.5999984741211,
-      "change_pct": -0.33,
-      "trading_value": 517177071,
-      "avg_trading_value_5d": 606271172,
-      "trigger_score": 5.87,
-      "trend_score": 1.5,
-      "score_percentile": 91.0,
-      "regime": "trending",
+      "price": 308.2650146484375,
+      "change_pct": 1.29,
+      "trading_value": 818925432,
+      "avg_trading_value_5d": 2710216294,
+      "trigger_score": 2.31,
+      "trend_score": -1.5,
+      "score_percentile": 69.8,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
         "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=45.2) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.3x (z=-1.0) (-0.64)",
+        "⚠️ 量價背離：股價近高但 OBV 下降 (假突破風險) [異常]",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 84.3% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "BEN",
+      "name": "BEN",
+      "market": "us",
+      "price": 25.309999465942383,
+      "change_pct": 1.61,
+      "trading_value": 43066482,
+      "avg_trading_value_5d": 97526424,
+      "trigger_score": 2.17,
+      "trend_score": 3.5,
+      "score_percentile": 68.7,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=0.6x (z=-1.0) (-0.64)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
+        "📊 RVOL=0.4x (z=-1.4) (-0.91)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買45/賣0) (+1.5)",
+        "📊 機構持股 48.1% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "EXPE",
+      "name": "EXPE",
+      "market": "us",
+      "price": 237.0399932861328,
+      "change_pct": 3.92,
+      "trading_value": 178733132,
+      "avg_trading_value_5d": 350556034,
+      "trigger_score": 2.12,
+      "trend_score": -0.5,
+      "score_percentile": 68.3,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.4x (z=-1.1) (-0.73)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買108/賣0) (+1.5)",
+        "📊 機構持股 102.7% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "SNPS",
+      "name": "SNPS",
+      "market": "us",
+      "price": 414.6050109863281,
+      "change_pct": 5.7,
+      "trading_value": 382429174,
+      "avg_trading_value_5d": 548658163,
+      "trigger_score": 1.99,
+      "trend_score": -3.5,
+      "score_percentile": 67.2,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.5x (z=-0.6) (-0.39)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買92/賣0) (+1.5)",
+        "📊 機構持股 91.1% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "APH",
+      "name": "APH",
+      "market": "us",
+      "price": 142.22999572753906,
+      "change_pct": 1.05,
+      "trading_value": 386586675,
+      "avg_trading_value_5d": 796610535,
+      "trigger_score": 1.85,
+      "trend_score": 1.5,
+      "score_percentile": 66.0,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.3x (z=-1.5) (-0.99)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買127/賣0) (+1.5)",
+        "📊 機構持股 98.0% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "ANET",
+      "name": "ANET",
+      "market": "us",
+      "price": 149.01510620117188,
+      "change_pct": 1.13,
+      "trading_value": 344110600,
+      "avg_trading_value_5d": 951169880,
+      "trigger_score": 1.8,
+      "trend_score": 4.5,
+      "score_percentile": 65.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=37.9) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.4x (z=-1.6) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 71.0% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "AMT",
+      "name": "AMT",
+      "market": "us",
+      "price": 179.06500244140625,
+      "change_pct": -0.13,
+      "trading_value": 114201212,
+      "avg_trading_value_5d": 502344268,
+      "trigger_score": 1.8,
+      "trend_score": 1.5,
+      "score_percentile": 65.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=41.2) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.2x (z=-2.4) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買76/賣0) (+1.5)",
+        "📊 機構持股 96.0% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "TROW",
+      "name": "TROW",
+      "market": "us",
+      "price": 92.5999984741211,
+      "change_pct": 1.21,
+      "trading_value": 54799753,
+      "avg_trading_value_5d": 174399328,
+      "trigger_score": 1.8,
+      "trend_score": -5,
+      "score_percentile": 65.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔄 Supertrend 空轉多翻轉！(+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.2x (z=-1.7) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "⚠️ 空頭比例偏高 (13.0%) [資訊]",
+        "📊 機構持股 86.3% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "OTIS",
+      "name": "OTIS",
+      "market": "us",
+      "price": 80.47000122070312,
+      "change_pct": 0.65,
+      "trading_value": 51496213,
+      "avg_trading_value_5d": 177793653,
+      "trigger_score": 1.8,
+      "trend_score": -5,
+      "score_percentile": 65.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=55.2) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.2x (z=-1.8) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買103/賣0) (+1.5)",
+        "📊 機構持股 93.5% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "VICI",
+      "name": "VICI",
+      "market": "us",
+      "price": 28.114999771118164,
+      "change_pct": 0.02,
+      "trading_value": 45966028,
+      "avg_trading_value_5d": 168312231,
+      "trigger_score": 1.8,
+      "trend_score": -2.5,
+      "score_percentile": 65.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=60.6) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "✅ RSI 出現底背離 (+1.0)",
+        "🔇 量能萎縮 RVOL=0.2x (z=-2.3) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買74/賣0) (+1.5)",
+        "📊 機構持股 99.6% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "KIM",
+      "name": "KIM",
+      "market": "us",
+      "price": 23.024999618530273,
+      "change_pct": -0.63,
+      "trading_value": 20981692,
+      "avg_trading_value_5d": 85635793,
+      "trigger_score": 1.8,
+      "trend_score": 5,
+      "score_percentile": 65.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=51.2) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.2x (z=-2.2) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買26/賣0) (+1.5)",
+        "📊 機構持股 97.9% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "BF-B",
+      "name": "BF-B",
+      "market": "us",
+      "price": 29.325000762939453,
+      "change_pct": -0.56,
+      "trading_value": 38896065,
+      "avg_trading_value_5d": 155802021,
+      "trigger_score": 1.77,
+      "trend_score": 1.5,
+      "score_percentile": 65.3,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=56.2) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.2x (z=-1.4) (-0.96)",
+        "🔥 EFI 資金異常流入 (z=2.3) [異常]",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買18/賣0) (+1.5)",
+        "⚠️ 空頭比例偏高 (17.3%) [資訊]",
+        "📊 機構持股 77.1% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "APP",
+      "name": "APP",
+      "market": "us",
+      "price": 419.2449951171875,
+      "change_pct": 7.12,
+      "trading_value": 1020275458,
+      "avg_trading_value_5d": 1784056012,
+      "trigger_score": 1.71,
+      "trend_score": 0.5,
+      "score_percentile": 64.8,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "✅ RSI 出現底背離 (+1.0)",
+        "📊 RVOL=0.6x (z=-0.7) (-0.46)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 81.1% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "PYPL",
+      "name": "PYPL",
+      "market": "us",
+      "price": 46.755001068115234,
+      "change_pct": 3.35,
+      "trading_value": 207565741,
+      "avg_trading_value_5d": 512629656,
+      "trigger_score": 1.69,
+      "trend_score": -5,
+      "score_percentile": 64.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.3x (z=-1.3) (-0.84)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買108/賣0) (+1.5)",
+        "📊 機構持股 83.9% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "COHR",
+      "name": "COHR",
+      "market": "us",
+      "price": 305.2099914550781,
+      "change_pct": -0.74,
+      "trading_value": 758850316,
+      "avg_trading_value_5d": 1571766721,
+      "trigger_score": 1.68,
+      "trend_score": 5,
+      "score_percentile": 64.5,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.3x (z=-1.3) (-0.84)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買146/賣0) (+1.5)",
+        "⚠️ 空頭大幅增加 (+88.5%) (-0.5)",
+        "📊 機構持股 87.8% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "CCI",
+      "name": "CCI",
+      "market": "us",
+      "price": 86.36000061035156,
+      "change_pct": 0.08,
+      "trading_value": 63907609,
+      "avg_trading_value_5d": 208603333,
+      "trigger_score": 1.63,
+      "trend_score": -0.5,
+      "score_percentile": 64.1,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=38.1) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.3x (z=-1.8) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
         "💎 內部人積極買入 (買54/賣0) (+1.5)",
-        "📊 機構持股 84.7% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "📊 機構持股 99.4% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "VRT",
+      "name": "VRT",
+      "market": "us",
+      "price": 297.7850036621094,
+      "change_pct": 0.91,
+      "trading_value": 550922506,
+      "avg_trading_value_5d": 1125127479,
+      "trigger_score": 1.61,
+      "trend_score": 4.5,
+      "score_percentile": 63.9,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.2x (z=-1.3) (-0.86)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買116/賣0) (+1.5)",
+        "⚠️ 空頭大幅增加 (+110.2%) (-0.5)",
+        "📊 機構持股 80.2% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "HPE",
+      "name": "HPE",
+      "market": "us",
+      "price": 24.989999771118164,
+      "change_pct": 0.4,
+      "trading_value": 210164473,
+      "avg_trading_value_5d": 307592234,
+      "trigger_score": 1.61,
+      "trend_score": 3.5,
+      "score_percentile": 63.9,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.5x (z=-1.2) (-0.82)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 94.2% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "Q",
+      "name": "Q",
+      "market": "us",
+      "price": 133.3000030517578,
+      "change_pct": 2.03,
+      "trading_value": 68599380,
+      "avg_trading_value_5d": 180899151,
+      "trigger_score": 1.54,
+      "trend_score": 3.5,
+      "score_percentile": 63.4,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "✅ RSI 出現底背離 (+1.0)",
+        "📊 RVOL=0.3x (z=-1.3) (-0.88)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買30/賣0) (+1.5)",
+        "📊 機構持股 74.6% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "AMZN",
+      "name": "AMZN",
+      "market": "us",
+      "price": 237.77999877929688,
+      "change_pct": -0.25,
+      "trading_value": 4452411216,
+      "avg_trading_value_5d": 10132486271,
+      "trigger_score": 1.52,
+      "trend_score": 5,
+      "score_percentile": 63.1,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.4x (z=-1.3) (-0.88)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 67.1% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "CNC",
+      "name": "CNC",
+      "market": "us",
+      "price": 37.025001525878906,
+      "change_pct": -0.74,
+      "trading_value": 20739887,
+      "avg_trading_value_5d": 159084625,
+      "trigger_score": 1.48,
+      "trend_score": -2.5,
+      "score_percentile": 62.8,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.1x (z=-1.3) (-0.85)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買93/賣0) (+1.5)",
+        "📊 機構持股 98.4% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "FISV",
+      "name": "FISV",
+      "market": "us",
+      "price": 57.624000549316406,
+      "change_pct": 2.73,
+      "trading_value": 115254743,
+      "avg_trading_value_5d": 288795205,
+      "trigger_score": 1.46,
+      "trend_score": -5,
+      "score_percentile": 62.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.3x (z=-0.8) (-0.52)",
+        "⚠️ 量價背離：股價近高但 OBV 下降 (假突破風險) [異常]",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買100/賣0) (+1.5)",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "CAT",
+      "name": "CAT",
+      "market": "us",
+      "price": 787.905029296875,
+      "change_pct": -0.35,
+      "trading_value": 565220218,
+      "avg_trading_value_5d": 1465288967,
+      "trigger_score": 1.38,
+      "trend_score": 3.5,
+      "score_percentile": 61.9,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "💎 MACD 出現【底背離】訊號 (+2)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "✅ RSI 出現底背離 (+1.0)",
+        "🔇 量能萎縮 RVOL=0.3x (z=-1.9) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買133/賣0) (+1.5)",
+        "📊 機構持股 72.6% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "AVGO",
+      "name": "AVGO",
+      "market": "us",
+      "price": 372.9800109863281,
+      "change_pct": 0.38,
+      "trading_value": 3353379358,
+      "avg_trading_value_5d": 8728525896,
+      "trigger_score": 1.31,
+      "trend_score": 3.5,
+      "score_percentile": 61.3,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.4x (z=-1.4) (-0.94)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買112/賣0) (+1.5)",
+        "📊 機構持股 79.5% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "CSCO",
+      "name": "CSCO",
+      "market": "us",
+      "price": 81.70999908447266,
+      "change_pct": -0.62,
+      "trading_value": 565768776,
+      "avg_trading_value_5d": 1240287827,
+      "trigger_score": 1.25,
+      "trend_score": 2.5,
+      "score_percentile": 60.8,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "💎 MACD 出現【底背離】訊號 (+2)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "✅ RSI 出現底背離 (+1.0)",
+        "📊 RVOL=0.3x (z=-1.4) (-0.95)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買135/賣0) (+1.5)",
+        "📊 機構持股 82.1% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
       "stock_id": "ON",
       "name": "ON",
       "market": "us",
-      "price": 68.6500015258789,
-      "change_pct": 0.23,
-      "trading_value": 430765029,
-      "avg_trading_value_5d": 436415753,
-      "trigger_score": 5.83,
+      "price": 70.41500091552734,
+      "change_pct": 2.57,
+      "trading_value": 163084522,
+      "avg_trading_value_5d": 402164169,
+      "trigger_score": 1.18,
       "trend_score": 4.5,
-      "score_percentile": 90.9,
-      "regime": "trending",
+      "score_percentile": 60.1,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
@@ -1356,59 +1255,179 @@
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
+        "📊 RVOL=0.3x (z=-1.5) (-0.97)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
         "💎 內部人積極買入 (買61/賣0) (+1.5)",
         "⚠️ 空頭比例偏高 (12.0%) [資訊]",
         "📊 機構持股 110.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
-      "stock_id": "PSA",
-      "name": "PSA",
+      "stock_id": "NFLX",
+      "name": "NFLX",
       "market": "us",
-      "price": 295.0,
-      "change_pct": 0.59,
-      "trading_value": 323880500,
-      "avg_trading_value_5d": 261120230,
-      "trigger_score": 5.83,
-      "trend_score": 0.5,
-      "score_percentile": 90.9,
-      "regime": "trending",
+      "price": 103.0999984741211,
+      "change_pct": 0.09,
+      "trading_value": 1055869560,
+      "avg_trading_value_5d": 2561704892,
+      "trigger_score": 1.16,
+      "trend_score": 3.5,
+      "score_percentile": 60.0,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
         "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=58.5) (+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=0.6x (z=-1.0) (-0.65)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買65/賣0) (+1.5)",
-        "⚠️ 空頭大幅增加 (+38.6%) (-0.5)",
-        "📊 機構持股 83.3% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "📊 RVOL=0.3x (z=-1.5) (-0.97)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 83.7% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "AMD",
+      "name": "AMD",
+      "market": "us",
+      "price": 245.0500030517578,
+      "change_pct": 0.0,
+      "trading_value": 2656549345,
+      "avg_trading_value_5d": 6393715219,
+      "trigger_score": 1.15,
+      "trend_score": 2.5,
+      "score_percentile": 59.9,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=0.3x (z=-1.5) (-0.98)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買138/賣0) (+1.5)",
+        "📊 機構持股 72.2% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "GOOGL",
+      "name": "GOOGL",
+      "market": "us",
+      "price": 318.53509521484375,
+      "change_pct": 0.41,
+      "trading_value": 2392919728,
+      "avg_trading_value_5d": 6738190276,
+      "trigger_score": 1.05,
+      "trend_score": 1.5,
+      "score_percentile": 59.0,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.3x (z=-1.8) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買26/賣0) (+1.5)",
+        "📊 機構持股 80.8% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "GOOG",
+      "name": "GOOG",
+      "market": "us",
+      "price": 316.5899963378906,
+      "change_pct": 0.28,
+      "trading_value": 1246955551,
+      "avg_trading_value_5d": 4235429284,
+      "trigger_score": 1.05,
+      "trend_score": 1.5,
+      "score_percentile": 59.0,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.2x (z=-1.9) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "✅ 空頭大幅回補 (-29.2%) (+0.5)",
+        "📊 機構持股 60.9% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "WDC",
+      "name": "WDC",
+      "market": "us",
+      "price": 344.8399963378906,
+      "change_pct": 0.41,
+      "trading_value": 823566879,
+      "avg_trading_value_5d": 2005641371,
+      "trigger_score": 1.05,
+      "trend_score": 4.5,
+      "score_percentile": 59.0,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.3x (z=-1.6) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買143/賣0) (+1.5)",
+        "📊 機構持股 103.4% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
       "stock_id": "LRCX",
       "name": "LRCX",
       "market": "us",
-      "price": 263.6600036621094,
-      "change_pct": 1.89,
-      "trading_value": 2404289207,
-      "avg_trading_value_5d": 2012242817,
-      "trigger_score": 5.82,
-      "trend_score": 4.5,
-      "score_percentile": 90.8,
-      "regime": "trending",
+      "price": 261.8100891113281,
+      "change_pct": -0.7,
+      "trading_value": 817050904,
+      "avg_trading_value_5d": 1998754366,
+      "trigger_score": 1.05,
+      "trend_score": 5,
+      "score_percentile": 59.0,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "rvol_low",
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
@@ -1416,55 +1435,29 @@
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
+        "🔇 量能萎縮 RVOL=0.3x (z=-1.9) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
         "💎 內部人積極買入 (買87/賣0) (+1.5)",
         "📊 機構持股 88.8% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
-      ]
-    },
-    {
-      "stock_id": "NUE",
-      "name": "NUE",
-      "market": "us",
-      "price": 186.1199951171875,
-      "change_pct": 1.15,
-      "trading_value": 305999883,
-      "avg_trading_value_5d": 253295466,
-      "trigger_score": 5.81,
-      "trend_score": 5,
-      "score_percentile": 90.8,
-      "regime": "trending",
-      "etf_buy_count": 0,
-      "signals": [
-        "regime_trending"
-      ],
-      "trigger_details": [
-        "✅ 站上日線 20MA (+1)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
-        "💎 內部人積極買入 (買116/賣0) (+1.5)",
-        "📊 機構持股 78.8% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     },
     {
       "stock_id": "GEV",
       "name": "GEV",
       "market": "us",
-      "price": 991.3200073242188,
-      "change_pct": 2.41,
-      "trading_value": 2142539931,
-      "avg_trading_value_5d": 1768512737,
-      "trigger_score": 5.78,
+      "price": 989.5449829101562,
+      "change_pct": -0.18,
+      "trading_value": 626635297,
+      "avg_trading_value_5d": 1645462291,
+      "trigger_score": 1.05,
       "trend_score": 5,
-      "score_percentile": 90.7,
-      "regime": "trending",
+      "score_percentile": 59.0,
+      "regime": "volatile",
       "etf_buy_count": 0,
       "signals": [
-        "regime_trending"
+        "rvol_low",
+        "regime_volatile"
       ],
       "trigger_details": [
         "✅ 站上日線 20MA (+1)",
@@ -1472,11 +1465,43 @@
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "[Regime] trending -- weights: T=1.3 M=1.0 V=0.7",
+        "🔇 量能萎縮 RVOL=0.3x (z=-1.8) (-1.0)",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
         "💎 內部人積極買入 (買38/賣0) (+1.5)",
         "⚠️ 空頭大幅增加 (+23.8%) (-0.5)",
         "📊 機構持股 78.9% [資訊]",
-        "🇺🇸 CNN F&G=38 fear [info]"
+        "🇺🇸 CNN F&G=39 fear [info]"
+      ]
+    },
+    {
+      "stock_id": "GLW",
+      "name": "GLW",
+      "market": "us",
+      "price": 172.8699951171875,
+      "change_pct": 0.95,
+      "trading_value": 534516099,
+      "avg_trading_value_5d": 1545695666,
+      "trigger_score": 1.05,
+      "trend_score": 4.5,
+      "score_percentile": 59.0,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "signals": [
+        "rvol_low",
+        "regime_volatile"
+      ],
+      "trigger_details": [
+        "✅ 站上日線 20MA (+1)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "✅ KD 黃金交叉/多方排列 (+1)",
+        "🔇 量能萎縮 RVOL=0.3x (z=-1.6) (-1.0)",
+        "🔥 EFI 資金異常流入 (z=2.6) [異常]",
+        "[Regime] volatile -- weights: T=0.9 M=0.9 V=1.2",
+        "💎 內部人積極買入 (買150/賣0) (+1.5)",
+        "📊 機構持股 74.8% [資訊]",
+        "🇺🇸 CNN F&G=39 fear [info]"
       ]
     }
   ]
