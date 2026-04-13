@@ -295,21 +295,22 @@ def _build_fundamental_data(fund_data, ticker):
                 if em.get('fcf_yield'):
                     lines.append(f"FCF Yield: {_safe_val(em['fcf_yield']*100, '.1f')}%")
         else:
-            from piotroski import calculate_fscore, calculate_zscore, calculate_extra_metrics
+            from piotroski import calculate_all
             stock_id = ticker.replace('.TW', '')
             mc_str = fund_data.get('Market Cap', '0') if fund_data else '0'
             mc = _parse_market_cap(mc_str)
 
-            fs = calculate_fscore(stock_id)
+            # Single fetch: F-Score + Z-Score + Extra (3 API calls instead of 8)
+            all_result = calculate_all(stock_id, market_cap=mc)
+
+            fs = all_result.get('fscore') if all_result else None
             if fs:
                 lines.append(f"\nPiotroski F-Score: {fs['fscore']}/9")
                 lines.append(f"  Profitability: {fs['components']['profitability']}/4")
                 lines.append(f"  Leverage: {fs['components']['leverage']}/3")
                 lines.append(f"  Efficiency: {fs['components']['efficiency']}/2")
-                # F-Score 9 項明細
                 for d in fs.get('details', []):
                     lines.append(f"  {d}")
-                # 從 F-Score 原始數據提取財務指標
                 fd = fs.get('data', {})
                 if fd:
                     if fd.get('gross_margin') is not None:
@@ -325,11 +326,11 @@ def _build_fundamental_data(fund_data, ticker):
                     if fd.get('shares_curr') is not None:
                         lines.append(f"Shares Outstanding: {fd['shares_curr']:,.0f} (prev: {fd.get('shares_prev', 0):,.0f})")
 
-            zs = calculate_zscore(stock_id, mc) if mc > 0 else None
+            zs = all_result.get('zscore') if all_result else None
             if zs:
                 lines.append(f"Altman Z-Score: {_safe_val(zs['zscore'])} ({zs['zone']})")
 
-            em = calculate_extra_metrics(stock_id, mc) if mc > 0 else None
+            em = all_result.get('extra') if all_result else None
             if em:
                 if em.get('roic'):
                     lines.append(f"ROIC: {_safe_val(em['roic'], '.1f')}%")
