@@ -37,3 +37,15 @@ scanner.log
 
 # AI 報告輸出（使用者生成，不納入版控）
 data/ai_reports/
+
+# 回測分析日誌（可重產）
+reports/_*.log
+
+# 日 IC parquet（可重產，較大）
+reports/*.parquet
+
+# Dashboard 測試 HTML（手動驗證用）
+tools/_test_dashboard_output.html
+
+# 外部參考 (research sample)
+/remixed-*.tsx
