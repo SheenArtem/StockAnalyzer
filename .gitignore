@@ -27,3 +27,13 @@ local/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Claude Code local settings
+.claude/
+
+# Runtime artifacts
+*.stackdump
+scanner.log
+
+# AI 報告輸出（使用者生成，不納入版控）
+data/ai_reports/
