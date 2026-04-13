@@ -472,6 +472,290 @@ def calculate_extra_metrics(stock_id, market_cap, dl=None):
 
 
 # ================================================================
+# Combined Calculator (single fetch for all metrics)
+# ================================================================
+
+def calculate_all(stock_id, market_cap=0, dl=None):
+    """
+    Calculate F-Score + Z-Score + Extra Metrics with a SINGLE data fetch.
+
+    Instead of calling calculate_fscore / calculate_zscore / calculate_extra_metrics
+    separately (each fetches income/balance/cashflow independently = 9 API calls),
+    this fetches once (3 API calls) and computes all three.
+
+    Args:
+        stock_id: Taiwan stock ID (e.g., '2330')
+        market_cap: Estimated market cap (TWD), 0 to skip Z-Score
+        dl: FinMind DataLoader (optional)
+
+    Returns:
+        dict: {
+            'fscore': {...} or None,   # same format as calculate_fscore()
+            'zscore': {...} or None,   # same format as calculate_zscore()
+            'extra': {...} or None,    # same format as calculate_extra_metrics()
+            'income': dict,            # raw parsed income data (for ROE/EPS reuse)
+            'balance': dict,           # raw parsed balance data
+        }
+    """
+    if dl is None:
+        from cache_manager import get_finmind_loader
+        dl = get_finmind_loader()
+
+    start_date = (datetime.now() - timedelta(days=900)).strftime('%Y-%m-%d')
+
+    # --- Single fetch for all three datasets ---
+    try:
+        income = _fetch_income(dl, stock_id, start_date)
+        balance = _fetch_balance(dl, stock_id, start_date)
+        cashflow = _fetch_cashflow(dl, stock_id, start_date)
+    except Exception as e:
+        logger.debug("calculate_all data fetch failed for %s: %s", stock_id, e)
+        return {'fscore': None, 'zscore': None, 'extra': None,
+                'income': None, 'balance': None}
+
+    result = {
+        'fscore': None, 'zscore': None, 'extra': None,
+        'income': income, 'balance': balance,
+    }
+
+    # --- F-Score (needs income + balance + cashflow, 2+ periods) ---
+    if income and balance:
+        periods = sorted(income.keys())
+        if len(periods) >= 2:
+            result['fscore'] = _compute_fscore(income, balance, cashflow, periods)
+
+    # --- Z-Score (needs income + balance + market_cap) ---
+    if income and balance and market_cap > 0:
+        result['zscore'] = _compute_zscore(income, balance, market_cap)
+
+    # --- Extra Metrics: Current Ratio, FCF Yield, ROIC ---
+    if balance:
+        result['extra'] = _compute_extra(income, balance, cashflow, market_cap)
+
+    return result
+
+
+def _compute_fscore(income, balance, cashflow, periods):
+    """Compute F-Score from pre-fetched data. Same logic as calculate_fscore()."""
+    curr = periods[-1]
+    prev = periods[-2]
+
+    score = 0
+    details = []
+    raw = {}
+
+    # PROFITABILITY (4 points)
+    prof_score = 0
+
+    roa = _safe_div(income[curr].get('net_income', 0),
+                     balance[curr].get('total_assets', 1)) if curr in balance else 0
+    raw['roa'] = roa
+    if roa > 0:
+        prof_score += 1
+        details.append(f"F1 ROA={roa:.3f} > 0 (+1)")
+    else:
+        details.append(f"F1 ROA={roa:.3f} <= 0 (0)")
+
+    ocf = 0
+    if cashflow and curr in cashflow:
+        ocf = cashflow[curr].get('operating_cf', 0)
+    raw['operating_cf'] = ocf
+    if ocf > 0:
+        prof_score += 1
+        details.append(f"F2 Operating CF={ocf:,.0f} > 0 (+1)")
+    else:
+        details.append(f"F2 Operating CF={ocf:,.0f} <= 0 (0)")
+
+    roa_prev = _safe_div(income[prev].get('net_income', 0),
+                          balance[prev].get('total_assets', 1)) if prev in balance else 0
+    raw['roa_prev'] = roa_prev
+    if roa > roa_prev:
+        prof_score += 1
+        details.append(f"F3 ROA {roa_prev:.3f}->{roa:.3f} improving (+1)")
+    else:
+        details.append(f"F3 ROA {roa_prev:.3f}->{roa:.3f} declining (0)")
+
+    cfroa = _safe_div(ocf, balance[curr].get('total_assets', 1)) if curr in balance else 0
+    raw['cfroa'] = cfroa
+    if cfroa > roa:
+        prof_score += 1
+        details.append(f"F4 CFROA={cfroa:.3f} > ROA={roa:.3f} quality (+1)")
+    else:
+        details.append(f"F4 CFROA={cfroa:.3f} <= ROA={roa:.3f} accrual risk (0)")
+
+    # LEVERAGE & LIQUIDITY (3 points)
+    lev_score = 0
+
+    leverage_curr = _safe_div(balance[curr].get('long_term_debt', 0),
+                               balance[curr].get('total_assets', 1)) if curr in balance else 0
+    leverage_prev = _safe_div(balance[prev].get('long_term_debt', 0),
+                               balance[prev].get('total_assets', 1)) if prev in balance else 0
+    raw['leverage_curr'] = leverage_curr
+    raw['leverage_prev'] = leverage_prev
+    if leverage_curr < leverage_prev:
+        lev_score += 1
+        details.append(f"F5 Leverage {leverage_prev:.3f}->{leverage_curr:.3f} decreasing (+1)")
+    else:
+        details.append(f"F5 Leverage {leverage_prev:.3f}->{leverage_curr:.3f} not decreasing (0)")
+
+    cr_curr = _safe_div(balance[curr].get('current_assets', 0),
+                         balance[curr].get('current_liabilities', 1)) if curr in balance else 0
+    cr_prev = _safe_div(balance[prev].get('current_assets', 0),
+                         balance[prev].get('current_liabilities', 1)) if prev in balance else 0
+    raw['current_ratio'] = cr_curr
+    raw['current_ratio_prev'] = cr_prev
+    if cr_curr > cr_prev:
+        lev_score += 1
+        details.append(f"F6 Current Ratio {cr_prev:.2f}->{cr_curr:.2f} improving (+1)")
+    else:
+        details.append(f"F6 Current Ratio {cr_prev:.2f}->{cr_curr:.2f} declining (0)")
+
+    shares_curr = balance[curr].get('shares_outstanding', 0) if curr in balance else 0
+    shares_prev = balance[prev].get('shares_outstanding', 0) if prev in balance else 0
+    raw['shares_curr'] = shares_curr
+    raw['shares_prev'] = shares_prev
+    if shares_prev > 0 and shares_curr <= shares_prev:
+        lev_score += 1
+        details.append(f"F7 Shares {shares_prev:,.0f}->{shares_curr:,.0f} no dilution (+1)")
+    elif shares_prev > 0:
+        details.append(f"F7 Shares {shares_prev:,.0f}->{shares_curr:,.0f} diluted (0)")
+    else:
+        details.append("F7 Shares data unavailable (0)")
+
+    # EFFICIENCY (2 points)
+    eff_score = 0
+
+    gm_curr = _safe_div(income[curr].get('gross_profit', 0),
+                          income[curr].get('revenue', 1))
+    gm_prev = _safe_div(income[prev].get('gross_profit', 0),
+                          income[prev].get('revenue', 1))
+    raw['gross_margin'] = gm_curr
+    raw['gross_margin_prev'] = gm_prev
+    if gm_curr > gm_prev:
+        eff_score += 1
+        details.append(f"F8 Gross Margin {gm_prev:.1%}->{gm_curr:.1%} improving (+1)")
+    else:
+        details.append(f"F8 Gross Margin {gm_prev:.1%}->{gm_curr:.1%} declining (0)")
+
+    at_curr = _safe_div(income[curr].get('revenue', 0),
+                         balance[curr].get('total_assets', 1)) if curr in balance else 0
+    at_prev = _safe_div(income[prev].get('revenue', 0),
+                         balance[prev].get('total_assets', 1)) if prev in balance else 0
+    raw['asset_turnover'] = at_curr
+    raw['asset_turnover_prev'] = at_prev
+    if at_curr > at_prev:
+        eff_score += 1
+        details.append(f"F9 Asset Turnover {at_prev:.3f}->{at_curr:.3f} improving (+1)")
+    else:
+        details.append(f"F9 Asset Turnover {at_prev:.3f}->{at_curr:.3f} declining (0)")
+
+    score = prof_score + lev_score + eff_score
+
+    return {
+        'fscore': score,
+        'details': details,
+        'components': {
+            'profitability': prof_score,
+            'leverage': lev_score,
+            'efficiency': eff_score,
+        },
+        'data': raw,
+    }
+
+
+def _compute_zscore(income, balance, market_cap):
+    """Compute Altman Z-Score from pre-fetched data. Same logic as calculate_zscore()."""
+    periods = sorted(balance.keys())
+    if not periods:
+        return None
+    curr = periods[-1]
+
+    b = balance[curr]
+    ta = b.get('total_assets', 0)
+    if ta <= 0:
+        return None
+
+    i_periods = sorted(income.keys()) if income else []
+    if not i_periods:
+        return None
+    i_curr = i_periods[-1]
+    inc = income[i_curr]
+
+    wc = b.get('current_assets', 0) - b.get('current_liabilities', 0)
+    re = b.get('retained_earnings', 0)
+    ebit = inc.get('operating_income', 0)
+    tl = b.get('total_liabilities', 0)
+    sales = inc.get('revenue', 0)
+
+    x1 = wc / ta
+    x2 = re / ta
+    x3 = ebit / ta
+    x4 = market_cap / tl if tl > 0 else 5.0
+    x5 = sales / ta
+
+    z = 1.2 * x1 + 1.4 * x2 + 3.3 * x3 + 0.6 * x4 + 1.0 * x5
+
+    if z > 3.0:
+        zone = 'safe'
+    elif z > 1.8:
+        zone = 'grey'
+    else:
+        zone = 'distress'
+
+    return {
+        'zscore': round(z, 2),
+        'zone': zone,
+        'components': {
+            'x1_wc_ta': round(x1, 3),
+            'x2_re_ta': round(x2, 3),
+            'x3_ebit_ta': round(x3, 3),
+            'x4_mv_tl': round(x4, 3),
+            'x5_sales_ta': round(x5, 3),
+        },
+    }
+
+
+def _compute_extra(income, balance, cashflow, market_cap):
+    """Compute extra metrics from pre-fetched data. Same logic as calculate_extra_metrics()."""
+    periods = sorted(balance.keys())
+    if not periods:
+        return None
+    curr = periods[-1]
+    b = balance[curr]
+
+    result = {}
+
+    cl = b.get('current_liabilities', 0)
+    if cl > 0:
+        result['current_ratio'] = round(b.get('current_assets', 0) / cl, 2)
+
+    if cashflow:
+        cf_periods = sorted(cashflow.keys())
+        if cf_periods:
+            cf = cashflow[cf_periods[-1]]
+            ocf = cf.get('operating_cf', 0)
+            capex = abs(cf.get('capex', 0))
+            fcf = ocf - capex
+            result['fcf'] = fcf
+            if market_cap > 0:
+                result['fcf_yield'] = round(fcf / market_cap * 100, 2)
+
+    if income:
+        i_periods = sorted(income.keys())
+        if i_periods:
+            inc = income[i_periods[-1]]
+            op_income = inc.get('operating_income', 0)
+            nopat = op_income * 0.8
+            ta = b.get('total_assets', 0)
+            cl_val = b.get('current_liabilities', 0)
+            invested_capital = ta - cl_val
+            if invested_capital > 0:
+                result['roic'] = round(nopat / invested_capital * 100, 2)
+
+    return result if result else None
+
+
+# ================================================================
 # Helpers
 # ================================================================
 

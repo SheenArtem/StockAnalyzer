@@ -89,12 +89,17 @@ def _fetch_tradingview_batch(market='tw'):
 # Default Configuration
 # ================================================================
 DEFAULT_CONFIG = {
-    # Stage 1: 初篩門檻
-    'max_pe': 30,               # PE 上限（太高不算便宜）
-    'min_pe': 0.1,              # PE 下限（排除虧損股或極端值）
-    'max_pb': 5.0,              # PB 上限
-    'min_dividend_yield': 0,    # 殖利率下限（0=不篩）
-    'min_trading_value': 5e6,   # 最低成交值 500 萬 TWD
+    # Stage 1: 初篩門檻（研究來源：Graham/O'Shaughnessy/台股實證）
+    'max_pe': 20,               # PE 上限（台股合理區間上緣，歷史均值 ~15）
+    'min_pe': 0.1,              # PE 下限（排除虧損股）
+    'max_pb': 3.0,              # PB 上限（從 5.0 收緊，Graham 建議 1.5）
+    'pe_x_pb_max': 22.5,        # Graham 複合準則：PE × PB < 22.5
+    'min_dividend_yield': 0,    # 殖利率下限（0=不篩，保留成長型低估值股）
+    'min_trading_value': 3e7,   # 最低成交值 3000 萬 TWD（機構可交易水準）
+    # TradingView 批次體質篩（免費，不耗 FinMind API）
+    'min_roe': 0,               # ROE 下限 %（0=不篩，建議 3~5 排除爛公司）
+    'min_operating_margin': -50, # 營益率下限 %（排除嚴重虧損，-50=幾乎不篩）
+    'max_debt_to_equity': 0,    # 負債/權益上限（0=不篩，建議 2.0 排除高槓桿）
 
     # Stage 2: 精篩設定
     'top_n': 50,                # 輸出前 N 名
@@ -163,64 +168,120 @@ class ValueScreener:
 
     def _stage1_filter(self):
         """
-        Combine market daily data + PE/PB data for initial screening.
+        Combine market daily + PE/PB + TradingView fundamentals for initial screening.
 
-        Criteria:
-        1. PE in (min_pe, max_pe) — profitable and not overvalued
-        2. PB < max_pb
-        3. Trading value > minimum
-        4. Only regular stocks (4-digit numeric IDs)
+        Layer 1 — TWSE/TPEX batch (free):
+          1. Liquidity: trading_value >= 3000 萬（機構可交易水準）
+          2. PE: min_pe ~ max_pe（有獲利且不過貴）
+          3. PB: < max_pb
+          4. Graham 複合: PE × PB < 22.5（允許 PE 或 PB 單邊偏高，但乘積必須合理）
+          5. Dividend yield >= min（可選）
+
+        Layer 2 — TradingView batch (free, no FinMind cost):
+          6. ROE >= min_roe（排除體質極差的公司）
+          7. Operating margin >= min（排除嚴重虧損）
+          8. Debt/Equity <= max（排除高槓桿）
         """
         from twse_api import TWSEOpenData
         api = TWSEOpenData()
         cfg = self.config
 
-        # Get market prices + volumes
+        # ---- Layer 1: TWSE/TPEX batch data ----
         market_df = api.get_market_daily_all()
         if market_df.empty:
             return pd.DataFrame()
 
         total_market = len(market_df)
 
-        # Get PE/PB/dividend for all stocks (TWSE + TPEX)
         pe_df = api.get_pe_dividend_all_combined()
 
         if pe_df.empty:
-            # Fallback: use market data without PE filter
             logger.warning("No PE data available, using market data only")
             result = market_df[market_df['trading_value'] >= cfg['min_trading_value']].copy()
             result.attrs['total_market'] = total_market
             return result
 
-        # Merge market data with fundamentals
         merged = market_df.merge(
             pe_df[['stock_id', 'PE', 'dividend_yield', 'PB']],
             on='stock_id',
             how='left',
         )
 
-        # Apply filters
         mask = pd.Series(True, index=merged.index)
 
-        # 1. PE filter (only stocks with valid PE)
+        # 1. Liquidity
+        mask &= merged['trading_value'] >= cfg['min_trading_value']
+
+        # 2. PE filter
         has_pe = merged['PE'].notna() & (merged['PE'] > 0)
         mask &= has_pe
         mask &= merged['PE'] >= cfg['min_pe']
         mask &= merged['PE'] <= cfg['max_pe']
 
-        # 2. PB filter
+        # 3. PB filter
         if cfg['max_pb'] > 0:
             has_pb = merged['PB'].notna() & (merged['PB'] > 0)
             mask &= (has_pb & (merged['PB'] <= cfg['max_pb'])) | ~has_pb
 
-        # 3. Dividend yield filter
+        # 4. Graham compound: PE × PB < 22.5
+        pe_x_pb_max = cfg.get('pe_x_pb_max', 0)
+        if pe_x_pb_max > 0:
+            has_both = has_pe & merged['PB'].notna() & (merged['PB'] > 0)
+            pe_x_pb = merged['PE'] * merged['PB']
+            # 有 PE 和 PB 的必須通過複合條件；只有 PE 沒 PB 的放行
+            mask &= (has_both & (pe_x_pb <= pe_x_pb_max)) | ~has_both
+
+        # 5. Dividend yield filter
         if cfg['min_dividend_yield'] > 0:
             mask &= merged['dividend_yield'] >= cfg['min_dividend_yield']
 
-        # 4. Liquidity filter
-        mask &= merged['trading_value'] >= cfg['min_trading_value']
+        layer1 = merged[mask].copy()
+        self.progress(f"  Layer 1 (TWSE/TPEX): {total_market} -> {len(layer1)} stocks")
 
-        result = merged[mask].copy()
+        if layer1.empty:
+            layer1.attrs['total_market'] = total_market
+            return layer1
+
+        # ---- Layer 2: TradingView batch fundamentals (free) ----
+        tv_batch = _fetch_tradingview_batch('tw')
+        min_roe = cfg.get('min_roe', 0)
+        min_om = cfg.get('min_operating_margin', -50)
+        max_de = cfg.get('max_debt_to_equity', 0)
+
+        if tv_batch and (min_roe > 0 or min_om > -50 or max_de > 0):
+            drop_ids = set()
+            for _, row in layer1.iterrows():
+                sid = row['stock_id']
+                tv = tv_batch.get(sid)
+                if not tv:
+                    continue  # 沒 TradingView 資料的放行（不懲罰資料缺失）
+
+                # ROE filter
+                if min_roe > 0:
+                    roe = tv.get('ROE')
+                    if roe is not None and roe < min_roe:
+                        drop_ids.add(sid)
+                        continue
+
+                # Operating margin filter
+                if min_om > -50:
+                    om = tv.get('operating_margin')
+                    if om is not None and om < min_om:
+                        drop_ids.add(sid)
+                        continue
+
+                # Debt/Equity filter
+                if max_de > 0:
+                    de = tv.get('debt_to_equity')
+                    if de is not None and de > max_de:
+                        drop_ids.add(sid)
+                        continue
+
+            if drop_ids:
+                layer1 = layer1[~layer1['stock_id'].isin(drop_ids)]
+                self.progress(f"  Layer 2 (TradingView): removed {len(drop_ids)}, remaining {len(layer1)}")
+
+        result = layer1
         result.sort_values('PE', ascending=True, inplace=True)
         result.attrs['total_market'] = total_market
         return result
@@ -434,6 +495,23 @@ class ValueScreener:
         scores = {}
         details = []
 
+        # Pre-load price data ONCE (reused by quality/technical/trading value)
+        _price_df = None
+        _latest_close = 0
+        avg_tv_5d = 0
+        if not is_us:
+            try:
+                from technical_analysis import load_and_resample
+                _, _price_df, _, _ = load_and_resample(stock_id)
+                if _price_df is not None and not _price_df.empty:
+                    if 'Close' in _price_df.columns:
+                        _latest_close = float(_price_df['Close'].iloc[-1])
+                    if 'Close' in _price_df.columns and 'Volume' in _price_df.columns:
+                        tv = (_price_df['Close'] * _price_df['Volume']).tail(5)
+                        avg_tv_5d = int(tv.mean()) if len(tv) > 0 else 0
+            except Exception:
+                pass
+
         # For US stocks: fetch finviz data to populate PE/PB/PEG/dividend
         finviz = None
         if is_us:
@@ -464,7 +542,7 @@ class ValueScreener:
         if is_us:
             scores['quality'] = self._score_quality_us(stock_id, finviz, details)
         else:
-            scores['quality'] = self._score_quality(stock_id, details)
+            scores['quality'] = self._score_quality(stock_id, details, price=_latest_close)
 
         # --- 3. Revenue Trend Score (0-100) ---
         if is_us:
@@ -473,7 +551,7 @@ class ValueScreener:
             scores['revenue'] = self._score_revenue(stock_id, details)
 
         # --- 4. Technical Reversal Score (0-100) ---
-        scores['technical'] = self._score_technical(stock_id, details)
+        scores['technical'] = self._score_technical(stock_id, details, price_df=_price_df)
 
         # --- 5. Smart Money Score (0-100) ---
         scores['smart_money'] = self._score_smart_money_us(stock_id, finviz, details) if is_us else self._score_smart_money(stock_id, details)
@@ -487,16 +565,16 @@ class ValueScreener:
             scores['smart_money'] * cfg['weight_smart_money']
         )
 
-        # 近 5 日平均成交值
-        avg_tv_5d = 0
-        try:
-            from technical_analysis import load_and_resample
-            _, _df, _, _ = load_and_resample(stock_id)
-            if not _df.empty and 'Close' in _df.columns and 'Volume' in _df.columns:
-                tv = (_df['Close'] * _df['Volume']).tail(5)
-                avg_tv_5d = int(tv.mean()) if len(tv) > 0 else 0
-        except Exception:
-            pass
+        # US: load price for avg trading value (TW already pre-loaded above)
+        if is_us and avg_tv_5d == 0:
+            try:
+                from technical_analysis import load_and_resample
+                _, _df, _, _ = load_and_resample(stock_id)
+                if _df is not None and not _df.empty and 'Close' in _df.columns and 'Volume' in _df.columns:
+                    tv = (_df['Close'] * _df['Volume']).tail(5)
+                    avg_tv_5d = int(tv.mean()) if len(tv) > 0 else 0
+            except Exception:
+                pass
 
         return {
             'stock_id': stock_id,
@@ -686,126 +764,149 @@ class ValueScreener:
 
         return max(0, min(100, score))
 
-    def _score_quality(self, stock_id, details):
+    def _score_quality(self, stock_id, details, price=0):
         """
         體質分數: Piotroski F-Score + Altman Z-Score + ROE + 三率 + ROIC/FCF
+
+        Uses calculate_all() for single-fetch optimization (3 API calls instead of 9).
+        Args:
+            price: latest close price (pre-loaded from _score_single to avoid extra API call)
         """
         score = 50
+        mcap = price * 1e8 if price > 0 else 0  # Rough market cap placeholder
 
-        # --- Piotroski F-Score (primary quality signal) ---
+        # --- Combined: F-Score + Z-Score + ROIC/FCF (single FinMind fetch) ---
+        all_result = None
         try:
-            from piotroski import calculate_fscore
-            fs_result = calculate_fscore(stock_id)
-            if fs_result:
-                fscore = fs_result['fscore']
-                comp = fs_result['components']
-                if fscore >= 7:
-                    score += 25
-                    details.append(f"F-Score={fscore}/9 強 (獲利{comp['profitability']}/槓桿{comp['leverage']}/效率{comp['efficiency']}) (+25)")
-                elif fscore >= 5:
-                    score += 10
-                    details.append(f"F-Score={fscore}/9 中等 (+10)")
-                elif fscore <= 3:
-                    score -= 20
-                    details.append(f"F-Score={fscore}/9 弱 (價值陷阱風險) (-20)")
-                else:
-                    details.append(f"F-Score={fscore}/9 (+0)")
-
-                # Extract current ratio from F-Score data
-                cr = fs_result['data'].get('current_ratio', 0)
-                if cr > 0:
-                    if cr > 2.0:
-                        score += 5
-                        details.append(f"流動比率={cr:.1f} 安全 (+5)")
-                    elif cr < 1.0:
-                        score -= 8
-                        details.append(f"流動比率={cr:.1f} 偏低 (-8)")
+            from piotroski import calculate_all
+            all_result = calculate_all(stock_id, market_cap=mcap)
         except Exception:
             pass
 
-        # --- Altman Z-Score (bankruptcy risk, method B: penalty not exclude) ---
-        try:
-            from piotroski import calculate_zscore
-            # Estimate market cap from price * shares (rough)
-            price = 0
+        # --- F-Score ---
+        if all_result and all_result.get('fscore'):
+            fs_result = all_result['fscore']
+            fscore = fs_result['fscore']
+            comp = fs_result['components']
+            if fscore >= 7:
+                score += 25
+                details.append(f"F-Score={fscore}/9 強 (獲利{comp['profitability']}/槓桿{comp['leverage']}/效率{comp['efficiency']}) (+25)")
+            elif fscore >= 5:
+                score += 10
+                details.append(f"F-Score={fscore}/9 中等 (+10)")
+            elif fscore <= 3:
+                score -= 20
+                details.append(f"F-Score={fscore}/9 弱 (價值陷阱風險) (-20)")
+            else:
+                details.append(f"F-Score={fscore}/9 (+0)")
+
+            cr = fs_result['data'].get('current_ratio', 0)
+            if cr > 0:
+                if cr > 2.0:
+                    score += 5
+                    details.append(f"流動比率={cr:.1f} 安全 (+5)")
+                elif cr < 1.0:
+                    score -= 8
+                    details.append(f"流動比率={cr:.1f} 偏低 (-8)")
+
+        # --- Z-Score ---
+        if all_result and all_result.get('zscore'):
+            z_result = all_result['zscore']
+            z = z_result['zscore']
+            zone = z_result['zone']
+            if zone == 'distress':
+                score -= 20
+                details.append(f"Z-Score={z:.1f} 危險區 (破產風險) (-20)")
+            elif zone == 'safe':
+                score += 8
+                details.append(f"Z-Score={z:.1f} 安全區 (+8)")
+            else:
+                details.append(f"Z-Score={z:.1f} 灰色區 [資訊]")
+
+        # --- ROIC / FCF ---
+        if all_result and all_result.get('extra'):
+            extras = all_result['extra']
+            roic = extras.get('roic', 0)
+            if roic and roic > 15:
+                score += 8
+                details.append(f"ROIC={roic:.1f}% 優 (+8)")
+            elif roic and roic < 0:
+                score -= 5
+                details.append(f"ROIC={roic:.1f}% 虧損 (-5)")
+
+            fcf_y = extras.get('fcf_yield', 0)
+            if fcf_y and fcf_y > 8:
+                score += 8
+                details.append(f"FCF Yield={fcf_y:.1f}% 高 (+8)")
+            elif fcf_y and fcf_y < -5:
+                score -= 5
+                details.append(f"FCF Yield={fcf_y:.1f}% 負 (-5)")
+
+        # --- ROE + EPS from calculate_all's raw income data (no extra API call) ---
+        _has_roe_eps = False
+        if all_result and all_result.get('income') and all_result.get('balance'):
             try:
-                from cache_manager import get_finmind_loader
-                _dl = get_finmind_loader()
-                _df = _dl.taiwan_stock_daily(stock_id=stock_id,
-                    start_date=(datetime.now() - timedelta(days=10)).strftime('%Y-%m-%d'))
-                if not _df.empty:
-                    price = float(_df.iloc[-1].get('close', 0))
-            except Exception:
-                pass
-            if price > 0:
-                # Rough market cap (will be refined when shares data available)
-                mcap = price * 1e8  # Placeholder; Z-Score is ratio-based so scale matters less
-                z_result = calculate_zscore(stock_id, market_cap=mcap)
-                if z_result:
-                    z = z_result['zscore']
-                    zone = z_result['zone']
-                    if zone == 'distress':
-                        score -= 20
-                        details.append(f"Z-Score={z:.1f} 危險區 (破產風險) (-20)")
-                    elif zone == 'safe':
-                        score += 8
-                        details.append(f"Z-Score={z:.1f} 安全區 (+8)")
-                    else:
-                        details.append(f"Z-Score={z:.1f} 灰色區 [資訊]")
-        except Exception:
-            pass
+                income = all_result['income']
+                balance = all_result['balance']
+                periods = sorted(income.keys())
+                if len(periods) >= 4:
+                    # ROE = net_income / equity
+                    curr_p = periods[-1]
+                    if curr_p in balance:
+                        equity = balance[curr_p].get('equity', 0)
+                        net_inc = income[curr_p].get('net_income', 0)
+                        if equity > 0:
+                            roe = net_inc / equity * 100
+                            if roe > 15:
+                                score += 5
+                                details.append(f"ROE={roe:.1f}% (+5)")
+                            elif roe < 0:
+                                score -= 10
+                                details.append(f"ROE={roe:.1f}% 虧損 (-10)")
 
-        # --- ROIC / FCF (supplementary) ---
-        try:
-            from piotroski import calculate_extra_metrics
-            extras = calculate_extra_metrics(stock_id, market_cap=mcap if price > 0 else 0)
-            if extras:
-                roic = extras.get('roic', 0)
-                if roic and roic > 15:
-                    score += 8
-                    details.append(f"ROIC={roic:.1f}% 優 (+8)")
-                elif roic and roic < 0:
-                    score -= 5
-                    details.append(f"ROIC={roic:.1f}% 虧損 (-5)")
-
-                fcf_y = extras.get('fcf_yield', 0)
-                if fcf_y and fcf_y > 8:
-                    score += 8
-                    details.append(f"FCF Yield={fcf_y:.1f}% 高 (+8)")
-                elif fcf_y and fcf_y < -5:
-                    score -= 5
-                    details.append(f"FCF Yield={fcf_y:.1f}% 負 (-5)")
-        except Exception:
-            pass
-
-        # --- Fallback: basic ROE + margins (if F-Score unavailable) ---
-        try:
-            from fundamental_analysis import get_financial_statements
-            fs = get_financial_statements(stock_id, quarters=12)
-
-            if fs is not None and not fs.empty and len(fs) >= 4:
-                if 'ROE' in fs.columns:
-                    recent_roe = fs['ROE'].iloc[-1]
-                    if pd.notna(recent_roe):
-                        if recent_roe > 15:
-                            score += 5
-                            details.append(f"ROE={recent_roe:.1f}% (+5)")
-                        elif recent_roe < 0:
-                            score -= 10
-                            details.append(f"ROE={recent_roe:.1f}% 虧損 (-10)")
-
-                if 'EPS' in fs.columns:
-                    eps = fs['EPS'].dropna()
-                    if len(eps) >= 4:
-                        profitable_q = (eps.iloc[-4:] > 0).sum()
+                    # EPS: check last 4 quarters
+                    eps_vals = [income[p].get('eps', 0) for p in periods[-4:] if 'eps' in income[p]]
+                    if len(eps_vals) >= 4:
+                        profitable_q = sum(1 for e in eps_vals if e > 0)
                         if profitable_q == 4:
                             score += 5
                             details.append("連續 4 季獲利 (+5)")
                         elif profitable_q <= 1:
                             score -= 10
                             details.append(f"近 4 季僅 {profitable_q} 季獲利 (-10)")
-        except Exception as e:
-            logger.debug("Quality scoring failed for %s: %s", stock_id, e)
+                    _has_roe_eps = True
+            except Exception:
+                pass
+
+        # --- Fallback: fetch ROE/EPS from FinMind only if calculate_all had no data ---
+        if not _has_roe_eps:
+            try:
+                from fundamental_analysis import get_financial_statements
+                fs = get_financial_statements(stock_id, quarters=12)
+
+                if fs is not None and not fs.empty and len(fs) >= 4:
+                    if 'ROE' in fs.columns:
+                        recent_roe = fs['ROE'].iloc[-1]
+                        if pd.notna(recent_roe):
+                            if recent_roe > 15:
+                                score += 5
+                                details.append(f"ROE={recent_roe:.1f}% (+5)")
+                            elif recent_roe < 0:
+                                score -= 10
+                                details.append(f"ROE={recent_roe:.1f}% 虧損 (-10)")
+
+                    if 'EPS' in fs.columns:
+                        eps = fs['EPS'].dropna()
+                        if len(eps) >= 4:
+                            profitable_q = (eps.iloc[-4:] > 0).sum()
+                            if profitable_q == 4:
+                                score += 5
+                                details.append("連續 4 季獲利 (+5)")
+                            elif profitable_q <= 1:
+                                score -= 10
+                                details.append(f"近 4 季僅 {profitable_q} 季獲利 (-10)")
+            except Exception as e:
+                logger.debug("Quality scoring failed for %s: %s", stock_id, e)
 
         # --- TradingView 三率/ROE 補充 (batch pre-fetched) ---
         tv = getattr(self, '_tv_batch', {}).get(stock_id, {})
@@ -958,16 +1059,22 @@ class ValueScreener:
 
         return max(0, min(100, score))
 
-    def _score_technical(self, stock_id, details):
+    def _score_technical(self, stock_id, details, price_df=None):
         """
         技術面轉折分數: RSI 超賣 + 量能萎縮 + Squeeze 壓縮
+
+        Args:
+            price_df: pre-loaded daily price DataFrame (from _score_single) to avoid duplicate fetch
         """
         score = 50
 
         try:
             from technical_analysis import load_and_resample, calculate_all_indicators
 
-            _, df_day, _, _ = load_and_resample(stock_id)
+            if price_df is not None and not price_df.empty:
+                df_day = price_df
+            else:
+                _, df_day, _, _ = load_and_resample(stock_id)
             if df_day.empty or len(df_day) < 60:
                 return score
 
