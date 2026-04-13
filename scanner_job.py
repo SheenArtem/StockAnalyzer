@@ -150,9 +150,9 @@ def git_push_results(data_dir='data'):
             logger.warning("Data dir %s not found, skipping push", data_dir)
             return False
 
-        # Stage data files
+        # Stage data files (data/history is gitignored, only stage data/latest)
         subprocess.run(
-            ['git', 'add', str(data_path / 'latest'), str(data_path / 'history')],
+            ['git', 'add', str(data_path / 'latest')],
             check=True, capture_output=True, text=True,
         )
 
