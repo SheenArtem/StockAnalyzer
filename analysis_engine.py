@@ -996,6 +996,32 @@ class TechnicalAnalyzer:
                    elif util < 20:
                        details.append(f"✨ 融資水位偏低 ({util:.1f}%) [資訊]")
 
+            # 借券賣出 (SBL) — 法人放空指標，計分
+            df_sbl = self.chip_data.get('sbl')
+            if df_sbl is not None and not df_sbl.empty and len(df_sbl) >= 30:
+                if '借券賣出餘額' in df_sbl.columns and '借券賣出' in df_sbl.columns and '借券還券' in df_sbl.columns:
+                    # 5 日淨增 vs 30 日均餘額
+                    recent5 = df_sbl.iloc[-5:]
+                    net5d = recent5['借券賣出'].sum() - recent5['借券還券'].sum()
+                    ma30_bal = df_sbl['借券賣出餘額'].iloc[-30:].mean()
+
+                    # 5日淨增佔30日平均餘額的比例（>5% 視為顯著放空）
+                    if ma30_bal > 0:
+                        net5d_pct = (net5d / ma30_bal) * 100
+
+                        if net5d_pct > 10:
+                            score -= 0.6
+                            details.append(f"🔴 借券大量增加 5日淨增{net5d/1000:+,.0f}張 ({net5d_pct:+.1f}% of 30日均) (-0.6)")
+                        elif net5d_pct > 5:
+                            score -= 0.3
+                            details.append(f"⚠️ 借券增加 5日淨增{net5d/1000:+,.0f}張 ({net5d_pct:+.1f}%) (-0.3)")
+                        elif net5d_pct < -10:
+                            score += 0.4
+                            details.append(f"🟢 借券大量回補 5日淨減{abs(net5d)/1000:,.0f}張 ({net5d_pct:.1f}%) (+0.4)")
+                        elif net5d_pct < -5:
+                            score += 0.2
+                            details.append(f"✨ 借券回補 5日淨減{abs(net5d)/1000:,.0f}張 ({net5d_pct:.1f}%) (+0.2)")
+
         except Exception as e:
             logger.warning(f"Chip scoring error: {e}")
 
