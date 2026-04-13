@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import logging
+import threading
+import time
 from technical_analysis import plot_dual_timeframe, load_and_resample, calculate_all_indicators, plot_interactive_chart
 from fundamental_analysis import get_fundamentals, get_revenue_history, get_per_history, get_financial_statements
 
@@ -105,7 +107,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.13.2")
+    st.caption("Version: v2026.04.13.5")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -234,6 +236,98 @@ def run_analysis(source_data, force_update=False):
             errors['Daily'] = str(e)
             
     return figures, errors, df_week, df_day, stock_meta
+
+
+# ====================================================================
+#  AI 報告背景執行緒 Worker
+#  讓報告生成不會被 Streamlit rerun 中斷
+# ====================================================================
+def _ai_report_worker(job, ticker, report_format='md'):
+    """
+    在背景 thread 跑完整 AI 報告流程。
+    job 是一個 dict (session_state 裡的參照)，thread 直接 mutate 欄位。
+    禁止呼叫任何 st.* UI 函式（會觸發 ScriptRunContext 警告）。
+
+    Args:
+        report_format: 'md' = 傳統 Markdown 報告；'html' = 互動儀表板
+    """
+    try:
+        job['progress'].append("📥 載入價量資料...")
+        figures, errors, df_week, df_day, stock_meta = run_analysis(ticker, force_update=False)
+
+        job['progress'].append("📥 載入籌碼資料...")
+        chip_data = None
+        us_chip_data = None
+        if ticker.isdigit() or ticker.endswith('.TW'):
+            try:
+                chip_data, _ = get_chip_data_cached(ticker, False)
+            except Exception as _e:
+                logger.warning(f"[AI worker] chip load failed: {_e}")
+        else:
+            try:
+                from us_stock_chip import USStockChipAnalyzer
+                _usc = USStockChipAnalyzer()
+                us_chip_data, _ = _usc.get_chip_data(ticker)
+            except Exception as _e:
+                logger.warning(f"[AI worker] US chip load failed: {_e}")
+
+        job['progress'].append("📥 載入基本面資料...")
+        try:
+            fund_data = get_fundamentals(ticker)
+        except Exception as _e:
+            logger.warning(f"[AI worker] fundamental load failed: {_e}")
+            fund_data = None
+
+        job['progress'].append("📊 計算技術分析與觸發分數...")
+        from analysis_engine import TechnicalAnalyzer as _TA
+        _analyzer = _TA(ticker, df_week, df_day, chip_data=chip_data, us_chip_data=us_chip_data)
+        _report = _analyzer.run_analysis()
+
+        if report_format == 'html':
+            job['progress'].append("🤖 Claude AI 生成儀表板 JSON 中（不設逾時，可能需要 1-5 分鐘）...")
+            from ai_report import generate_report_html as _gen_html, save_report_html as _save_html
+            _ok, _content_or_err, _json = _gen_html(
+                ticker, _report, chip_data, us_chip_data, fund_data, df_day,
+                timeout=None,
+            )
+            if _ok:
+                job['progress'].append("💾 組裝 HTML + 儲存到報告庫...")
+                _rid = _save_html(
+                    ticker, _content_or_err,
+                    trigger_score=_report.get('trigger_score'),
+                    trend_score=_report.get('trend_score'),
+                    json_data=_json,
+                )
+                job['result'] = {'rid': _rid, 'content': _content_or_err, 'format': 'html'}
+                job['status'] = 'done'
+            else:
+                job['result'] = _content_or_err
+                job['status'] = 'error'
+        else:
+            job['progress'].append("🤖 Claude AI 生成 Markdown 報告中（不設逾時，可能需要 1-5 分鐘）...")
+            from ai_report import generate_report as _gen_report, save_report as _save_report
+            _ok, _content = _gen_report(
+                ticker, _report, chip_data, us_chip_data, fund_data, df_day,
+                timeout=None,
+            )
+            if _ok:
+                job['progress'].append("💾 儲存到報告庫...")
+                _rid = _save_report(
+                    ticker, _content,
+                    trigger_score=_report.get('trigger_score'),
+                    trend_score=_report.get('trend_score'),
+                )
+                job['result'] = {'rid': _rid, 'content': _content, 'format': 'md'}
+                job['status'] = 'done'
+            else:
+                job['result'] = _content
+                job['status'] = 'error'
+    except Exception as _e:
+        import traceback
+        logger.error(f"[AI worker] exception: {_e}", exc_info=True)
+        job['result'] = f"{type(_e).__name__}: {_e}\n\n{traceback.format_exc()}"
+        job['status'] = 'error'
+
 
 # 主程式邏輯
 
@@ -793,7 +887,7 @@ if st.session_state.get('app_mode') == 'screener':
                             })
 
                     if _perf_rows:
-                        st.dataframe(pd.DataFrame(_perf_rows), use_container_width=True, hide_index=True)
+                        st.dataframe(pd.DataFrame(_perf_rows), width='stretch', hide_index=True)
 
                 # Detailed picks table
                 with st.expander("個股追蹤明細"):
@@ -813,7 +907,7 @@ if st.session_state.get('app_mode') == 'screener':
                             if col in _picks_df.columns:
                                 _show_cols.append(col)
                         _show_cols = [c for c in _show_cols if c in _picks_df.columns]
-                        st.dataframe(_picks_df[_show_cols], use_container_width=True, height=400)
+                        st.dataframe(_picks_df[_show_cols], width='stretch', height=400)
                     else:
                         st.info("尚無追蹤資料")
 
@@ -845,11 +939,68 @@ elif st.session_state.get('app_mode') == 'ai_reports':
 
     # --- Tab 1: Generate ---
     with _report_tab_gen:
+        # ==========================================================
+        # [NEW] 背景生成：job 放 session_state，thread 跑完寫回結果
+        # 切換 tab / app_mode 都不中斷；每次 rerun 檢查 job 狀態
+        # ==========================================================
+        _job = st.session_state.get('ai_report_job')
+
+        # --- 處理已完成的 job ---
+        if _job and _job.get('status') == 'done':
+            _res = _job.get('result') or {}
+            st.success(f"✅ **{_job['ticker']}** 報告生成完成！已儲存到報告庫（ID: `{_res.get('rid', 'N/A')}`）")
+            st.info("請切到「📚 報告庫」tab 查看報告內容。")
+            if st.button("清除通知並繼續", key='ai_clear_done'):
+                del st.session_state['ai_report_job']
+                st.rerun()
+
+        elif _job and _job.get('status') == 'error':
+            st.error(f"❌ **{_job['ticker']}** 生成失敗")
+            with st.expander("錯誤訊息", expanded=True):
+                st.code(_job.get('result') or "(無訊息)", language=None)
+            if st.button("清除通知並重試", key='ai_clear_err'):
+                del st.session_state['ai_report_job']
+                st.rerun()
+
+        # --- 顯示執行中的 banner + 自動刷新 ---
+        if _job and _job.get('status') == 'running':
+            _elapsed = int(time.time() - _job['start_time'])
+            _mm, _ss = _elapsed // 60, _elapsed % 60
+            st.warning(f"⏳ 正在生成 **{_job['ticker']}** 的研究報告... (已過 {_mm} 分 {_ss} 秒)")
+            st.info("💡 可以安心切換到其他頁面，生成會在背景繼續進行。回到此頁會看到進度。")
+            with st.expander("進度", expanded=True):
+                for _msg in _job.get('progress', []):
+                    st.write(f"• {_msg}")
+            # Auto-refresh every 2s to update elapsed + progress
+            time.sleep(2)
+            st.rerun()
+
+        # --- 輸入區（執行中時禁用） ---
         st.markdown("輸入股票代號，Claude AI 將根據系統所有數據生成深度研究報告。")
+        _is_running = _job is not None and _job.get('status') == 'running'
 
-        _ai_ticker = st.text_input("股票代號", placeholder="例: 2330, AAPL", key='ai_report_ticker')
+        _col_t, _col_f = st.columns([3, 2])
+        with _col_t:
+            _ai_ticker = st.text_input(
+                "股票代號", placeholder="例: 2330, AAPL",
+                key='ai_report_ticker',
+                disabled=_is_running,
+            )
+        with _col_f:
+            _format_labels = {
+                'html': '📊 互動儀表板 (HTML)',
+                'md': '📝 傳統報告 (Markdown)',
+            }
+            _ai_format = st.radio(
+                "產出格式",
+                options=['html', 'md'],
+                format_func=lambda x: _format_labels[x],
+                key='ai_report_format',
+                disabled=_is_running,
+                horizontal=False,
+            )
 
-        if st.button("生成研究報告", type="primary", key='ai_gen_btn'):
+        if st.button("生成研究報告", type="primary", key='ai_gen_btn', disabled=_is_running):
             if not _ai_ticker or not _ai_ticker.strip():
                 st.error("請輸入股票代號")
             else:
@@ -858,65 +1009,23 @@ elif st.session_state.get('app_mode') == 'ai_reports':
                 if not is_valid:
                     st.error(f"代號格式不正確: {err_msg}")
                 else:
-                    with st.status(f"正在生成 {_ai_ticker} 研究報告...", expanded=True) as _status:
-                        try:
-                            # 1. Load data
-                            st.write("載入價量資料...")
-                            figures, errors, df_week, df_day, stock_meta = run_analysis(_ai_ticker, force_update=False)
-
-                            # 2. Load chip data
-                            st.write("載入籌碼資料...")
-                            _chip = None
-                            _us_chip = None
-                            if _ai_ticker.isdigit() or _ai_ticker.endswith('.TW'):
-                                try:
-                                    _chip, _ = get_chip_data_cached(_ai_ticker, False)
-                                except Exception:
-                                    pass
-                            else:
-                                try:
-                                    from us_stock_chip import USStockChipAnalyzer
-                                    _usc = USStockChipAnalyzer()
-                                    _us_chip, _ = _usc.get_chip_data(_ai_ticker)
-                                except Exception:
-                                    pass
-
-                            # 3. Load fundamentals
-                            st.write("載入基本面資料...")
-                            try:
-                                _fund = get_fundamentals(_ai_ticker)
-                            except Exception:
-                                _fund = None
-
-                            # 4. Run analysis
-                            st.write("計算技術分析...")
-                            from analysis_engine import TechnicalAnalyzer as _TA
-                            _analyzer = _TA(_ai_ticker, df_week, df_day, chip_data=_chip, us_chip_data=_us_chip)
-                            _report = _analyzer.run_analysis()
-
-                            # 5. Generate AI report (no timeout)
-                            st.write("Claude AI 生成報告中（不設逾時）...")
-                            _ok, _content = _gen_report(
-                                _ai_ticker, _report, _chip, _us_chip, _fund, df_day,
-                                timeout=None,
-                            )
-
-                            if _ok:
-                                # 6. Save to library
-                                _rid = _save_report(
-                                    _ai_ticker, _content,
-                                    trigger_score=_report.get('trigger_score'),
-                                    trend_score=_report.get('trend_score'),
-                                )
-                                _status.update(label=f"{_ai_ticker} 報告生成完成！", state="complete")
-                                st.success(f"報告已儲存到報告庫 (ID: {_rid})，請切到「📚 報告庫」tab 查看。")
-                            else:
-                                _status.update(label="生成失敗", state="error")
-                                st.error(_content)
-
-                        except Exception as _e:
-                            _status.update(label="生成失敗", state="error")
-                            st.error(f"報告生成失敗: {_e}")
+                    # 啟動背景 job
+                    _new_job = {
+                        'ticker': _ai_ticker,
+                        'status': 'running',
+                        'start_time': time.time(),
+                        'progress': [],
+                        'result': None,
+                        'format': _ai_format,
+                    }
+                    st.session_state['ai_report_job'] = _new_job
+                    _t = threading.Thread(
+                        target=_ai_report_worker,
+                        args=(_new_job, _ai_ticker, _ai_format),
+                        daemon=True,
+                    )
+                    _t.start()
+                    st.rerun()
 
     # --- Tab 2: Library ---
     with _report_tab_lib:
@@ -939,19 +1048,28 @@ elif st.session_state.get('app_mode') == 'ai_reports':
             # Report list
             _list_rows = []
             for _r in _filtered:
+                _fmt = _r.get('format', 'md')
+                _fmt_label = '📊 儀表板' if _fmt == 'html' else '📝 Markdown'
                 _list_rows.append({
                     '日期': f"{_r.get('date', '')} {_r.get('time', '')[:5]}",
                     '股票': _r['ticker'],
+                    '格式': _fmt_label,
                     '觸發分數': _r.get('trigger_score') or '',
                     '趨勢分數': _r.get('trend_score') or '',
                     'ID': _r['report_id'],
                 })
             if _list_rows:
-                st.dataframe(pd.DataFrame(_list_rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(_list_rows), width='stretch', hide_index=True)
 
             # Report viewer
-            _report_options = [f"{r.get('date', '')} {r['ticker']}" for r in _filtered]
+            def _opt_label(r):
+                _f = r.get('format', 'md')
+                _badge = '📊' if _f == 'html' else '📝'
+                return f"{_badge} {r.get('date', '')} {r['ticker']}"
+
+            _report_options = [_opt_label(r) for r in _filtered]
             _report_ids = [r['report_id'] for r in _filtered]
+            _report_formats = [r.get('format', 'md') for r in _filtered]
 
             if _report_options:
                 _sel_idx = st.selectbox(
@@ -960,11 +1078,39 @@ elif st.session_state.get('app_mode') == 'ai_reports':
                     key='report_viewer_sel',
                 )
                 _sel_id = _report_ids[_sel_idx]
+                _sel_fmt = _report_formats[_sel_idx]
                 _sel_content = _load_content(_sel_id)
 
                 if _sel_content:
                     st.markdown("---")
-                    st.markdown(_sel_content)
+
+                    if _sel_fmt == 'html':
+                        # 工具列：在瀏覽器開啟 + 下載
+                        from ai_report import get_report_filepath as _get_fp
+                        _fp = _get_fp(_sel_id)
+
+                        _c1, _c2, _c3 = st.columns([2, 2, 6])
+                        with _c1:
+                            if _fp and st.button("🌐 在瀏覽器開啟", key='html_open_btn', type='primary'):
+                                import webbrowser
+                                webbrowser.open(f"file:///{_fp.replace(chr(92), '/')}")
+                        with _c2:
+                            st.download_button(
+                                "💾 下載 HTML",
+                                data=_sel_content,
+                                file_name=f"{_sel_id}.html",
+                                mime='text/html',
+                                key='html_download_btn',
+                            )
+
+                        st.caption("💡 iframe 預覽可能受沙盒限制；如排版不完整請點「在瀏覽器開啟」查看完整儀表板")
+                        # 內嵌 iframe 預覽（React 需要 JS 執行，components.html 會放在 iframe 內可用）
+                        import streamlit.components.v1 as _components
+                        _components.html(_sel_content, height=1400, scrolling=True)
+                    else:
+                        # 報告含 <span style="color:..."> 顏色標記，需允許 HTML 才能正確渲染
+                        st.markdown(_sel_content, unsafe_allow_html=True)
+
                     st.markdown("---")
                     st.caption("此報告由 Claude AI 基於系統數據自動生成，僅供參考，不構成投資建議。")
 
@@ -996,55 +1142,85 @@ elif st.session_state.get('analysis_active', False):
         st.stop()
 
     # 執行分析
-    
-    # 執行分析
     status_text = st.empty()
-    action_text = "強制下載" if is_force else "分析"
-    # Show spinner only if strict run or different ticker? 
-    # Actually just show it, it's fast if cached.
-    # But if backtest button is clicked, we assume analysis is already done.
-    # Whatever, let it re-run run_analysis (it hits cache).
-    
-    status_text.info(f"⏳ 正在{action_text} {display_ticker} ...")
-    
+
+    # ==========================================
+    # [NEW] 快取檢查：切換 app_mode 返回時直接復用
+    # 同 ticker + 非強制更新 → 跳過所有 load，避免 UI 閃爍
+    # ==========================================
+    _ind_cache = st.session_state.get('_individual_cache')
+    _ind_cache_hit = (
+        _ind_cache is not None
+        and _ind_cache.get('ticker') == source
+        and not is_force
+    )
+
     try:
-        # 呼叫有快取的函數
-        figures, errors, df_week, df_day, stock_meta = run_analysis(source, force_update=is_force)
+        if _ind_cache_hit:
+            # Silent reuse
+            figures = _ind_cache['figures']
+            errors = _ind_cache['errors']
+            df_week = _ind_cache['df_week']
+            df_day = _ind_cache['df_day']
+            stock_meta = _ind_cache['stock_meta']
+            chip_data = _ind_cache.get('chip_data')
+            fund_data = _ind_cache.get('fund_data')
+            # Sync 到原有 session_state keys（其他區塊會讀）
+            st.session_state['df_week_cache'] = df_week
+            st.session_state['df_day_cache'] = df_day
+            st.session_state['force_update_cache'] = is_force
+            st.session_state['fund_cache'] = fund_data
+            status_text.caption(f"✅ 已復用 {display_ticker} 的分析結果（切換頁面快速返回）")
+        else:
+            action_text = "強制下載" if is_force else "分析"
+            status_text.info(f"⏳ 正在{action_text} {display_ticker} ...")
 
-        # Display analysis warnings from errors dict
-        for key, err_msg in errors.items():
-            if err_msg:
-                st.warning(f"⚠️ {key} 計算警告: {err_msg}")
+            # 1. 價量 + 指標 + 圖表
+            figures, errors, df_week, df_day, stock_meta = run_analysis(source, force_update=is_force)
 
-        # [NEW] Pre-load Chip Data for Analysis (籌碼預載)
-        chip_data = None
-        if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
-             try:
-                 status_text.info(f"⏳ 正在分析 {display_ticker} (技術+籌碼)...")
-                 chip_data, chip_err = get_chip_data_cached(source, is_force)
-             except Exception as e:
-                 logger.error(f"Chip Load Error: {e}", exc_info=True)
-                 st.warning(f"⚠️ 籌碼預載失敗: {e}")
+            # Display analysis warnings from errors dict
+            for key, err_msg in errors.items():
+                if err_msg:
+                    st.warning(f"⚠️ {key} 計算警告: {err_msg}")
 
-        # 暫存給 Analyzer 用 (使用 session_state)
-        st.session_state['df_week_cache'] = df_week
-        st.session_state['df_day_cache'] = df_day
-        st.session_state['force_update_cache'] = is_force
+            # 2. 台股籌碼
+            chip_data = None
+            if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
+                try:
+                    status_text.info(f"⏳ 正在分析 {display_ticker} (技術+籌碼)...")
+                    chip_data, chip_err = get_chip_data_cached(source, is_force)
+                except Exception as e:
+                    logger.error(f"Chip Load Error: {e}", exc_info=True)
+                    st.warning(f"⚠️ 籌碼預載失敗: {e}")
 
-        status_text.success("✅ 分析完成！")
-        
-        # ==========================================
-        # 顯示股票基本資訊 (Header)
-        # ==========================================
+            # 3. 基本面
+            fund_data = None
+            if source and isinstance(source, str):
+                with st.spinner("📋 載入基本面資料..."):
+                    try:
+                        fund_data = get_fundamentals(display_ticker)
+                    except Exception as e:
+                        logger.error(f"Fundamental Load Error: {e}", exc_info=True)
 
-        # ==========================================
-        # 顯示基本面資訊 (Fundamentals) - Moved to Header Area
-        # ==========================================
-        fund_data = None
-        if source and isinstance(source, str):
-             with st.spinner("📋 載入基本面資料..."):
-                 fund_data = get_fundamentals(display_ticker)
-             st.session_state['fund_cache'] = fund_data
+            # Sync 到原有 session_state keys
+            st.session_state['df_week_cache'] = df_week
+            st.session_state['df_day_cache'] = df_day
+            st.session_state['force_update_cache'] = is_force
+            st.session_state['fund_cache'] = fund_data
+
+            # 4. 存快取供下次 rerun 直接復用
+            st.session_state['_individual_cache'] = {
+                'ticker': source,
+                'figures': figures,
+                'errors': errors,
+                'df_week': df_week,
+                'df_day': df_day,
+                'stock_meta': stock_meta,
+                'chip_data': chip_data,
+                'fund_data': fund_data,
+            }
+
+            status_text.success("✅ 分析完成！")
 
         if stock_meta and 'name' in stock_meta:
              st.markdown(f"## 🏢 {display_ticker} {stock_meta.get('name', '')}")
