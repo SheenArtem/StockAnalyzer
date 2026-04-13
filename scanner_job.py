@@ -415,7 +415,8 @@ def main():
     # Git push
     if args.push and not args.stage1_only:
         progress("Pushing results to remote...")
-        git_push_results(args.output_dir)
+        if not git_push_results(args.output_dir):
+            sys.exit(1)  # propagate failure so Task Scheduler / run_scanner.bat see it
 
 
 _FINMIND_RATE_LIMIT = 600  # For display only
