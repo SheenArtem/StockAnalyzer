@@ -90,6 +90,25 @@ app.py (Streamlit UI 入口, 3 模式)
 
 ## 開發規範
 
+### 避免重工 & 重複抓取（⚠️ 最重要）
+
+本專案功能繁多（個股分析 / 自動選股 / AI 報告三大模式 + 共用模組），**實作或修改任何功能前必須先檢查既有實作**，避免重工與重複 API/網路請求浪費資源。
+
+**實作前檢查清單**：
+1. **先讀 `app.py` 模組架構圖 + CLAUDE.md「資料源優先順序」表**，確認要抓的資料是否已有現成函式
+2. **Grep 既有函式名稱**（如 `load_and_resample`、`get_fundamentals`、`ChipAnalyzer.*`、`peer_comparison`）— 同樣的資料優先復用，不要重寫
+3. **確認資料流路徑** — 參考 memory 的 `reference_data_path_diff`（Scanner batch vs 個股/AI 逐檔路徑不同，別混用）
+4. **AI 報告 / 儀表板等整合型功能**：資料應從上游算好的物件（`report`、`chip_data`、`fund_data`、`df_day`）撈，**禁止再重新呼叫 API**
+5. **若真的需要新抓資料**：先確認 `cache_manager` 是否已有快取欄位可加，優先擴充既有快取而非開新檔
+
+**禁止行為**：
+- ❌ 同一個指標/資料在 technical_analysis、analysis_engine、ai_report 各算一次
+- ❌ 同一檔股票的價量/籌碼在一次生成流程內重複下載
+- ❌ 為了新功能另開 API 呼叫，而不是從既有的 session_state / 上游回傳復用
+- ❌ 未檢查既有 util 就新寫重複邏輯（PE/PB/殖利率/ROE 這類基本面已經算好）
+
+**若發現重複抓取或重複計算，應先重構統一，再做新功能**。
+
 ### 語言
 - **程式碼註解**：繁體中文 + 英文混用
 - **Commit 訊息**：繁體中文為主，前綴用英文（feat/fix/refactor）
