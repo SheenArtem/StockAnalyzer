@@ -25,6 +25,77 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+# ============================================================
+# Level 1 Health Check — detect silent failures (e.g. yfinance 429)
+# ============================================================
+_MIN_SCAN_SIZE = {      # 正常 total_scanned 下限，低於此代表資料源掛了
+    'us': 400,
+    'tw': 1500,
+}
+_MIN_RESULTS = {        # 正常 results 數量下限
+    ('momentum', 'us'): 10,
+    ('momentum', 'tw'): 30,
+    ('value', 'us'): 10,
+    ('value', 'tw'): 30,
+}
+
+
+def check_scan_health(result, market, scan_type):
+    """
+    檢查 scan 結果是否健康。偵測靜默失敗（yfinance 429 / FinMind 爆額度等）。
+    回傳 (is_healthy, issues_list)。
+    """
+    results_count = len(result.get('results', []))
+    total_scanned = result.get('total_scanned', 0)
+    failures = result.get('failures', [])
+
+    issues = []
+    min_scan = _MIN_SCAN_SIZE.get(market, 100)
+    threshold = _MIN_RESULTS.get((scan_type, market), 10)
+
+    if total_scanned < min_scan:
+        issues.append(f"total_scanned={total_scanned} (expected >={min_scan}) -- data source likely failed")
+    if results_count < threshold:
+        issues.append(f"results={results_count} (expected >={threshold}) -- suspiciously low hit count")
+    if len(failures) > total_scanned * 0.2 and total_scanned > 0:
+        issues.append(f"failures={len(failures)}/{total_scanned} ({100*len(failures)/total_scanned:.0f}%) -- high failure rate")
+
+    if issues:
+        bar = "!" * 70
+        print(f"\n{bar}")
+        print(f"  [ALERT] {scan_type.upper()} [{market.upper()}] SCAN HEALTH CHECK FAILED")
+        for i in issues:
+            print(f"  !! {i}")
+        print(f"{bar}\n")
+        logger.error(f"Scan alert [{scan_type}/{market}]: {' | '.join(issues)}")
+        return False, issues
+    return True, []
+
+
+def send_alert_notification(scan_type, market, issues, webhook_url=None):
+    """把健康檢查 alert 也送到 Discord（若有設 webhook）。"""
+    if not webhook_url:
+        env_path = Path('local/.env')
+        if env_path.exists():
+            with open(env_path, 'r') as f:
+                for line in f:
+                    if line.startswith('DISCORD_WEBHOOK_URL='):
+                        webhook_url = line.strip().split('=', 1)[1].strip()
+                        break
+    if not webhook_url:
+        return False
+    content = (f"🚨 **SCAN ALERT** — {scan_type.upper()} [{market.upper()}] "
+               f"{datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+               + "\n".join(f"• {i}" for i in issues))
+    try:
+        import requests
+        resp = requests.post(webhook_url, json={'content': content}, timeout=10)
+        return resp.status_code == 204
+    except Exception as e:
+        logger.error("Alert Discord notification failed: %s", e)
+        return False
+
+
 def send_discord_notification(result, webhook_url=None):
     """Send scan summary to Discord via webhook."""
     if not webhook_url:
@@ -270,6 +341,10 @@ def main():
                 m_result = m_screener.run(market=mkt)
                 MomentumScreener.save_results(m_result, args.output_dir)
                 progress(f"Momentum [{mkt}] results saved")
+                # Level 1 health check
+                healthy, issues = check_scan_health(m_result, mkt, 'momentum')
+                if not healthy and args.notify:
+                    send_alert_notification('momentum', mkt, issues)
                 if args.notify:
                     send_discord_notification(m_result)
                 if not args.quiet:
@@ -300,6 +375,10 @@ def main():
                 v_result = v_screener.run(market=mkt)
                 ValueScreener.save_results(v_result, args.output_dir)
                 progress(f"Value [{mkt}] results saved")
+                # Level 1 health check
+                healthy, issues = check_scan_health(v_result, mkt, 'value')
+                if not healthy and args.notify:
+                    send_alert_notification('value', mkt, issues)
                 if args.notify:
                     send_discord_notification(v_result)
             if not args.quiet:
