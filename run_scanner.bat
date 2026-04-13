@@ -1,4 +1,3 @@
-@echo off
 REM ============================================================
 REM  StockAnalyzer Auto Scanner - Windows Task Scheduler
 REM
