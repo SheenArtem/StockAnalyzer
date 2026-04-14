@@ -107,7 +107,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.13.5")
+    st.caption("Version: v2026.04.14.1")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -350,8 +350,8 @@ if st.session_state.get('app_mode') == 'screener':
     import json as _json
     from pathlib import Path as _Path
 
-    screener_tab1, screener_tab_us, screener_tab2, screener_tab_us_val, screener_tab_track = st.tabs(
-        ["📈 動能 (台股)", "🇺🇸 動能 (美股)", "💎 價值 (台股)", "🇺🇸 價值 (美股)", "📊 績效追蹤"]
+    screener_tab1, screener_tab_us, screener_tab2, screener_tab_us_val, screener_tab_meanrev, screener_tab_track = st.tabs(
+        ["📈 動能 (台股)", "🇺🇸 動能 (美股)", "💎 價值 (台股)", "🇺🇸 價值 (美股)", "🔄 均值回歸", "📊 績效追蹤"]
     )
 
     # ====================================================================
@@ -415,6 +415,7 @@ if st.session_state.get('app_mode') == 'screener':
             # Build DataFrame for display
             _rows = []
             for r in results:
+                _rl = r.get('rvol_lowatr')
                 _rows.append({
                     '排名': len(_rows) + 1,
                     '代號': r['stock_id'],
@@ -428,14 +429,22 @@ if st.session_state.get('app_mode') == 'screener':
                     '百分位': r.get('score_percentile', ''),
                     'Regime': r.get('regime', ''),
                     'ETF買超': r.get('etf_buy_count', 0),
+                    'RVOL-ATR': round(_rl, 2) if _rl is not None else None,
+                    'Top20': '★' if r.get('rvol_lowatr_top20') else '',
                     '關鍵訊號': ', '.join(r.get('signals', [])[:3]),
                 })
             _df_results = pd.DataFrame(_rows)
+
+            # rvol_lowatr Top20 filter
+            _show_top20 = st.checkbox("只顯示 RVOL-ATR Top 20 (低波放量精選)", key='tw_mom_top20')
+            if _show_top20:
+                _df_results = _df_results[_df_results['Top20'] == '★']
 
             # Sorting
             _sort_options_m = {
                 '觸發分數 (高→低)': ('觸發分數', False),
                 '趨勢分數 (高→低)': ('趨勢分數', False),
+                'RVOL-ATR (高→低)': ('RVOL-ATR', False),
                 '5日均量值 (高→低)': ('5日均量值', False),
                 '漲跌% (高→低)': ('漲跌%', False),
             }
@@ -539,6 +548,7 @@ if st.session_state.get('app_mode') == 'screener':
 
             _us_rows = []
             for r in us_results:
+                _rl = r.get('rvol_lowatr')
                 _us_rows.append({
                     '#': len(_us_rows) + 1,
                     'Ticker': r['stock_id'],
@@ -548,13 +558,20 @@ if st.session_state.get('app_mode') == 'screener':
                     'Score': r.get('trigger_score', 0),
                     'Trend': r.get('trend_score', 0),
                     'Regime': r.get('regime', ''),
+                    'RVOL-ATR': round(_rl, 2) if _rl is not None else None,
+                    'Top20': '★' if r.get('rvol_lowatr_top20') else '',
                     'Signals': ', '.join(r.get('signals', [])[:3]),
                 })
             _us_df = pd.DataFrame(_us_rows)
 
+            _show_top20_us = st.checkbox("Show RVOL-ATR Top 20 only", key='us_mom_top20')
+            if _show_top20_us:
+                _us_df = _us_df[_us_df['Top20'] == '★']
+
             _sort_opts_us_m = {
                 'Score (High→Low)': ('Score', False),
                 'Trend (High→Low)': ('Trend', False),
+                'RVOL-ATR (High→Low)': ('RVOL-ATR', False),
                 'AvgTV5d (High→Low)': ('AvgTV5d', False),
                 'Chg% (High→Low)': ('Chg%', False),
             }
@@ -837,6 +854,67 @@ if st.session_state.get('app_mode') == 'screener':
         st.caption("💡 Full scan: `python scanner_job.py --mode value --market us`")
 
     # ====================================================================
+    # Tab: 短線均值回歸 (P3)
+    # ====================================================================
+    with screener_tab_meanrev:
+
+        st.markdown("""
+**短線均值回歸掃描** — 找出超賣/超買股票，供 1-3 天短線操作參考。
+
+IC 驗證: 1d horizon IC=+0.060, Win 75.5%, 10d 後衰退。獨立於 Scanner 的持倉型策略。
+""")
+
+        _mr_top_n = st.slider("顯示前 N 檔", 5, 50, 20, key='mr_top_n')
+        _mr_source = st.radio(
+            "掃描範圍",
+            ["最近 Scanner Picks (快速)", "所有快取股票 (完整)"],
+            key='mr_source', horizontal=True
+        )
+
+        if st.button("開始掃描", key='mr_scan_btn'):
+            with st.spinner("掃描中..."):
+                from tools.meanrev_scanner import get_stock_ids, scan
+                import types
+                _mr_args = types.SimpleNamespace(
+                    stocks=None,
+                    all=(_mr_source != "最近 Scanner Picks (快速)"),
+                )
+                _mr_ids = get_stock_ids(_mr_args)
+                if not _mr_ids:
+                    st.warning("無可掃描股票。請先執行 Scanner 或使用「所有快取股票」。")
+                else:
+                    _mr_results = scan(_mr_ids, _mr_top_n)
+                    st.success(f"掃描完成: {len(_mr_results)} 檔")
+
+                    # Oversold
+                    st.subheader(f"📉 超賣 (買入候選) Top {_mr_top_n}")
+                    _oversold = _mr_results[:_mr_top_n]
+                    if _oversold:
+                        _os_df = pd.DataFrame(_oversold)
+                        _os_df.index = range(1, len(_os_df) + 1)
+                        _os_df.columns = ['代號', '收盤', 'MeanRev', 'RSI', 'BIAS%']
+                        st.dataframe(_os_df, use_container_width=True, column_config={
+                            'MeanRev': st.column_config.NumberColumn(format="%+.3f"),
+                            'RSI': st.column_config.NumberColumn(format="%.0f"),
+                            'BIAS%': st.column_config.NumberColumn(format="%+.1f"),
+                        })
+
+                    # Overbought
+                    st.subheader(f"📈 超買 (避開/放空候選) Top {_mr_top_n}")
+                    _overbought = list(reversed(_mr_results[-_mr_top_n:]))
+                    if _overbought:
+                        _ob_df = pd.DataFrame(_overbought)
+                        _ob_df.index = range(1, len(_ob_df) + 1)
+                        _ob_df.columns = ['代號', '收盤', 'MeanRev', 'RSI', 'BIAS%']
+                        st.dataframe(_ob_df, use_container_width=True, column_config={
+                            'MeanRev': st.column_config.NumberColumn(format="%+.3f"),
+                            'RSI': st.column_config.NumberColumn(format="%.0f"),
+                            'BIAS%': st.column_config.NumberColumn(format="%+.1f"),
+                        })
+
+        st.caption("💡 CLI: `python tools/meanrev_scanner.py --top 20`")
+
+    # ====================================================================
     # Tab: 績效追蹤
     # ====================================================================
     with screener_tab_track:
@@ -888,6 +966,29 @@ if st.session_state.get('app_mode') == 'screener':
 
                     if _perf_rows:
                         st.dataframe(pd.DataFrame(_perf_rows), width='stretch', hide_index=True)
+
+                    # Benchmark IR (BM-b)
+                    _bm_data = _ts.get('benchmarks', {})
+                    if _bm_data:
+                        from scan_tracker import _bm_display_name
+                        _ir_rows = []
+                        for _bm, _horizons in _bm_data.items():
+                            _bm_label = _bm_display_name(_bm)
+                            for _d in [5, 10, 20]:
+                                _h = _horizons.get(f'{_d}d')
+                                if _h:
+                                    _ir_rows.append({
+                                        'Benchmark': _bm_label,
+                                        'Horizon': f'{_d}d',
+                                        'N': _h['n'],
+                                        'Excess': f"{_h['avg_excess']:+.2f}%",
+                                        'TE': f"{_h['tracking_error']:.2f}%",
+                                        'IR': f"{_h['ir']:+.3f}",
+                                        'Win vs BM': f"{_h['win_rate_vs_bm']:.1f}%",
+                                    })
+                        if _ir_rows:
+                            st.markdown("**vs Benchmark (Information Ratio)**")
+                            st.dataframe(pd.DataFrame(_ir_rows), width='stretch', hide_index=True)
 
                 # Detailed picks table
                 with st.expander("個股追蹤明細"):
