@@ -466,7 +466,7 @@ if st.session_state.get('app_mode') == 'screener':
                 },
             )
 
-            # Click to analyze: user can copy stock ID from table and paste to sidebar
+            st.caption("觸發分數 -10~+10 (日線進場信號) / 趨勢分數 -5~+5 (週線趨勢) / RVOL-ATR 越高=低波放量")
             st.info("點擊表格中的股票代號，複製後切回「個股分析」模式即可深入分析")
 
             # Detailed trigger breakdown (expandable per stock)
@@ -588,6 +588,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'TV(M)': st.column_config.NumberColumn(format="%.1f"),
                 },
             )
+            st.caption("Score -10~+10 (daily trigger) / Trend -5~+5 (weekly trend) / RVOL-ATR higher=low vol+high vol")
 
             with st.expander("Detailed Scores"):
                 _us_selected = st.selectbox(
@@ -711,6 +712,7 @@ if st.session_state.get('app_mode') == 'screener':
                     '均量(億)': st.column_config.NumberColumn(format="%.2f"),
                 },
             )
+            st.caption("綜合分數 0~100 (估值+體質+營收+技術轉折+聰明錢加總)")
 
             # Detailed scoring
             with st.expander("個股詳細評分"):
@@ -834,6 +836,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'TV(M)': st.column_config.NumberColumn(format="%.1f"),
                 },
             )
+            st.caption("Score 0~100 (valuation + quality + revenue + technical + smart money)")
             with st.expander("Detailed Scores"):
                 _uv_sel = st.selectbox("Select", [r['stock_id'] for r in uv_results], key='us_val_detail')
                 if _uv_sel:
