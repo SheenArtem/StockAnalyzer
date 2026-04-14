@@ -417,7 +417,6 @@ if st.session_state.get('app_mode') == 'screener':
             for r in results:
                 _rl = r.get('rvol_lowatr')
                 _rows.append({
-                    '排名': len(_rows) + 1,
                     '代號': r['stock_id'],
                     '名稱': r.get('name', ''),
                     '市場': r.get('market', ''),
@@ -454,7 +453,7 @@ if st.session_state.get('app_mode') == 'screener':
             )
             _sort_col, _sort_asc = _sort_options_m[_sort_choice]
             _df_results = _df_results.sort_values(_sort_col, ascending=_sort_asc).reset_index(drop=True)
-            _df_results['排名'] = range(1, len(_df_results) + 1)
+            _df_results.index = range(1, len(_df_results) + 1)
 
             st.dataframe(
                 _df_results,
@@ -550,7 +549,6 @@ if st.session_state.get('app_mode') == 'screener':
             for r in us_results:
                 _rl = r.get('rvol_lowatr')
                 _us_rows.append({
-                    '#': len(_us_rows) + 1,
                     'Ticker': r['stock_id'],
                     'Price': r.get('price', 0),
                     'Chg%': r.get('change_pct', 0),
@@ -578,7 +576,7 @@ if st.session_state.get('app_mode') == 'screener':
             _us_sort = st.selectbox("Sort by", list(_sort_opts_us_m.keys()), key='momentum_us_sort')
             _us_sc, _us_sa = _sort_opts_us_m[_us_sort]
             _us_df = _us_df.sort_values(_us_sc, ascending=_us_sa).reset_index(drop=True)
-            _us_df['#'] = range(1, len(_us_df) + 1)
+            _us_df.index = range(1, len(_us_df) + 1)
 
             st.dataframe(
                 _us_df,
@@ -675,7 +673,6 @@ if st.session_state.get('app_mode') == 'screener':
             for r in v_results:
                 s = r.get('scores', {})
                 _v_rows.append({
-                    '排名': len(_v_rows) + 1,
                     '代號': r['stock_id'],
                     '名稱': r.get('name', ''),
                     '收盤': r.get('price', 0),
@@ -701,7 +698,7 @@ if st.session_state.get('app_mode') == 'screener':
             _v_sort = st.selectbox("排序方式", list(_sort_opts_v.keys()), key='value_tw_sort')
             _v_sc, _v_sa = _sort_opts_v[_v_sort]
             _v_df_results = _v_df_results.sort_values(_v_sc, ascending=_v_sa).reset_index(drop=True)
-            _v_df_results['排名'] = range(1, len(_v_df_results) + 1)
+            _v_df_results.index = range(1, len(_v_df_results) + 1)
 
             st.dataframe(
                 _v_df_results,
@@ -804,7 +801,6 @@ if st.session_state.get('app_mode') == 'screener':
             for r in uv_results:
                 s = r.get('scores', {})
                 _uv_rows.append({
-                    '#': len(_uv_rows) + 1,
                     'Ticker': r['stock_id'],
                     'Price': r.get('price', 0),
                     'PE': r.get('PE', 0),
@@ -828,7 +824,7 @@ if st.session_state.get('app_mode') == 'screener':
             _uv_sort = st.selectbox("Sort by", list(_sort_opts_uv.keys()), key='value_us_sort')
             _uv_sc, _uv_sa = _sort_opts_uv[_uv_sort]
             _uv_df = _uv_df.sort_values(_uv_sc, ascending=_uv_sa).reset_index(drop=True)
-            _uv_df['#'] = range(1, len(_uv_df) + 1)
+            _uv_df.index = range(1, len(_uv_df) + 1)
 
             st.dataframe(
                 _uv_df,
