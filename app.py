@@ -424,7 +424,6 @@ if st.session_state.get('app_mode') == 'screener':
                     '均量(億)': round(r.get('avg_trading_value_5d', 0) / 1e8, 2),
                     '觸發分數': r.get('trigger_score', 0),
                     '趨勢分數': r.get('trend_score', 0),
-                    '百分位': r.get('score_percentile', ''),
                     'Regime': r.get('regime', ''),
                     'ETF買超': r.get('etf_buy_count', 0),
                     'RVOL-ATR': round(_rl, 2) if _rl is not None else None,
