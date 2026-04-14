@@ -1484,15 +1484,26 @@ class TechnicalAnalyzer:
         # ============================================================
         trend_signals = []
 
-        # T1. 均線位置 (MA Position): close > MA20 → +1, else -1
-        ma20 = self._safe_get(current, 'MA20', 0)
-        if close > ma20:
-            t1 = 1.0
-            details.append("✅ 站上日線 20MA (+1)")
+        # T1. Mean Reversion Composite (replaces binary MA20 position)
+        # 5 correlated signals averaged via z-score: BIAS/VWAP_dev/BB_pct/RSI_dev/EFI
+        # tanh maps to [-1, +1] continuously (smoother than binary)
+        mr = self._safe_get(current, 'MeanRev_Composite', None)
+        if mr is not None and not pd.isna(mr):
+            import math
+            t1 = math.tanh(mr)  # z-score avg ~[-3,+3] -> tanh -> [-1,+1]
+            t1_label = f"{'📈' if t1 > 0 else '📉'} MeanRev={mr:+.2f} (tanh={t1:+.2f})"
+            details.append(t1_label)
+            trend_signals.append(t1)
         else:
-            t1 = -1.0
-            details.append("🔻 跌破日線 20MA (-1)")
-        trend_signals.append(t1 / 1.0)
+            # Fallback: binary MA20 position (for stocks with <60 days data)
+            ma20 = self._safe_get(current, 'MA20', 0)
+            if close > ma20:
+                t1 = 1.0
+                details.append("✅ 站上日線 20MA (+1)")
+            else:
+                t1 = -1.0
+                details.append("🔻 跌破日線 20MA (-1)")
+            trend_signals.append(t1)
 
         # T2. Supertrend: dir=1 → +1, dir=-1 → -1, flip bonus +/-1 → normalize /2
         st_dir = self._safe_get(current, 'Supertrend_Dir', 0)
