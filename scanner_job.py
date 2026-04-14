@@ -37,6 +37,8 @@ _MIN_RESULTS = {        # 正常 results 數量下限
     ('momentum', 'tw'): 30,
     ('value', 'us'): 10,
     ('value', 'tw'): 30,
+    ('swing', 'us'): 5,
+    ('swing', 'tw'): 10,
 }
 
 
@@ -260,9 +262,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument('--mode', choices=['momentum', 'value', 'both'],
+    parser.add_argument('--mode', choices=['momentum', 'value', 'swing', 'both', 'all'],
                         default='both',
-                        help='Scan mode: momentum, value, or both (default: both)')
+                        help='Scan mode: momentum, value, swing, both (mom+val), all (default: both)')
     parser.add_argument('--market', choices=['tw', 'us', 'all'],
                         default='all',
                         help='Market: tw (Taiwan), us (S&P 500), all (default: all)')
@@ -309,8 +311,9 @@ def main():
         if not args.quiet:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
-    run_momentum = args.mode in ('momentum', 'both')
-    run_value = args.mode in ('value', 'both')
+    run_momentum = args.mode in ('momentum', 'both', 'all')
+    run_value = args.mode in ('value', 'both', 'all')
+    run_swing = args.mode in ('swing', 'all')
     markets = ['tw', 'us'] if args.market == 'all' else [args.market]
 
     # Pre-warm TWSE/TPEX cache if running both screeners (avoid duplicate API calls)
@@ -384,6 +387,22 @@ def main():
             if not args.quiet:
                 print_value_summary(v_result)
 
+    # --- Swing Screener (reuses MomentumScreener with mode='swing') ---
+    if run_swing:
+        from momentum_screener import MomentumScreener
+        for mkt in markets:
+            mkt_label = 'Taiwan' if mkt == 'tw' else 'US'
+            progress(f"=== Swing Screener [{mkt_label}] ===")
+            s_screener = MomentumScreener(config=config, progress_callback=progress)
+            s_result = s_screener.run(market=mkt, mode='swing')
+            MomentumScreener.save_results(s_result, args.output_dir)
+            progress(f"Swing [{mkt}] results saved")
+            healthy, issues = check_scan_health(s_result, mkt, 'swing')
+            if not healthy and args.notify:
+                send_alert_notification('swing', mkt, issues)
+            if not args.quiet:
+                print_summary(s_result)
+
     # Print FinMind API usage stats
     if not args.quiet:
         from cache_manager import get_finmind_stats
@@ -403,7 +422,7 @@ def main():
             track_result = tracker.run()
             summary = track_result.get('summary', {})
             for key, s in summary.items():
-                for d in [5, 10, 20]:
+                for d in [5, 10, 20, 40, 60]:
                     tracked = s.get(f'tracked_{d}d', 0)
                     if tracked > 0:
                         wr = s.get(f'win_rate_{d}d', 0)
@@ -414,7 +433,7 @@ def main():
                 from scan_tracker import _bm_display_name
                 for bm, horizons in bm_stats.items():
                     bm_label = _bm_display_name(bm)
-                    for d in [5, 10, 20]:
+                    for d in [5, 10, 20, 40, 60]:
                         h = horizons.get(f'{d}d')
                         if h:
                             progress(f"    vs {bm_label} {d}d: n={h['n']}, "

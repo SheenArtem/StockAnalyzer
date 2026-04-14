@@ -64,18 +64,20 @@ class MomentumScreener:
     # Public API
     # ================================================================
 
-    def run(self, market='tw'):
+    def run(self, market='tw', mode='momentum'):
         """
         Execute full screening pipeline.
 
         Args:
             market: 'tw' for Taiwan, 'us' for US stocks
+            mode: 'momentum' (5-20d) or 'swing' (2w-3m)
 
         Returns:
             dict with scan_date, total_scanned, passed_initial, results
         """
         start_time = time.time()
         self._market = market
+        self._mode = mode
 
         # --- Stage 1 ---
         self.progress(f"Stage 1: Fetching {'US' if market == 'us' else 'TW'} market data...")
@@ -441,20 +443,33 @@ class MomentumScreener:
         # Clean up checkpoint on completion
         self._clear_checkpoint(cp_file)
 
-        scored.sort(key=lambda x: x['trigger_score'], reverse=True)
-        top_n = scored[:cfg['top_n']]
+        mode = getattr(self, '_mode', 'momentum')
 
-        # P2: rvol_lowatr 第二層 filter — 從 top_n 中標記 rvol_lowatr Top 20
-        # (IC v2: Sharpe 6.07, Win 70%, 作為風險調整優化層)
-        has_rvol = [s for s in top_n if s.get('rvol_lowatr') is not None]
-        if has_rvol:
+        if mode == 'swing':
+            # Swing mode: 週線上升趨勢 + rvol_lowatr 排序
+            # SW-1 驗證: rvol_lowatr 60d Sharpe 9.50, win 76%
+            scored = [s for s in scored if s.get('trend_score', 0) >= 1]
+            has_rvol = [s for s in scored if s.get('rvol_lowatr') is not None]
+            no_rvol = [s for s in scored if s.get('rvol_lowatr') is None]
             has_rvol.sort(key=lambda x: x['rvol_lowatr'], reverse=True)
-            top20_ids = {s['stock_id'] for s in has_rvol[:20]}
+            no_rvol.sort(key=lambda x: x['trigger_score'], reverse=True)
+            scored = has_rvol + no_rvol
+            top_n = scored[:cfg['top_n']]
             for s in top_n:
-                s['rvol_lowatr_top20'] = s['stock_id'] in top20_ids
+                s['rvol_lowatr_top20'] = s in has_rvol[:20] if has_rvol else None
         else:
-            for s in top_n:
-                s['rvol_lowatr_top20'] = None
+            # Momentum mode: trigger_score 排序 + rvol_lowatr Top 20 標記
+            scored.sort(key=lambda x: x['trigger_score'], reverse=True)
+            top_n = scored[:cfg['top_n']]
+            has_rvol = [s for s in top_n if s.get('rvol_lowatr') is not None]
+            if has_rvol:
+                has_rvol.sort(key=lambda x: x['rvol_lowatr'], reverse=True)
+                top20_ids = {s['stock_id'] for s in has_rvol[:20]}
+                for s in top_n:
+                    s['rvol_lowatr_top20'] = s['stock_id'] in top20_ids
+            else:
+                for s in top_n:
+                    s['rvol_lowatr_top20'] = None
 
         return top_n
 
@@ -706,7 +721,9 @@ class MomentumScreener:
         """Build the final result dict."""
         now = datetime.now()
         market = getattr(self, '_market', 'tw')
+        mode = getattr(self, '_mode', 'momentum')
         return {
+            'scan_type': mode,
             'scan_date': now.strftime('%Y-%m-%d'),
             'scan_time': now.strftime('%H:%M'),
             'market': market,
@@ -737,18 +754,19 @@ class MomentumScreener:
         latest_dir.mkdir(parents=True, exist_ok=True)
         history_dir.mkdir(parents=True, exist_ok=True)
 
-        # Determine filename suffix based on market
+        # Determine filename prefix + suffix based on scan_type and market
+        scan_type = result.get('scan_type', 'momentum')
         market = result.get('market', 'tw')
         suffix = '_us' if market == 'us' else ''
 
         # Latest result (overwritten each run)
-        latest_file = latest_dir / f'momentum{suffix}_result.json'
+        latest_file = latest_dir / f'{scan_type}{suffix}_result.json'
         with open(latest_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
         # History (appended by date)
         date_str = result.get('scan_date', datetime.now().strftime('%Y-%m-%d'))
-        history_file = history_dir / f'{date_str}_momentum{suffix}.json'
+        history_file = history_dir / f'{date_str}_{scan_type}{suffix}.json'
         with open(history_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
