@@ -409,6 +409,19 @@ def main():
                         wr = s.get(f'win_rate_{d}d', 0)
                         avg = s.get(f'avg_return_{d}d', 0)
                         progress(f"  {key} {d}d: {tracked} tracked, Win {wr:.1f}%, Avg {avg:+.2f}%")
+                # Benchmark IR (BM-b): 超額報酬 + Information Ratio
+                bm_stats = s.get('benchmarks', {})
+                from scan_tracker import _bm_display_name
+                for bm, horizons in bm_stats.items():
+                    bm_label = _bm_display_name(bm)
+                    for d in [5, 10, 20]:
+                        h = horizons.get(f'{d}d')
+                        if h:
+                            progress(f"    vs {bm_label} {d}d: n={h['n']}, "
+                                     f"excess {h['avg_excess']:+.2f}%, "
+                                     f"TE {h['tracking_error']:.2f}%, "
+                                     f"IR {h['ir']:+.3f}, "
+                                     f"Win {h['win_rate_vs_bm']:.1f}%")
         except Exception as e:
             progress(f"Tracking update failed: {e}")
 

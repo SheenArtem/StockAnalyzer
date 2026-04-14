@@ -26,6 +26,21 @@ HISTORY_DIR = Path('data/history')
 TRACKING_DIR = Path('data/tracking')
 LATEST_DIR = Path('data/latest')
 
+# Benchmarks for Information Ratio (BM-b, 2026-04-14)
+# TW: 0050 大盤 beta + 00981A 主動型 ETF AI 主題代表（驗證是否只吃 AI beta）
+# US: SPY 大盤 beta + QQQ 科技 beta（驗證 AI 多頭）
+# 注意：00981A 需 .TW 後綴 yfinance 才能抓到（純字母數字混合非 isdigit，
+# load_and_resample 會落到美股 yfinance 路徑，直接用 00981A 會 404）。
+BENCHMARKS = {
+    'tw': ['0050', '00981A.TW'],
+    'us': ['SPY', 'QQQ'],
+}
+
+
+def _bm_display_name(bm_id):
+    """顯示用去掉 .TW 後綴，讓 log 乾淨。"""
+    return bm_id[:-3] if bm_id.endswith('.TW') else bm_id
+
 
 class ScanTracker:
     """追蹤 scanner picks 的後續表現"""
@@ -33,6 +48,7 @@ class ScanTracker:
     def __init__(self, progress_callback=None):
         self.progress = progress_callback or (lambda msg: print(msg))
         TRACKING_DIR.mkdir(parents=True, exist_ok=True)
+        self._bm_price_cache = {}  # benchmark_id -> DataFrame (cache per run)
 
     # ================================================================
     # 1. Load scan history
@@ -129,6 +145,73 @@ class ScanTracker:
             logger.debug("Price fetch failed for %s +%dd: %s", stock_id, days, e)
             return None
 
+    def _get_benchmark_price_series(self, benchmark_id):
+        """載入 benchmark OHLCV，整個 run 只抓一次。"""
+        if benchmark_id in self._bm_price_cache:
+            return self._bm_price_cache[benchmark_id]
+        try:
+            from technical_analysis import load_and_resample
+            _, df, _, _ = load_and_resample(benchmark_id)
+            if df is None or df.empty:
+                self._bm_price_cache[benchmark_id] = None
+                return None
+            if not isinstance(df.index, pd.DatetimeIndex):
+                df.index = pd.to_datetime(df.index)
+            self._bm_price_cache[benchmark_id] = df
+            return df
+        except Exception as e:
+            logger.debug("Benchmark %s fetch failed: %s", benchmark_id, e)
+            self._bm_price_cache[benchmark_id] = None
+            return None
+
+    def _get_benchmark_returns(self, market, scan_date):
+        """
+        計算 benchmark 在 scan_date 後 5/10/20 交易日的報酬率。
+
+        與 _get_price_after 用同樣的「scan_date 之後第 N 個交易日收盤」對齊方式
+        （iloc[0] 為 scan 當日或之後第一個交易日，iloc[d] 為之後第 d 個），
+        確保個股與 benchmark 用同一根日線比較。
+
+        Returns:
+            dict: {benchmark_id: {'5d': pct, '10d': pct, '20d': pct}}
+                  值為 None 表示該 horizon 尚未到期或該 benchmark 當日無資料。
+        """
+        benchmarks = BENCHMARKS.get(market, [])
+        result = {}
+        scan_dt = pd.Timestamp(scan_date)
+        for bm in benchmarks:
+            df = self._get_benchmark_price_series(bm)
+            null_row = {f'{d}d': None for d in TRACKING_INTERVALS}
+            if df is None or df.empty:
+                result[bm] = null_row
+                continue
+            future = df[df.index >= scan_dt]
+            if future.empty:
+                result[bm] = null_row
+                continue
+            try:
+                price_at_scan = float(future.iloc[0].get('Close', np.nan))
+            except Exception:
+                price_at_scan = np.nan
+            if not np.isfinite(price_at_scan) or price_at_scan <= 0:
+                result[bm] = null_row
+                continue
+            bm_rets = {}
+            for d in TRACKING_INTERVALS:
+                if len(future) <= d:
+                    bm_rets[f'{d}d'] = None
+                    continue
+                try:
+                    price_later = float(future.iloc[d].get('Close', np.nan))
+                except Exception:
+                    price_later = np.nan
+                if not np.isfinite(price_later):
+                    bm_rets[f'{d}d'] = None
+                else:
+                    bm_rets[f'{d}d'] = round((price_later - price_at_scan) / price_at_scan * 100, 2)
+            result[bm] = bm_rets
+        return result
+
     # ================================================================
     # 3. Track a single scan
     # ================================================================
@@ -190,11 +273,15 @@ class ScanTracker:
             tracked.append(entry)
             time.sleep(0.1)  # Rate limit
 
+        # Benchmark 報酬（scan level，一次算完 5/10/20d 對每個 benchmark）
+        benchmark_returns = self._get_benchmark_returns(market, scan_date)
+
         return {
             'scan_date': scan_date,
             'scan_type': scan_type,
             'market': market,
             'tracked_count': len(tracked),
+            'benchmark_returns': benchmark_returns,
             'picks': tracked,
         }
 
@@ -245,7 +332,15 @@ class ScanTracker:
                 ) if picks else False
 
                 if all_complete:
-                    self.progress(f"  Skip {key} (fully tracked)")
+                    # Backfill benchmark_returns for scans tracked before BM-b shipped
+                    if 'benchmark_returns' not in existing_scan:
+                        existing_scan['benchmark_returns'] = self._get_benchmark_returns(
+                            existing_scan['market'], existing_scan['scan_date']
+                        )
+                        updated = True
+                        self.progress(f"  Backfilled benchmark_returns for {key}")
+                    else:
+                        self.progress(f"  Skip {key} (fully tracked)")
                     continue
                 else:
                     # Re-track to fill missing intervals
@@ -327,6 +422,45 @@ class ScanTracker:
                     s[f'best_{d}d'] = round(max(rets), 2)
                     s[f'worst_{d}d'] = round(min(rets), 2)
                     s[f'median_return_{d}d'] = round(np.median(rets), 2)
+
+        # === Benchmark IR (BM-b) ===
+        # 每個 pick 的超額報酬 = pick_return - 同 scan_date 的 benchmark_return
+        # IR = mean(excess) / std(excess)
+        for key, s in summaries.items():
+            market = s['market']
+            bm_list = BENCHMARKS.get(market, [])
+            if not bm_list:
+                continue
+            s['benchmarks'] = {}
+            for bm in bm_list:
+                s['benchmarks'][bm] = {}
+                for d in TRACKING_INTERVALS:
+                    excess_list = []
+                    for scan in all_tracked:
+                        if scan['scan_type'] != s['scan_type'] or scan['market'] != market:
+                            continue
+                        bm_ret = scan.get('benchmark_returns', {}).get(bm, {}).get(f'{d}d')
+                        if bm_ret is None:
+                            continue
+                        for p in scan.get('picks', []):
+                            pr = p.get(f'return_{d}d')
+                            if pr is None:
+                                continue
+                            excess_list.append(pr - bm_ret)
+                    if excess_list:
+                        avg_excess = float(np.mean(excess_list))
+                        te = float(np.std(excess_list, ddof=1)) if len(excess_list) > 1 else 0.0
+                        ir = avg_excess / te if te > 0 else 0.0
+                        win = sum(1 for e in excess_list if e > 0) / len(excess_list) * 100
+                        s['benchmarks'][bm][f'{d}d'] = {
+                            'n': len(excess_list),
+                            'avg_excess': round(avg_excess, 2),
+                            'tracking_error': round(te, 2),
+                            'ir': round(ir, 3),
+                            'win_rate_vs_bm': round(win, 1),
+                        }
+                    else:
+                        s['benchmarks'][bm][f'{d}d'] = None
 
         return summaries
 
