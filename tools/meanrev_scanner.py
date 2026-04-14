@@ -59,8 +59,30 @@ def get_stock_ids(args):
     return sorted(ids) if ids else []
 
 
+def _load_name_map():
+    """Build stock_id -> name mapping from latest scanner JSONs."""
+    names = {}
+    for f in LATEST_DIR.glob('*.json'):
+        try:
+            data = json.loads(f.read_text(encoding='utf-8'))
+            for r in data.get('results', []):
+                sid = r.get('stock_id', '')
+                name = r.get('name', '')
+                if sid and name:
+                    names[sid] = name
+        except Exception:
+            pass
+    return names
+
+
+def _is_tw(stock_id):
+    """Pure digits or digits+letter suffix (e.g. 00981A) = TW."""
+    return stock_id[0].isdigit() if stock_id else False
+
+
 def scan(stock_ids, top_n=20):
     """Compute MeanRev_Composite for each stock, return sorted list."""
+    names = _load_name_map()
     results = []
     for sid in stock_ids:
         df = load_cached_price(sid)
@@ -76,6 +98,8 @@ def scan(stock_ids, top_n=20):
             bias = df['BIAS'].iloc[-1] if 'BIAS' in df.columns else None
             results.append({
                 'stock_id': sid,
+                'name': names.get(sid, ''),
+                'market': 'tw' if _is_tw(sid) else 'us',
                 'close': round(close, 2),
                 'meanrev': round(mr, 4),
                 'rsi': round(rsi, 1) if rsi and not pd.isna(rsi) else None,
