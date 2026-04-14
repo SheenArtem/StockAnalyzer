@@ -21,7 +21,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-TRACKING_INTERVALS = [5, 10, 20]  # 追蹤天數
+TRACKING_INTERVALS = [5, 10, 20, 40, 60]  # 追蹤天數（含波段 horizon）
 HISTORY_DIR = Path('data/history')
 TRACKING_DIR = Path('data/tracking')
 LATEST_DIR = Path('data/latest')

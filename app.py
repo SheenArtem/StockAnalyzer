@@ -107,7 +107,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.14.2")
+    st.caption("Version: v2026.04.14.3")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -350,8 +350,8 @@ if st.session_state.get('app_mode') == 'screener':
     import json as _json
     from pathlib import Path as _Path
 
-    screener_tab1, screener_tab_us, screener_tab2, screener_tab_us_val, screener_tab_meanrev, screener_tab_track = st.tabs(
-        ["📈 動能 (台股)", "🇺🇸 動能 (美股)", "💎 價值 (台股)", "🇺🇸 價值 (美股)", "🔄 均值回歸", "📊 績效追蹤"]
+    screener_tab1, screener_tab_us, screener_tab_swing, screener_tab2, screener_tab_us_val, screener_tab_meanrev, screener_tab_track = st.tabs(
+        ["📈 動能 (台股)", "🇺🇸 動能 (美股)", "🔄 波段 (台股)", "💎 價值 (台股)", "🇺🇸 價值 (美股)", "🔄 均值回歸", "📊 績效追蹤"]
     )
 
     # ====================================================================
@@ -689,6 +689,135 @@ if st.session_state.get('app_mode') == 'screener':
                     "3. Full scan takes ~30-60 min for S&P 500")
 
         st.caption("💡 Full scan: `python scanner_job.py --mode momentum --market us`")
+
+    # ====================================================================
+    # Tab Swing: 波段選股 (2w-3m)
+    # ====================================================================
+    with screener_tab_swing:
+        st.markdown("### 🔄 波段選股 (台股)")
+        st.markdown("""
+**持倉期 2 週 ~ 3 個月**，結合動能評分與週線趨勢，以 RVOL-ATR 排序。
+
+**選股邏輯**：觸發分數 Top 候選 → 趨勢分數 >= 1（週線上升趨勢）→ RVOL-ATR 排序（放量+低波動優先）
+
+| 依據 | 回測績效（60 日 horizon） |
+|------|------------------------|
+| RVOL-ATR Top-20 | Sharpe **9.50**, 勝率 **76%**, 平均報酬 +3.2% |
+| Scanner Top-20 | Sharpe 6.50, 勝率 66%, 平均報酬 +5.5% |
+""")
+
+        swing_file = _Path('data/latest/swing_result.json')
+        swing_result = None
+        if swing_file.exists():
+            try:
+                with open(swing_file, 'r', encoding='utf-8') as _f:
+                    swing_result = _json.load(_f)
+            except Exception:
+                swing_result = None
+
+        if swing_result and swing_result.get('results'):
+            sw_results = swing_result['results']
+            st.caption(
+                f"掃描日期: {swing_result.get('scan_date', '?')} {swing_result.get('scan_time', '')} | "
+                f"全市場 {swing_result.get('total_scanned', 0)} 檔 → "
+                f"評分 {swing_result.get('scored_count', 0)} 檔 | "
+                f"耗時 {swing_result.get('elapsed_seconds', 0):.0f}s"
+            )
+
+            _scenario_map_sw = {'A': 'A 強攻', 'B': 'B 拉回', 'C': 'C 搶短', 'D': 'D 空手', 'N': 'N 觀望'}
+            _sw_rows = []
+            for r in sw_results:
+                _rl = r.get('rvol_lowatr')
+                _sc = r.get('scenario', {}).get('code', '')
+                _sw_rows.append({
+                    '代號': r['stock_id'],
+                    '名稱': r.get('name', ''),
+                    '收盤': r.get('price', 0),
+                    '漲跌%': r.get('change_pct', 0),
+                    '均量(億)': round(r.get('avg_trading_value_5d', 0) / 1e8, 2),
+                    '趨勢分數': r.get('trend_score', 0),
+                    '觸發分數': r.get('trigger_score', 0),
+                    '劇本': _scenario_map_sw.get(_sc, _sc),
+                    'RVOL-ATR': round(_rl, 2) if _rl is not None else None,
+                    'ETF買超': r.get('etf_buy_count', 0),
+                    '關鍵訊號': ', '.join(r.get('signals', [])[:3]),
+                })
+            _df_swing = pd.DataFrame(_sw_rows)
+
+            _sort_opts_sw = {
+                'RVOL-ATR (高→低)': ('RVOL-ATR', False),
+                '趨勢分數 (高→低)': ('趨勢分數', False),
+                '觸發分數 (高→低)': ('觸發分數', False),
+                '均量(億) (高→低)': ('均量(億)', False),
+            }
+            _sw_sort = st.selectbox("排序方式", list(_sort_opts_sw.keys()), key='swing_tw_sort')
+            _sw_col, _sw_asc = _sort_opts_sw[_sw_sort]
+            _df_swing = _df_swing.sort_values(_sw_col, ascending=_sw_asc).reset_index(drop=True)
+            _df_swing.index = range(1, len(_df_swing) + 1)
+
+            st.dataframe(
+                _df_swing,
+                width='stretch',
+                height=600,
+                column_config={
+                    '觸發分數': st.column_config.NumberColumn(format="%.1f"),
+                    '趨勢分數': st.column_config.NumberColumn(format="%.1f"),
+                    '漲跌%': st.column_config.NumberColumn(format="%.1f%%"),
+                    '收盤': st.column_config.NumberColumn(format="%.1f"),
+                    '均量(億)': st.column_config.NumberColumn(format="%.2f"),
+                },
+            )
+
+            st.caption("趨勢分數 >= 1（週線上升趨勢）/ RVOL-ATR 越高=低波放量 / 建議持倉 2w-3m")
+
+            # 操作建議
+            with st.expander("個股操作建議"):
+                _sw_selected = st.selectbox(
+                    "選擇股票",
+                    options=[f"{r['stock_id']} {r.get('name', '')}" for r in sw_results],
+                    key='swing_detail_select',
+                )
+                if _sw_selected:
+                    _sw_sid = _sw_selected.split()[0]
+                    _sw_match = next((r for r in sw_results if r['stock_id'] == _sw_sid), None)
+                    if _sw_match:
+                        _sc = _sw_match.get('scenario', {})
+                        _ap = _sw_match.get('action_plan', {})
+
+                        st.markdown(f"### {_sw_sid} {_sw_match.get('name', '')}")
+                        st.markdown(f"**{_sc.get('title', '')}** -- {_sc.get('desc', '')}")
+                        st.markdown(f"趨勢分數: **{_sw_match['trend_score']:+.1f}** / "
+                                    f"觸發分數: **{_sw_match['trigger_score']:+.1f}** / "
+                                    f"RVOL-ATR: **{_sw_match.get('rvol_lowatr', 'N/A')}**")
+
+                        if _ap.get('strategy'):
+                            st.markdown(f"\n{_ap['strategy']}")
+
+                        st.markdown("**波段操作要點**")
+                        st.markdown("- 停損參考: 週線 Supertrend 或 MA60 跌破")
+                        st.markdown("- 停利方式: 趨勢跟蹤，週線翻空才出場")
+                        st.markdown("- 加碼條件: 拉回週線 MA20 不破 + 量縮後放量")
+
+                        _el = _ap.get('rec_entry_low')
+                        _eh = _ap.get('rec_entry_high')
+                        if _el and _eh:
+                            st.markdown(f"- 進場區間: **{_el:.1f} ~ {_eh:.1f}** ({_ap.get('rec_entry_desc', '')})")
+
+                        if _ap.get('sl_list'):
+                            st.markdown("**停損參考價位**")
+                            for _sl in _ap['sl_list']:
+                                st.markdown(f"- {_sl['method']}: {_sl['price']:.1f}")
+
+                        with st.expander("評分明細", expanded=False):
+                            for d in _sw_match.get('trigger_details', []):
+                                st.markdown(f"- {d}")
+
+        else:
+            st.info("尚無波段掃描結果。\n\n"
+                    "在命令列執行 `python scanner_job.py --mode swing` 進行波段掃描\n"
+                    "（使用與動能相同的分析引擎，但以趨勢分數+RVOL-ATR排序）")
+
+        st.caption("💡 Full scan: `python scanner_job.py --mode swing`")
 
     # ====================================================================
     # Tab 2: 左側價值選股

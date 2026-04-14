@@ -39,7 +39,7 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 OUT_CSV = OUT_DIR / "indicator_ic_matrix.csv"
 OUT_DAILY_IC = OUT_DIR / "indicator_ic_daily.parquet"
 
-HORIZONS = [1, 5, 10, 20]
+HORIZONS = [1, 5, 10, 20, 40, 60]
 MIN_CROSS_SECTION = 30          # 每日至少 N 檔股票才算 IC
 MIN_HISTORY = 200               # 每檔至少 N 日資料才納入
 BOOTSTRAP_N = 1000              # block bootstrap 抽樣次數
