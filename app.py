@@ -412,6 +412,17 @@ if st.session_state.get('app_mode') == 'screener':
                 f"耗時 {scan_result.get('elapsed_seconds', 0):.0f}s"
             )
 
+            # Market regime (same for all picks in one scan)
+            _regime_raw = results[0].get('regime', 'unknown') if results else 'unknown'
+            _regime_map = {
+                'trending': ('趨勢盤', '大盤有明確方向', '加重趨勢信號 (T×1.3)，降低量能權重'),
+                'ranging':  ('盤整盤', '大盤橫盤震盪',   '加重量能信號 (V×1.3)，降低趨勢權重'),
+                'volatile': ('高波動', '大盤劇烈震盪',   '三組略降，量能稍加重，籌碼面權重降低'),
+                'neutral':  ('中性',   '無法判斷',       '三組等權重 (1:1:1)'),
+            }
+            _rn, _rd, _re = _regime_map.get(_regime_raw, ('未知', '', ''))
+            st.info(f"🏛️ 目前市場狀態: **{_rn}** — {_rd}｜評分影響: {_re}")
+
             # Build DataFrame for display
             _rows = []
             for r in results:
@@ -424,7 +435,6 @@ if st.session_state.get('app_mode') == 'screener':
                     '均量(億)': round(r.get('avg_trading_value_5d', 0) / 1e8, 2),
                     '觸發分數': r.get('trigger_score', 0),
                     '趨勢分數': r.get('trend_score', 0),
-                    'Regime': r.get('regime', ''),
                     'ETF買超': r.get('etf_buy_count', 0),
                     'RVOL-ATR': round(_rl, 2) if _rl is not None else None,
                     'Top20': '★' if r.get('rvol_lowatr_top20') else '',
@@ -543,6 +553,16 @@ if st.session_state.get('app_mode') == 'screener':
                 f"Time: {us_result.get('elapsed_seconds', 0):.0f}s"
             )
 
+            _us_regime_raw = us_results[0].get('regime', 'unknown') if us_results else 'unknown'
+            _us_regime_map = {
+                'trending': ('Trending', 'Clear market direction', 'Trend weight +30%, Volume weight -30%'),
+                'ranging':  ('Ranging',  'Sideways market',        'Volume weight +30%, Trend weight -30%'),
+                'volatile': ('Volatile', 'High volatility',        'All groups slightly reduced, chip weight lowered'),
+                'neutral':  ('Neutral',  'Undetermined',           'Equal weights (1:1:1)'),
+            }
+            _urn, _urd, _ure = _us_regime_map.get(_us_regime_raw, ('Unknown', '', ''))
+            st.info(f"🏛️ Market Regime: **{_urn}** — {_urd} | Scoring impact: {_ure}")
+
             _us_rows = []
             for r in us_results:
                 _rl = r.get('rvol_lowatr')
@@ -553,7 +573,6 @@ if st.session_state.get('app_mode') == 'screener':
                     'TV(M)': round(r.get('avg_trading_value_5d', 0) / 1e6, 1),
                     'Score': r.get('trigger_score', 0),
                     'Trend': r.get('trend_score', 0),
-                    'Regime': r.get('regime', ''),
                     'RVOL-ATR': round(_rl, 2) if _rl is not None else None,
                     'Top20': '★' if r.get('rvol_lowatr_top20') else '',
                     'Signals': ', '.join(r.get('signals', [])[:3]),
