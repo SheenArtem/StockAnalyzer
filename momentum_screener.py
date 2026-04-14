@@ -607,6 +607,11 @@ class MomentumScreener:
         except Exception:
             pass
 
+        # 9. Scenario + action plan (already computed, just save)
+        scenario = report.get('scenario', {})
+        action_plan = report.get('action_plan', {})
+        checklist = report.get('checklist', {})
+
         return {
             'stock_id': stock_id,
             'name': market_row.get('stock_name', meta.get('name', '')),
@@ -623,6 +628,24 @@ class MomentumScreener:
             'rvol_lowatr': rvol_lowatr,
             'signals': signals,
             'trigger_details': report.get('trigger_details', []),
+            'scenario': {
+                'code': scenario.get('code', 'N'),
+                'title': scenario.get('title', ''),
+                'desc': scenario.get('desc', ''),
+            },
+            'action_plan': {
+                'strategy': action_plan.get('strategy', ''),
+                'rec_entry_low': action_plan.get('rec_entry_low'),
+                'rec_entry_high': action_plan.get('rec_entry_high'),
+                'rec_entry_desc': action_plan.get('rec_entry_desc', ''),
+                'rec_sl_price': action_plan.get('rec_sl_price'),
+                'rec_sl_method': action_plan.get('rec_sl_method', ''),
+                'rec_tp_price': action_plan.get('rec_tp_price'),
+                'rr_ratio': action_plan.get('rr_ratio'),
+                'tp_list': action_plan.get('tp_list', []),
+                'sl_list': action_plan.get('sl_list', []),
+            },
+            'checklist': checklist,
         }
 
     def _extract_signals(self, report):
@@ -672,11 +695,6 @@ class MomentumScreener:
         # Squeeze
         if '壓縮' in detail_text and '釋放' in detail_text:
             signals.append('squeeze_fire')
-
-        # Regime
-        regime = report.get('regime', {}).get('regime', '')
-        if regime:
-            signals.append(f'regime_{regime}')
 
         return signals
 

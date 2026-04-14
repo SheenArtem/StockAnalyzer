@@ -48,7 +48,7 @@ const COLORS = {
   bg: "#0a0f1e", card: "#111827", border: "#1e3a5f",
 };
 
-const TABS = ["📊 總覽", "📈 技術+籌碼", "💰 估值", "⚖️ 多空+風險"];
+const TABS = ["📊 總覽", "📈 技術+籌碼", "💰 估值", "🏭 產業", "⚖️ 多空+風險"];
 
 function Card({ children, className = "" }) {
   return <div className={"card " + className}>{children}</div>;
@@ -115,6 +115,7 @@ function App() {
   const chip = D.chip || {};
   const val = D.valuation || {};
   const bb = D.bull_bear || {};
+  const ind = D.industry || {};
 
   return (
     <div className="min-h-screen">
@@ -446,8 +447,109 @@ function App() {
           </div>
         )}
 
-        {/* ========== Tab 3: 多空+風險 ========== */}
+        {/* ========== Tab 3: 產業 ========== */}
         {tab === 3 && (
+          <div className="grid gap-4">
+            {/* 護城河摘要 */}
+            {ind.moat && (
+              <Card className="border-l-4 border-l-violet-500">
+                <h2 className="text-sm font-bold text-violet-300 mb-2">🏰 護城河</h2>
+                <p className="text-sm text-slate-200">{ind.moat}</p>
+              </Card>
+            )}
+
+            {/* 營收結構 */}
+            {ind.revenue_mix && ind.revenue_mix.length > 0 && (
+              <Card>
+                <h2 className="text-sm font-bold text-sky-300 mb-3">📦 產品/營收結構</h2>
+                <table className="w-full text-xs">
+                  <thead><tr className="text-slate-500 border-b border-slate-700">
+                    <th className="py-2 text-left">產品線</th>
+                    <th className="py-2 text-right">佔比</th>
+                    <th className="py-2 text-center">趨勢</th>
+                    <th className="py-2 text-left pl-4">說明</th>
+                  </tr></thead>
+                  <tbody>
+                    {ind.revenue_mix.map((r, i) => (
+                      <tr key={i} className="border-b border-slate-800/50">
+                        <td className="py-2 text-slate-200 font-medium">{r.segment}</td>
+                        <td className="py-2 text-right text-slate-300">{r.pct}%</td>
+                        <td className="py-2 text-center">{r.trend === "up" ? <span className="text-emerald-400">↑</span> : r.trend === "down" ? <span className="text-red-400">↓</span> : <span className="text-slate-500">→</span>}</td>
+                        <td className="py-2 text-slate-400 pl-4">{r.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* 供應鏈 */}
+              {ind.supply_chain && ind.supply_chain.length > 0 && (
+                <Card>
+                  <h2 className="text-sm font-bold text-sky-300 mb-3">🔗 供應鏈</h2>
+                  <div className="grid gap-2">
+                    {ind.supply_chain.map((s, i) => (
+                      <div key={i} className="flex gap-2 text-xs rounded-lg bg-slate-800/50 p-2">
+                        <Badge color={s.tier === "upstream" ? "amber" : s.tier === "downstream" ? "sky" : "violet"}>
+                          {s.tier === "upstream" ? "上游" : s.tier === "downstream" ? "下游" : "同業"}
+                        </Badge>
+                        <div className="flex-1">
+                          <span className="text-slate-200 font-medium">{s.name}</span>
+                          <span className="text-slate-500 ml-2">{s.relation}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* 領先指標 */}
+              {ind.lead_indicators && ind.lead_indicators.length > 0 && (
+                <Card>
+                  <h2 className="text-sm font-bold text-sky-300 mb-3">🔍 領先指標</h2>
+                  <div className="grid gap-2">
+                    {ind.lead_indicators.map((l, i) => (
+                      <div key={i} className="rounded-lg bg-slate-800/50 p-3 text-xs">
+                        <p className="text-slate-200 font-medium">{l.indicator}</p>
+                        <div className="flex gap-3 mt-1">
+                          <span className="text-slate-400">現況: {l.current}</span>
+                          <span className="text-amber-300">訊號: {l.signal}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            {/* 成長驅動力 */}
+            {ind.growth_drivers && ind.growth_drivers.length > 0 && (
+              <Card>
+                <h2 className="text-sm font-bold text-sky-300 mb-3">🚀 成長驅動力</h2>
+                <div className="grid gap-2">
+                  {ind.growth_drivers.map((g, i) => (
+                    <div key={i} className="flex gap-3 rounded-lg bg-slate-800/50 p-3 text-xs">
+                      <div className="flex flex-col items-center gap-1">
+                        <Badge color={g.status === "confirmed" ? "emerald" : "amber"}>
+                          {g.status === "confirmed" ? "已確認" : "潛在"}
+                        </Badge>
+                        <span className="text-[10px] text-slate-500">{g.horizon}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-200">{g.driver}</p>
+                        <p className="text-slate-400 mt-1">{g.note}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* ========== Tab 4: 多空+風險 ========== */}
+        {tab === 4 && (
           <div className="grid gap-4">
             {/* 多空對照 */}
             <div className="grid gap-4 md:grid-cols-2">
