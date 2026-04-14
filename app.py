@@ -107,7 +107,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.14.1")
+    st.caption("Version: v2026.04.14.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -424,9 +424,11 @@ if st.session_state.get('app_mode') == 'screener':
             st.info(f"🏛️ 目前市場狀態: **{_rn}** — {_rd}｜評分影響: {_re}")
 
             # Build DataFrame for display
+            _scenario_map = {'A': 'A 強攻', 'B': 'B 拉回', 'C': 'C 搶短', 'D': 'D 空手', 'N': 'N 觀望'}
             _rows = []
             for r in results:
                 _rl = r.get('rvol_lowatr')
+                _sc = r.get('scenario', {}).get('code', '')
                 _rows.append({
                     '代號': r['stock_id'],
                     '名稱': r.get('name', ''),
@@ -435,6 +437,7 @@ if st.session_state.get('app_mode') == 'screener':
                     '均量(億)': round(r.get('avg_trading_value_5d', 0) / 1e8, 2),
                     '觸發分數': r.get('trigger_score', 0),
                     '趨勢分數': r.get('trend_score', 0),
+                    '劇本': _scenario_map.get(_sc, _sc),
                     'ETF買超': r.get('etf_buy_count', 0),
                     'RVOL-ATR': round(_rl, 2) if _rl is not None else None,
                     'Top20': '★' if r.get('rvol_lowatr_top20') else '',
@@ -477,10 +480,9 @@ if st.session_state.get('app_mode') == 'screener':
             )
 
             st.caption("觸發分數 -10~+10 (日線進場信號) / 趨勢分數 -5~+5 (週線趨勢) / RVOL-ATR 越高=低波放量")
-            st.info("點擊表格中的股票代號，複製後切回「個股分析」模式即可深入分析")
 
-            # Detailed trigger breakdown (expandable per stock)
-            with st.expander("個股詳細評分"):
+            # Detailed action plan (expandable per stock)
+            with st.expander("個股操作建議"):
                 _selected = st.selectbox(
                     "選擇股票",
                     options=[f"{r['stock_id']} {r.get('name', '')}" for r in results],
@@ -490,11 +492,68 @@ if st.session_state.get('app_mode') == 'screener':
                     _sid = _selected.split()[0]
                     _match = next((r for r in results if r['stock_id'] == _sid), None)
                     if _match:
-                        st.markdown(f"**{_sid} {_match.get('name', '')}** — "
-                                    f"觸發分數: {_match['trigger_score']:+.1f} / "
-                                    f"趨勢分數: {_match['trend_score']:+.1f}")
-                        for d in _match.get('trigger_details', []):
-                            st.markdown(f"- {d}")
+                        _sc = _match.get('scenario', {})
+                        _ap = _match.get('action_plan', {})
+                        _cl = _match.get('checklist', {})
+
+                        # Header: score + scenario
+                        st.markdown(f"### {_sid} {_match.get('name', '')}")
+                        st.markdown(f"**{_sc.get('title', '')}** — {_sc.get('desc', '')}")
+                        st.markdown(f"觸發分數: **{_match['trigger_score']:+.1f}** / "
+                                    f"趨勢分數: **{_match['trend_score']:+.1f}**")
+
+                        # Strategy + entry/exit
+                        if _ap.get('strategy'):
+                            st.markdown(f"\n{_ap['strategy']}")
+
+                        _col_l, _col_r = st.columns(2)
+                        with _col_l:
+                            st.markdown("**進場區間**")
+                            _el = _ap.get('rec_entry_low')
+                            _eh = _ap.get('rec_entry_high')
+                            if _el and _eh:
+                                st.markdown(f"- {_ap.get('rec_entry_desc', '')}: **{_el:.1f} ~ {_eh:.1f}**")
+                            else:
+                                st.markdown("- (無建議)")
+
+                            if _ap.get('tp_list'):
+                                st.markdown("**停利參考**")
+                                for _tp in _ap['tp_list']:
+                                    _rec = ' **(建議)**' if _tp.get('is_rec') else ''
+                                    st.markdown(f"- {_tp['method']}: {_tp['price']:.1f} — {_tp.get('desc', '')}{_rec}")
+
+                        with _col_r:
+                            if _ap.get('sl_list'):
+                                st.markdown("**停損參考**")
+                                for _sl in _ap['sl_list']:
+                                    _loss = _sl.get('loss')
+                                    _loss_str = f" ({_loss:+.1f}%)" if _loss is not None else ''
+                                    st.markdown(f"- {_sl['method']}: {_sl['price']:.1f}{_loss_str}")
+
+                            _rr = _ap.get('rr_ratio')
+                            if _rr:
+                                st.markdown(f"\n**風險報酬比**: {_rr:.1f}:1")
+
+                        # Checklist
+                        if _cl:
+                            st.markdown("---")
+                            if _cl.get('risk'):
+                                st.markdown("**風險警示**")
+                                for _item in _cl['risk']:
+                                    st.markdown(f"- {_item}")
+                            if _cl.get('active'):
+                                st.markdown("**加碼訊號**")
+                                for _item in _cl['active']:
+                                    st.markdown(f"- {_item}")
+                            if _cl.get('future'):
+                                st.markdown("**後續觀察**")
+                                for _item in _cl['future']:
+                                    st.markdown(f"- {_item}")
+
+                        # Trigger details (collapsed)
+                        with st.expander("評分明細", expanded=False):
+                            for d in _match.get('trigger_details', []):
+                                st.markdown(f"- {d}")
 
         else:
             st.info("尚無掃描結果。\n\n"

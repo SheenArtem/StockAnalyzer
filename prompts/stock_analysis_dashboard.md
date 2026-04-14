@@ -98,6 +98,26 @@
     ],
   },
 
+  industry: {
+    revenue_mix: [           // 產品/營收結構，3-6 項
+      { segment: string, pct: number, trend: "up" | "down" | "flat", note: string }
+      // segment = "行星減速機"; pct = 74; trend = "up"; note = "受惠自動化需求"
+    ],
+    supply_chain: [          // 供應鏈關鍵節點，3-6 項
+      { tier: "upstream" | "downstream" | "peer", name: string, relation: string }
+      // tier = "downstream"; name = "台達電"; relation = "伺服馬達配套"
+    ],
+    growth_drivers: [        // 成長驅動力，2-5 項，按重要性排序
+      { driver: string, status: "confirmed" | "optionality", horizon: string, note: string }
+      // driver = "半導體設備需求"; status = "confirmed"; horizon = "1-2年"; note = "TSMC N2 擴產"
+    ],
+    lead_indicators: [       // 應追蹤的領先指標，2-4 項
+      { indicator: string, current: string, signal: string }
+      // indicator = "上銀滾珠螺桿交期"; current = "2.5-3個月"; signal = "回溫"
+    ],
+    moat: string,            // 護城河摘要，30-60 字
+  },
+
   bull_bear: {
     bull_points: [           // 3-6 條
       { text: string, weight: "高" | "中" | "低" }
@@ -175,7 +195,7 @@
 
 ## 重要提醒
 
-- 你**仍可使用 WebSearch / WebFetch** 補充最新新聞或同業估值。
-- 搜尋 2-4 次即可，不必過度搜尋。
+- 你**仍可使用 WebSearch / WebFetch** 補充產業研究、最新新聞、同業估值。
+- 搜尋 5-8 次。**industry 區塊是搜尋重點**，至少 3 次用於產品結構、供應鏈、競爭格局、成長驅動力。
 - **一定要輸出完整 JSON**，不得截斷。若資料很多，保持精簡（每欄位字串 ≤ 80 字）。
 - **不要在 JSON 前後加任何說明文字**。
