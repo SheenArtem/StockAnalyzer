@@ -111,6 +111,7 @@ def calculate_all_indicators(df):
     df['L-PC'] = abs(df['Low'] - prev_close)
     df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
     df['ATR'] = df['TR'].rolling(window=14).mean()
+    df['ATR_pct'] = df['ATR'] / df['Close'] * 100  # ATR as % of price (volatility)
     df['ATR_Stop'] = df['Close'] - (2 * df['ATR'])
 
     # 5. 一目均衡表 (Ichimoku) - 簡化版
@@ -309,7 +310,7 @@ def calculate_all_indicators(df):
                         ('RVOL_Value', 'RVOL_Value_z'),
                         ('EFI_EMA13', 'EFI_z'), ('Squeeze_Mom', 'Squeeze_Mom_z'),
                         ('BB_pct', 'BB_pct_z'), ('VWAP_dev', 'VWAP_dev_z'),
-                        ('RSI_dev', 'RSI_dev_z')]:
+                        ('RSI_dev', 'RSI_dev_z'), ('ATR_pct', 'ATR_pct_z')]:
         if col in df.columns:
             rolling_mean = df[col].rolling(_zscore_window, min_periods=60).mean()
             rolling_std = df[col].rolling(_zscore_window, min_periods=60).std()
