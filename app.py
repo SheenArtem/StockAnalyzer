@@ -859,9 +859,32 @@ if st.session_state.get('app_mode') == 'screener':
     with screener_tab_meanrev:
 
         st.markdown("""
-**短線均值回歸掃描** — 找出超賣/超買股票，供 1-3 天短線操作參考。
+**短線均值回歸掃描** — 找出超賣/超買股票，供 **1-3 天**短線操作參考。
 
-IC 驗證: 1d horizon IC=+0.060, Win 75.5%, 10d 後衰退。獨立於 Scanner 的持倉型策略。
+獨立於 Scanner 動能策略，用 5 個高度相關的均值回歸指標（MA20偏離/VWAP偏離/BB%B/RSI偏離/EFI）合成單一 MeanRev Composite。
+MeanRev 越負 = 越超賣（買入候選），越正 = 越超買（避開）。
+
+| 驗證項目 | 數據 |
+|----------|------|
+| IC (1d) | +0.060 (75.5% 勝率) |
+| IC (5d) | +0.055 (73.3% 勝率) |
+| Walk-forward 1d | IS +1.67 → OOS +0.89 (**-47% 衰退**，短線最不穩定) |
+| Walk-forward 5-20d | OOS > IS (穩健) |
+
+> **注意**: 此策略 1d horizon 在 out-of-sample 有顯著衰退。建議持倉 **2-5 天**而非隔日沖，
+> 並搭配 RSI < 30 + BIAS < -5% 雙重確認再進場。10 天後信號衰退，不適合長抱。
+""")
+        with st.expander("MeanRev Composite 用在哪些地方"):
+            st.markdown("""
+MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-score 均值：
+
+| 用途 | 模組 | 說明 |
+|------|------|------|
+| **動能 Scanner T1 信號** | `analysis_engine.py` | 取代原本的 binary MA20 → tanh(MeanRev) 連續值 [-1,+1]，讓趨勢組中位數更平滑 |
+| **本 Tab 超賣/超買掃描** | `tools/meanrev_scanner.py` | 排序 MeanRev 最負（超賣）/ 最正（超買）的股票 |
+| **個股分析技術圖表** | `technical_analysis.py` | 計算並存入 DataFrame，供 AI 報告參考 |
+
+不直接影響：價值選股、籌碼面評分、週線趨勢分數。
 """)
 
         _mr_top_n = st.slider("顯示前 N 檔", 5, 50, 20, key='mr_top_n')
