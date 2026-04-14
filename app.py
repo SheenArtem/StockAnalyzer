@@ -907,33 +907,50 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                     st.warning("無可掃描股票。請先執行 Scanner 或使用「所有快取股票」。")
                 else:
                     _mr_results = scan(_mr_ids, _mr_top_n)
-                    st.success(f"掃描完成: {len(_mr_results)} 檔")
+                    _mr_tw = [r for r in _mr_results if r['market'] == 'tw']
+                    _mr_us = [r for r in _mr_results if r['market'] == 'us']
+                    st.success(f"掃描完成: {len(_mr_results)} 檔 (台股 {len(_mr_tw)} / 美股 {len(_mr_us)})")
 
-                    # Oversold
-                    st.subheader(f"📉 超賣 (買入候選) Top {_mr_top_n}")
-                    _oversold = _mr_results[:_mr_top_n]
-                    if _oversold:
-                        _os_df = pd.DataFrame(_oversold)
-                        _os_df.index = range(1, len(_os_df) + 1)
-                        _os_df.columns = ['代號', '收盤', 'MeanRev', 'RSI', 'BIAS%']
-                        st.dataframe(_os_df, use_container_width=True, column_config={
+                    def _mr_table(data, top_n, is_tw=True):
+                        """Build DataFrame for display."""
+                        if not data:
+                            st.info("無資料")
+                            return
+                        df = pd.DataFrame(data)
+                        df.index = range(1, len(df) + 1)
+                        if is_tw:
+                            df = df[['stock_id', 'name', 'close', 'meanrev', 'rsi', 'bias']]
+                            df.columns = ['代號', '名稱', '收盤', 'MeanRev', 'RSI', 'BIAS%']
+                        else:
+                            df = df[['stock_id', 'close', 'meanrev', 'rsi', 'bias']]
+                            df.columns = ['Ticker', 'Price', 'MeanRev', 'RSI', 'BIAS%']
+                        st.dataframe(df, use_container_width=True, column_config={
                             'MeanRev': st.column_config.NumberColumn(format="%+.3f"),
                             'RSI': st.column_config.NumberColumn(format="%.0f"),
                             'BIAS%': st.column_config.NumberColumn(format="%+.1f"),
                         })
 
-                    # Overbought
-                    st.subheader(f"📈 超買 (避開/放空候選) Top {_mr_top_n}")
-                    _overbought = list(reversed(_mr_results[-_mr_top_n:]))
-                    if _overbought:
-                        _ob_df = pd.DataFrame(_overbought)
-                        _ob_df.index = range(1, len(_ob_df) + 1)
-                        _ob_df.columns = ['代號', '收盤', 'MeanRev', 'RSI', 'BIAS%']
-                        st.dataframe(_ob_df, use_container_width=True, column_config={
-                            'MeanRev': st.column_config.NumberColumn(format="%+.3f"),
-                            'RSI': st.column_config.NumberColumn(format="%.0f"),
-                            'BIAS%': st.column_config.NumberColumn(format="%+.1f"),
-                        })
+                    # === 台股 ===
+                    if _mr_tw:
+                        st.markdown("### 🇹🇼 台股")
+                        _c1, _c2 = st.columns(2)
+                        with _c1:
+                            st.markdown(f"**📉 超賣 Top {_mr_top_n}**")
+                            _mr_table(_mr_tw[:_mr_top_n], _mr_top_n, is_tw=True)
+                        with _c2:
+                            st.markdown(f"**📈 超買 Top {_mr_top_n}**")
+                            _mr_table(list(reversed(_mr_tw[-_mr_top_n:])), _mr_top_n, is_tw=True)
+
+                    # === 美股 ===
+                    if _mr_us:
+                        st.markdown("### 🇺🇸 美股")
+                        _c3, _c4 = st.columns(2)
+                        with _c3:
+                            st.markdown(f"**📉 Oversold Top {_mr_top_n}**")
+                            _mr_table(_mr_us[:_mr_top_n], _mr_top_n, is_tw=False)
+                        with _c4:
+                            st.markdown(f"**📈 Overbought Top {_mr_top_n}**")
+                            _mr_table(list(reversed(_mr_us[-_mr_top_n:])), _mr_top_n, is_tw=False)
 
         st.caption("💡 CLI: `python tools/meanrev_scanner.py --top 20`")
 
