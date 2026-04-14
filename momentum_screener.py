@@ -442,7 +442,21 @@ class MomentumScreener:
         self._clear_checkpoint(cp_file)
 
         scored.sort(key=lambda x: x['trigger_score'], reverse=True)
-        return scored[:cfg['top_n']]
+        top_n = scored[:cfg['top_n']]
+
+        # P2: rvol_lowatr 第二層 filter — 從 top_n 中標記 rvol_lowatr Top 20
+        # (IC v2: Sharpe 6.07, Win 70%, 作為風險調整優化層)
+        has_rvol = [s for s in top_n if s.get('rvol_lowatr') is not None]
+        if has_rvol:
+            has_rvol.sort(key=lambda x: x['rvol_lowatr'], reverse=True)
+            top20_ids = {s['stock_id'] for s in has_rvol[:20]}
+            for s in top_n:
+                s['rvol_lowatr_top20'] = s['stock_id'] in top20_ids
+        else:
+            for s in top_n:
+                s['rvol_lowatr_top20'] = None
+
+        return top_n
 
     # ================================================================
     # Checkpoint helpers
@@ -579,6 +593,20 @@ class MomentumScreener:
         except Exception:
             pass
 
+        # 8. rvol_lowatr score (P2: 第二層 filter 用)
+        #    = RVOL_z - ATR_pct_z (higher = 放量+低波動，IC v2 Sharpe 6.07)
+        rvol_lowatr = None
+        try:
+            last = df_day.iloc[-1]
+            _rvol_z = last.get('RVOL_z', None)
+            _atr_z = last.get('ATR_pct_z', None)
+            if _rvol_z is not None and _atr_z is not None:
+                import math
+                if not (math.isnan(_rvol_z) or math.isnan(_atr_z)):
+                    rvol_lowatr = round(float(_rvol_z) - float(_atr_z), 4)
+        except Exception:
+            pass
+
         return {
             'stock_id': stock_id,
             'name': market_row.get('stock_name', meta.get('name', '')),
@@ -592,6 +620,7 @@ class MomentumScreener:
             'score_percentile': report.get('score_percentile', None),
             'regime': report.get('regime', {}).get('regime', 'unknown'),
             'etf_buy_count': etf_buy_count,
+            'rvol_lowatr': rvol_lowatr,
             'signals': signals,
             'trigger_details': report.get('trigger_details', []),
         }
