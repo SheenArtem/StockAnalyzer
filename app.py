@@ -419,7 +419,6 @@ if st.session_state.get('app_mode') == 'screener':
                 _rows.append({
                     '代號': r['stock_id'],
                     '名稱': r.get('name', ''),
-                    '市場': {'twse': '上市', 'tpex': '上櫃'}.get(r.get('market', ''), r.get('market', '')),
                     '收盤': r.get('price', 0),
                     '漲跌%': r.get('change_pct', 0),
                     '均量(億)': round(r.get('avg_trading_value_5d', 0) / 1e8, 2),
