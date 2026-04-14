@@ -296,15 +296,31 @@ def calculate_all_indicators(df):
     # 簡化版：使用 Close 相對於 BB 中線的位置
     df['Squeeze_Mom'] = df['Close'] - (df['BB_Up'] + df['BB_Lo']) / 2
 
+    # Mean-reversion raw signals (for mean_rev_composite, P1 BM-3a)
+    # BIAS (MA20 dev) already exists at line ~105
+    bb_width = df['BB_Up'] - df['BB_Lo']
+    df['BB_pct'] = (df['Close'] - df['BB_Lo']) / bb_width.replace(0, np.nan)  # 0~1
+    df['VWAP_dev'] = (df['Close'] - df['VWAP']) / df['VWAP'].replace(0, np.nan) * 100
+    df['RSI_dev'] = df['RSI'] - 50  # -50~+50
+
     # Z-Score columns for scoring normalization (rolling 252-day)
     _zscore_window = 252
     for col, z_col in [('BIAS', 'BIAS_z'), ('ADX', 'ADX_z'), ('RVOL', 'RVOL_z'),
                         ('RVOL_Value', 'RVOL_Value_z'),
-                        ('EFI_EMA13', 'EFI_z'), ('Squeeze_Mom', 'Squeeze_Mom_z')]:
+                        ('EFI_EMA13', 'EFI_z'), ('Squeeze_Mom', 'Squeeze_Mom_z'),
+                        ('BB_pct', 'BB_pct_z'), ('VWAP_dev', 'VWAP_dev_z'),
+                        ('RSI_dev', 'RSI_dev_z')]:
         if col in df.columns:
             rolling_mean = df[col].rolling(_zscore_window, min_periods=60).mean()
             rolling_std = df[col].rolling(_zscore_window, min_periods=60).std()
             df[z_col] = (df[col] - rolling_mean) / rolling_std.replace(0, np.nan)
+
+    # Mean Reversion Composite: average of 5 correlated z-scores
+    # (IC v2: MA20dev/VWAPdev/BB%B/RSIdev/EFI corr 0.78-0.93, merge into 1)
+    _mr_cols = ['BIAS_z', 'VWAP_dev_z', 'BB_pct_z', 'RSI_dev_z', 'EFI_z']
+    _mr_present = [c for c in _mr_cols if c in df.columns]
+    if _mr_present:
+        df['MeanRev_Composite'] = df[_mr_present].mean(axis=1)
 
     # Store in memoize cache (keep max 20 entries to limit memory)
     if not df.empty and isinstance(df.index, pd.DatetimeIndex):
