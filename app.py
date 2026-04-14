@@ -423,7 +423,7 @@ if st.session_state.get('app_mode') == 'screener':
                     '市場': r.get('market', ''),
                     '收盤': r.get('price', 0),
                     '漲跌%': r.get('change_pct', 0),
-                    '5日均量值': r.get('avg_trading_value_5d', 0),
+                    '均量(億)': round(r.get('avg_trading_value_5d', 0) / 1e8, 2),
                     '觸發分數': r.get('trigger_score', 0),
                     '趨勢分數': r.get('trend_score', 0),
                     '百分位': r.get('score_percentile', ''),
@@ -445,7 +445,7 @@ if st.session_state.get('app_mode') == 'screener':
                 '觸發分數 (高→低)': ('觸發分數', False),
                 '趨勢分數 (高→低)': ('趨勢分數', False),
                 'RVOL-ATR (高→低)': ('RVOL-ATR', False),
-                '5日均量值 (高→低)': ('5日均量值', False),
+                '均量(億) (高→低)': ('均量(億)', False),
                 '漲跌% (高→低)': ('漲跌%', False),
             }
             _sort_choice = st.selectbox(
@@ -465,7 +465,7 @@ if st.session_state.get('app_mode') == 'screener':
                     '趨勢分數': st.column_config.NumberColumn(format="%.1f"),
                     '漲跌%': st.column_config.NumberColumn(format="%.1f%%"),
                     '收盤': st.column_config.NumberColumn(format="%.1f"),
-                    '5日均量值': st.column_config.NumberColumn(format="%d"),
+                    '均量(億)': st.column_config.NumberColumn(format="%.2f"),
                 },
             )
 
@@ -554,7 +554,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'Ticker': r['stock_id'],
                     'Price': r.get('price', 0),
                     'Chg%': r.get('change_pct', 0),
-                    'AvgTV5d': r.get('avg_trading_value_5d', 0),
+                    'TV(M)': round(r.get('avg_trading_value_5d', 0) / 1e6, 1),
                     'Score': r.get('trigger_score', 0),
                     'Trend': r.get('trend_score', 0),
                     'Regime': r.get('regime', ''),
@@ -572,7 +572,7 @@ if st.session_state.get('app_mode') == 'screener':
                 'Score (High→Low)': ('Score', False),
                 'Trend (High→Low)': ('Trend', False),
                 'RVOL-ATR (High→Low)': ('RVOL-ATR', False),
-                'AvgTV5d (High→Low)': ('AvgTV5d', False),
+                'TV(M) (High→Low)': ('TV(M)', False),
                 'Chg% (High→Low)': ('Chg%', False),
             }
             _us_sort = st.selectbox("Sort by", list(_sort_opts_us_m.keys()), key='momentum_us_sort')
@@ -589,7 +589,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'Trend': st.column_config.NumberColumn(format="%.1f"),
                     'Chg%': st.column_config.NumberColumn(format="%.1f%%"),
                     'Price': st.column_config.NumberColumn(format="$%.2f"),
-                    'AvgTV5d': st.column_config.NumberColumn(format="%d"),
+                    'TV(M)': st.column_config.NumberColumn(format="%.1f"),
                 },
             )
 
@@ -682,7 +682,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'PE': r.get('PE', 0),
                     'PB': r.get('PB', 0),
                     '殖利率%': r.get('dividend_yield', 0),
-                    '5日均量值': r.get('avg_trading_value_5d', 0),
+                    '均量(億)': round(r.get('avg_trading_value_5d', 0) / 1e8, 2),
                     '綜合分數': r.get('value_score', 0),
                     '估值': s.get('valuation', 0),
                     '體質': s.get('quality', 0),
@@ -694,7 +694,7 @@ if st.session_state.get('app_mode') == 'screener':
 
             _sort_opts_v = {
                 '綜合分數 (高→低)': ('綜合分數', False),
-                '5日均量值 (高→低)': ('5日均量值', False),
+                '均量(億) (高→低)': ('均量(億)', False),
                 '殖利率% (高→低)': ('殖利率%', False),
                 'PE (低→高)': ('PE', True),
             }
@@ -713,7 +713,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'PB': st.column_config.NumberColumn(format="%.2f"),
                     '殖利率%': st.column_config.NumberColumn(format="%.1f%%"),
                     '收盤': st.column_config.NumberColumn(format="%.1f"),
-                    '5日均量值': st.column_config.NumberColumn(format="%d"),
+                    '均量(億)': st.column_config.NumberColumn(format="%.2f"),
                 },
             )
 
@@ -810,7 +810,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'PE': r.get('PE', 0),
                     'PB': r.get('PB', 0),
                     'DY%': r.get('dividend_yield', 0),
-                    'AvgTV5d': r.get('avg_trading_value_5d', 0),
+                    'TV(M)': round(r.get('avg_trading_value_5d', 0) / 1e6, 1),
                     'Score': r.get('value_score', 0),
                     'Val': s.get('valuation', 0),
                     'Qual': s.get('quality', 0),
@@ -821,7 +821,7 @@ if st.session_state.get('app_mode') == 'screener':
 
             _sort_opts_uv = {
                 'Score (High→Low)': ('Score', False),
-                'AvgTV5d (High→Low)': ('AvgTV5d', False),
+                'TV(M) (High→Low)': ('TV(M)', False),
                 'DY% (High→Low)': ('DY%', False),
                 'PE (Low→High)': ('PE', True),
             }
@@ -837,7 +837,7 @@ if st.session_state.get('app_mode') == 'screener':
                     'Score': st.column_config.NumberColumn(format="%.1f"),
                     'Price': st.column_config.NumberColumn(format="$%.2f"),
                     'PE': st.column_config.NumberColumn(format="%.1f"),
-                    'AvgTV5d': st.column_config.NumberColumn(format="%d"),
+                    'TV(M)': st.column_config.NumberColumn(format="%.1f"),
                 },
             )
             with st.expander("Detailed Scores"):
