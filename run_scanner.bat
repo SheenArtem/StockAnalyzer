@@ -16,6 +16,10 @@ REM ============================================================
 
 cd /d C:\GIT\StockAnalyzer
 
+REM Rotate log: keep only previous + current
+if exist scanner_prev.log del scanner_prev.log
+if exist scanner.log ren scanner.log scanner_prev.log
+
 REM Log start time
 echo [%date% %time%] Scanner started >> scanner.log
 
