@@ -204,16 +204,13 @@ MA/BB/RSI/KD/MACD/ADX/Supertrend/RVOL/Squeeze/TD 等最新數值
 PE/PB/殖利率/Piotroski/Z-Score/ROIC/FCF/PEG/DDM/月營收
 
 [MARKET_CONTEXT]
-Regime 狀態、大盤位置、恐懼貪婪指數、PTT 情緒（如有）
+Regime 狀態、大盤位置、恐懼貪婪指數
 
 [PATTERN_DATA]
 K 線型態辨識結果（如有）
 
 [VALUE_SCORE]
 價值選股 5 維評分（估值/體質/營收/技術轉折/聰明錢，各 0-100 分）
-
-[PTT_SENTIMENT]
-PTT Stock 板情緒數據（台股限定）
 
 [NEWS_DATA]
 近 7 天 Google News 搜尋結果（標題+來源+日期）+ 法人目標價提取
