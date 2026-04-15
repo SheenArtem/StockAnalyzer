@@ -251,11 +251,16 @@ class ScanTracker:
             }
 
             # Score info
-            if scan_type == 'momentum':
+            if scan_type in ('momentum', 'swing', 'qm'):
                 entry['trigger_score'] = r.get('trigger_score', 0)
                 entry['trend_score'] = r.get('trend_score', 0)
             elif scan_type == 'value':
                 entry['value_score'] = r.get('value_score', 0)
+            elif scan_type == 'convergence':
+                entry['convergence_tier'] = r.get('convergence_tier', 0)
+                entry['modes'] = r.get('modes', [])
+                entry['trigger_score'] = r.get('trigger_score')
+                entry['value_score'] = r.get('value_score')
 
             # Fetch future prices
             for days in TRACKING_INTERVALS:
