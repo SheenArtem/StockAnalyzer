@@ -415,34 +415,6 @@ def _parse_market_cap(mc_str):
         return 0
 
 
-def _build_ptt_sentiment(ticker):
-    """[PTT_SENTIMENT] PTT 情緒數據 (台股限定)"""
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
-    if is_us:
-        return "N/A (美股不適用)"
-
-    try:
-        from ptt_sentiment import PTTSentimentAnalyzer
-        analyzer = PTTSentimentAnalyzer()
-        stock_id = ticker.replace('.TW', '')
-        result = analyzer.get_stock_sentiment(stock_id, pages=3)
-        if not result:
-            return "N/A (無 PTT 討論)"
-
-        lines = []
-        lines.append(f"文章數: {result.get('total_posts', 0)}")
-        lines.append(f"推/噓: {result.get('total_push', 0)}/{result.get('total_boo', 0)}")
-        lines.append(f"推文比: {_safe_val(result.get('push_ratio', 0), '.1%')}")
-        lines.append(f"情緒分數: {_safe_val(result.get('sentiment_score', 0), '.1f')} (-100~+100)")
-        lines.append(f"情緒標籤: {result.get('sentiment_label', 'N/A')}")
-        if result.get('contrarian_warning'):
-            lines.append("*** 反向指標警告: 過度樂觀，注意回檔風險 ***")
-        return "\n".join(lines)
-    except Exception as e:
-        logger.warning("PTT sentiment fetch failed: %s", e)
-        return f"N/A (取得失敗: {e})"
-
-
 def _build_value_score(ticker, fund_data, df_day):
     """[VALUE_SCORE] ValueScreener 5 維評分 (估值/體質/營收/技術轉折/聰明錢)"""
     try:
@@ -756,7 +728,6 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[MARKET_CONTEXT]\n{_build_market_context(report)}")
     data_sections.append(f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}")
     data_sections.append(f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}")
-    data_sections.append(f"[PTT_SENTIMENT]\n{_build_ptt_sentiment(ticker)}")
     data_sections.append(f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}")
     data_sections.append(f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}")
     data_sections.append(f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}")
@@ -871,7 +842,6 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[MARKET_CONTEXT]\n{_build_market_context(report)}",
         f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}",
         f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}",
-        f"[PTT_SENTIMENT]\n{_build_ptt_sentiment(ticker)}",
         f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}",
         f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}",
         f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}",
