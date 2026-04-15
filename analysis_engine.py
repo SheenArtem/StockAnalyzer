@@ -192,14 +192,15 @@ def detect_market_regime_hmm(market='tw'):
         return fallback
 
 class TechnicalAnalyzer:
-    def __init__(self, ticker, df_week, df_day, strategy_params=None, chip_data=None, us_chip_data=None):
+    def __init__(self, ticker, df_week, df_day, strategy_params=None, chip_data=None, us_chip_data=None, scan_mode=False):
         self.ticker = ticker
         self.df_week = df_week
         self.df_day = df_day
         self.strategy_params = strategy_params # { 'buy': 3, 'sell': -2 }
         self.chip_data = chip_data  # 台股籌碼數據
         self.us_chip_data = us_chip_data  # 美股籌碼數據
-        
+        self.scan_mode = scan_mode  # True = 批次掃描模式，跳過 UI-only 的資料抓取（PE/月營收重複等）
+
         # 判斷是否為美股
         self._is_us_stock = self._detect_us_stock(ticker)
     
@@ -279,17 +280,14 @@ class TechnicalAnalyzer:
         checklist = self._generate_monitoring_checklist(self.df_day, scenario)
 
         # 6. 基本面快照 (台股限定，不計分，資訊提示)
-        fundamental_alerts = self._fetch_fundamental_snapshot()
+        # scan_mode 跳過：純 UI 提示，不影響評分，節省 FinMind 配額
+        fundamental_alerts = [] if self.scan_mode else self._fetch_fundamental_snapshot()
 
         # 7. 評分百分位 (基於校準分佈 196K 樣本: mean=0.07, std=4.32)
         from scipy.stats import norm
         score_percentile = round(norm.cdf(trigger_score, loc=CALIBRATION_MEAN, scale=CALIBRATION_STD) * 100, 1)
 
-        # 8. PTT 反向提示 (不計分，僅資訊)
-        ptt_hints = self._detect_ptt_contrarian()
-        trigger_details.extend(ptt_hints)
-
-        # 9. Regime — already computed before scoring (line 233)
+        # 8. Regime — already computed before scoring (line 233)
 
         return {
             "ticker": self.ticker,
@@ -1293,40 +1291,6 @@ class TechnicalAnalyzer:
 
         score = max(-ETF_SIGNAL_CAP, min(ETF_SIGNAL_CAP, score))
         return score, details
-
-    def _detect_ptt_contrarian(self):
-        """
-        PTT 情緒反向提示 — 台股限定，不計分，僅提示
-        極度看多 → 擦鞋童警告, 極度看空 → 恐慌反向提示
-        """
-        hints = []
-        if self._is_us_stock:
-            return hints
-
-        ticker = self.ticker.replace('.TW', '').replace('.TWO', '').strip()
-        if not ticker.isdigit():
-            return hints
-
-        try:
-            from ptt_sentiment import PTTSentimentAnalyzer
-            ptt = PTTSentimentAnalyzer()
-            sentiment = ptt.get_stock_sentiment(ticker, pages=3)
-
-            if sentiment['total_posts'] >= 3:
-                score = sentiment['sentiment_score']
-                posts = sentiment['total_posts']
-                if score >= 80:
-                    hints.append(f"🗣️ PTT 極度看多 (情緒={score:.0f}, {posts}篇) — 擦鞋童效應，留意過熱 [反向提示]")
-                elif score <= 20:
-                    hints.append(f"🗣️ PTT 極度看空 (情緒={score:.0f}, {posts}篇) — 恐慌可能是反向機會 [反向提示]")
-                elif score >= 65:
-                    hints.append(f"🗣️ PTT 偏多 (情緒={score:.0f}, {posts}篇) [資訊]")
-                elif score <= 35:
-                    hints.append(f"🗣️ PTT 偏空 (情緒={score:.0f}, {posts}篇) [資訊]")
-        except Exception as e:
-            logger.debug(f"PTT contrarian hint skipped: {e}")
-
-        return hints
 
     def _detect_regime(self, df):
         """
