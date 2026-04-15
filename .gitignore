@@ -34,6 +34,7 @@ Desktop.ini
 # Runtime artifacts
 *.stackdump
 scanner.log
+scanner_prev.log
 
 # AI 報告輸出（使用者生成，不納入版控）
 data/ai_reports/
