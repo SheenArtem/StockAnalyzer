@@ -10,9 +10,12 @@ class ChipAnalyzer:
     def __init__(self):
         self.dl = get_finmind_loader()
 
-    def get_chip_data(self, ticker, force_update=False):
+    def get_chip_data(self, ticker, force_update=False, scan_mode=False):
         """
         取得籌碼面數據 (三大法人 + 融資融券)
+
+        scan_mode=True: 只抓 institutional（評分用），跳過 margin/day_trading/
+          shareholding/sbl（這些不計分，只是 UI 顯示）。節省 4 個 FinMind 呼叫/檔。
         """
         # 確保是台股代號
         if not ticker.endswith('.TW') and ticker.isdigit():
@@ -131,6 +134,15 @@ class ChipAnalyzer:
         except Exception as e:
             logger.warning(f"Institutional data fetch failed for {stock_id}: {e}")
             errors.append(f"法人: {e}")
+
+        # scan_mode: institutional 已取得，跳過其餘 4 個資料集（不計分，UI only）
+        if scan_mode:
+            for k in ('margin', 'day_trading', 'shareholding', 'sbl'):
+                results[k] = pd.DataFrame()
+            inst = results.get('institutional')
+            if inst is None or inst.empty:
+                return None, "scan_mode: institutional 抓取失敗"
+            return results, None
 
         # --- 2. Margin Trading (融資融券) ---
         try:
