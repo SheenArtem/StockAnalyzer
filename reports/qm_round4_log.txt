@@ -1,0 +1,37 @@
+13:44:30 [INFO] Loading data...
+13:44:32 [INFO]   OHLCV: 243 stocks, 1032 days
+13:44:32 [INFO] Computing forward returns...
+13:44:33 [INFO]   income: 105299 rows, 298 stocks
+13:44:33 [INFO]   balance: 560851 rows, 296 stocks
+13:44:33 [INFO]   cashflow: 163332 rows, 296 stocks
+13:44:33 [INFO]   revenue: 20763 rows, 292 stocks
+13:44:33 [INFO]   quality_scores: 6585 rows, 298 stocks
+13:44:33 [INFO] Building quality flags from financial data...
+13:44:34 [INFO]   Quality flags: 6883 rows, pass rate: 73.2%
+13:44:34 [INFO] ============================================================
+13:44:34 [INFO] Round 4: Weight Optimization (with REAL quality scores)
+13:44:34 [INFO] ============================================================
+13:44:34 [INFO] Computing rvol_lowatr...
+13:44:36 [INFO]   [200/243] rvol_lowatr...
+13:44:37 [INFO] Computing trigger score proxy...
+13:44:40 [INFO]   [200/243] trigger proxy...
+13:44:41 [INFO] Computing weekly trend scores...
+13:44:44 [INFO]   [100/243] trend scores...
+13:44:47 [INFO]   [200/243] trend scores...
+13:44:49 [INFO]   Quality score coverage: 100.0%
+13:58:05 [INFO] 
+  Best 20d (Sharpe=1.931):
+13:58:05 [INFO]     rvol=0% trigger=20% quality=50% trend=30%
+13:58:05 [INFO]     ret=+3.644% wr=74.1%
+13:58:05 [INFO] 
+  Best 40d (Sharpe=1.969):
+13:58:05 [INFO]     rvol=0% trigger=10% quality=30% trend=60%
+13:58:05 [INFO]     ret=+7.650% wr=81.2%
+13:58:05 [INFO] 
+  Best 60d (Sharpe=1.857):
+13:58:05 [INFO]     rvol=0% trigger=0% quality=50% trend=50%
+13:58:05 [INFO]     ret=+11.426% wr=83.2%
+13:58:05 [INFO] 
+  Saved to reports/qm_round4_weights.csv
+13:58:05 [INFO] 
+All done!

@@ -1,0 +1,4 @@
+horizon,train_r2,test_r2,mean_ic,ic_ir,portfolio_ret,portfolio_win,portfolio_sharpe,feat_imp,n_test_days
+20d,0.0881,0.0053,0.0367,0.233,3.246,68.0,1.504,"{'rvol_lowatr_pct': np.float64(0.00351), 'trigger_proxy_pct': np.float64(0.00378), 'trend_score_pct': np.float64(0.02323), 'quality_score_pct': np.float64(0.00899), 'f_score_pct': np.float64(0.02117)}",400
+40d,0.0933,-0.035,0.0398,0.317,5.608,66.6,1.164,"{'rvol_lowatr_pct': np.float64(-0.00115), 'trigger_proxy_pct': np.float64(-0.00082), 'trend_score_pct': np.float64(0.00987), 'quality_score_pct': np.float64(0.0207), 'f_score_pct': np.float64(0.0019)}",380
+60d,0.1749,-0.0944,0.0199,0.15,7.631,68.3,1.076,"{'rvol_lowatr_pct': np.float64(-0.00177), 'trigger_proxy_pct': np.float64(-0.00292), 'trend_score_pct': np.float64(0.01368), 'quality_score_pct': np.float64(0.04789), 'f_score_pct': np.float64(0.01235)}",360

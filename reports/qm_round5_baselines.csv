@@ -1,0 +1,16 @@
+name,horizon,ret,win,sharpe,n_days
+Current (rvol30/trig25/qual25/trend20),20d,3.279,73.5,1.716,400
+F-Score Only,20d,4.079,80.2,1.971,400
+Quality Only,20d,3.436,73.2,1.668,400
+Trend Only,20d,2.772,68.2,1.279,400
+F50/Qual30/Trend20,20d,4.39,79.2,1.987,400
+Current (rvol30/trig25/qual25/trend20),40d,6.338,74.5,1.536,380
+F-Score Only,40d,8.342,78.9,1.799,380
+Quality Only,40d,6.759,73.2,1.458,380
+Trend Only,40d,6.119,68.9,1.281,380
+F50/Qual30/Trend20,40d,9.161,77.6,1.813,380
+Current (rvol30/trig25/qual25/trend20),60d,9.084,72.2,1.28,360
+F-Score Only,60d,12.707,74.4,1.633,360
+Quality Only,60d,9.822,72.8,1.315,360
+Trend Only,60d,8.966,67.8,1.11,360
+F50/Qual30/Trend20,60d,13.995,75.8,1.666,360
