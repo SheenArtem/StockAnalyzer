@@ -39,6 +39,8 @@ _MIN_RESULTS = {        # 正常 results 數量下限
     ('value', 'tw'): 30,
     ('swing', 'us'): 5,
     ('swing', 'tw'): 10,
+    ('qm', 'us'): 5,
+    ('qm', 'tw'): 10,
 }
 
 
@@ -262,16 +264,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument('--mode', choices=['momentum', 'value', 'swing', 'both', 'all'],
+    parser.add_argument('--mode', choices=['momentum', 'value', 'swing', 'qm', 'both', 'all'],
                         default='both',
-                        help='Scan mode: momentum, value, swing, both (mom+val), all (default: both)')
+                        help='Scan mode: momentum, value, swing, qm (quality momentum), both (mom+val), all (mom+val+swing+qm) (default: both)')
     parser.add_argument('--market', choices=['tw', 'us', 'all'],
                         default='all',
                         help='Market: tw (Taiwan), us (S&P 500), all (default: all)')
     parser.add_argument('--no-chip', action='store_true',
                         help='Skip chip data (faster, ~4min vs ~8min)')
-    parser.add_argument('--top', type=int, default=50,
-                        help='Number of results (default: 50)')
+    parser.add_argument('--top', type=int, default=20,
+                        help='Number of results (default: 20)')
     parser.add_argument('--push', action='store_true',
                         help='Git push results after scan')
     parser.add_argument('--notify', action='store_true',
@@ -314,6 +316,7 @@ def main():
     run_momentum = args.mode in ('momentum', 'both', 'all')
     run_value = args.mode in ('value', 'both', 'all')
     run_swing = args.mode in ('swing', 'all')
+    run_qm = args.mode in ('qm', 'all')
     markets = ['tw', 'us'] if args.market == 'all' else [args.market]
 
     # Pre-warm TWSE/TPEX cache if running both screeners (avoid duplicate API calls)
@@ -403,6 +406,40 @@ def main():
             if not args.quiet:
                 print_summary(s_result)
 
+    # --- QM (Quality Momentum) Screener ---
+    if run_qm:
+        from momentum_screener import MomentumScreener
+        for mkt in markets:
+            mkt_label = 'Taiwan' if mkt == 'tw' else 'US'
+            progress(f"=== Quality Momentum [{mkt_label}] ===")
+            qm_screener = MomentumScreener(config=config, progress_callback=progress)
+            qm_result = qm_screener.run(market=mkt, mode='qm')
+            MomentumScreener.save_results(qm_result, args.output_dir)
+            progress(f"QM [{mkt}] results saved")
+            healthy, issues = check_scan_health(qm_result, mkt, 'qm')
+            if not healthy and args.notify:
+                send_alert_notification('qm', mkt, issues)
+            if not args.quiet:
+                print_summary(qm_result)
+
+    # --- Convergence Detection (post-processing) ---
+    if not args.stage1_only:
+        from convergence_detector import ConvergenceDetector
+        detector = ConvergenceDetector(args.output_dir)
+        for mkt in markets:
+            conv_result = detector.detect(market=mkt)
+            if conv_result['results']:
+                ConvergenceDetector.save_results(conv_result, args.output_dir)
+                mkt_label = 'Taiwan' if mkt == 'tw' else 'US'
+                progress(f"=== Convergence [{mkt_label}]: {conv_result['total_found']} stocks in multiple modes ===")
+                if not args.quiet:
+                    for s in conv_result['results']:
+                        modes_str = '+'.join(s['modes'])
+                        progress(f"  T{s['convergence_tier']} {s['stock_id']} {s.get('name', '')[:8]} "
+                                 f"[{modes_str}] trigger={s.get('trigger_score', '-')} value={s.get('value_score', '-')}")
+            else:
+                progress(f"Convergence [{mkt}]: no multi-mode overlap (normal)")
+
     # Print FinMind API usage stats
     if not args.quiet:
         from cache_manager import get_finmind_stats
@@ -412,6 +449,20 @@ def main():
                   f"| Rate: {stats['rate_per_hour']:.0f}/hr "
                   f"| Remaining: {stats['remaining']} "
                   f"| Token: {'Yes' if stats['has_token'] else 'NO!'}")
+
+    # Position monitor: check holdings against exit conditions
+    if not args.stage1_only:
+        try:
+            from position_monitor import run_monitor, load_positions
+            _positions = load_positions()
+            if _positions:
+                progress("=== Position Monitor ===")
+                _mon = run_monitor(positions=_positions, progress=progress)
+                progress(f"  {_mon['position_count']} positions, "
+                         f"{_mon['alert_count']} alerts "
+                         f"(hard={_mon['hard_count']}, soft={_mon['soft_count']})")
+        except Exception as e:
+            progress(f"Position monitor failed: {e}")
 
     # Performance tracking: update historical picks with latest prices
     if not args.stage1_only:

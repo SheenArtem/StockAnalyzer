@@ -4,3 +4,7 @@ history/
 .checkpoints/
 # Tracking data (local performance tracking state, grows over time)
 tracking/
+# Personal holdings + monitor output (local only, never push)
+positions.json
+latest/position_alerts.json
+latest/position_history.json
