@@ -2605,35 +2605,6 @@ elif st.session_state.get('analysis_active', False):
                         c5.error(f"**風報比**：\n\n⚖️ **{rr_text}**") # Bad
                     else:
                          c5.info(f"**風報比**：\n\nN/A")
-                    # 6. 部位管理建議 (Position Sizing)
-                    ps = ap.get('position_sizing', {})
-                    if ps:
-                        with st.expander("📐 部位管理建議 (2% 風險法則)", expanded=False):
-                            is_us = ap.get('is_us_stock', False)
-                            ps_data = []
-                            for cap, info in ps.items():
-                                if info['lots'] > 0:
-                                    if is_us:
-                                        ps_data.append({
-                                            "資金規模": f"${cap:,.0f}",
-                                            "建議股數": f"{info['shares']} 股",
-                                            "所需資金": f"${info['cost']:,.0f}",
-                                            "停損虧損": f"${info['risk_amount']:,.0f}",
-                                            "風險比例": f"{info['risk_pct']:.1f}%"
-                                        })
-                                    else:
-                                        ps_data.append({
-                                            "資金規模": f"{cap/10000:.0f} 萬",
-                                            "建議張數": f"{info['lots']} 張",
-                                            "所需資金": f"{info['cost']:,.0f}",
-                                            "停損虧損": f"{info['risk_amount']:,.0f}",
-                                            "風險比例": f"{info['risk_pct']:.1f}%"
-                                        })
-                            if ps_data:
-                                st.table(pd.DataFrame(ps_data))
-                                st.caption("💡 2% 法則：單筆交易最大虧損不超過總資金的 2%")
-                            else:
-                                st.caption("⚠️ 停損距離過大或股價過高，建議降低部位或等待更佳進場點")
 
                 else:
                     # Not actionable: Show simple message or nothing else?
