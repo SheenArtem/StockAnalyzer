@@ -1,0 +1,4571 @@
+{
+  "scan_type": "convergence",
+  "scan_date": "2026-04-15",
+  "scan_time": "05:20",
+  "market": "tw",
+  "total_found": 49,
+  "results": [
+    {
+      "stock_id": "5871",
+      "convergence_tier": 1,
+      "modes": [
+        "momentum",
+        "qm",
+        "value"
+      ],
+      "mode_count": 3,
+      "name": "中租-KY",
+      "price": 113.0,
+      "change_pct": 2.73,
+      "market": "twse",
+      "trigger_score": 9.41,
+      "trend_score": 4.5,
+      "signals": [],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。",
+        "rec_entry_low": 109.6,
+        "rec_entry_high": 113.0,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 107.28571428571429,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 130.798,
+        "rr_ratio": 3.1146500000000037,
+        "tp_list": [
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 124.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 130.798,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 108.5,
+            "desc": "大量低點",
+            "loss": -3.98
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 108.125,
+            "desc": "MA20/60",
+            "loss": -4.31
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 107.28571428571429,
+            "desc": "2倍 ATR",
+            "loss": -5.06
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 103.0,
+            "desc": "前波低點",
+            "loss": -8.85
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 37,
+        "value": 34,
+        "qm": 28
+      },
+      "value_score": 63.2,
+      "value_scores": {
+        "valuation": 70,
+        "quality": 73,
+        "revenue": 50,
+        "technical": 50,
+        "smart_money": 60
+      },
+      "PE": 10.62,
+      "PB": 1.15,
+      "dividend_yield": 5.31
+    },
+    {
+      "stock_id": "4576",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "大銀微系統",
+      "price": 192.5,
+      "change_pct": 6.06,
+      "market": "twse",
+      "trigger_score": 10,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 等待確認** — K線型態【吊人線 (Hanging Man)】與買進方向矛盾，建議等待確認",
+        "rec_entry_low": 151.8,
+        "rec_entry_high": 170.3,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 146.65714285714287,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 307.83000000000004,
+        "rr_ratio": 5.816978851963748,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 181.23376494903593,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 199.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 255.3,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 307.83000000000004,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 178.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 4.52
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 146.65714285714287,
+            "desc": "2倍 ATR",
+            "loss": -13.88
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 138.025,
+            "desc": "MA20/60",
+            "loss": -18.95
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 114.5,
+            "desc": "前波低點",
+            "loss": -32.77
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 3,
+        "qm": 1,
+        "swing": 42
+      }
+    },
+    {
+      "stock_id": "2476",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "鉅祥",
+      "price": 105.5,
+      "change_pct": 3.43,
+      "market": "twse",
+      "trigger_score": 10.0,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【流星線 (Shooting Star)】與買進方向矛盾，建議等待確認",
+        "rec_entry_low": 100.76000030517578,
+        "rec_entry_high": 105.5,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 96.47142878941128,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 155.3344,
+        "rr_ratio": 5.519633044656515,
+        "tp_list": [
+          {
+            "method": "前波高點",
+            "price": 111.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 136.3,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 155.3344,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 103.0,
+            "desc": "大量低點",
+            "loss": -2.37
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 96.47142878941128,
+            "desc": "2倍 ATR",
+            "loss": -8.56
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 88.25000007629396,
+            "desc": "MA20/60",
+            "loss": -16.35
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 80.2,
+            "desc": "前波低點",
+            "loss": -23.98
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 4,
+        "qm": 3,
+        "swing": 31
+      }
+    },
+    {
+      "stock_id": "6209",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "今國光",
+      "price": 62.8,
+      "change_pct": 3.8,
+      "market": "twse",
+      "trigger_score": 10,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 等待確認** — K線型態【空頭吞噬 (Engulfing)】與買進方向矛盾，建議等待確認",
+        "rec_entry_low": 53.69499999999999,
+        "rec_entry_high": 57.61999999999999,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 51.51999999999999,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 86.09679999999999,
+        "rr_ratio": 4.668327868852457,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 62.29366158952778,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 65.8,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 75.21999999999998,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 86.09679999999999,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 62.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 7.6
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 54.177499999999995,
+            "desc": "MA20/60",
+            "loss": -5.97
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 51.51999999999999,
+            "desc": "2倍 ATR",
+            "loss": -10.59
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 48.2,
+            "desc": "前波低點",
+            "loss": -16.35
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 5,
+        "qm": 4,
+        "swing": 14
+      }
+    },
+    {
+      "stock_id": "6829",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "千附精密",
+      "price": 149.0,
+      "change_pct": 7.19,
+      "market": "tpex",
+      "trigger_score": 10,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 126.35,
+        "rec_entry_high": 133.8,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 119.0857142857143,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 207.419,
+        "rr_ratio": 5.00323300970874,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 140.61764578624877,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 152.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 179.3,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 207.419,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 145.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 8.37
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 119.375,
+            "desc": "MA20/60",
+            "loss": -10.78
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 119.0857142857143,
+            "desc": "2倍 ATR",
+            "loss": -11.0
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 107.0,
+            "desc": "前波低點",
+            "loss": -20.03
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 6,
+        "qm": 5,
+        "swing": 28
+      }
+    },
+    {
+      "stock_id": "6166",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "凌華",
+      "price": 72.3,
+      "change_pct": 9.88,
+      "market": "twse",
+      "trigger_score": 10,
+      "trend_score": 4,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 60.88000000000001,
+        "rec_entry_high": 64.0,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 58.72857142857143,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 89.2408,
+        "rr_ratio": 4.7882276422764205,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 67.44376096490504,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 72.3,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 79.6,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 89.2408,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 67.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 4.69
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 60.735,
+            "desc": "MA20/60",
+            "loss": -5.1
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 58.72857142857143,
+            "desc": "2倍 ATR",
+            "loss": -8.24
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 56.7,
+            "desc": "前波低點",
+            "loss": -11.41
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 10,
+        "qm": 7,
+        "swing": 3
+      }
+    },
+    {
+      "stock_id": "8383",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "千附",
+      "price": 53.5,
+      "change_pct": 0.94,
+      "market": "tpex",
+      "trigger_score": 10,
+      "trend_score": 4,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 等待確認** — K線型態【吊人線 (Hanging Man)】與買進方向矛盾，建議等待確認",
+        "rec_entry_low": 46.905,
+        "rec_entry_high": 49.660000000000004,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 46.00285681588309,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 68.59060000000001,
+        "rr_ratio": 5.176335474699541,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 51.52607993992544,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 53.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 61.36000000000001,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 68.59060000000001,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 49.84999847412109,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 0.38
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 46.00285681588309,
+            "desc": "2倍 ATR",
+            "loss": -7.36
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 45.7825,
+            "desc": "MA20/60",
+            "loss": -7.81
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 41.8,
+            "desc": "前波低點",
+            "loss": -15.83
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 11,
+        "qm": 9,
+        "swing": 48
+      }
+    },
+    {
+      "stock_id": "6234",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "高僑",
+      "price": 34.35,
+      "change_pct": 9.92,
+      "market": "tpex",
+      "trigger_score": 10,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 29.395,
+        "rec_entry_high": 30.78,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 27.76571428571429,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 41.7015,
+        "rr_ratio": 3.623246445497633,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 32.06568852676514,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 34.35,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 37.53,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 41.7015,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 31.55,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 2.5
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 28.979999999999997,
+            "desc": "MA20/60",
+            "loss": -5.85
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 27.76571428571429,
+            "desc": "2倍 ATR",
+            "loss": -9.79
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 27.6,
+            "desc": "前波低點",
+            "loss": -10.33
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 12,
+        "qm": 12,
+        "swing": 38
+      }
+    },
+    {
+      "stock_id": "3312",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "弘憶股",
+      "price": 40.0,
+      "change_pct": 0.76,
+      "market": "twse",
+      "trigger_score": 9.89,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【大陽線 (Marubozu)】確認多方進場",
+        "rec_entry_low": 36.325,
+        "rec_entry_high": 37.8,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 34.64285714285714,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 52.200199999999995,
+        "rr_ratio": 4.561149321266966,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 39.34313435758302,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 41.8,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "MA240 年線",
+            "price": 42.38229166666667,
+            "desc": "超級反壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 46.699999999999996,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 52.200199999999995,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 39.85,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 5.42
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 36.1475,
+            "desc": "MA20/60",
+            "loss": -4.37
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 36.036,
+            "desc": "型態低點",
+            "loss": -4.67
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 34.64285714285714,
+            "desc": "2倍 ATR",
+            "loss": -8.35
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 32.9,
+            "desc": "前波低點",
+            "loss": -12.96
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 14,
+        "qm": 10,
+        "swing": 17
+      }
+    },
+    {
+      "stock_id": "2402",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "毅嘉",
+      "price": 72.4,
+      "change_pct": 7.42,
+      "market": "twse",
+      "trigger_score": 9.84,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 57.10500015258789,
+        "rec_entry_high": 62.76000030517578,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 55.67428525652204,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 104.01900277404786,
+        "rr_ratio": 5.822842463402639,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 66.361600396096,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 74.1,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 88.2600018310547,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 104.01900277404786,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 67.4,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 7.39
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 55.67428525652204,
+            "desc": "2倍 ATR",
+            "loss": -11.29
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 54.09249965667724,
+            "desc": "MA20/60",
+            "loss": -13.81
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 48.59999847412109,
+            "desc": "前波低點",
+            "loss": -22.56
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 15,
+        "qm": 14,
+        "swing": 24
+      }
+    },
+    {
+      "stock_id": "3406",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "玉晶光",
+      "price": 518.0,
+      "change_pct": 7.69,
+      "market": "twse",
+      "trigger_score": 9.84,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 456.75,
+        "rec_entry_high": 470.1,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 434.3857142857143,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 635.136,
+        "rr_ratio": 4.621007999999997,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 489.52403879211715,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 527.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 572.1,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 635.136,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 490.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 4.23
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 452.65,
+            "desc": "MA20/60",
+            "loss": -3.71
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 434.3857142857143,
+            "desc": "2倍 ATR",
+            "loss": -7.6
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 425.0,
+            "desc": "前波低點",
+            "loss": -9.59
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 16,
+        "qm": 15,
+        "swing": 4
+      }
+    },
+    {
+      "stock_id": "4585",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "達明",
+      "price": 319.5,
+      "change_pct": 7.21,
+      "market": "twse",
+      "trigger_score": 9.76,
+      "trend_score": 2,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "B",
+        "title": "⏳ 劇本 B：拉回關注",
+        "desc": "長線多頭，短線震盪。等待止穩。"
+      },
+      "action_plan": {
+        "strategy": "⏳ **等待訊號**：建議掛單在月季線支撐附近，不要追高。",
+        "rec_entry_low": 294.95550000000003,
+        "rec_entry_high": 306.9945,
+        "rec_entry_desc": "回測支撐 (月季線)",
+        "rec_sl_price": 278.40357142857147,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 321.17524752322936,
+        "rr_ratio": 0.8949476750797813,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 321.17524752322936,
+            "desc": "通道壓力",
+            "is_rec": true
+          },
+          {
+            "method": "MA60 季線反壓",
+            "price": 328.9166666666667,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 331.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "MA120 半年線",
+            "price": 341.65416666666664,
+            "desc": "長線反壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 346.975,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 375.403,
+            "desc": "強勢目標",
+            "is_rec": false
+          },
+          {
+            "method": "MA240 年線",
+            "price": 385.0520833333333,
+            "desc": "超級反壓",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 300.975,
+            "desc": "MA20/60",
+            "loss": 0.0
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 300.0,
+            "desc": "大量低點",
+            "loss": -0.32
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 285.0,
+            "desc": "前波低點",
+            "loss": -5.31
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 278.40357142857147,
+            "desc": "2倍 ATR",
+            "loss": -7.5
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 21,
+        "qm": 8,
+        "swing": 35
+      }
+    },
+    {
+      "stock_id": "5439",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "高技",
+      "price": 360.5,
+      "change_pct": 0.28,
+      "market": "tpex",
+      "trigger_score": 9.76,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 308.45,
+        "rec_entry_high": 337.3,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 291.01428571428573,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 542.7860000000001,
+        "rr_ratio": 4.439512345679014,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 353.2895912477539,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 395.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 464.3,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 542.7860000000001,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 353.5,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 4.8
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 297.8,
+            "desc": "MA20/60",
+            "loss": -11.71
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 291.01428571428573,
+            "desc": "2倍 ATR",
+            "loss": -13.72
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 268.0,
+            "desc": "前波低點",
+            "loss": -20.55
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 19,
+        "qm": 16,
+        "swing": 22
+      }
+    },
+    {
+      "stock_id": "3709",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "鑫聯大投控",
+      "price": 74.8,
+      "change_pct": 8.72,
+      "market": "tpex",
+      "trigger_score": 9.76,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 67.1499998474121,
+        "rec_entry_high": 69.7599996948242,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 62.74571441650389,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 91.2793996948242,
+        "rr_ratio": 3.0679390908881277,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 73.73006834792976,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 75.6,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 83.0599996948242,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 91.2793996948242,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 69.7,
+            "desc": "大量低點",
+            "loss": -0.09
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 67.99999992370604,
+            "desc": "MA20/60",
+            "loss": -2.52
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 62.74571441650389,
+            "desc": "2倍 ATR",
+            "loss": -10.05
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 62.3,
+            "desc": "前波低點",
+            "loss": -10.69
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 20,
+        "qm": 17,
+        "swing": 13
+      }
+    },
+    {
+      "stock_id": "3290",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "東浦",
+      "price": 50.1,
+      "change_pct": 6.94,
+      "market": "tpex",
+      "trigger_score": 9.74,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 44.855000000000004,
+        "rec_entry_high": 46.89,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 42.997142857142855,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 63.393600000000006,
+        "rr_ratio": 4.239456880733943,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 48.44998369669401,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 51.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 57.09,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 63.393600000000006,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 47.45,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 1.19
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 44.455,
+            "desc": "MA20/60",
+            "loss": -5.19
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 42.997142857142855,
+            "desc": "2倍 ATR",
+            "loss": -8.3
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 40.8,
+            "desc": "前波低點",
+            "loss": -12.99
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 22,
+        "qm": 11,
+        "swing": 8
+      }
+    },
+    {
+      "stock_id": "3090",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "日電貿",
+      "price": 106.5,
+      "change_pct": 2.9,
+      "market": "twse",
+      "trigger_score": 9.59,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 96.24000000000001,
+        "rec_entry_high": 100.84,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 92.41142813546317,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 128.0224,
+        "rr_ratio": 3.22503034166082,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 104.99245001285229,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 107.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 117.64,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 128.0224,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 100.5,
+            "desc": "大量低點",
+            "loss": -0.34
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 95.875,
+            "desc": "MA20/60",
+            "loss": -4.92
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 92.41142813546317,
+            "desc": "2倍 ATR",
+            "loss": -8.36
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 90.2,
+            "desc": "前波低點",
+            "loss": -10.55
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 26,
+        "qm": 19,
+        "swing": 47
+      }
+    },
+    {
+      "stock_id": "8042",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "金山電",
+      "price": 65.0,
+      "change_pct": 5.52,
+      "market": "tpex",
+      "trigger_score": 9.55,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【大陽線 (Marubozu)】確認多方進場",
+        "rec_entry_low": 56.09999984741211,
+        "rec_entry_high": 58.51999969482422,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 50.81999991280692,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 82.78999969482422,
+        "rr_ratio": 3.1519481411779426,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 62.2211078589079,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 65.7,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 73.51999969482422,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 82.78999969482422,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 60.6,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 3.55
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 57.61800075531006,
+            "desc": "型態低點",
+            "loss": -1.54
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 55.54499992370605,
+            "desc": "MA20/60",
+            "loss": -5.08
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 50.81999991280692,
+            "desc": "2倍 ATR",
+            "loss": -13.16
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 50.7,
+            "desc": "前波低點",
+            "loss": -13.36
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 27,
+        "qm": 20,
+        "swing": 19
+      }
+    },
+    {
+      "stock_id": "3008",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "大立光",
+      "price": 2670.0,
+      "change_pct": 9.88,
+      "market": "twse",
+      "trigger_score": 9.54,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 2280.5,
+        "rec_entry_high": 2394.0,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 2214.0,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 3259.63,
+        "rr_ratio": 4.809055555555556,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 2523.0504228723976,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 2670.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 2929.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 3259.63,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 2540.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 6.1
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 2279.8864868164064,
+            "desc": "MA20/60",
+            "loss": -4.77
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 2214.0,
+            "desc": "2倍 ATR",
+            "loss": -7.52
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 2135.0,
+            "desc": "前波低點",
+            "loss": -10.82
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 28,
+        "qm": 21,
+        "swing": 6
+      }
+    },
+    {
+      "stock_id": "6278",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "台表科",
+      "price": 125.0,
+      "change_pct": 9.65,
+      "market": "twse",
+      "trigger_score": 9.54,
+      "trend_score": 4,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 100.22,
+        "rec_entry_high": 106.5,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 98.77142857142857,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 159.085,
+        "rr_ratio": 6.803974121996305,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 114.61660075851104,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 125.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 139.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 159.085,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 121.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 13.62
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 99.2,
+            "desc": "MA20/60",
+            "loss": -6.85
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 98.77142857142857,
+            "desc": "2倍 ATR",
+            "loss": -7.26
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 92.5,
+            "desc": "前波低點",
+            "loss": -13.15
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 29,
+        "qm": 22,
+        "swing": 1
+      }
+    },
+    {
+      "stock_id": "2493",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "揚博",
+      "price": 139.0,
+      "change_pct": 6.51,
+      "market": "twse",
+      "trigger_score": 9.48,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 115.2,
+        "rec_entry_high": 124.1,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 108.17142857142856,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 189.62900000000002,
+        "rr_ratio": 4.113928251121077,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 130.81100134634994,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 143.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 164.6,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 189.62900000000002,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 135.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 8.78
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 113.2,
+            "desc": "MA20/60",
+            "loss": -8.78
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 108.17142857142856,
+            "desc": "2倍 ATR",
+            "loss": -12.84
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 103.0,
+            "desc": "前波低點",
+            "loss": -17.0
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 36,
+        "qm": 27,
+        "swing": 50
+      }
+    },
+    {
+      "stock_id": "6191",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "精成科",
+      "price": 104.5,
+      "change_pct": 9.54,
+      "market": "twse",
+      "trigger_score": 9.33,
+      "trend_score": 1,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "B",
+        "title": "⏳ 劇本 B：拉回關注",
+        "desc": "長線多頭，短線震盪。等待止穩。"
+      },
+      "action_plan": {
+        "strategy": "⏳ **等待訊號**：建議掛單在月季線支撐附近，不要追高。\n\n**進場信心: 高** — K線型態【大陽線 (Marubozu)】確認多方進場",
+        "rec_entry_low": 93.00689992523193,
+        "rec_entry_high": 96.80309992218018,
+        "rec_entry_desc": "回測支撐 (月季線)",
+        "rec_sl_price": 85.07642849513464,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 103.86725395406947,
+        "rr_ratio": 0.9118572414613941,
+        "tp_list": [
+          {
+            "method": "MA240 年線",
+            "price": 103.34291666030884,
+            "desc": "超級反壓",
+            "is_rec": false
+          },
+          {
+            "method": "MA60 季線反壓",
+            "price": 103.7199999745687,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 103.86725395406947,
+            "desc": "通道壓力",
+            "is_rec": true
+          },
+          {
+            "method": "前波高點",
+            "price": 104.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "MA120 半年線",
+            "price": 109.76416665395101,
+            "desc": "長線反壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 111.30499992370606,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 121.44019992370607,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 96.3,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 1.47
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 94.90499992370606,
+            "desc": "MA20/60",
+            "loss": 0.0
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 88.1,
+            "desc": "前波低點",
+            "loss": -7.17
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 85.07642849513464,
+            "desc": "2倍 ATR",
+            "loss": -10.36
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 39,
+        "qm": 2,
+        "swing": 33
+      }
+    },
+    {
+      "stock_id": "6789",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "采鈺",
+      "price": 407.0,
+      "change_pct": 10.0,
+      "market": "twse",
+      "trigger_score": 9.04,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【大陽線 (Marubozu)】確認多方進場",
+        "rec_entry_low": 339.7,
+        "rec_entry_high": 358.9,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 315.9,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 532.835,
+        "rr_ratio": 4.045000000000002,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 382.3171857925466,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 407.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 466.4,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 532.835,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 361.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 0.59
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 336.75,
+            "desc": "MA20/60",
+            "loss": -6.17
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 336.6,
+            "desc": "型態低點",
+            "loss": -6.21
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 315.9,
+            "desc": "2倍 ATR",
+            "loss": -11.98
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 299.5,
+            "desc": "前波低點",
+            "loss": -16.55
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 48,
+        "qm": 35,
+        "swing": 29
+      }
+    },
+    {
+      "stock_id": "6933",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm",
+        "swing"
+      ],
+      "mode_count": 3,
+      "name": "AMAX-KY",
+      "price": 183.5,
+      "change_pct": 7.0,
+      "market": "twse",
+      "trigger_score": 9.0,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【空頭吞噬 (Engulfing)】與買進方向矛盾，建議等待確認",
+        "rec_entry_low": 176.0,
+        "rec_entry_high": 183.5,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 161.92857142857142,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 318.603,
+        "rr_ratio": 6.263052980132447,
+        "tp_list": [
+          {
+            "method": "前波高點",
+            "price": 205.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 267.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 318.603,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 161.92857142857142,
+            "desc": "2倍 ATR",
+            "loss": -11.76
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 147.0,
+            "desc": "大量低點",
+            "loss": -19.89
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 141.8,
+            "desc": "MA20/60",
+            "loss": -22.72
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 122.0,
+            "desc": "前波低點",
+            "loss": -33.51
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 50,
+        "qm": 37,
+        "swing": 46
+      }
+    },
+    {
+      "stock_id": "1597",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "直得",
+      "price": 119.5,
+      "change_pct": 9.63,
+      "market": "twse",
+      "trigger_score": 10,
+      "trend_score": 4,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 94.46999984741211,
+        "rec_entry_high": 102.21999969482422,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 90.33428540910994,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 172.92659969482423,
+        "rr_ratio": 5.948872596153847,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 109.07981923278396,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 119.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 145.91999969482424,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 172.92659969482423,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 116.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 13.48
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 90.33428540910994,
+            "desc": "2倍 ATR",
+            "loss": -11.63
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 88.37999992370605,
+            "desc": "MA20/60",
+            "loss": -13.54
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 75.8,
+            "desc": "前波低點",
+            "loss": -25.85
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 7,
+        "qm": 6
+      }
+    },
+    {
+      "stock_id": "4540",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "全球傳動",
+      "price": 51.9,
+      "change_pct": 9.96,
+      "market": "twse",
+      "trigger_score": 10,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 43.75,
+        "rec_entry_high": 45.89,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 40.99,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 64.01159999999999,
+        "rr_ratio": 3.6982857142857126,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 50.46558784022081,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 51.9,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 57.089999999999996,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 64.01159999999999,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 48.3,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 5.25
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 44.64,
+            "desc": "MA20/60",
+            "loss": -2.72
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 40.99,
+            "desc": "2倍 ATR",
+            "loss": -10.68
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 40.7,
+            "desc": "前波低點",
+            "loss": -11.31
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 8,
+        "swing": 9
+      }
+    },
+    {
+      "stock_id": "1301",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "台塑",
+      "price": 54.3,
+      "change_pct": 5.64,
+      "market": "twse",
+      "trigger_score": 10,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【大陽線 (Marubozu)】確認多方進場",
+        "rec_entry_low": 48.14500091552735,
+        "rec_entry_high": 49.45000091552734,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 44.942858385358534,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 67.00529844665527,
+        "rr_ratio": 3.8949949804384003,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 51.71166729662512,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 55.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 60.299999389648434,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 67.00529844665527,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 50.6,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 2.33
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 47.40250038146972,
+            "desc": "MA20/60",
+            "loss": -4.14
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 46.678501510620116,
+            "desc": "型態低點",
+            "loss": -5.6
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 44.942858385358534,
+            "desc": "2倍 ATR",
+            "loss": -9.11
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 44.650001525878906,
+            "desc": "前波低點",
+            "loss": -9.71
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 2,
+        "swing": 36
+      }
+    },
+    {
+      "stock_id": "4909",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "新復興",
+      "price": 65.2,
+      "change_pct": 9.76,
+      "market": "tpex",
+      "trigger_score": 10,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【大陽線 (Marubozu)】確認多方進場",
+        "rec_entry_low": 57.81,
+        "rec_entry_high": 60.42,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 54.205714285714286,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 81.29220000000001,
+        "rr_ratio": 3.3587448275862073,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 64.80361739874203,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 66.2,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 73.32000000000001,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 81.29220000000001,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 59.8,
+            "desc": "大量低點",
+            "loss": -1.03
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 59.202,
+            "desc": "型態低點",
+            "loss": -2.02
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 58.4,
+            "desc": "MA20/60",
+            "loss": -3.34
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 54.205714285714286,
+            "desc": "2倍 ATR",
+            "loss": -10.29
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 53.3,
+            "desc": "前波低點",
+            "loss": -11.78
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 9,
+        "swing": 45
+      }
+    },
+    {
+      "stock_id": "3031",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "佰鴻",
+      "price": 31.1,
+      "change_pct": 0.16,
+      "market": "twse",
+      "trigger_score": 9.99,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 25.360000000000003,
+        "rec_entry_high": 28.02,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 24.220000054495674,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 45.6562,
+        "rr_ratio": 4.641105329715833,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 29.821167697678312,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 31.95,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 38.92,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 45.6562,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 26.850000381469727,
+            "desc": "大量低點",
+            "loss": -4.18
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 24.220000054495674,
+            "desc": "2倍 ATR",
+            "loss": -13.56
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 24.1375,
+            "desc": "MA20/60",
+            "loss": -13.86
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 21.05,
+            "desc": "前波低點",
+            "loss": -24.88
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 13,
+        "qm": 13
+      }
+    },
+    {
+      "stock_id": "3548",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "兆利",
+      "price": 102.5,
+      "change_pct": 9.63,
+      "market": "tpex",
+      "trigger_score": 9.84,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 84.55,
+        "rec_entry_high": 89.32000000000001,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 81.52000043596541,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 130.2554,
+        "rr_ratio": 5.248128498461856,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 95.00860727329687,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "MA240 年線",
+            "price": 102.07,
+            "desc": "超級反壓",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 102.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 114.62,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 130.2554,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 84.80000305175781,
+            "desc": "大量低點",
+            "loss": -5.06
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 83.95200302124023,
+            "desc": "型態低點",
+            "loss": -6.01
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 83.71000000000001,
+            "desc": "MA20/60",
+            "loss": -6.28
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 81.52000043596541,
+            "desc": "2倍 ATR",
+            "loss": -8.73
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 77.2,
+            "desc": "前波低點",
+            "loss": -13.57
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 17,
+        "swing": 37
+      }
+    },
+    {
+      "stock_id": "6414",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "樺漢",
+      "price": 294.0,
+      "change_pct": 2.26,
+      "market": "twse",
+      "trigger_score": 9.72,
+      "trend_score": 2.5,
+      "signals": [],
+      "scenario": {
+        "code": "B",
+        "title": "⏳ 劇本 B：拉回關注",
+        "desc": "長線多頭，短線震盪。等待止穩。"
+      },
+      "action_plan": {
+        "strategy": "⏳ **等待訊號**：建議掛單在月季線支撐附近，不要追高。\n\n**進場信心: 高** — K線型態【多頭吞噬 (Engulfing)】確認多方進場",
+        "rec_entry_low": 268.912,
+        "rec_entry_high": 279.888,
+        "rec_entry_desc": "回測支撐 (月季線)",
+        "rec_sl_price": 257.54285714285714,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 290.4807174493049,
+        "rr_ratio": 0.9539408656367344,
+        "tp_list": [
+          {
+            "method": "MA60 季線反壓",
+            "price": 280.875,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
+            "method": "MA120 半年線",
+            "price": 285.50416666666666,
+            "desc": "長線反壓",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 290.4807174493049,
+            "desc": "通道壓力",
+            "is_rec": true
+          },
+          {
+            "method": "MA240 年線",
+            "price": 291.6770833333333,
+            "desc": "超級反壓",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 297.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 311.4,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 334.26599999999996,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 274.4,
+            "desc": "MA20/60",
+            "loss": 0.0
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 271.0,
+            "desc": "大量低點",
+            "loss": -1.24
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 260.5,
+            "desc": "前波低點",
+            "loss": -5.07
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 257.54285714285714,
+            "desc": "2倍 ATR",
+            "loss": -6.14
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 23,
+        "qm": 18
+      }
+    },
+    {
+      "stock_id": "4927",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "泰鼎-KY",
+      "price": 50.7,
+      "change_pct": 5.19,
+      "market": "twse",
+      "trigger_score": 9.71,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 43.574999847412116,
+        "rec_entry_high": 45.88999969482422,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 40.439999803815574,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 68.62289969482421,
+        "rr_ratio": 4.171174395343476,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 49.933338096826844,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 53.8,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 59.939999694824216,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 68.62289969482421,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 44.8,
+            "desc": "大量低點",
+            "loss": -2.38
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 44.04499992370605,
+            "desc": "MA20/60",
+            "loss": -4.02
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 40.439999803815574,
+            "desc": "2倍 ATR",
+            "loss": -11.88
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 39.75,
+            "desc": "前波低點",
+            "loss": -13.38
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 24,
+        "swing": 34
+      }
+    },
+    {
+      "stock_id": "3416",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "融程電",
+      "price": 161.5,
+      "change_pct": 3.19,
+      "market": "twse",
+      "trigger_score": 9.6,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【多頭吞噬 (Engulfing)】確認多方進場",
+        "rec_entry_low": 148.7,
+        "rec_entry_high": 153.2,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 143.6285714285714,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 193.64999999999998,
+        "rr_ratio": 4.226119402985068,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 158.75322254956907,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 166.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 178.2,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 193.64999999999998,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 156.5,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 2.15
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 149.825,
+            "desc": "MA20/60",
+            "loss": -2.2
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 147.015,
+            "desc": "型態低點",
+            "loss": -4.04
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 143.6285714285714,
+            "desc": "2倍 ATR",
+            "loss": -6.25
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 141.0,
+            "desc": "前波低點",
+            "loss": -7.96
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 25,
+        "swing": 7
+      }
+    },
+    {
+      "stock_id": "6127",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "九豪",
+      "price": 48.15,
+      "change_pct": 9.43,
+      "market": "tpex",
+      "trigger_score": 9.52,
+      "trend_score": 4,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 42.16,
+        "rec_entry_high": 42.72,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 35.427142857142854,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 65.7765,
+        "rr_ratio": 3.1615181194906947,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 47.63474559498443,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 48.95,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 56.97,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 65.7765,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 43.15,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 1.01
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 41.9075,
+            "desc": "MA20/60",
+            "loss": -1.9
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 35.427142857142854,
+            "desc": "2倍 ATR",
+            "loss": -17.07
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 34.7,
+            "desc": "前波低點",
+            "loss": -18.77
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 31,
+        "qm": 24
+      }
+    },
+    {
+      "stock_id": "1595",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "川寶",
+      "price": 49.8,
+      "change_pct": 4.08,
+      "market": "tpex",
+      "trigger_score": 9.52,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【多頭吞噬 (Engulfing)】確認多方進場",
+        "rec_entry_low": 43.415000000000006,
+        "rec_entry_high": 45.57000000000001,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 41.041428571428575,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 65.6332,
+        "rr_ratio": 4.4303596214511,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 47.51834766970779,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 52.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 57.970000000000006,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 65.6332,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 48.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 5.33
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 43.065,
+            "desc": "型態低點",
+            "loss": -5.5
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 42.705,
+            "desc": "MA20/60",
+            "loss": -6.29
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 41.041428571428575,
+            "desc": "2倍 ATR",
+            "loss": -9.94
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 40.1,
+            "desc": "前波低點",
+            "loss": -12.0
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 32,
+        "swing": 20
+      }
+    },
+    {
+      "stock_id": "2484",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "希華",
+      "price": 34.45,
+      "change_pct": 1.32,
+      "market": "twse",
+      "trigger_score": 9.5,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 30.925000152587888,
+        "rec_entry_high": 32.34000030517579,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 27.325714372907377,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 51.998700305175795,
+        "rr_ratio": 3.9205382911035147,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 34.09528029808206,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 38.35,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 44.4900003051758,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 51.998700305175795,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 34.4,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 6.37
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 31.48199924468994,
+            "desc": "型態低點",
+            "loss": -2.65
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 29.59250007629394,
+            "desc": "MA20/60",
+            "loss": -8.5
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 27.325714372907377,
+            "desc": "2倍 ATR",
+            "loss": -15.5
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 26.2,
+            "desc": "前波低點",
+            "loss": -18.99
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 33,
+        "qm": 25
+      }
+    },
+    {
+      "stock_id": "6949",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "沛爾生醫-創",
+      "price": 782.0,
+      "change_pct": 9.99,
+      "market": "twse",
+      "trigger_score": 9.49,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 622.6,
+        "rec_entry_high": 674.2,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 600.7714285714286,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 1115.9140000000002,
+        "rr_ratio": 6.015560311284047,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 712.9568731070605,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 782.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 947.2,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 1115.9140000000002,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 709.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 5.16
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 600.7714285714286,
+            "desc": "2倍 ATR",
+            "loss": -10.89
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 593.6,
+            "desc": "MA20/60",
+            "loss": -11.95
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 509.0,
+            "desc": "前波低點",
+            "loss": -24.5
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 34,
+        "swing": 27
+      }
+    },
+    {
+      "stock_id": "3443",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "創意",
+      "price": 3050.0,
+      "change_pct": 9.91,
+      "market": "twse",
+      "trigger_score": 9.48,
+      "trend_score": 4.5,
+      "signals": [
+        "etf_sync_buy"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【大陽線 (Marubozu)】確認多方進場",
+        "rec_entry_low": 2517.0,
+        "rec_entry_high": 2731.0,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 2386.714285714286,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 4203.38,
+        "rr_ratio": 4.276622406639005,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 2912.433498230999,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 3050.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 3641.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 4203.38,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 2503.0,
+            "desc": "MA20/60",
+            "loss": -8.35
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 2465.0,
+            "desc": "大量低點",
+            "loss": -9.74
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 2386.714285714286,
+            "desc": "2倍 ATR",
+            "loss": -12.61
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 2140.0,
+            "desc": "前波低點",
+            "loss": -21.64
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 35,
+        "qm": 26
+      }
+    },
+    {
+      "stock_id": "5469",
+      "convergence_tier": 2,
+      "modes": [
+        "qm",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "瀚宇博",
+      "price": 92.4,
+      "change_pct": 5.0,
+      "market": "twse",
+      "trigger_score": 9.38,
+      "trend_score": 1,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "B",
+        "title": "⏳ 劇本 B：拉回關注",
+        "desc": "長線多頭，短線震盪。等待止穩。"
+      },
+      "action_plan": {
+        "strategy": "⏳ **等待訊號**：建議掛單在月季線支撐附近，不要追高。\n\n**進場信心: 等待確認** — K線型態【空頭母子 (Harami)】與買進方向矛盾，建議等待確認",
+        "rec_entry_low": 83.06969992523193,
+        "rec_entry_high": 86.46029992218018,
+        "rec_entry_desc": "回測支撐 (月季線)",
+        "rec_sl_price": 77.22214299883161,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 92.21144709801271,
+        "rr_ratio": 0.9872184039114076,
+        "tp_list": [
+          {
+            "method": "MA60 季線反壓",
+            "price": 92.12166664123535,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 92.21144709801271,
+            "desc": "通道壓力",
+            "is_rec": true
+          },
+          {
+            "method": "MA120 半年線",
+            "price": 93.20499998728434,
+            "desc": "長線反壓",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 93.9,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 99.26499992370606,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 108.22599992370606,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 86.69999694824219,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 2.28
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 84.76499992370606,
+            "desc": "MA20/60",
+            "loss": 0.0
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 79.4,
+            "desc": "前波低點",
+            "loss": -6.33
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 77.22214299883161,
+            "desc": "2倍 ATR",
+            "loss": -8.9
+          }
+        ]
+      },
+      "mode_ranks": {
+        "qm": 29,
+        "swing": 39
+      }
+    },
+    {
+      "stock_id": "3645",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "達邁",
+      "price": 88.9,
+      "change_pct": 1.72,
+      "market": "twse",
+      "trigger_score": 9.28,
+      "trend_score": 4,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 77.55999923706055,
+        "rec_entry_high": 82.53999969482422,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 71.5257133265904,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 129.30020463256835,
+        "rr_ratio": 4.245413944620575,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 89.47144501736771,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 97.1,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 111.44000274658202,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 129.30020463256835,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 87.1,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 5.52
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 78.3399998474121,
+            "desc": "MA20/60",
+            "loss": -5.09
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 71.5257133265904,
+            "desc": "2倍 ATR",
+            "loss": -13.34
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 68.19999694824219,
+            "desc": "前波低點",
+            "loss": -17.37
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 40,
+        "qm": 30
+      }
+    },
+    {
+      "stock_id": "4720",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "德淵",
+      "price": 20.55,
+      "change_pct": 6.48,
+      "market": "twse",
+      "trigger_score": 9.24,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【貫穿線 (Piercing)】確認多方進場",
+        "rec_entry_low": 18.59,
+        "rec_entry_high": 19.3,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 17.057142857142857,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 26.7428,
+        "rr_ratio": 3.318445859872609,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 20.104428738777166,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 20.65,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 23.9,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 26.7428,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 18.8,
+            "desc": "大量低點",
+            "loss": -2.59
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 18.315,
+            "desc": "型態低點",
+            "loss": -5.1
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 17.935,
+            "desc": "MA20/60",
+            "loss": -7.07
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 17.057142857142857,
+            "desc": "2倍 ATR",
+            "loss": -11.62
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 16.05,
+            "desc": "前波低點",
+            "loss": -16.84
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 41,
+        "qm": 31
+      }
+    },
+    {
+      "stock_id": "1591",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "駿吉-KY",
+      "price": 58.9,
+      "change_pct": 2.08,
+      "market": "tpex",
+      "trigger_score": 9.24,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。",
+        "rec_entry_low": 46.48500007629394,
+        "rec_entry_high": 52.460000152587895,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 46.88857179914202,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 89.6740001525879,
+        "rr_ratio": 6.6794361587695015,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 56.25418742387224,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 61.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 75.4600001525879,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 89.6740001525879,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 52.400001525878906,
+            "desc": "大量低點",
+            "loss": -0.11
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 46.88857179914202,
+            "desc": "2倍 ATR",
+            "loss": -10.62
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 44.590000038146975,
+            "desc": "MA20/60",
+            "loss": -15.0
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 38.0,
+            "desc": "前波低點",
+            "loss": -27.56
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 42,
+        "swing": 25
+      }
+    },
+    {
+      "stock_id": "8942",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "森鉅",
+      "price": 46.0,
+      "change_pct": 7.73,
+      "market": "tpex",
+      "trigger_score": 9.24,
+      "trend_score": 4,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 39.565,
+        "rec_entry_high": 41.94,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 38.93285714285714,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 61.1133,
+        "rr_ratio": 6.375919239904984,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 43.54266229052937,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 46.95,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 53.79,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 61.1133,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 42.7,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 1.81
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 39.501,
+            "desc": "型態低點",
+            "loss": -5.82
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 38.93285714285714,
+            "desc": "2倍 ATR",
+            "loss": -7.17
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 38.1875,
+            "desc": "MA20/60",
+            "loss": -8.95
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 35.1,
+            "desc": "前波低點",
+            "loss": -16.31
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 43,
+        "swing": 41
+      }
+    },
+    {
+      "stock_id": "2454",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "聯發科",
+      "price": 1720.0,
+      "change_pct": 6.17,
+      "market": "twse",
+      "trigger_score": 9.22,
+      "trend_score": 2.5,
+      "signals": [
+        "etf_sync_buy"
+      ],
+      "scenario": {
+        "code": "B",
+        "title": "⏳ 劇本 B：拉回關注",
+        "desc": "長線多頭，短線震盪。等待止穩。"
+      },
+      "action_plan": {
+        "strategy": "⏳ **等待訊號**：建議掛單在月季線支撐附近，不要追高。",
+        "rec_entry_low": 1570.94,
+        "rec_entry_high": 1635.06,
+        "rec_entry_desc": "回測支撐 (月季線)",
+        "rec_sl_price": 1466.5714285714287,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 1782.9824552853024,
+        "rr_ratio": 1.319243127745673,
+        "tp_list": [
+          {
+            "method": "MA60 季線反壓",
+            "price": 1660.25,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 1745.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 1782.9824552853024,
+            "desc": "通道壓力",
+            "is_rec": true
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 1918.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 2112.67,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 1603.0,
+            "desc": "MA20/60",
+            "loss": 0.0
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 1505.0,
+            "desc": "大量低點",
+            "loss": -6.11
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 1466.5714285714287,
+            "desc": "2倍 ATR",
+            "loss": -8.51
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 1430.0,
+            "desc": "前波低點",
+            "loss": -10.79
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 44,
+        "qm": 32
+      }
+    },
+    {
+      "stock_id": "4979",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "華星光",
+      "price": 485.0,
+      "change_pct": 4.3,
+      "market": "tpex",
+      "trigger_score": 9.22,
+      "trend_score": 2.5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "B",
+        "title": "⏳ 劇本 B：拉回關注",
+        "desc": "長線多頭，短線震盪。等待止穩。"
+      },
+      "action_plan": {
+        "strategy": "⏳ **等待訊號**：建議掛單在月季線支撐附近，不要追高。",
+        "rec_entry_low": 352.35083333333336,
+        "rec_entry_high": 366.7325,
+        "rec_entry_desc": "回測支撐 (月季線)",
+        "rec_sl_price": 301.47023809523813,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 474.0736079468075,
+        "rr_ratio": 1.9722597514415399,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 474.0736079468075,
+            "desc": "通道壓力",
+            "is_rec": true
+          },
+          {
+            "method": "前波高點",
+            "price": 500.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 518.0416666666667,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 615.9946666666667,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 411.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 14.31
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 406.775,
+            "desc": "MA20/60 (壓力/已破)",
+            "loss": 13.14
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 341.5,
+            "desc": "前波低點",
+            "loss": -5.02
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 301.47023809523813,
+            "desc": "2倍 ATR",
+            "loss": -16.15
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 45,
+        "qm": 33
+      }
+    },
+    {
+      "stock_id": "2492",
+      "convergence_tier": 2,
+      "modes": [
+        "momentum",
+        "qm"
+      ],
+      "mode_count": 2,
+      "name": "華新科",
+      "price": 143.0,
+      "change_pct": 5.15,
+      "market": "twse",
+      "trigger_score": 9.04,
+      "trend_score": 5,
+      "signals": [],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 123.95,
+        "rec_entry_high": 130.4,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 116.04285714285714,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 184.603,
+        "rr_ratio": 3.7753333333333323,
+        "tp_list": [
+          {
+            "method": "MA60 季線反壓",
+            "price": 133.01666666666668,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 145.7216244375578,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 146.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 163.9,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 184.603,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 138.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 5.83
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 127.7,
+            "desc": "MA20/60",
+            "loss": -2.07
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 116.04285714285714,
+            "desc": "2倍 ATR",
+            "loss": -11.01
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 113.0,
+            "desc": "前波低點",
+            "loss": -13.34
+          }
+        ]
+      },
+      "mode_ranks": {
+        "momentum": 49,
+        "qm": 36
+      }
+    },
+    {
+      "stock_id": "3088",
+      "convergence_tier": 2,
+      "modes": [
+        "qm",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "艾訊",
+      "price": 92.6,
+      "change_pct": 0.65,
+      "market": "tpex",
+      "trigger_score": 8.72,
+      "trend_score": 4,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。",
+        "rec_entry_low": 89.18000061035156,
+        "rec_entry_high": 92.6,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 88.11428658621651,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 114.443,
+        "rr_ratio": 4.869459545249118,
+        "tp_list": [
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 106.1,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 114.443,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 88.9000015258789,
+            "desc": "大量低點",
+            "loss": -4.0
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 88.11428658621651,
+            "desc": "2倍 ATR",
+            "loss": -4.84
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 84.57000015258788,
+            "desc": "MA20/60",
+            "loss": -8.67
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 80.0,
+            "desc": "前波低點",
+            "loss": -13.61
+          }
+        ]
+      },
+      "mode_ranks": {
+        "qm": 42,
+        "swing": 15
+      }
+    },
+    {
+      "stock_id": "3483",
+      "convergence_tier": 2,
+      "modes": [
+        "qm",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "力致",
+      "price": 92.1,
+      "change_pct": 7.34,
+      "market": "tpex",
+      "trigger_score": 8.71,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【大陽線 (Marubozu)】確認多方進場",
+        "rec_entry_low": 79.16999999999999,
+        "rec_entry_high": 82.17999999999999,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 76.17999999999999,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 113.2456,
+        "rr_ratio": 5.177600000000001,
+        "tp_list": [
+          {
+            "method": "MA60 季線反壓",
+            "price": 85.29833333333335,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 88.60845515085838,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "MA120 半年線",
+            "price": 91.5325,
+            "desc": "長線反壓",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 94.3,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 101.38,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "MA240 年線",
+            "price": 103.68541666666667,
+            "desc": "超級反壓",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 113.2456,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 90.7,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 10.37
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 80.445,
+            "desc": "MA20/60",
+            "loss": -2.11
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 78.50699999999999,
+            "desc": "型態低點",
+            "loss": -4.47
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 76.17999999999999,
+            "desc": "2倍 ATR",
+            "loss": -7.3
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 75.1,
+            "desc": "前波低點",
+            "loss": -8.62
+          }
+        ]
+      },
+      "mode_ranks": {
+        "qm": 43,
+        "swing": 2
+      }
+    },
+    {
+      "stock_id": "6173",
+      "convergence_tier": 2,
+      "modes": [
+        "qm",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "信昌電",
+      "price": 73.3,
+      "change_pct": 2.09,
+      "market": "tpex",
+      "trigger_score": 8.62,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場",
+        "rec_entry_low": 62.99000061035156,
+        "rec_entry_high": 67.10000122070312,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 60.48571550641741,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 94.92960122070312,
+        "rr_ratio": 4.207498920086393,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 71.58107132312372,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 74.1,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 84.30000122070311,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 94.92960122070312,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 68.6,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 2.24
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 63.07000030517579,
+            "desc": "MA20/60",
+            "loss": -6.01
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 60.48571550641741,
+            "desc": "2倍 ATR",
+            "loss": -9.86
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 56.9,
+            "desc": "前波低點",
+            "loss": -15.2
+          }
+        ]
+      },
+      "mode_ranks": {
+        "qm": 46,
+        "swing": 10
+      }
+    },
+    {
+      "stock_id": "2049",
+      "convergence_tier": 2,
+      "modes": [
+        "qm",
+        "swing"
+      ],
+      "mode_count": 2,
+      "name": "上銀",
+      "price": 275.0,
+      "change_pct": 10.0,
+      "market": "twse",
+      "trigger_score": 8.52,
+      "trend_score": 5,
+      "signals": [
+        "rvol_high"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【多頭吞噬 (Engulfing)】確認多方進場",
+        "rec_entry_low": 242.45,
+        "rec_entry_high": 250.7,
+        "rec_entry_desc": "等待拉回 (5MA-10MA)",
+        "rec_sl_price": 223.27142857142857,
+        "rec_sl_method": "A. ATR 波動停損 (科學)",
+        "rec_tp_price": 348.589,
+        "rr_ratio": 3.5688697916666685,
+        "tp_list": [
+          {
+            "method": "布林上緣",
+            "price": 260.2518764524805,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 275.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 311.2,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 348.589,
+            "desc": "強勢目標",
+            "is_rec": true
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 254.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 1.32
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 238.095,
+            "desc": "型態低點",
+            "loss": -5.03
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 236.55,
+            "desc": "MA20/60",
+            "loss": -5.64
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 223.27142857142857,
+            "desc": "2倍 ATR",
+            "loss": -10.94
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 214.5,
+            "desc": "前波低點",
+            "loss": -14.44
+          }
+        ]
+      },
+      "mode_ranks": {
+        "qm": 48,
+        "swing": 32
+      }
+    }
+  ]
+}
