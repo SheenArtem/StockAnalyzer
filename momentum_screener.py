@@ -26,13 +26,15 @@ logger = logging.getLogger(__name__)
 # ================================================================
 DEFAULT_CONFIG = {
     # Stage 1: 初篩門檻
-    'twse_value_pct': 0.0002,   # 上市：成交值佔比 > 0.02%（約 6000 萬）
-    'tpex_value_pct': 0.0005,   # 上櫃：成交值佔比 > 0.05%（約 3000 萬）
+    'twse_value_pct': 0.0002,   # (legacy fallback) 上市成交值佔比
+    'tpex_value_pct': 0.0005,   # (legacy fallback) 上櫃成交值佔比
+    'market_cap_top_n': 300,     # 市值前 N 大
+    'min_avg_tv_20d': 5e8,       # 20 日均成交值門檻（5 億）
     'min_price': 0,              # 最低股價門檻（預設關閉）
     'momentum_change_min': -1.0, # 當日漲跌幅下限 %（允許微跌）
 
     # Stage 2: 精篩設定
-    'top_n': 50,                 # 輸出前 N 名
+    'top_n': 20,                 # 輸出前 N 名
     'history_days': 365,         # 抓取歷史天數
     'include_chip': True,        # 是否抓籌碼資料（慢但更準）
     'batch_delay': 0.3,          # 每檔間隔秒數（控速）
@@ -50,6 +52,263 @@ DEFAULT_CONFIG = {
 
 
 _CHECKPOINT_DIR = Path('data/.checkpoints')
+
+
+def _percentile_rank(values):
+    """回傳每個元素在 list 中的百分位排名 (0~100)，None 值給 50。"""
+    valid = [(i, v) for i, v in enumerate(values) if v is not None]
+    result = [50.0] * len(values)
+    if len(valid) <= 1:
+        return result
+    sorted_vals = sorted(v for _, v in valid)
+    n = len(sorted_vals)
+    for i, v in valid:
+        # 排名百分位: 有多少比自己小 / (n-1) * 100
+        rank = sum(1 for sv in sorted_vals if sv < v)
+        result[i] = rank / (n - 1) * 100 if n > 1 else 50
+    return result
+
+
+def _compute_composite_score(top_n):
+    """
+    綜合評分 0-100: F-Score 50% + 體質分 30% + 趨勢分數 20%
+
+    權重來自 2026-04-15 驗證 (tools/qm_validation.py):
+    - F-Score 60d IC=+0.113 IR=0.903 勝率 81%（最強單因子）
+    - 體質分 60d IC=+0.073 IR=0.627 勝率 76%
+    - 趨勢分數 60d IC=+0.043 IR=0.277
+    - 低波放量 60d IC=-0.037 IR=-0.250（顯著為負，已移除）
+    - 觸發分數 60d IC=+0.010 IR=0.073（幾乎無效，已移除）
+
+    F50/Body30/Trend20 組合 60d Sharpe 1.67, 勝率 76%, 報酬 +14%
+    """
+    if not top_n:
+        return
+
+    fscore_vals = [s.get('qm_f_score') for s in top_n]
+    body_vals = [s.get('qm_body_score') for s in top_n]
+    trend_vals = [s.get('trend_score') for s in top_n]
+
+    fscore_pct = _percentile_rank(fscore_vals)
+    body_pct = _percentile_rank(body_vals)
+    trend_pct = _percentile_rank(trend_vals)
+
+    for i, s in enumerate(top_n):
+        composite = (fscore_pct[i] * 0.50
+                     + body_pct[i] * 0.30
+                     + trend_pct[i] * 0.20)
+        s['composite_score'] = round(composite, 1)
+
+    # 部位調整器 (A#3)：composite × trigger 動態倉位
+    for s in top_n:
+        sz = _qm_position_size(s.get('composite_score'), s.get('trigger_score'))
+        if sz is not None:
+            s['qm_position_size'] = sz
+            ap = s.get('action_plan') or {}
+            ap['qm_position_size'] = sz
+            s['action_plan'] = ap
+
+    # 依綜合評分重新排序
+    top_n.sort(key=lambda x: x.get('composite_score', 0), reverse=True)
+
+
+def _qm_position_size(composite_score, trigger_score, base_pct=8.0):
+    """動態倉位計算（擇時工具 #3）。
+
+    公式（project_trigger_score_usage.md）：
+      base = base_pct × (composite_score / 80)     # 綜合評分決定基礎倉位
+      multiplier = clip(trigger / 5, 0.5, 1.5)     # 擇時微調 ±50%
+      actual = base × multiplier
+
+    範例：
+      composite=80, trigger=5  → 8.0% × 1.00 = 8.0%    (標準)
+      composite=100, trigger=10 → 10.0% × 1.50 = 15.0% (QM 強 + 擇時好 → 加倉)
+      composite=60, trigger=-3  → 6.0% × 0.50 = 3.0%   (QM 弱 + 擇時差 → 半倉)
+
+    Returns:
+        dict {recommended_pct, base_pct, multiplier, rationale} 或 None
+    """
+    if composite_score is None:
+        return None
+    try:
+        cs = float(composite_score)
+    except Exception:
+        return None
+    base = base_pct * (cs / 80.0)
+    if trigger_score is None:
+        multiplier = 1.0
+        rationale = f'base={base:.1f}% (composite {cs:.0f}/80，擇時中性)'
+    else:
+        ts = float(trigger_score)
+        multiplier = max(0.5, min(1.5, ts / 5.0))
+        rationale = (
+            f'base={base:.1f}% (composite {cs:.0f}/80) × '
+            f'multiplier={multiplier:.2f} (trigger {ts:+.1f}/5)'
+        )
+    actual = base * multiplier
+    return {
+        'recommended_pct': round(actual, 1),
+        'base_pct': round(base, 1),
+        'multiplier': round(multiplier, 2),
+        'rationale': rationale,
+    }
+
+
+def _qm_entry_gate(trigger_score):
+    """依 trigger_score 判定 QM 第 1 批進場閘門（擇時工具 #2）。
+
+    閾值（project_trigger_score_usage.md）：
+      trigger >= 3: green，當日 50% 可進場
+      0 <= trigger < 3: yellow，等訊號轉強
+      trigger < 0: red，QM 與擇時矛盾，觀望
+    """
+    if trigger_score is None:
+        return {
+            'level': 'unknown',
+            'ready': False,
+            'text': '第 1 批 50%（QM 預設：當日進場）',
+        }
+    ts = float(trigger_score)
+    if ts >= 3:
+        return {
+            'level': 'green',
+            'ready': True,
+            'text': f'🟢 第 1 批 50% 可當日進場（擇時 trigger={ts:+.1f} ≥ 3）',
+        }
+    if ts >= 0:
+        return {
+            'level': 'yellow',
+            'ready': False,
+            'text': f'🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 {ts:+.1f}）',
+        }
+    return {
+        'level': 'red',
+        'ready': False,
+        'text': f'🔴 第 1 批暫緩 — QM 選上但擇時 trigger={ts:+.1f} < 0，訊號矛盾',
+    }
+
+
+def _apply_qm_action_plan(action_plan, df_week, trigger_score=None):
+    """
+    QM 專屬 action_plan：覆蓋通用版的短線 SL/TP，改為 40-60d horizon 的波段操作參數。
+
+    驗證錨點 (2026-04-15, tools/qm_validation.py Round 4)：
+      60d Sharpe 1.67, 勝率 76%, 平均報酬 +14%
+      40d Sharpe 1.81, 20d Sharpe 1.99
+
+    覆蓋邏輯：
+      - 停損: max(進場 × 0.92, 週 MA20)  → 寬於 ATR 2x，吻合週線 horizon
+      - 停利三段: +15% 減 1/3 → +25% 移動停損 → +40% 清倉或持倉 60 日到期
+      - R:R 以 TP1 (+15%) 對停損價計算
+      - 進場閘門 (trigger_score): 依 _qm_entry_gate() 分 green/yellow/red
+      - strategy 加上 QM 操作要點 + 出場訊號 + 分批進場
+
+    Returns:
+        覆蓋後的 action_plan dict (不修改原物件)
+    """
+    if not action_plan or not action_plan.get('is_actionable'):
+        return action_plan
+
+    entry_basis = action_plan.get('rec_entry_high') or action_plan.get('current_price', 0)
+    if entry_basis is None or entry_basis <= 0:
+        return action_plan
+
+    # --- 週 MA20 ---
+    week_ma20 = 0.0
+    if df_week is not None and not df_week.empty and 'MA20' in df_week.columns:
+        try:
+            w = df_week.iloc[-1].get('MA20', 0)
+            if pd.notna(w) and w > 0:
+                week_ma20 = float(w)
+        except Exception:
+            pass
+
+    # --- 停損: max(-8%, 週 MA20) ---
+    hard_sl = entry_basis * 0.92
+    if 0 < week_ma20 < entry_basis and week_ma20 > hard_sl:
+        rec_sl_price = week_ma20
+        rec_sl_method = "QM. 週 MA20 趨勢停損"
+    else:
+        rec_sl_price = hard_sl
+        rec_sl_method = "QM. -8% 硬停損"
+
+    # --- 停利三段 ---
+    tp1 = entry_basis * 1.15
+    tp2 = entry_basis * 1.25
+    tp3 = entry_basis * 1.40
+
+    qm_tp_list = [
+        {"method": "QM1. +15% 減碼 1/3", "price": tp1, "desc": "落袋第一段", "is_rec": True},
+        {"method": "QM2. +25% 移動停損至 MA10W", "price": tp2, "desc": "鎖住超額", "is_rec": False},
+        {"method": "QM3. +40% 清倉 (或 60 日到期)", "price": tp3, "desc": "換股輪動", "is_rec": False},
+    ]
+    existing_tp = [dict(t) for t in action_plan.get('tp_list', [])]
+    for t in existing_tp:
+        t['is_rec'] = False
+    full_tp_list = qm_tp_list + existing_tp
+
+    # --- 停損列表 ---
+    qm_sl_list = [
+        {"method": "QM-A. 硬停損 -8%", "price": hard_sl, "desc": "期望值保護", "loss": -8.0},
+    ]
+    if week_ma20 > 0:
+        loss_pct = ((week_ma20 - entry_basis) / entry_basis) * 100
+        qm_sl_list.append({
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": week_ma20,
+            "desc": "趨勢結構破壞",
+            "loss": round(loss_pct, 2),
+        })
+    existing_sl = [dict(s) for s in action_plan.get('sl_list', [])]
+    full_sl_list = qm_sl_list + existing_sl
+
+    # --- R:R (以 TP1 vs 停損) ---
+    potential_reward = tp1 - entry_basis
+    potential_risk = entry_basis - rec_sl_price
+    rr_ratio = round(potential_reward / potential_risk, 2) if potential_risk > 0 else 0.0
+
+    # --- 進場閘門 (A#2) ---
+    gate = _qm_entry_gate(trigger_score)
+    batch2_text = (
+        "第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 "
+        "(或回調至日 MA10 / RSI 45-55)"
+    )
+    qm_entry_batches_text = f"{gate['text']}；{batch2_text}"
+
+    # --- 覆蓋 ---
+    qm_plan = dict(action_plan)
+    qm_plan.update({
+        'rec_sl_price': rec_sl_price,
+        'rec_sl_method': rec_sl_method,
+        'rec_tp_price': tp1,
+        'rr_ratio': rr_ratio,
+        'tp_list': full_tp_list,
+        'sl_list': full_sl_list,
+        'qm_horizon': '40-60d',
+        'qm_hold_days_target': 60,
+        'qm_entry_batches': qm_entry_batches_text,
+        'qm_entry_gate': gate,  # UI 可用 level 欄位決定顏色
+        'qm_exit_signals': [
+            '週線 Supertrend 翻空',
+            '週 MA20 跌破 3% 以上 (非插針)',
+            '月營收 YoY 連續 2 個月轉負',
+            'F-Score 季更新後下降 2 分以上',
+        ],
+    })
+
+    base_strategy = qm_plan.get('strategy', '')
+    qm_note = (
+        "\n\n**QM 波段操作要點** (驗證: 60d Sharpe 1.67 / 勝率 76% / 平均 +14%)\n"
+        f"- 第 1 批閘門: {gate['text']}\n"
+        f"- 第 2 批補倉: {batch2_text}\n"
+        "- 持倉目標 **40-60 日**，不要短抱 (Sharpe 高點在 20d，報酬高點在 60d)\n"
+        f"- 停損: **{rec_sl_method}** → {rec_sl_price:.2f}\n"
+        "- 停利: +15% 減 1/3 → +25% 改用週 MA10 移動停損 → +40% 清倉\n"
+        "- 出場訊號: 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分"
+    )
+    qm_plan['strategy'] = base_strategy + qm_note
+
+    return qm_plan
 
 
 class MomentumScreener:
@@ -70,7 +329,7 @@ class MomentumScreener:
 
         Args:
             market: 'tw' for Taiwan, 'us' for US stocks
-            mode: 'momentum' (5-20d) or 'swing' (2w-3m)
+            mode: 'momentum' (5-20d), 'swing' (2w-3m), or 'qm' (quality momentum)
 
         Returns:
             dict with scan_date, total_scanned, passed_initial, results
@@ -95,6 +354,14 @@ class MomentumScreener:
 
         if candidates.empty:
             return self._make_result([], len(market_df), 0, time.time() - start_time)
+
+        # --- QM Quality Gate (between Stage 1 and Stage 2) ---
+        if mode == 'qm':
+            before = len(candidates)
+            candidates = self._quality_gate(candidates, market)
+            self.progress(f"Quality gate: {before} -> {len(candidates)} passed")
+            if candidates.empty:
+                return self._make_result([], len(market_df), before, time.time() - start_time)
 
         # --- Stage 2 ---
         self.progress(f"Stage 2: Analyzing {len(candidates)} candidates...")
@@ -127,57 +394,125 @@ class MomentumScreener:
 
     def _stage1_filter(self, df):
         """
-        Filter stocks by liquidity and momentum.
+        Filter stocks by market cap / avg trading value union + momentum.
 
         Criteria:
-        1. Trading value > market-relative threshold
-        2. Price > minimum
-        3. Change % > minimum (allow small dips)
-        4. Not in exclude list
+        1. 市值前 N 大 OR 20 日均成交值 > 門檻（聯集）
+        2. Change % > minimum (allow small dips)
+        3. Not in exclude list / ETF
         """
         cfg = self.config
-        exclude = cfg['exclude_ids']
-        results = []
 
-        # Split by market for different thresholds
-        for market, threshold_pct in [('twse', cfg['twse_value_pct']),
-                                       ('tpex', cfg['tpex_value_pct'])]:
-            mdf = df[df['market'] == market].copy()
-            if mdf.empty:
-                continue
+        # 排除 ETF
+        df = df[~df['stock_id'].str.startswith('00')].copy()
 
-            total_tv = mdf['trading_value'].sum()
-            if total_tv <= 0:
-                continue
+        # 取 TradingView 市值 + 均量（免費 batch，1hr cache）
+        tv_data = self._fetch_tv_marketcap_volume()
 
-            # 1. Trading value ratio
-            mdf['tv_pct'] = mdf['trading_value'] / total_tv
-            passed = mdf[mdf['tv_pct'] >= threshold_pct].copy()
+        if tv_data:
+            # 市值前 N 大
+            mc_top_n = cfg.get('market_cap_top_n', 300)
+            mc_sorted = sorted(tv_data.items(), key=lambda x: x[1].get('market_cap', 0), reverse=True)
+            mc_top_ids = {sid for sid, _ in mc_sorted[:mc_top_n]}
 
-            # 2. Price filter
-            if cfg['min_price'] > 0:
-                passed = passed[passed['close'] >= cfg['min_price']]
+            # 20 日均成交值 > 門檻
+            min_avg_tv = cfg.get('min_avg_tv_20d', 5e8)
+            tv_pass_ids = {sid for sid, d in tv_data.items()
+                           if d.get('avg_tv_20d', 0) >= min_avg_tv}
 
-            # 3. Momentum filter
-            passed = passed[passed['change_pct'] >= cfg['momentum_change_min']]
+            # 聯集
+            eligible_ids = mc_top_ids | tv_pass_ids
+            self.progress(f"  Stage 1: market_cap top {mc_top_n}={len(mc_top_ids)}, "
+                          f"avg_tv>={min_avg_tv/1e8:.0f}億={len(tv_pass_ids)}, "
+                          f"union={len(eligible_ids)}")
 
-            # 4. Exclude list
-            if exclude:
-                passed = passed[~passed['stock_id'].isin(exclude)]
+            passed = df[df['stock_id'].isin(eligible_ids)].copy()
+        else:
+            # TradingView 不可用時 fallback 到舊邏輯（成交值佔比）
+            self.progress("  Stage 1: TradingView unavailable, using legacy pct filter")
+            results = []
+            for market, threshold_pct in [('twse', cfg['twse_value_pct']),
+                                           ('tpex', cfg['tpex_value_pct'])]:
+                mdf = df[df['market'] == market].copy()
+                if mdf.empty:
+                    continue
+                total_tv = mdf['trading_value'].sum()
+                if total_tv <= 0:
+                    continue
+                mdf['tv_pct'] = mdf['trading_value'] / total_tv
+                results.append(mdf[mdf['tv_pct'] >= threshold_pct].copy())
+            passed = pd.concat(results, ignore_index=True) if results else pd.DataFrame()
 
-            # 5. 排除 ETF (台股 ETF 以 "00" 開頭，如 0050/0056/0061；
-            #    5+ 位 ETF 如 00878/006208 已被 twse_api len==4 上游擋掉)
-            passed = passed[~passed['stock_id'].str.startswith('00')]
-
-            results.append(passed)
-
-        if not results:
+        if passed.empty:
             return pd.DataFrame()
 
-        combined = pd.concat(results, ignore_index=True)
-        # Sort by trading value descending (most liquid first)
-        combined.sort_values('trading_value', ascending=False, inplace=True)
-        return combined
+        # Momentum filter
+        passed = passed[passed['change_pct'] >= cfg['momentum_change_min']]
+
+        # Exclude list
+        exclude = cfg['exclude_ids']
+        if exclude:
+            passed = passed[~passed['stock_id'].isin(exclude)]
+
+        # Price filter
+        if cfg['min_price'] > 0:
+            passed = passed[passed['close'] >= cfg['min_price']]
+
+        passed.sort_values('trading_value', ascending=False, inplace=True)
+        return passed
+
+    @staticmethod
+    def _fetch_tv_marketcap_volume():
+        """
+        TradingView batch: 市值 + 均量（1hr cache）。
+        Returns: {stock_id: {market_cap, avg_tv_20d}} or {}
+        """
+        import time as _time
+
+        cache_attr = '_tv_mc_cache'
+        cache_ts_attr = '_tv_mc_ts'
+        cached = getattr(MomentumScreener, cache_attr, None)
+        ts = getattr(MomentumScreener, cache_ts_attr, 0)
+        if cached and _time.time() - ts < 3600:
+            return cached
+
+        try:
+            from tradingview_screener import Query
+            result = (Query()
+                .select('name', 'market_cap_basic', 'close',
+                        'average_volume_10d_calc', 'average_volume_30d_calc')
+                .set_markets('taiwan')
+                .limit(5000)
+                .get_scanner_data()
+            )
+            df = result[1]
+            data = {}
+            for _, row in df.iterrows():
+                sid = str(row.get('name', '')).strip()
+                if not sid:
+                    continue
+                mc = row.get('market_cap_basic')
+                close = row.get('close')
+                v10 = row.get('average_volume_10d_calc')
+                v30 = row.get('average_volume_30d_calc')
+                if mc is None or (isinstance(mc, float) and np.isnan(mc)):
+                    mc = 0
+                # 20d avg TV ~= close * avg(10d_vol, 30d_vol)
+                avg_tv = 0
+                if close and v10 and v30:
+                    avg_vol = (v10 + v30) / 2
+                    avg_tv = close * avg_vol
+                elif close and v10:
+                    avg_tv = close * v10
+                data[sid] = {'market_cap': mc, 'avg_tv_20d': avg_tv}
+
+            logger.info("TV market cap batch: %d stocks", len(data))
+            setattr(MomentumScreener, cache_attr, data)
+            setattr(MomentumScreener, cache_ts_attr, _time.time())
+            return data
+        except Exception as e:
+            logger.warning("TV market cap fetch failed: %s", e)
+            return {}
 
     # ================================================================
     # US Market: Fetch + Filter
@@ -445,9 +780,52 @@ class MomentumScreener:
 
         mode = getattr(self, '_mode', 'momentum')
 
-        if mode == 'swing':
-            # Swing mode: 週線上升趨勢 + rvol_lowatr 排序
-            # SW-1 驗證: rvol_lowatr 60d Sharpe 9.50, win 76%
+        if mode == 'qm':
+            # QM mode: trend>=1 → 全部算品質分 → 四維綜合評分 → Top N
+            scored = [s for s in scored if s.get('trend_score', 0) >= 1]
+            self.progress(f"  trend_score >= 1: {len(scored)} stocks")
+
+            # 品質分（FinMind F-Score + 營收）— 對所有 trend>=1 的股票
+            self.progress(f"  QM quality scoring: {len(scored)} stocks (F-Score + revenue)...")
+            from value_screener import ValueScreener
+            _vs = ValueScreener(progress_callback=lambda m: None)
+            _vs._tv_batch = getattr(self, '_tv_quality', {})
+            for i, s in enumerate(scored):
+                sid = s['stock_id']
+                try:
+                    q_details = []
+                    q_score = _vs._score_quality(sid, q_details, s.get('price', 0))
+                    r_score = _vs._score_revenue(sid, q_details)
+                    s['qm_quality_score'] = round(q_score * 0.6 + r_score * 0.4)  # combined 顯示用
+                    s['qm_body_score'] = q_score  # 体质分 (排序用)
+                    s['qm_revenue_score'] = r_score
+                    s['qm_quality_details'] = q_details
+
+                    # 抽出 F-Score (綜合評分 50% 權重)
+                    s['qm_f_score'] = None
+                    for d in q_details:
+                        if d.startswith('F-Score='):
+                            try:
+                                s['qm_f_score'] = int(d.split('=')[1].split('/')[0])
+                                break
+                            except Exception:
+                                pass
+                except Exception:
+                    s['qm_quality_score'] = None
+                    s['qm_body_score'] = None
+                    s['qm_revenue_score'] = None
+                    s['qm_quality_details'] = []
+                    s['qm_f_score'] = None
+                if (i + 1) % 10 == 0:
+                    self.progress(f"    [{i+1}/{len(scored)}] quality scored")
+            self.progress(f"  QM quality scoring done")
+
+            # 四維綜合評分 → 排序 → 取 top_n
+            _compute_composite_score(scored)
+            top_n = scored[:cfg['top_n']]
+
+        elif mode == 'swing':
+            # Swing mode: trend>=1 + rvol_lowatr 排序
             scored = [s for s in scored if s.get('trend_score', 0) >= 1]
             has_rvol = [s for s in scored if s.get('rvol_lowatr') is not None]
             no_rvol = [s for s in scored if s.get('rvol_lowatr') is None]
@@ -566,20 +944,21 @@ class MomentumScreener:
                 if stock_id in batch:
                     chip_data = {'institutional': batch[stock_id]}
                 else:
-                    # 2nd: fallback to FinMind (institutional + margin + day_trading + shareholding)
+                    # 2nd: fallback to FinMind institutional only（scan_mode 跳過 margin/day_trading/shareholding/sbl）
                     try:
                         from chip_analysis import ChipAnalyzer
                         ca = ChipAnalyzer()
-                        chip_data, _ = ca.get_chip_data(stock_id)
+                        chip_data, _ = ca.get_chip_data(stock_id, scan_mode=True)
                     except Exception:
                         pass
 
-        # 4. Run analysis
+        # 4. Run analysis (scan_mode=True 跳過 PE/除權息等 UI-only 資料)
         try:
             analyzer = TechnicalAnalyzer(
                 stock_id, df_week, df_day,
                 chip_data=chip_data,
                 us_chip_data=us_chip_data,
+                scan_mode=True,
             )
             report = analyzer.run_analysis()
         except Exception as e:
@@ -627,6 +1006,10 @@ class MomentumScreener:
         action_plan = report.get('action_plan', {})
         checklist = report.get('checklist', {})
 
+        # QM mode: override action_plan with 40-60d horizon parameters
+        if getattr(self, '_mode', 'momentum') == 'qm':
+            action_plan = _apply_qm_action_plan(action_plan, df_week, trigger_score=trigger)
+
         return {
             'stock_id': stock_id,
             'name': market_row.get('stock_name', meta.get('name', '')),
@@ -659,6 +1042,13 @@ class MomentumScreener:
                 'rr_ratio': action_plan.get('rr_ratio'),
                 'tp_list': action_plan.get('tp_list', []),
                 'sl_list': action_plan.get('sl_list', []),
+                # QM-specific fields (populated only when mode='qm')
+                'qm_horizon': action_plan.get('qm_horizon'),
+                'qm_hold_days_target': action_plan.get('qm_hold_days_target'),
+                'qm_entry_batches': action_plan.get('qm_entry_batches'),
+                'qm_entry_gate': action_plan.get('qm_entry_gate'),
+                'qm_position_size': action_plan.get('qm_position_size'),
+                'qm_exit_signals': action_plan.get('qm_exit_signals', []),
             },
             'checklist': checklist,
         }
@@ -712,6 +1102,70 @@ class MomentumScreener:
             signals.append('squeeze_fire')
 
         return signals
+
+    # ================================================================
+    # QM Quality Gate
+    # ================================================================
+
+    def _quality_gate(self, candidates, market):
+        """
+        QM 品質門檻: TradingView batch 篩掉虧損/高負債/營收崩的股票。
+        設計原則: 寬鬆過濾（刷掉明顯地雷），不懲罰資料缺失。
+        """
+        from value_screener import _fetch_tradingview_batch
+
+        tv_market = 'us' if market == 'us' else 'tw'
+        tv_batch = _fetch_tradingview_batch(tv_market)
+
+        if not tv_batch:
+            self.progress("  Quality gate: TradingView unavailable, skipping")
+            self._tv_quality = {}
+            return candidates
+
+        self._tv_quality = tv_batch  # 存起來，Stage 2 後附加到結果
+
+        pass_ids = []
+        fail_count = 0
+        skip_count = 0
+
+        for _, row in candidates.iterrows():
+            sid = row['stock_id']
+            tv = tv_batch.get(sid)
+
+            if not tv:
+                pass_ids.append(sid)
+                skip_count += 1
+                continue
+
+            # ROE > 0 (有在賺錢)
+            roe = tv.get('ROE')
+            if roe is not None and roe <= 0:
+                fail_count += 1
+                continue
+
+            # net_margin > 0 (本業不虧)
+            nm = tv.get('net_margin')
+            if nm is not None and nm <= 0:
+                fail_count += 1
+                continue
+
+            # debt_to_equity < 200 (不要過度槓桿)
+            de = tv.get('debt_to_equity')
+            if de is not None and de > 200:
+                fail_count += 1
+                continue
+
+            # revenue_yoy > -20% (營收不要崩盤)
+            ry = tv.get('revenue_yoy')
+            if ry is not None and ry < -20:
+                fail_count += 1
+                continue
+
+            pass_ids.append(sid)
+
+        result = candidates[candidates['stock_id'].isin(pass_ids)]
+        self.progress(f"  Removed {fail_count} (ROE<=0/虧損/高負債/營收崩), {skip_count} no data (passed)")
+        return result
 
     # ================================================================
     # Result Formatting
