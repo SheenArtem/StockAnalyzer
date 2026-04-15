@@ -741,43 +741,6 @@ class TechnicalAnalyzer:
             if potential_risk > 0:
                 rr_ratio = potential_reward / potential_risk
 
-        # Position Sizing (部位管理計算)
-        # 2% 法則: 單筆風險不超過總資金的 2%
-        position_sizing = {}
-        if is_actionable and entry_basis > 0 and rec_sl_price > 0:
-            risk_per_share = entry_basis - rec_sl_price
-            if risk_per_share > 0:
-                if self._is_us_stock:
-                    # 美股: 以股為單位，資金以 USD 計
-                    for capital in [10000, 50000, 100000]:
-                        max_risk = capital * 0.02
-                        shares = int(max_risk / risk_per_share)
-                        if shares > 0:
-                            cost = shares * entry_basis
-                            loss_if_stopped = shares * risk_per_share
-                            position_sizing[capital] = {
-                                "lots": shares,
-                                "shares": shares,
-                                "cost": cost,
-                                "risk_amount": loss_if_stopped,
-                                "risk_pct": (loss_if_stopped / capital * 100) if capital > 0 else 0
-                            }
-                else:
-                    # 台股: 1張=1000股
-                    for capital in [500000, 1000000, 3000000]:
-                        max_risk = capital * 0.02
-                        shares = int(max_risk / risk_per_share)
-                        lots = shares // 1000
-                        cost = lots * 1000 * entry_basis
-                        loss_if_stopped = lots * 1000 * risk_per_share
-                        position_sizing[capital] = {
-                            "lots": lots,
-                            "shares": lots * 1000,
-                            "cost": cost,
-                            "risk_amount": loss_if_stopped,
-                            "risk_pct": (loss_if_stopped / capital * 100) if capital > 0 else 0
-                        }
-
         return {
             "current_price": close_price,
             "strategy": strategy_text,
@@ -798,7 +761,6 @@ class TechnicalAnalyzer:
             "sl_ma": sl_ma,
             "sl_key_candle": sl_key,
             "sl_low": sl_low,
-            "position_sizing": position_sizing
         }
         
 
