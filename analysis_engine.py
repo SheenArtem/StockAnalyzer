@@ -63,17 +63,22 @@ def detect_market_regime_hmm(market='tw'):
     """
     fallback = {'regime': 'neutral', 'confidence': 0.0, 'details': 'HMM unavailable'}
 
-    # Check cache
+    # Check cache (includes failed attempts with shorter TTL)
     cached = _hmm_cache.get(market)
     if cached and (time.time() - cached['ts']) < _HMM_CACHE_TTL:
         return {k: v for k, v in cached.items() if k != 'ts'}
+
+    def _cache_fallback(fb):
+        """Cache fallback with shorter TTL to avoid repeated failures."""
+        _hmm_cache[market] = {**fb, 'ts': time.time() - _HMM_CACHE_TTL + 300}
+        return fb
 
     try:
         from hmmlearn.hmm import GaussianHMM
         import yfinance as yf
     except ImportError:
         logger.warning("hmmlearn not installed, falling back to neutral regime")
-        return fallback
+        return _cache_fallback(fallback)
 
     # Fetch index data
     index_ticker = '^TWII' if market == 'tw' else '^GSPC'
@@ -82,18 +87,18 @@ def detect_market_regime_hmm(market='tw'):
                           progress=False, auto_adjust=True)
         if idx is None or len(idx) < 60:
             logger.warning("Insufficient index data for HMM (%s)", index_ticker)
-            return fallback
+            return _cache_fallback(fallback)
         # Flatten MultiIndex columns if present (yfinance >= 0.2)
         if isinstance(idx.columns, pd.MultiIndex):
             idx.columns = idx.columns.get_level_values(0)
     except Exception as e:
         logger.warning("Failed to fetch index data for HMM: %s", e)
-        return fallback
+        return _cache_fallback(fallback)
 
     try:
         close = idx['Close'].dropna()
         if len(close) < 60:
-            return fallback
+            return _cache_fallback(fallback)
 
         # Features: log returns, 10d rolling volatility, 20d rolling volatility
         log_ret = np.log(close / close.shift(1)).dropna()
@@ -189,7 +194,7 @@ def detect_market_regime_hmm(market='tw'):
 
     except Exception as e:
         logger.warning("HMM fitting failed: %s", e)
-        return fallback
+        return _cache_fallback(fallback)
 
 class TechnicalAnalyzer:
     def __init__(self, ticker, df_week, df_day, strategy_params=None, chip_data=None, us_chip_data=None, scan_mode=False):
