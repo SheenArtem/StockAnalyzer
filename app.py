@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.15.13")
+    st.caption("Version: v2026.04.16.1")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -349,11 +349,13 @@ if st.session_state.get('app_mode') == 'screener':
     import json as _json
     from pathlib import Path as _Path
 
-    screener_tab_qm, screener_tab2, screener_tab_us_val, screener_tab_meanrev, screener_tab_track = st.tabs(
-        ["🛡️ 品質選股", "💎 價值 (台股)", "🇺🇸 價值 (美股)", "🔄 均值回歸", "📊 績效追蹤"]
+    screener_tab_qm, screener_tab_meanrev, screener_tab_track = st.tabs(
+        ["🛡️ 品質選股", "🔄 均值回歸", "📊 績效追蹤"]
     )
     # Hidden tabs (code preserved, just not displayed)
+    # Value tabs paused pending Phase 1 enhancement (see project_value_enhancement.md)
     screener_tab1 = screener_tab_us = screener_tab_swing = screener_tab_conv = None
+    screener_tab2 = screener_tab_us_val = None
 
     # ====================================================================
     # Pre-load convergence data for badges on all tabs
@@ -1638,9 +1640,10 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
         st.caption("💡 共振偵測自動執行於 `--mode all` / `--mode both` 掃描後")
 
     # ====================================================================
-    # Tab 2: 左側價值選股
+    # Tab 2: 左側價值選股 (paused pending Phase 1 enhancement)
     # ====================================================================
-    with screener_tab2:
+    if False:  # Value tab hidden — restore by changing to: with screener_tab2:
+     with st.container():
 
         with st.expander("📋 篩選條件說明"):
             st.markdown("""
@@ -1769,9 +1772,10 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     "（含 5 維評分，約需 20-40 分鐘）")
 
     # ====================================================================
-    # Tab US Value: 美股價值選股
+    # Tab US Value: 美股價值選股 (paused pending Phase 1 enhancement)
     # ====================================================================
-    with screener_tab_us_val:
+    if False:  # Value tab hidden — restore by changing to: with screener_tab_us_val:
+     with st.container():
 
         with st.expander("📋 Screening Criteria"):
             st.markdown("""
