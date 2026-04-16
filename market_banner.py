@@ -238,26 +238,38 @@ def render_market_banner():
     with st.expander("📊 大盤儀表板", expanded=True):
         data = _get_banner_data()
 
-        # --- Row 1: 大盤技術指標 ---
         tw = data.get('tw', {})
         us = data.get('us', {})
-
-        # 台股左邊、美股右邊
-        r1c1, r1c2, r1c3, r1c4 = st.columns(4)
-
-        # 左: 台股指數 + 台灣 FGI
-        _render_index_card(r1c1, tw)
-
         tw_fgi = data.get('tw_fgi') or {}
+        cnn_fgi = data.get('cnn_fgi') or {}
+
+        # 單排 4 欄：所有內容垂直堆疊在各欄內，無 Row 2 間距
+        c1, c2, c3, c4 = st.columns(4)
+
+        # ── C1: 加權指數 + 乖離/KD + 期貨基差 + P/C Ratio ──
+        _render_index_card(c1, tw)
+
+        basis = data.get('basis') or {}
+        b_val = basis.get('basis')
+        if b_val is not None:
+            c1.metric("期貨基差", f"{b_val:.0f} 點",
+                      delta="正價差 (偏多)" if b_val > 0 else "逆價差 (偏空)")
+
+        pcr = data.get('pcr') or {}
+        pc = pcr.get('pc_ratio')
+        if pc is not None:
+            pc_pct = pc * 100
+            pc_delta = "恐懼" if pc > 1.0 else "貪婪" if pc < 0.7 else "中性"
+            c1.metric("P/C Ratio", f"{pc_pct:.0f}%", delta=pc_delta)
+
+        # ── C2: 台灣 FGI + 進度條 + 子指標表格 ──
         tw_score = tw_fgi.get('score')
         tw_label = tw_fgi.get('label', '')
-
-        # 台灣 FGI + 子指標（直接放下方）
         if tw_score is not None:
-            r1c2.metric("台灣 FGI", f"{tw_score:.0f}", delta=tw_label)
-            r1c2.progress(int(min(max(tw_score, 0), 100)))
+            c2.metric("台灣 FGI", f"{tw_score:.0f}", delta=tw_label)
+            c2.progress(int(min(max(tw_score, 0), 100)))
         else:
-            r1c2.metric("台灣 FGI", "N/A")
+            c2.metric("台灣 FGI", "N/A")
 
         components = tw_fgi.get('components', {})
         if components:
@@ -280,22 +292,31 @@ def render_market_banner():
                         comp_data.append({"指標": label_map.get(name, name),
                                           "分數": "N/A", "狀態": "無資料"})
             if comp_data:
-                r1c2.table(pd.DataFrame(comp_data))
+                c2.table(pd.DataFrame(comp_data))
 
-        # 右: 美股指數 + CNN FGI
-        _render_index_card(r1c3, us)
+        # ── C3: S&P 500 + 乖離/KD + CNN FGI 歷史 ──
+        _render_index_card(c3, us)
 
-        cnn_fgi = data.get('cnn_fgi') or {}
+        if cnn_fgi:
+            hist_data = []
+            for key, label in [('previous_close', '前日收盤'), ('one_week_ago', '一週前'),
+                               ('one_month_ago', '一月前'), ('one_year_ago', '一年前')]:
+                val = cnn_fgi.get(key)
+                if val is not None:
+                    hist_data.append({"時間": label, "分數": f"{val:.0f}"})
+            if hist_data:
+                c3.markdown("**CNN FGI 歷史**")
+                c3.table(pd.DataFrame(hist_data))
+
+        # ── C4: CNN FGI + 進度條 + 子指標表格 ──
         cnn_score = cnn_fgi.get('score')
         cnn_label = cnn_fgi.get('label', '')
-
         if cnn_score is not None:
-            r1c4.metric("CNN FGI", f"{cnn_score:.0f}", delta=cnn_label)
-            r1c4.progress(int(min(max(cnn_score, 0), 100)))
+            c4.metric("CNN FGI", f"{cnn_score:.0f}", delta=cnn_label)
+            c4.progress(int(min(max(cnn_score, 0), 100)))
         else:
-            r1c4.metric("CNN FGI", "N/A")
+            c4.metric("CNN FGI", "N/A")
 
-        # CNN FGI 子指標（放 FGI 下方）
         cnn_components = cnn_fgi.get('components', {})
         if cnn_components:
             cnn_comp_data = []
@@ -310,40 +331,4 @@ def render_market_banner():
                     cnn_comp_data.append({"指標": name, "分數": "N/A",
                                           "狀態": c_rating})
             if cnn_comp_data:
-                r1c4.table(pd.DataFrame(cnn_comp_data))
-
-        # --- Row 2: 對齊 Row 1 四欄（台股: 基差+PCR / 美股: CNN 歷史）---
-        r2c1, r2c2, r2c3, r2c4 = st.columns(4)
-
-        # 左1: 期貨基差（對齊加權指數下方）
-        basis = data.get('basis') or {}
-        b_val = basis.get('basis')
-        if b_val is not None:
-            r2c1.metric("期貨基差", f"{b_val:.0f} 點",
-                        delta="正價差 (偏多)" if b_val > 0 else "逆價差 (偏空)")
-        else:
-            r2c1.metric("期貨基差", "N/A")
-
-        # 左2: P/C Ratio（對齊台灣 FGI 下方）
-        pcr = data.get('pcr') or {}
-        pc = pcr.get('pc_ratio')
-        if pc is not None:
-            pc_pct = pc * 100
-            pc_delta = "恐懼" if pc > 1.0 else "貪婪" if pc < 0.7 else "中性"
-            r2c2.metric("P/C Ratio", f"{pc_pct:.0f}%", delta=pc_delta)
-        else:
-            r2c2.metric("P/C Ratio", "N/A")
-
-        # 右3: CNN FGI 歷史（對齊 S&P 500 下方）
-        if cnn_fgi:
-            hist_data = []
-            for key, label in [('previous_close', '前日收盤'), ('one_week_ago', '一週前'),
-                               ('one_month_ago', '一月前'), ('one_year_ago', '一年前')]:
-                val = cnn_fgi.get(key)
-                if val is not None:
-                    hist_data.append({"時間": label, "分數": f"{val:.0f}"})
-            if hist_data:
-                r2c3.markdown("**CNN FGI 歷史**")
-                r2c3.table(pd.DataFrame(hist_data))
-
-        # 右4: 空（CNN FGI 子指標已在 Row 1 c4）
+                c4.table(pd.DataFrame(cnn_comp_data))
