@@ -303,12 +303,26 @@ def render_market_banner():
                     dec = val.get('declines', 0)
                     actual = f"{adv} 漲 / {dec} 跌"
                 elif name == 'put_call_ratio':
-                    actual = f"{val.get('pc_ratio', 0):.2f}"
+                    actual = f"{val.get('pc_ratio', 0) * 100:.0f}%"
                 elif name == 'volatility':
                     actual = f"{val.get('volatility_20d', 0):.1f}%"
                 elif name == 'margin_balance':
+                    # 融資金額(仟元) / 估計大盤市值 → 百分比
+                    # margin_balance 來自 MI_MARGN，單位是張(shares)
+                    # 但 _calc_margin_score 回傳的 change_rate_pct 是變化率
+                    # 直接用 margin 金額計算市值比需要另外抓金額
+                    # 這裡用回傳的 margin_balance(張) 搭配大盤指數粗估
                     mb = val.get('margin_balance', 0)
-                    actual = f"{mb:,.0f} 張"
+                    tw_price = tw.get('price', 0)
+                    if tw_price > 0 and mb > 0:
+                        # 融資金額(仟元) → 億TWD：/1e5
+                        # 大盤市值(億TWD) ≈ 指數 × 15（每點約15億）
+                        margin_bil = mb / 1e5
+                        mktcap_bil = tw_price * 15
+                        ratio = margin_bil / mktcap_bil * 100
+                        actual = f"{ratio:.2f}%"
+                    else:
+                        actual = f"{mb:,.0f}"
                 else:
                     actual = f"{score:.0f}" if score is not None else "N/A"
                 label_map = {

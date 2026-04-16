@@ -841,24 +841,21 @@ class TaiwanFearGreedIndex:
             margin_prev = 0
 
             # 解析融資餘額
+            # MI_MARGN 欄位: [項目, 買進, 賣出, 現金償還, 前日餘額, 今日餘額]
+            # 最後一行是「融資金額(仟元)」，取 row[5]=今日餘額, row[4]=前日餘額
             if 'tables' in data:
                 for table in data['tables']:
                     rows = table.get('data', [])
-                    if len(rows) >= 2:
-                        # 嘗試從最近幾天的資料計算變化率
-                        balances = []
-                        for row in rows:
-                            if isinstance(row, list) and len(row) > 3:
+                    for row in rows:
+                        if isinstance(row, list) and len(row) >= 6:
+                            name = str(row[0]).strip()
+                            if '融資金額' in name:
                                 try:
-                                    # 融資餘額通常在第 3-4 欄 (依 TWSE 格式)
-                                    bal_str = str(row[3]).replace(',', '').strip()
-                                    bal = int(bal_str)
-                                    balances.append(bal)
+                                    margin_balance = int(str(row[5]).replace(',', '').strip())
+                                    margin_prev = int(str(row[4]).replace(',', '').strip())
                                 except (ValueError, IndexError):
-                                    continue
-                        if len(balances) >= 2:
-                            margin_balance = balances[-1]
-                            margin_prev = balances[0]
+                                    pass
+                                break
 
             # 若 TWSE 即時資料不足，用 yfinance ^TWII 的 margin 趨勢替代
             if margin_balance == 0:
@@ -867,6 +864,8 @@ class TaiwanFearGreedIndex:
                 for days_back in range(1, 6):
                     try:
                         prev_date = today - timedelta(days=days_back)
+                        if prev_date.weekday() >= 5:
+                            continue
                         prev_str = prev_date.strftime('%Y%m%d')
                         url_prev = (
                             'https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN'
@@ -879,21 +878,19 @@ class TaiwanFearGreedIndex:
                             data_prev = resp_prev.json()
                             if 'tables' in data_prev:
                                 for table in data_prev['tables']:
-                                    rows = table.get('data', [])
-                                    balances = []
-                                    for row in rows:
-                                        if isinstance(row, list) and len(row) > 3:
+                                    for row in table.get('data', []):
+                                        if isinstance(row, list) and len(row) >= 6 and '融資金額' in str(row[0]):
                                             try:
-                                                bal_str = str(row[3]).replace(',', '').strip()
-                                                balances.append(int(bal_str))
+                                                bal = int(str(row[5]).replace(',', '').strip())
+                                                if margin_balance == 0:
+                                                    margin_balance = bal
+                                                else:
+                                                    margin_prev = bal
+                                                    break
                                             except (ValueError, IndexError):
-                                                continue
-                                    if balances:
-                                        if margin_balance == 0:
-                                            margin_balance = balances[-1]
-                                        else:
-                                            margin_prev = balances[-1]
-                                            break
+                                                pass
+                                if margin_prev > 0:
+                                    break
                     except Exception:
                         continue
 
