@@ -49,6 +49,7 @@ class ScanTracker:
         self.progress = progress_callback or (lambda msg: print(msg))
         TRACKING_DIR.mkdir(parents=True, exist_ok=True)
         self._bm_price_cache = {}  # benchmark_id -> DataFrame (cache per run)
+        self._stock_price_cache = {}  # stock_id -> DataFrame (dedup across scans+intervals)
 
     # ================================================================
     # 1. Load scan history
@@ -103,6 +104,23 @@ class ScanTracker:
     # 2. Fetch post-scan prices
     # ================================================================
 
+    def _load_stock_df(self, stock_id):
+        """載入股票 OHLCV，整個 run 只載一次（跨 scan + interval 共用）。"""
+        if stock_id in self._stock_price_cache:
+            return self._stock_price_cache[stock_id]
+        try:
+            from technical_analysis import load_and_resample
+            _, df, _, _ = load_and_resample(stock_id)
+            if df is not None and not df.empty:
+                if not isinstance(df.index, pd.DatetimeIndex):
+                    df.index = pd.to_datetime(df.index)
+                self._stock_price_cache[stock_id] = df
+                return df
+        except Exception as e:
+            logger.debug("Stock %s load failed: %s", stock_id, e)
+        self._stock_price_cache[stock_id] = None
+        return None
+
     def _get_price_after(self, stock_id, scan_date, days):
         """
         取得掃描日後第 N 個交易日的收盤價。
@@ -116,18 +134,10 @@ class ScanTracker:
             float or None: 收盤價
         """
         try:
-            # Use load_and_resample which has full cache support
-            from technical_analysis import load_and_resample
-            _, df, _, _ = load_and_resample(stock_id)
-
-            if df is None or df.empty:
+            df = self._load_stock_df(stock_id)
+            if df is None:
                 return None
 
-            # Ensure datetime index
-            if not isinstance(df.index, pd.DatetimeIndex):
-                df.index = pd.to_datetime(df.index)
-
-            # Filter to dates >= scan_date
             scan_dt = pd.Timestamp(scan_date)
             future = df[df.index >= scan_dt]
 
@@ -290,6 +300,38 @@ class ScanTracker:
             'picks': tracked,
         }
 
+    def _fill_missing_intervals(self, existing_scan):
+        """
+        增量填補已追蹤 scan 中缺少的 interval（不重算已填好的）。
+
+        Returns:
+            int: 本次新填的 interval 數量
+        """
+        picks = existing_scan.get('picks', [])
+        scan_date = existing_scan['scan_date']
+        filled_count = 0
+
+        for pick in picks:
+            stock_id = pick['stock_id']
+            price_at_scan = pick.get('price_at_scan', 0)
+            if price_at_scan <= 0:
+                continue
+
+            for days in TRACKING_INTERVALS:
+                # Skip already-filled intervals
+                if pick.get(f'return_{days}d') is not None:
+                    continue
+
+                price_later = self._get_price_after(stock_id, scan_date, days)
+                if price_later is not None:
+                    ret = (price_later - price_at_scan) / price_at_scan * 100
+                    pick[f'price_{days}d'] = round(price_later, 2)
+                    pick[f'return_{days}d'] = round(ret, 2)
+                    pick[f'hit_{days}d'] = ret > 0
+                    filled_count += 1
+
+        return filled_count
+
     # ================================================================
     # 4. Run full tracking update
     # ================================================================
@@ -320,7 +362,7 @@ class ScanTracker:
         for scan in scans:
             key = (scan['scan_date'], scan['scan_type'], scan['market'])
 
-            # Check if already fully tracked
+            # Check if already tracked (possibly partially)
             existing_scan = next(
                 (t for t in all_tracked
                  if (t['scan_date'], t['scan_type'], t['market']) == key),
@@ -328,7 +370,6 @@ class ScanTracker:
             )
 
             if existing_scan:
-                # Check if all intervals are filled
                 picks = existing_scan.get('picks', [])
                 max_interval = max(TRACKING_INTERVALS)
                 all_complete = all(
@@ -347,14 +388,26 @@ class ScanTracker:
                     else:
                         self.progress(f"  Skip {key} (fully tracked)")
                     continue
-                else:
-                    # Re-track to fill missing intervals
-                    all_tracked = [t for t in all_tracked
-                                   if (t['scan_date'], t['scan_type'], t['market']) != key]
 
-            tracked = self.track_scan(scan)
-            all_tracked.append(tracked)
-            updated = True
+                # Incremental: only fill missing intervals on existing picks
+                filled = self._fill_missing_intervals(existing_scan)
+                if filled > 0:
+                    updated = True
+                    self.progress(f"  Incremental {key}: filled {filled} intervals")
+                else:
+                    self.progress(f"  Skip {key} (no new intervals matured)")
+
+                # Backfill benchmark_returns if missing
+                if 'benchmark_returns' not in existing_scan:
+                    existing_scan['benchmark_returns'] = self._get_benchmark_returns(
+                        existing_scan['market'], existing_scan['scan_date']
+                    )
+                    updated = True
+            else:
+                # New scan: full tracking
+                tracked = self.track_scan(scan)
+                all_tracked.append(tracked)
+                updated = True
 
         # Compute summary
         summary = self._compute_summary(all_tracked)

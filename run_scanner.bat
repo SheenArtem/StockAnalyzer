@@ -23,8 +23,10 @@ if exist scanner.log ren scanner.log scanner_prev.log
 REM Log start time
 echo [%date% %time%] Scanner started >> scanner.log
 
-REM Run QM (quality swing) TW + value TW
-python scanner_job.py --mode qm --market tw --push --notify >> scanner.log 2>&1
+REM Run QM (quality swing) TW + value TW+US
+REM First invocation: scan only, skip tracking (avoid double tracking)
+REM Second invocation: scan + tracking (covers all historical scans once)
+python scanner_job.py --mode qm --market tw --push --notify --no-tracking >> scanner.log 2>&1
 python scanner_job.py --mode value --market all --push --notify >> scanner.log 2>&1
 set PY_EXIT=%ERRORLEVEL%
 
