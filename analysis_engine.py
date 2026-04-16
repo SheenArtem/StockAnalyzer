@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 # === 可調參數 (Tunable Constants) ===
 DEFAULT_BUY_THRESHOLD = 3       # 觸發分數買進門檻
 DEFAULT_SELL_THRESHOLD = -2     # 觸發分數賣出門檻
-CHIP_SCORE_CAP = 1.0            # 籌碼分數上下限 (±)
+CHIP_SCORE_CAP = 2.0            # 籌碼分數上下限 (±)  C2-b 增加因子後放寬
 TREND_SCORE_RANGE = (-5, 5)     # 趨勢分數範圍
 TRIGGER_SCORE_RANGE = (-10, 10) # 觸發分數範圍
 GROUP_SCALE_FACTOR = 3.33       # 3 組 median → [-10,+10] 的縮放因子
@@ -873,13 +873,14 @@ class TechnicalAnalyzer:
 
     def _analyze_chip_factors(self, df, trend_score=0):
         """
-        籌碼面評分 (Chip Analysis) - 精簡版
-        只保留 IC 有效的子因子:
-        - 台股: 法人動向 (T+1, 最即時的主動交易信號)
-        - 美股: 內部人交易 + 空頭變化
-        移除: 融資水位(慢指標), 當沖佔比(極少觸發), 連續買賣超(與法人重疊),
-              機構持股比例(靜態), 分析師評等(幾乎永遠buy)
-        不使用動態權重乘數 (低 IC 信號不應放大)
+        籌碼面評分 (Chip Analysis) — C2-b IC 驗證版
+        方向依據 C2-b 截面 IC 驗證結果 (2026-04-16)：
+        - 外資：IC 微弱正但不顯著 → 保留小幅正分
+        - 投信：IC 顯著負 (IR -0.32) → 反轉：買超=減分（過熱訊號）
+        - 融資：IC 顯著負 (IR -0.24) → 增加=減分（散戶追漲逆向指標）
+        - 券資比：IC 最強負 (IR -0.57) → 高=減分（空方正確看空）
+        - 借券：IC 負 → 增加=減分（維持原方向）
+        - 美股: 內部人交易 + 空頭變化（另一個函式處理）
         """
         score = 0
         details = []
@@ -893,84 +894,100 @@ class TechnicalAnalyzer:
             return 0, []
 
         try:
-            # 法人動向 (Institutional) — 唯一保留的台股籌碼計分因子
-            # 近 5 日外資+投信總買賣超，需過顯著性門檻
+            current_price = df.iloc[-1]['Close'] if not df.empty else 0
+            recent_volume = df.iloc[-5:]['Volume'].mean() / 1000 if len(df) >= 5 else 0
+
+            # --- 1. 法人動向：外資(微正) + 投信(反轉) ---
             df_inst = self.chip_data.get('institutional')
             if df_inst is not None and not df_inst.empty and not df.empty:
                 recent_inst = df_inst.iloc[-5:]
 
-                total_buy_shares = 0
-                foreign_buy = 0
-                trust_buy = 0
-
-                if '外資' in recent_inst.columns:
-                    foreign_buy = recent_inst['外資'].sum()
-                    total_buy_shares += foreign_buy
-                if '投信' in recent_inst.columns:
-                    trust_buy = recent_inst['投信'].sum()
-                    total_buy_shares += trust_buy
-
-                total_buy_lots = total_buy_shares / 1000
+                foreign_buy = recent_inst['外資'].sum() if '外資' in recent_inst.columns else 0
+                trust_buy = recent_inst['投信'].sum() if '投信' in recent_inst.columns else 0
                 foreign_lots = foreign_buy / 1000
                 trust_lots = trust_buy / 1000
 
-                current_price = df.iloc[-1]['Close']
-                buy_amount_million = (abs(total_buy_lots) * current_price * 1000) / 1_000_000
-                # 使用成交值比率判斷顯著性（避免高低價股失真）
-                if 'Trading_Value' in df.columns:
-                    recent_tv = df.iloc[-5:]['Trading_Value'].mean()
-                    value_ratio = (buy_amount_million * 1e6) / recent_tv if recent_tv > 0 else 0
-                else:
-                    recent_volume = df.iloc[-5:]['Volume'].mean() / 1000
-                    value_ratio = abs(total_buy_lots) / recent_volume if recent_volume > 0 else 0
-                is_significant = (buy_amount_million > 50) or (value_ratio > 0.15)
+                # 顯著性門檻（成交值比率）
+                buy_amt_m = (abs(foreign_lots + trust_lots) * current_price * 1000) / 1e6 if current_price > 0 else 0
+                is_significant = (buy_amt_m > 50) or (abs(foreign_lots + trust_lots) / max(recent_volume, 1) > 0.15)
 
-                base_score = 0
-                if total_buy_lots > 0 and is_significant:
-                    base_score = 1.0
-                    if foreign_lots > 0 and trust_lots > 0:
-                        base_score += 0.5
-                elif total_buy_lots < 0 and is_significant:
-                    base_score = -1.0
-                    if foreign_lots < 0 and trust_lots < 0:
-                        base_score -= 0.5
+                # 外資：微弱正向（IC +0.06 不顯著，保守給小分）
+                if is_significant and abs(foreign_lots) > 0:
+                    if foreign_lots > 0:
+                        score += 0.3
+                        details.append(f"💰 外資近5日買超 ({foreign_lots:+,.0f}張) (+0.3)")
+                    else:
+                        score -= 0.3
+                        details.append(f"💸 外資近5日賣超 ({foreign_lots:+,.0f}張) (-0.3)")
 
-                score += base_score
+                # 投信：IC 顯著負 → 反轉（買超=減分，賣超=加分）
+                if is_significant and abs(trust_lots) > 0:
+                    if trust_lots > 0:
+                        score -= 0.5
+                        details.append(f"🔥 投信近5日買超 ({trust_lots:+,.0f}張) → 過熱警報 (-0.5)")
+                    else:
+                        score += 0.3
+                        details.append(f"❄️ 投信近5日賣超 ({trust_lots:+,.0f}張) → 籌碼沉澱 (+0.3)")
 
-                if base_score != 0:
-                    direction = "買超" if total_buy_lots > 0 else "賣超"
-                    sync_note = ""
-                    if (foreign_lots > 0 and trust_lots > 0) or (foreign_lots < 0 and trust_lots < 0):
-                        sync_note = " [外資+投信同步]"
-                    emoji = "💰" if total_buy_lots > 0 else "💸"
-                    details.append(
-                        f"{emoji} 法人近5日{direction} ({total_buy_lots:,.0f}張, {buy_amount_million:.0f}百萬){sync_note} "
-                        f"({base_score:+.1f})"
-                    )
+                # 外資+投信同步賣超（雙重沉澱）= 加分
+                if is_significant and foreign_lots < 0 and trust_lots < 0:
+                    score += 0.3
+                    details.append(f"❄️ 外資+投信同步賣超 → 籌碼乾淨 (+0.3)")
 
-            # 融資/當沖/連續買賣超 — 僅顯示資訊，不計分
+            # --- 2. 融資：IC 顯著負 → 增加=減分 ---
             df_margin = self.chip_data.get('margin')
             if df_margin is not None and not df_margin.empty:
-               last_m = df_margin.iloc[-1]
-               lim = last_m.get('融資限額', 0)
-               bal = last_m.get('融資餘額', 0)
-               if lim > 0:
-                   util = (bal / lim) * 100
-                   if util > 60:
-                       details.append(f"⚠️ 融資使用率偏高 ({util:.1f}%) [資訊]")
-                   elif util < 20:
-                       details.append(f"✨ 融資水位偏低 ({util:.1f}%) [資訊]")
+                last_m = df_margin.iloc[-1]
+                lim = last_m.get('融資限額', 0)
+                bal = last_m.get('融資餘額', 0)
+                short_bal = last_m.get('融券餘額', 0)
 
-            # 借券賣出 (SBL) — 法人放空指標，計分
+                # 融資使用率
+                if lim > 0:
+                    util = (bal / lim) * 100
+                    if util > 60:
+                        score -= 0.4
+                        details.append(f"⚠️ 融資使用率偏高 ({util:.1f}%) → 散戶追漲 (-0.4)")
+                    elif util < 20:
+                        score += 0.2
+                        details.append(f"✨ 融資水位偏低 ({util:.1f}%) → 籌碼乾淨 (+0.2)")
+
+                # 融資增量（近 5 日變動 vs 20 日均量標準化）
+                if len(df_margin) >= 20 and '融資餘額' in df_margin.columns:
+                    margin_now = df_margin['融資餘額'].iloc[-1]
+                    margin_5ago = df_margin['融資餘額'].iloc[-5] if len(df_margin) >= 5 else margin_now
+                    margin_chg_5d = margin_now - margin_5ago
+                    margin_avg20 = df_margin['融資餘額'].iloc[-20:].mean()
+                    if margin_avg20 > 0:
+                        chg_pct = (margin_chg_5d / margin_avg20) * 100
+                        if chg_pct > 5:
+                            score -= 0.3
+                            details.append(f"📈 融資5日增 {chg_pct:+.1f}% → 散戶追漲 (-0.3)")
+                        elif chg_pct < -5:
+                            score += 0.2
+                            details.append(f"📉 融資5日減 {chg_pct:+.1f}% → 籌碼沉澱 (+0.2)")
+
+                # --- 3. 券資比：IC 最強 (IR -0.57) → 高=減分 ---
+                if bal > 0 and short_bal >= 0:
+                    ms_ratio = short_bal / bal
+                    if ms_ratio > 0.3:
+                        score -= 0.6
+                        details.append(f"🔴 券資比 {ms_ratio:.1%} 偏高 → 空方看空 (-0.6)")
+                    elif ms_ratio > 0.15:
+                        score -= 0.3
+                        details.append(f"⚠️ 券資比 {ms_ratio:.1%} → 空方關注 (-0.3)")
+                    elif ms_ratio < 0.03:
+                        score += 0.2
+                        details.append(f"✨ 券資比 {ms_ratio:.1%} 極低 → 無空方壓力 (+0.2)")
+
+            # --- 4. 借券 (SBL)：方向維持（IC 負 = 增加=減分）---
             df_sbl = self.chip_data.get('sbl')
             if df_sbl is not None and not df_sbl.empty and len(df_sbl) >= 30:
                 if '借券賣出餘額' in df_sbl.columns and '借券賣出' in df_sbl.columns and '借券還券' in df_sbl.columns:
-                    # 5 日淨增 vs 30 日均餘額
                     recent5 = df_sbl.iloc[-5:]
                     net5d = recent5['借券賣出'].sum() - recent5['借券還券'].sum()
                     ma30_bal = df_sbl['借券賣出餘額'].iloc[-30:].mean()
 
-                    # 5日淨增佔30日平均餘額的比例（>5% 視為顯著放空）
                     if ma30_bal > 0:
                         net5d_pct = (net5d / ma30_bal) * 100
 

@@ -131,6 +131,22 @@ app.py (Streamlit UI 入口, 3 模式)
 - TradingView / Google News：記憶體快取 30 分鐘 ~ 1 小時
 - `cache_manager.py` 有 `_cache_lock` 確保執行緒安全
 
+### 籌碼面評分（C2-b IC 驗證版）
+
+`analysis_engine.py` `_analyze_chip_factors()` 的方向依據 C2-b 截面 IC 驗證（2026-04-16）。
+核心原則：**「籌碼乾淨 = 好」**（法人不追、散戶不擠的股票未來表現更好）。
+
+| 因子 | 方向 | IC IR | 說明 |
+|------|------|-------|------|
+| 外資買賣超 | 微正（+0.3） | +0.06（不顯著） | 保守給小分 |
+| 投信買賣超 | **反轉**（買超 -0.5） | **-0.32** | 過熱逆向指標 |
+| 融資使用率/增量 | 高=減分 | -0.24 | 散戶追漲 |
+| 券資比 | 高=減分（**-0.6**） | **-0.57** | 空方正確看空，最強因子 |
+| 借券增減 | 增=減分 | -0.33 | 法人放空 |
+
+Cap: ±2.0（regime 乘數調整）。籌碼歷史資料在 `data_cache/chip_history/`（5 年 parquet）。
+IC 驗證報告在 `reports/chip_ic_matrix.csv`、組合驗證在 `reports/chip_combo_ic.csv`。
+
 ### 台股/美股判斷
 
 - 純數字或含 `.TW` → 台股（使用 FinMind + TWSE/TPEX + TradingView）
