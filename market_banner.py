@@ -312,10 +312,10 @@ def render_market_banner():
             if cnn_comp_data:
                 r1c4.table(pd.DataFrame(cnn_comp_data))
 
-        # --- Row 2: 台股期貨/選擇權 + CNN 歷史 ---
-        r2c1, r2c2, r2c3 = st.columns(3)
+        # --- Row 2: 對齊 Row 1 四欄（台股: 基差+PCR / 美股: CNN 歷史）---
+        r2c1, r2c2, r2c3, r2c4 = st.columns(4)
 
-        # 期貨基差
+        # 左1: 期貨基差（對齊加權指數下方）
         basis = data.get('basis') or {}
         b_val = basis.get('basis')
         if b_val is not None:
@@ -324,7 +324,7 @@ def render_market_banner():
         else:
             r2c1.metric("期貨基差", "N/A")
 
-        # P/C Ratio（百分比顯示，靠在基差旁）
+        # 左2: P/C Ratio（對齊台灣 FGI 下方）
         pcr = data.get('pcr') or {}
         pc = pcr.get('pc_ratio')
         if pc is not None:
@@ -334,7 +334,7 @@ def render_market_banner():
         else:
             r2c2.metric("P/C Ratio", "N/A")
 
-        # CNN FGI 歷史比較
+        # 右3: CNN FGI 歷史（對齊 S&P 500 下方）
         if cnn_fgi:
             hist_data = []
             for key, label in [('previous_close', '前日收盤'), ('one_week_ago', '一週前'),
@@ -345,3 +345,5 @@ def render_market_banner():
             if hist_data:
                 r2c3.markdown("**CNN FGI 歷史**")
                 r2c3.table(pd.DataFrame(hist_data))
+
+        # 右4: 空（CNN FGI 子指標已在 Row 1 c4）
