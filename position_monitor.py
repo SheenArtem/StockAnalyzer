@@ -4,7 +4,7 @@ position_monitor.py — 持股每日監控 + 出場警報
 每日檢查使用者持股是否觸發出場條件（硬警報 = 立即全出 / 軟警報 = 考慮減碼）。
 
 出場條件：
-  - hard: 價格跌破進場 × 0.92 (-8% 硬停損)
+  - hard: 價格跌破動態停損（ATR% 調整，預設 -8%；見 exit_manager.py）
   - hard: 週 Supertrend 翻空
   - hard: 週 MA20 跌破 3%
   - hard: 月營收 YoY 連 2 月轉負（台股，每月 10 日後更新）
@@ -130,15 +130,18 @@ def _append_history(history, key, trigger_score, today_str):
 #  單檔出場條件檢查
 # ============================================================
 
-def _check_hard_stop(current_price, buy_price):
-    """-8% 硬停損（價格跌破進場 × 0.92）。"""
-    threshold = buy_price * 0.92
+def _check_hard_stop(current_price, buy_price, atr_pct=None):
+    """動態硬停損（exit_manager 依 ATR% 計算，預設 -8%）。"""
+    from exit_manager import compute_exit_plan
+    plan = compute_exit_plan(buy_price, atr_pct=atr_pct)
+    threshold = plan['hard_stop']
+    stop_pct = plan['hard_stop_pct']
     if current_price < threshold:
         return {
             'type': 'hard_stop',
             'severity': 'hard',
-            'desc': '-8% 硬停損觸發',
-            'value': f'現價 {current_price:.2f} < 進場 × 0.92 = {threshold:.2f}',
+            'desc': f'{stop_pct*100:+.1f}% 硬停損觸發',
+            'value': f'現價 {current_price:.2f} < 停損 {threshold:.2f} (method={plan["method"]})',
         }
     return None
 
@@ -158,19 +161,22 @@ def _check_supertrend_bear(df_week):
     return None
 
 
-def _check_weekly_ma20_break(df_week, current_price):
-    """週 MA20 跌破 3%。"""
+def _check_weekly_ma20_break(df_week, current_price, atr_pct=None):
+    """週 MA20 跌破閾值（exit_manager 依 ATR% 調整，預設 -3%）。"""
     if df_week.empty or len(df_week) < 20 or 'Close' not in df_week.columns:
         return None
     ma20 = df_week['Close'].rolling(20).mean().iloc[-1]
     if pd.isna(ma20):
         return None
-    if current_price < ma20 * 0.97:
+    from exit_manager import compute_ma20_break_threshold
+    threshold = compute_ma20_break_threshold(ma20, atr_pct=atr_pct)
+    if threshold > 0 and current_price < threshold:
+        break_pct = (current_price / ma20 - 1) * 100
         return {
             'type': 'ma20_break',
             'severity': 'hard',
-            'desc': '週 MA20 跌破 3%',
-            'value': f'現價 {current_price:.2f} / 週 MA20 {ma20:.2f} ({(current_price/ma20-1)*100:+.1f}%)',
+            'desc': f'週 MA20 跌破 {abs(break_pct):.1f}%',
+            'value': f'現價 {current_price:.2f} / 週 MA20 {ma20:.2f} ({break_pct:+.1f}%)',
         }
     return None
 
@@ -313,12 +319,19 @@ def check_single_position(pos, history=None, today_str=None):
         key = _history_key(stock_id, buy_date_str)
         series = _append_history(history, key, trigger_score, today_str)
 
+    # 3c. ATR%（Phase 2 動態停損停利）
+    atr_pct = None
+    if 'ATR_pct' in df_day.columns:
+        last_atr = df_day['ATR_pct'].iloc[-1]
+        if pd.notna(last_atr):
+            atr_pct = float(last_atr)
+
     # 4. Run checks
     triggers = []
     for t in [
-        _check_hard_stop(current_price, buy_price),
+        _check_hard_stop(current_price, buy_price, atr_pct=atr_pct),
         _check_supertrend_bear(df_week),
-        _check_weekly_ma20_break(df_week, current_price),
+        _check_weekly_ma20_break(df_week, current_price, atr_pct=atr_pct),
         _check_trend_weak(trend_score),
         _check_trigger_peak_drop(series),
         _check_trigger_neg_streak(series),

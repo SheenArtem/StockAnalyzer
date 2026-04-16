@@ -188,7 +188,7 @@ def _qm_entry_gate(trigger_score):
     }
 
 
-def _apply_qm_action_plan(action_plan, df_week, trigger_score=None):
+def _apply_qm_action_plan(action_plan, df_week, trigger_score=None, atr_pct=None):
     """
     QM 專屬 action_plan：覆蓋通用版的短線 SL/TP，改為 40-60d horizon 的波段操作參數。
 
@@ -196,10 +196,12 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None):
       60d Sharpe 1.67, 勝率 76%, 平均報酬 +14%
       40d Sharpe 1.81, 20d Sharpe 1.99
 
+    Phase 2: atr_pct 傳入時 exit_manager 動態調整 SL/TP。
+
     覆蓋邏輯：
-      - 停損: max(進場 × 0.92, 週 MA20)  → 寬於 ATR 2x，吻合週線 horizon
-      - 停利三段: +15% 減 1/3 → +25% 移動停損 → +40% 清倉或持倉 60 日到期
-      - R:R 以 TP1 (+15%) 對停損價計算
+      - 停損: exit_manager.compute_exit_plan（依 ATR% 動態，預設 -8%）
+      - 停利: exit_manager 三段（依 ATR% 縮放）
+      - R:R 以 TP1 對停損價計算
       - 進場閘門 (trigger_score): 依 _qm_entry_gate() 分 green/yellow/red
       - strategy 加上 QM 操作要點 + 出場訊號 + 分批進場
 
@@ -214,7 +216,7 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None):
         return action_plan
 
     # --- 週 MA20 ---
-    week_ma20 = 0.0
+    week_ma20 = None
     if df_week is not None and not df_week.empty and 'MA20' in df_week.columns:
         try:
             w = df_week.iloc[-1].get('MA20', 0)
@@ -223,26 +225,26 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None):
         except Exception:
             pass
 
-    # --- 停損: max(-8%, 週 MA20)，但 MA20 離進場至少 3% ---
-    hard_sl = entry_basis * 0.92
-    _MIN_SL_GAP = 0.03  # 停損距進場至少 3%，否則噪音就觸發
-    if (0 < week_ma20 < entry_basis and week_ma20 > hard_sl
-            and (entry_basis - week_ma20) / entry_basis >= _MIN_SL_GAP):
-        rec_sl_price = week_ma20
-        rec_sl_method = "QM. 週 MA20 趨勢停損"
-    else:
-        rec_sl_price = hard_sl
-        rec_sl_method = "QM. -8% 硬停損"
+    # --- exit_manager 統一計算 SL/TP ---
+    from exit_manager import compute_exit_plan
+    plan = compute_exit_plan(entry_basis, weekly_ma20=week_ma20, atr_pct=atr_pct)
+    rec_sl_price = plan['stop_loss']
+    rec_sl_method = f"QM. {plan['stop_method']}"
+    hard_sl = plan['hard_stop']
 
-    # --- 停利三段 ---
-    tp1 = entry_basis * 1.15
-    tp2 = entry_basis * 1.25
-    tp3 = entry_basis * 1.40
+    # --- 停利三段（exit_manager 依 ATR% 縮放） ---
+    tp_lvls = plan['tp_levels']
+    tp1 = tp_lvls[0]['price'] if len(tp_lvls) > 0 else entry_basis * 1.15
+    tp2 = tp_lvls[1]['price'] if len(tp_lvls) > 1 else entry_basis * 1.25
+    tp3 = tp_lvls[2]['price'] if len(tp_lvls) > 2 else entry_basis * 1.40
+    tp1_pct = tp_lvls[0]['pct'] if len(tp_lvls) > 0 else 15.0
+    tp2_pct = tp_lvls[1]['pct'] if len(tp_lvls) > 1 else 25.0
+    tp3_pct = tp_lvls[2]['pct'] if len(tp_lvls) > 2 else 40.0
 
     qm_tp_list = [
-        {"method": "QM1. +15% 減碼 1/3", "price": tp1, "desc": "落袋第一段", "is_rec": True},
-        {"method": "QM2. +25% 移動停損至 MA10W", "price": tp2, "desc": "鎖住超額", "is_rec": False},
-        {"method": "QM3. +40% 清倉 (或 60 日到期)", "price": tp3, "desc": "換股輪動", "is_rec": False},
+        {"method": f"QM1. +{tp1_pct:.0f}% 減碼 1/3", "price": tp1, "desc": "落袋第一段", "is_rec": True},
+        {"method": f"QM2. +{tp2_pct:.0f}% 移動停損至 MA10W", "price": tp2, "desc": "鎖住超額", "is_rec": False},
+        {"method": f"QM3. +{tp3_pct:.0f}% 清倉 (或 60 日到期)", "price": tp3, "desc": "換股輪動", "is_rec": False},
     ]
     existing_tp = [dict(t) for t in action_plan.get('tp_list', [])]
     for t in existing_tp:
@@ -250,10 +252,12 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None):
     full_tp_list = qm_tp_list + existing_tp
 
     # --- 停損列表 ---
+    hard_stop_label = f"QM-A. 硬停損 {plan['hard_stop_pct']*100:+.1f}%"
     qm_sl_list = [
-        {"method": "QM-A. 硬停損 -8%", "price": hard_sl, "desc": "期望值保護", "loss": -8.0},
+        {"method": hard_stop_label, "price": hard_sl,
+         "desc": f"期望值保護 ({plan['method']})", "loss": round(plan['hard_stop_pct'] * 100, 1)},
     ]
-    if week_ma20 > 0:
+    if week_ma20 is not None and week_ma20 > 0:
         loss_pct = ((week_ma20 - entry_basis) / entry_basis) * 100
         qm_sl_list.append({
             "method": "QM-B. 週 MA20 趨勢停損",
@@ -306,7 +310,7 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None):
         f"- 第 2 批補倉: {batch2_text}\n"
         "- 持倉目標 **40-60 日**，不要短抱 (Sharpe 高點在 20d，報酬高點在 60d)\n"
         f"- 停損: **{rec_sl_method}** → {rec_sl_price:.2f}\n"
-        "- 停利: +15% 減 1/3 → +25% 改用週 MA10 移動停損 → +40% 清倉\n"
+        f"- 停利: +{tp1_pct:.0f}% 減 1/3 → +{tp2_pct:.0f}% 改用週 MA10 移動停損 → +{tp3_pct:.0f}% 清倉\n"
         "- 出場訊號: 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分"
     )
     qm_plan['strategy'] = base_strategy + qm_note
@@ -1011,7 +1015,16 @@ class MomentumScreener:
 
         # QM mode: override action_plan with 40-60d horizon parameters
         if getattr(self, '_mode', 'momentum') == 'qm':
-            action_plan = _apply_qm_action_plan(action_plan, df_week, trigger_score=trigger)
+            # ATR% for exit_manager dynamic SL/TP
+            _atr_pct = None
+            try:
+                _a = df_day['ATR_pct'].iloc[-1]
+                if pd.notna(_a):
+                    _atr_pct = float(_a)
+            except Exception:
+                pass
+            action_plan = _apply_qm_action_plan(
+                action_plan, df_week, trigger_score=trigger, atr_pct=_atr_pct)
 
         return {
             'stock_id': stock_id,
