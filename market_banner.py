@@ -263,7 +263,7 @@ def render_market_banner():
         else:
             r1c4.metric("CNN FGI", "N/A")
 
-        # --- Row 2: 期貨/選擇權 + FGI 子指標 ---
+        # --- Row 2: 期貨/選擇權 + CNN 歷史 ---
         r2c1, r2c2, r2c3 = st.columns(3)
 
         # 期貨基差
@@ -284,33 +284,60 @@ def render_market_banner():
         else:
             r2c2.metric("P/C Ratio", "N/A")
 
-        # 台灣 FGI 子指標（簡表）
+        # CNN FGI 歷史比較
+        if cnn_fgi:
+            hist_data = []
+            for key, label in [('previous_close', '前日收盤'), ('one_week_ago', '一週前'),
+                               ('one_month_ago', '一月前'), ('one_year_ago', '一年前')]:
+                val = cnn_fgi.get(key)
+                if val is not None:
+                    hist_data.append({"時間": label, "分數": f"{val:.0f}"})
+            if hist_data:
+                r2c3.markdown("**CNN FGI 歷史**")
+                r2c3.table(pd.DataFrame(hist_data))
+
+        # --- Row 3: FGI 子指標完整表格 ---
+        r3c1, r3c2 = st.columns(2)
+
+        # 台灣 FGI 子指標表格
         components = tw_fgi.get('components', {})
         if components:
             label_map = {
                 'market_momentum': '市場動能',
                 'market_breadth': '漲跌家數',
-                'put_call_ratio': 'P/C比',
+                'put_call_ratio': 'Put/Call比',
                 'volatility': '波動率',
                 'margin_balance': '融資餘額',
             }
-            comp_parts = []
+            comp_data = []
             for name, val in components.items():
                 if isinstance(val, dict):
-                    s = val.get('score')
-                    if s is not None:
-                        tag = "Fear" if s < 40 else "Greed" if s > 60 else "Neutral"
-                        comp_parts.append(f"{label_map.get(name, name)} {s:.0f}({tag})")
-            if comp_parts:
-                r2c3.caption("TW FGI 子指標: " + " | ".join(comp_parts))
+                    score = val.get('score')
+                    if score is not None:
+                        status = "恐懼" if score < 40 else "貪婪" if score > 60 else "中性"
+                        comp_data.append({"指標": label_map.get(name, name),
+                                          "分數": f"{score:.0f}", "狀態": status})
+                    else:
+                        comp_data.append({"指標": label_map.get(name, name),
+                                          "分數": "N/A", "狀態": "無資料"})
+            if comp_data:
+                r3c1.markdown("**台灣 FGI 子指標**")
+                r3c1.table(pd.DataFrame(comp_data))
 
-        # CNN 子指標
+        # CNN FGI 子指標表格
         cnn_components = cnn_fgi.get('components', {})
         if cnn_components:
-            cnn_parts = []
+            cnn_comp_data = []
             for name, val in cnn_components.items():
-                s = val.get('score')
-                if s is not None:
-                    cnn_parts.append(f"{name} {s:.0f}")
-            if cnn_parts:
-                r2c3.caption("CNN 子指標: " + " | ".join(cnn_parts))
+                c_score = val.get('score')
+                c_rating = val.get('rating', 'N/A')
+                if c_score is not None:
+                    status = "恐懼" if c_score < 40 else "貪婪" if c_score > 60 else "中性"
+                    cnn_comp_data.append({"指標": name, "分數": f"{c_score:.0f}",
+                                          "狀態": status})
+                else:
+                    cnn_comp_data.append({"指標": name, "分數": "N/A",
+                                          "狀態": c_rating})
+            if cnn_comp_data:
+                r3c2.markdown("**CNN FGI 子指標**")
+                r3c2.table(pd.DataFrame(cnn_comp_data))
