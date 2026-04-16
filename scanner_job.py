@@ -282,6 +282,8 @@ def main():
                         help='Output directory (default: data)')
     parser.add_argument('--stage1-only', action='store_true',
                         help='Only run Stage 1 (quick preview)')
+    parser.add_argument('--no-tracking', action='store_true',
+                        help='Skip performance tracking (use when chaining multiple scanner_job invocations)')
     parser.add_argument('--quiet', action='store_true',
                         help='Minimal output')
     parser.add_argument('--twse-pct', type=float, default=0.0002,
@@ -465,7 +467,7 @@ def main():
             progress(f"Position monitor failed: {e}")
 
     # Performance tracking: update historical picks with latest prices
-    if not args.stage1_only:
+    if not args.stage1_only and not args.no_tracking:
         try:
             from scan_tracker import ScanTracker
             progress("=== Performance Tracking ===")
