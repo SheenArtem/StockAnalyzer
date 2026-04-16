@@ -133,22 +133,23 @@ def _append_history(history, key, trigger_score, today_str):
 # ============================================================
 
 def _check_hard_stop(current_price, buy_price, atr_pct=None,
-                     df_day=None, hold_days=None):
+                     df_day=None, hold_days=None, regime=None):
     """
-    動態硬停損 + Phase 3 防甩轎。
+    動態硬停損 + Phase 3 防甩轎 + Phase 4 regime overlay。
 
     防甩轎三重保護：
       1. 進場緩衝期（前 5 個交易日不觸發）
       2. 連續 N 日收盤跌破才確認（單日插針不算）
       3. 量能確認（低量跌破降級為 soft 警報）
     Break-even：獲利達門檻後停損提升至成本價。
+    Regime：trending 收緊停損、volatile 放寬停損。
     """
     from exit_manager import (
         compute_exit_plan, compute_breakeven_stop, check_stop_breach,
         GRACE_PERIOD_DAYS,
     )
 
-    plan = compute_exit_plan(buy_price, atr_pct=atr_pct)
+    plan = compute_exit_plan(buy_price, atr_pct=atr_pct, regime=regime)
     threshold = plan['hard_stop']
     stop_pct = plan['hard_stop_pct']
 
@@ -293,12 +294,12 @@ def _check_trigger_neg_streak(series, streak=5):
     return None
 
 
-def _check_take_profit(current_price, buy_price, atr_pct=None):
+def _check_take_profit(current_price, buy_price, atr_pct=None, regime=None):
     """停利警報：價格觸及 TP 時發 soft 警報提醒減碼/移動停損。"""
     if buy_price <= 0 or current_price <= buy_price:
         return None
     from exit_manager import compute_exit_plan
-    plan = compute_exit_plan(buy_price, atr_pct=atr_pct)
+    plan = compute_exit_plan(buy_price, atr_pct=atr_pct, regime=regime)
     tp_levels = plan['tp_levels']
     if not tp_levels:
         return None
@@ -393,15 +394,18 @@ def check_single_position(pos, history=None, today_str=None):
     except Exception:
         return None
 
-    # 3. trend_score + trigger_score from TechnicalAnalyzer
+    # 3. trend_score + trigger_score + regime from TechnicalAnalyzer
     trend_score = None
     trigger_score = None
+    regime_state = None
     try:
         from analysis_engine import TechnicalAnalyzer
         analyzer = TechnicalAnalyzer(stock_id, df_week, df_day, scan_mode=True)
         report = analyzer.run_analysis()
         trend_score = report.get('trend_score')
         trigger_score = report.get('trigger_score')
+        regime_info = report.get('regime', {})
+        regime_state = regime_info.get('regime') if regime_info else None
     except Exception as e:
         logger.debug("analyzer failed for %s: %s", stock_id, e)
 
@@ -432,7 +436,7 @@ def check_single_position(pos, history=None, today_str=None):
     triggers = []
     for t in [
         _check_hard_stop(current_price, buy_price, atr_pct=atr_pct,
-                         df_day=df_day, hold_days=hold_days),
+                         df_day=df_day, hold_days=hold_days, regime=regime_state),
         _check_supertrend_bear(df_week),
         _check_weekly_ma20_break(df_week, current_price, atr_pct=atr_pct),
         _check_trend_weak(trend_score),
@@ -443,7 +447,8 @@ def check_single_position(pos, history=None, today_str=None):
             triggers.append(t)
 
     # 5. 停利警報（Phase 3）
-    t = _check_take_profit(current_price, buy_price, atr_pct=atr_pct)
+    t = _check_take_profit(current_price, buy_price, atr_pct=atr_pct,
+                           regime=regime_state)
     if t is not None:
         triggers.append(t)
 

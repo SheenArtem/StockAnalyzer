@@ -188,7 +188,8 @@ def _qm_entry_gate(trigger_score):
     }
 
 
-def _apply_qm_action_plan(action_plan, df_week, trigger_score=None, atr_pct=None):
+def _apply_qm_action_plan(action_plan, df_week, trigger_score=None,
+                          atr_pct=None, regime=None):
     """
     QM 專屬 action_plan：覆蓋通用版的短線 SL/TP，改為 40-60d horizon 的波段操作參數。
 
@@ -197,10 +198,11 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None, atr_pct=None
       40d Sharpe 1.81, 20d Sharpe 1.99
 
     Phase 2: atr_pct 傳入時 exit_manager 動態調整 SL/TP。
+    Phase 4: regime 傳入時 exit_manager 依市場狀態調整 SL/TP 乘數。
 
     覆蓋邏輯：
-      - 停損: exit_manager.compute_exit_plan（依 ATR% 動態，預設 -8%）
-      - 停利: exit_manager 三段（依 ATR% 縮放）
+      - 停損: exit_manager.compute_exit_plan（依 ATR% + regime 動態）
+      - 停利: exit_manager 三段（依 ATR% + regime 縮放）
       - R:R 以 TP1 對停損價計算
       - 進場閘門 (trigger_score): 依 _qm_entry_gate() 分 green/yellow/red
       - strategy 加上 QM 操作要點 + 出場訊號 + 分批進場
@@ -227,7 +229,8 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None, atr_pct=None
 
     # --- exit_manager 統一計算 SL/TP ---
     from exit_manager import compute_exit_plan
-    plan = compute_exit_plan(entry_basis, weekly_ma20=week_ma20, atr_pct=atr_pct)
+    plan = compute_exit_plan(entry_basis, weekly_ma20=week_ma20,
+                             atr_pct=atr_pct, regime=regime)
     rec_sl_price = plan['stop_loss']
     rec_sl_method = f"QM. {plan['stop_method']}"
     hard_sl = plan['hard_stop']
@@ -303,13 +306,19 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None, atr_pct=None
         ],
     })
 
+    # Regime tag for display
+    regime_tag = ''
+    if regime and regime != 'neutral':
+        sl_m, tp_m = plan.get('regime_sl_mult', 1.0), plan.get('regime_tp_mult', 1.0)
+        regime_tag = f" [regime={regime}: SL×{sl_m}, TP×{tp_m}]"
+
     base_strategy = qm_plan.get('strategy', '')
     qm_note = (
         "\n\n**QM 波段操作要點** (驗證: 60d Sharpe 1.67 / 勝率 76% / 平均 +14%)\n"
         f"- 第 1 批閘門: {gate['text']}\n"
         f"- 第 2 批補倉: {batch2_text}\n"
         "- 持倉目標 **40-60 日**，不要短抱 (Sharpe 高點在 20d，報酬高點在 60d)\n"
-        f"- 停損: **{rec_sl_method}** → {rec_sl_price:.2f}\n"
+        f"- 停損: **{rec_sl_method}** → {rec_sl_price:.2f}{regime_tag}\n"
         f"- 停利: +{tp1_pct:.0f}% 減 1/3 → +{tp2_pct:.0f}% 改用週 MA10 移動停損 → +{tp3_pct:.0f}% 清倉\n"
         "- 出場訊號: 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分"
     )
@@ -1023,8 +1032,14 @@ class MomentumScreener:
                     _atr_pct = float(_a)
             except Exception:
                 pass
+            # Regime for Phase 4 overlay
+            _regime = None
+            _regime_info = report.get('regime', {})
+            if _regime_info:
+                _regime = _regime_info.get('regime')
             action_plan = _apply_qm_action_plan(
-                action_plan, df_week, trigger_score=trigger, atr_pct=_atr_pct)
+                action_plan, df_week, trigger_score=trigger,
+                atr_pct=_atr_pct, regime=_regime)
 
         return {
             'stock_id': stock_id,
