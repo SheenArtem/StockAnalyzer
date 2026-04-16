@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.16.6")
+    st.caption("Version: v2026.04.16.7")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -2715,8 +2715,8 @@ elif st.session_state.get('analysis_active', False):
 
 
         # 顯示圖表
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
-            ["週K", "日K", "籌碼面", "🏢 基本面", "🔮 情緒/期權", "📊 除息/營收"])
+        tab1, tab2, tab3, tab4, tab6 = st.tabs(
+            ["週K", "日K", "籌碼面", "🏢 基本面", "📊 除息/營收"])
         
         with tab1:
             if 'Weekly' in figures:
@@ -3546,13 +3546,7 @@ elif st.session_state.get('analysis_active', False):
                 st.info("💡 歷史基本面圖表僅支援台股代號")
 
         # ==========================================
-        # Tab 5: 情緒/期權分析
-        # ==========================================
-        with tab5:
-            st.info("市場情緒與期權資料已移至頁面頂端「📊 大盤儀表板」，所有模式共用。")
-
-        # ==========================================
-        # Tab 6: 除息/營收分析
+        # Tab 5: 除息/營收分析（原 Tab 6，情緒/期權已移至大盤儀表板）
         # ==========================================
         with tab6:
             st.markdown("#### 📊 除權息行事曆 & 月營收追蹤")
