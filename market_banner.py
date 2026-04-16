@@ -223,7 +223,7 @@ def _render_index_card(col, data):
         lines.append(f'KD <span style="color:{kd_c};font-weight:bold">{k:.0f} / {d:.0f}</span>')
     if lines:
         col.markdown(
-            '<div style="font-size:0.95rem;line-height:1.6;margin-top:20px">'
+            '<div style="font-size:0.95rem;line-height:1.6">'
             + ' &nbsp;|&nbsp; '.join(lines)
             + '</div>',
             unsafe_allow_html=True,
