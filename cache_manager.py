@@ -54,9 +54,29 @@ class FinMindTracker:
             if count == _FINMIND_RATE_WARN:
                 logger.warning("FinMind API: approaching rate limit (%d/%d)",
                                count, _FINMIND_RATE_LIMIT)
-            return attr(*args, **kwargs)
+            try:
+                return attr(*args, **kwargs)
+            except KeyError as e:
+                if str(e) == "'data'":
+                    # FinMind server-side quota: response has no 'data' key
+                    logger.warning("FinMind quota hit (KeyError 'data'), "
+                                   "waiting 65s then retry once...")
+                    time.sleep(65)
+                    try:
+                        return attr(*args, **kwargs)
+                    except KeyError:
+                        raise  # second failure: give up
+                raise
 
         return tracked_call
+
+    @staticmethod
+    def _seconds_until_next_wall_hour():
+        """Calculate seconds until the next wall-clock hour boundary + 5s buffer."""
+        import datetime as _dt
+        now = _dt.datetime.now()
+        next_hour = now.replace(minute=0, second=0, microsecond=0) + _dt.timedelta(hours=1)
+        return (next_hour - now).total_seconds() + 5
 
     def _check_rate_limit(self):
         """Auto-pause if approaching rate limit, reset counter each hour."""
@@ -73,13 +93,14 @@ class FinMindTracker:
             return
 
         if self.request_count >= _FINMIND_RATE_PAUSE:
-            wait_seconds = 3600 - elapsed + 5  # Wait until next hour + buffer
+            # Wait until next wall-clock hour (more likely to align with server reset)
+            wait_seconds = self._seconds_until_next_wall_hour()
             logger.warning(
-                "FinMind API: rate limit reached (%d/%d), pausing %.0fs",
+                "FinMind API: rate limit reached (%d/%d), pausing %.0fs until next hour",
                 self.request_count, _FINMIND_RATE_LIMIT, wait_seconds,
             )
             print(f"[FinMind] Rate limit ({self.request_count}/{_FINMIND_RATE_LIMIT}), "
-                  f"waiting {wait_seconds:.0f}s...")
+                  f"waiting {wait_seconds:.0f}s until next hour...")
             time.sleep(wait_seconds)
             with self._lock:
                 self.request_count = 0
