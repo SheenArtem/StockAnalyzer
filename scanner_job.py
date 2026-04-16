@@ -157,7 +157,7 @@ def git_push_results(data_dir='data'):
         # Stage data files (data/history is gitignored, only stage data/latest)
         subprocess.run(
             ['git', 'add', str(data_path / 'latest')],
-            check=True, capture_output=True, text=True,
+            check=True, capture_output=True, encoding='utf-8', errors='replace',
         )
 
         # Check if there are staged changes
@@ -174,13 +174,13 @@ def git_push_results(data_dir='data'):
         msg = f"scan: {now.strftime('%Y-%m-%d %H:%M')} momentum results"
         subprocess.run(
             ['git', 'commit', '-m', msg],
-            check=True, capture_output=True, text=True,
+            check=True, capture_output=True, encoding='utf-8', errors='replace',
         )
 
         # Push
         result = subprocess.run(
             ['git', 'push'],
-            check=True, capture_output=True, text=True,
+            check=True, capture_output=True, encoding='utf-8', errors='replace',
         )
         print(f"Pushed: {msg}")
         return True

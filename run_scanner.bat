@@ -16,6 +16,9 @@ REM ============================================================
 
 cd /d C:\GIT\StockAnalyzer
 
+REM Force UTF-8 for Python I/O (prevents cp950 UnicodeDecodeError on emoji output)
+set PYTHONIOENCODING=utf-8
+
 REM Rotate log: keep only previous + current
 if exist scanner_prev.log del scanner_prev.log
 if exist scanner.log ren scanner.log scanner_prev.log
