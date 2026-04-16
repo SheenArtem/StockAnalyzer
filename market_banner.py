@@ -246,21 +246,32 @@ def render_market_banner():
         # 單排 4 欄：所有內容垂直堆疊在各欄內，無 Row 2 間距
         c1, c2, c3, c4 = st.columns(4)
 
-        # ── C1: 加權指數 + 乖離/KD + 期貨基差 + P/C Ratio ──
+        # ── C1: 加權指數 + 乖離/KD + 基差&PCR 併排 ──
         _render_index_card(c1, tw)
 
+        # 期貨基差 + P/C Ratio 用 HTML 併排顯示
         basis = data.get('basis') or {}
         b_val = basis.get('basis')
-        if b_val is not None:
-            c1.metric("期貨基差", f"{b_val:.0f} 點",
-                      delta="正價差 (偏多)" if b_val > 0 else "逆價差 (偏空)")
-
         pcr = data.get('pcr') or {}
         pc = pcr.get('pc_ratio')
+
+        parts = []
+        if b_val is not None:
+            b_color = '#00AA00' if b_val > 0 else '#FF4444'
+            b_label = '正價差' if b_val > 0 else '逆價差'
+            parts.append(f'基差 <span style="color:{b_color};font-weight:bold">'
+                         f'{b_val:.0f}點 {b_label}</span>')
         if pc is not None:
             pc_pct = pc * 100
-            pc_delta = "恐懼" if pc > 1.0 else "貪婪" if pc < 0.7 else "中性"
-            c1.metric("P/C Ratio", f"{pc_pct:.0f}%", delta=pc_delta)
+            pc_color = '#FF4444' if pc > 1.0 else '#00AA00' if pc < 0.7 else '#888888'
+            parts.append(f'PCR <span style="color:{pc_color};font-weight:bold">'
+                         f'{pc_pct:.0f}%</span>')
+        if parts:
+            c1.markdown(
+                '<div style="font-size:0.95rem;line-height:1.6">'
+                + ' &nbsp;|&nbsp; '.join(parts) + '</div>',
+                unsafe_allow_html=True,
+            )
 
         # ── C2: 台灣 FGI + 進度條 + 子指標表格 ──
         tw_score = tw_fgi.get('score')
