@@ -3,6 +3,7 @@ exit_manager.py -- 統一出場策略管理
 
 Phase 1: 統一 SL/TP 計算介面（position_monitor + momentum_screener 共用）
 Phase 2: 依 ATR% 動態調整停損停利（高波動放寬、低波動收緊）
+Phase 3: 防甩轎（緩衝期 + 連續跌破 + 量能確認）+ break-even 保護
 
 使用者:
   - position_monitor.py  -- 每日監控停損閾值
@@ -30,6 +31,15 @@ ATR_STOP_CEIL = 0.14              # 停損上限 -14%
 ATR_STOP_MULTIPLIER = 3.0         # stop_pct = atr_pct * multiplier
 ATR_TP_SCALE_FLOOR = 0.7          # 低波動: TP 打 7 折
 ATR_TP_SCALE_CEIL = 1.6           # 高波動: TP 放大 1.6 倍
+
+# ============================================================
+#  Phase 3 防甩轎 + Break-even
+# ============================================================
+GRACE_PERIOD_DAYS = 5              # 進場後 5 個交易日內不觸發硬停損
+CONSEC_BREACH_DAYS = 2             # 需連續 N 日收盤跌破才確認
+VOLUME_CONFIRM_RATIO = 0.8        # 量 < 均量 × 此比例 → 視為洗盤（降為 soft）
+BREAKEVEN_TRIGGER_PCT = 0.08      # 獲利 >= 8% 後停損提升至成本價（Phase 2 會動態調整）
+BREAKEVEN_ATR_MULTIPLIER = 3.0    # breakeven_trigger = atr_pct * multiplier (動態)
 
 
 def compute_exit_plan(entry_price, weekly_ma20=None, atr_pct=None,
@@ -145,6 +155,99 @@ def compute_ma20_break_threshold(weekly_ma20, atr_pct=None):
         break_pct = DEFAULT_MA20_BREAK_PCT
 
     return round(weekly_ma20 * (1 - break_pct), 2)
+
+
+def compute_breakeven_stop(entry_price, current_price, hard_stop, atr_pct=None):
+    """
+    Break-even 保護：獲利達門檻後，停損提升至成本價。
+
+    Parameters
+    ----------
+    entry_price : float
+    current_price : float
+    hard_stop : float  -- 原始硬停損價
+    atr_pct : float or None
+
+    Returns
+    -------
+    float : 調整後的停損價（可能等於原 hard_stop 或提升至 entry_price）
+    """
+    if entry_price <= 0 or current_price <= 0:
+        return hard_stop
+
+    pnl_pct = (current_price / entry_price) - 1.0
+
+    # 動態門檻：高波動需要更多空間才啟動 breakeven
+    if atr_pct is not None and atr_pct > 0:
+        trigger = np.clip(atr_pct / 100.0 * BREAKEVEN_ATR_MULTIPLIER, 0.05, 0.15)
+    else:
+        trigger = BREAKEVEN_TRIGGER_PCT
+
+    if pnl_pct >= trigger:
+        return max(hard_stop, entry_price)
+    return hard_stop
+
+
+def check_stop_breach(closes, volumes, threshold):
+    """
+    Phase 3 防甩轎：檢查近期收盤價是否確認跌破停損。
+
+    回傳 (confirmed, detail_dict):
+      - confirmed=True:  連續 N 日收盤跌破 + 量能確認 → 觸發 hard
+      - confirmed=False + detail: 跌破但未確認 → 可作 soft 警報
+      - confirmed=None:  未跌破
+
+    Parameters
+    ----------
+    closes : array-like  -- 近 N 日收盤價（最少 CONSEC_BREACH_DAYS 筆，最後一筆為今日）
+    volumes : array-like  -- 同期成交量
+    threshold : float     -- 停損價格
+
+    Returns
+    -------
+    tuple: (bool or None, dict)
+    """
+    import pandas as pd
+
+    closes = pd.Series(closes).dropna()
+    volumes = pd.Series(volumes).dropna()
+    n = CONSEC_BREACH_DAYS
+
+    if len(closes) < 1:
+        return None, {}
+
+    current = float(closes.iloc[-1])
+    if current >= threshold:
+        return None, {}
+
+    # 今日收盤跌破 → 看連續性
+    recent = closes.tail(n)
+    breach_count = int((recent < threshold).sum())
+    all_breached = breach_count >= n and len(recent) >= n
+
+    # 量能確認（今日量 vs 20 日均量）
+    vol_confirmed = True
+    avg_vol = 0.0
+    if len(volumes) >= 20:
+        avg_vol = float(volumes.iloc[-21:-1].mean())  # 不含今日
+        today_vol = float(volumes.iloc[-1])
+        if avg_vol > 0 and today_vol < avg_vol * VOLUME_CONFIRM_RATIO:
+            vol_confirmed = False
+
+    detail = {
+        'current': current,
+        'threshold': threshold,
+        'breach_days': breach_count,
+        'required_days': n,
+        'vol_confirmed': vol_confirmed,
+        'avg_vol': round(avg_vol),
+        'today_vol': round(float(volumes.iloc[-1])) if len(volumes) > 0 else 0,
+    }
+
+    if all_breached and vol_confirmed:
+        return True, detail    # confirmed hard stop
+    else:
+        return False, detail   # breach but not confirmed (soft warning)
 
 
 def _empty_plan():
