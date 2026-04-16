@@ -223,9 +223,11 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None):
         except Exception:
             pass
 
-    # --- 停損: max(-8%, 週 MA20) ---
+    # --- 停損: max(-8%, 週 MA20)，但 MA20 離進場至少 3% ---
     hard_sl = entry_basis * 0.92
-    if 0 < week_ma20 < entry_basis and week_ma20 > hard_sl:
+    _MIN_SL_GAP = 0.03  # 停損距進場至少 3%，否則噪音就觸發
+    if (0 < week_ma20 < entry_basis and week_ma20 > hard_sl
+            and (entry_basis - week_ma20) / entry_basis >= _MIN_SL_GAP):
         rec_sl_price = week_ma20
         rec_sl_method = "QM. 週 MA20 趨勢停損"
     else:
@@ -266,6 +268,7 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None):
     potential_reward = tp1 - entry_basis
     potential_risk = entry_basis - rec_sl_price
     rr_ratio = round(potential_reward / potential_risk, 2) if potential_risk > 0 else 0.0
+    rr_ratio = min(rr_ratio, 10.0)  # sanity cap: R:R > 10 通常代表 SL 算法異常
 
     # --- 進場閘門 (A#2) ---
     gate = _qm_entry_gate(trigger_score)
