@@ -284,24 +284,42 @@ def render_market_banner():
 
         components = tw_fgi.get('components', {})
         if components:
-            label_map = {
-                'market_momentum': '市場動能',
-                'market_breadth': '漲跌家數',
-                'put_call_ratio': 'Put/Call比',
-                'volatility': '波動率',
-                'margin_balance': '融資餘額',
-            }
             comp_data = []
             for name, val in components.items():
-                if isinstance(val, dict):
-                    score = val.get('score')
-                    if score is not None:
-                        status = "恐懼" if score < 40 else "貪婪" if score > 60 else "中性"
-                        comp_data.append({"指標": label_map.get(name, name),
-                                          "分數": f"{score:.0f}", "狀態": status})
-                    else:
-                        comp_data.append({"指標": label_map.get(name, name),
-                                          "分數": "N/A", "狀態": "無資料"})
+                if not isinstance(val, dict):
+                    continue
+                score = val.get('score')
+                status = ("恐懼" if score is not None and score < 40
+                          else "貪婪" if score is not None and score > 60
+                          else "中性") if score is not None else "N/A"
+                # 顯示實際數值而非分數
+                if name == 'market_momentum':
+                    cur = val.get('current', 0)
+                    hi = val.get('high_52w', 0)
+                    pct = (cur / hi - 1) * 100 if hi > 0 else 0
+                    actual = f"距52週高 {pct:+.1f}%"
+                elif name == 'market_breadth':
+                    adv = val.get('advances', 0)
+                    dec = val.get('declines', 0)
+                    actual = f"{adv} 漲 / {dec} 跌"
+                elif name == 'put_call_ratio':
+                    actual = f"{val.get('pc_ratio', 0):.2f}"
+                elif name == 'volatility':
+                    actual = f"{val.get('volatility_20d', 0):.1f}%"
+                elif name == 'margin_balance':
+                    mb = val.get('margin_balance', 0)
+                    actual = f"{mb:,.0f} 張"
+                else:
+                    actual = f"{score:.0f}" if score is not None else "N/A"
+                label_map = {
+                    'market_momentum': '市場動能',
+                    'market_breadth': '漲跌家數',
+                    'put_call_ratio': 'Put/Call比',
+                    'volatility': '波動率',
+                    'margin_balance': '融資餘額',
+                }
+                comp_data.append({"指標": label_map.get(name, name),
+                                  "數值": actual, "狀態": status})
             if comp_data:
                 c2.table(pd.DataFrame(comp_data))
 
@@ -314,7 +332,7 @@ def render_market_banner():
                                ('one_month_ago', '一月前'), ('one_year_ago', '一年前')]:
                 val = cnn_fgi.get(key)
                 if val is not None:
-                    hist_data.append({"時間": label, "分數": f"{val:.0f}"})
+                    hist_data.append({"時間": label, "數值": f"{val:.0f}"})
             if hist_data:
                 c3.markdown("**CNN FGI 歷史**")
                 c3.table(pd.DataFrame(hist_data))
@@ -336,10 +354,10 @@ def render_market_banner():
                 c_rating = val.get('rating', 'N/A')
                 if c_score is not None:
                     status = "恐懼" if c_score < 40 else "貪婪" if c_score > 60 else "中性"
-                    cnn_comp_data.append({"指標": name, "分數": f"{c_score:.0f}",
+                    cnn_comp_data.append({"指標": name, "數值": f"{c_score:.0f}",
                                           "狀態": status})
                 else:
-                    cnn_comp_data.append({"指標": name, "分數": "N/A",
+                    cnn_comp_data.append({"指標": name, "數值": "N/A",
                                           "狀態": c_rating})
             if cnn_comp_data:
                 c4.table(pd.DataFrame(cnn_comp_data))
