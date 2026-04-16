@@ -4,10 +4,12 @@ position_monitor.py — 持股每日監控 + 出場警報
 每日檢查使用者持股是否觸發出場條件（硬警報 = 立即全出 / 軟警報 = 考慮減碼）。
 
 出場條件：
-  - hard: 價格跌破動態停損（ATR% 調整，預設 -8%；見 exit_manager.py）
+  - hard: 動態停損（ATR% 調整 -5%~-14%，防甩轎：連續2日+量能確認）
   - hard: 週 Supertrend 翻空
-  - hard: 週 MA20 跌破 3%
+  - hard: 週 MA20 動態跌破（ATR% 調整 -2%~-5%）
   - hard: 月營收 YoY 連 2 月轉負（台股，每月 10 日後更新）
+  - soft: 停利提醒（TP1/TP2/TP3 依 ATR% 動態）
+  - soft: 停損觸及未確認（單日跌破 / 低量洗盤 / 進場緩衝期）
   - soft: trend_score < 1（趨勢論據弱化）
   - soft: trigger_score 峰值 ≥ +5 掉至 ≤ -2（動能急轉，峰值取最近 20 日）
   - soft: trigger_score 連續 5 個交易日 < 0（持續弱化）
@@ -130,18 +132,80 @@ def _append_history(history, key, trigger_score, today_str):
 #  單檔出場條件檢查
 # ============================================================
 
-def _check_hard_stop(current_price, buy_price, atr_pct=None):
-    """動態硬停損（exit_manager 依 ATR% 計算，預設 -8%）。"""
-    from exit_manager import compute_exit_plan
+def _check_hard_stop(current_price, buy_price, atr_pct=None,
+                     df_day=None, hold_days=None):
+    """
+    動態硬停損 + Phase 3 防甩轎。
+
+    防甩轎三重保護：
+      1. 進場緩衝期（前 5 個交易日不觸發）
+      2. 連續 N 日收盤跌破才確認（單日插針不算）
+      3. 量能確認（低量跌破降級為 soft 警報）
+    Break-even：獲利達門檻後停損提升至成本價。
+    """
+    from exit_manager import (
+        compute_exit_plan, compute_breakeven_stop, check_stop_breach,
+        GRACE_PERIOD_DAYS,
+    )
+
     plan = compute_exit_plan(buy_price, atr_pct=atr_pct)
     threshold = plan['hard_stop']
     stop_pct = plan['hard_stop_pct']
+
+    # Break-even: 獲利夠多 → 停損提升至成本
+    threshold = compute_breakeven_stop(buy_price, current_price, threshold,
+                                       atr_pct=atr_pct)
+    is_breakeven = threshold >= buy_price
+
+    # 防甩轎 1: 進場緩衝期
+    if hold_days is not None and hold_days < GRACE_PERIOD_DAYS:
+        if current_price < threshold:
+            return {
+                'type': 'hard_stop_grace',
+                'severity': 'soft',
+                'desc': f'停損觸及但在緩衝期（{hold_days}/{GRACE_PERIOD_DAYS}日）',
+                'value': f'現價 {current_price:.2f} < 停損 {threshold:.2f}',
+            }
+        return None
+
+    # 防甩轎 2+3: 連續跌破 + 量能確認
+    if df_day is not None and len(df_day) >= 2:
+        closes = df_day['Close'].values
+        volumes = df_day['Volume'].values if 'Volume' in df_day.columns else []
+        confirmed, detail = check_stop_breach(closes, volumes, threshold)
+
+        if confirmed is None:
+            return None  # 未跌破
+        elif confirmed:
+            be_tag = '(break-even)' if is_breakeven else ''
+            return {
+                'type': 'hard_stop',
+                'severity': 'hard',
+                'desc': f'{stop_pct*100:+.1f}% 硬停損確認{be_tag}',
+                'value': (f'連續 {detail["breach_days"]} 日收盤跌破 {threshold:.2f} '
+                          f'+ 放量確認 (method={plan["method"]})'),
+            }
+        else:
+            # 跌破但未確認 → soft 警報
+            reason = []
+            if detail['breach_days'] < detail['required_days']:
+                reason.append(f'僅 {detail["breach_days"]}/{detail["required_days"]} 日跌破')
+            if not detail['vol_confirmed']:
+                reason.append('量縮（可能洗盤）')
+            return {
+                'type': 'hard_stop_unconfirmed',
+                'severity': 'soft',
+                'desc': f'停損觸及未確認（{", ".join(reason)}）',
+                'value': f'現價 {current_price:.2f} < 停損 {threshold:.2f}',
+            }
+
+    # Fallback: 無足夠日線資料，用舊邏輯（立即觸發）
     if current_price < threshold:
         return {
             'type': 'hard_stop',
             'severity': 'hard',
             'desc': f'{stop_pct*100:+.1f}% 硬停損觸發',
-            'value': f'現價 {current_price:.2f} < 停損 {threshold:.2f} (method={plan["method"]})',
+            'value': f'現價 {current_price:.2f} < 停損 {threshold:.2f}',
         }
     return None
 
@@ -227,6 +291,35 @@ def _check_trigger_neg_streak(series, streak=5):
             'value': values,
         }
     return None
+
+
+def _check_take_profit(current_price, buy_price, atr_pct=None):
+    """停利警報：價格觸及 TP 時發 soft 警報提醒減碼/移動停損。"""
+    if buy_price <= 0 or current_price <= buy_price:
+        return None
+    from exit_manager import compute_exit_plan
+    plan = compute_exit_plan(buy_price, atr_pct=atr_pct)
+    tp_levels = plan['tp_levels']
+    if not tp_levels:
+        return None
+
+    pnl_pct = (current_price / buy_price - 1) * 100
+    # 找到已觸及的最高 TP 層級
+    hit_level = None
+    for tp in reversed(tp_levels):
+        if current_price >= tp['price']:
+            hit_level = tp
+            break
+
+    if hit_level is None:
+        return None
+
+    return {
+        'type': 'take_profit',
+        'severity': 'soft',
+        'desc': f'停利觸及 +{hit_level["pct"]:.0f}%（{hit_level["action"]}）',
+        'value': f'現價 {current_price:.2f} / 進場 {buy_price:.2f} / 報酬 {pnl_pct:+.1f}%',
+    }
 
 
 def _check_revenue_yoy_neg2(stock_id):
@@ -326,10 +419,20 @@ def check_single_position(pos, history=None, today_str=None):
         if pd.notna(last_atr):
             atr_pct = float(last_atr)
 
+    # 3d. 持有天數（Phase 3 緩衝期用）
+    hold_days = None
+    if buy_date_str:
+        try:
+            bd = date.fromisoformat(buy_date_str)
+            hold_days = (date.today() - bd).days
+        except Exception:
+            pass
+
     # 4. Run checks
     triggers = []
     for t in [
-        _check_hard_stop(current_price, buy_price, atr_pct=atr_pct),
+        _check_hard_stop(current_price, buy_price, atr_pct=atr_pct,
+                         df_day=df_day, hold_days=hold_days),
         _check_supertrend_bear(df_week),
         _check_weekly_ma20_break(df_week, current_price, atr_pct=atr_pct),
         _check_trend_weak(trend_score),
@@ -339,7 +442,12 @@ def check_single_position(pos, history=None, today_str=None):
         if t is not None:
             triggers.append(t)
 
-    # 5. 月營收（台股：純數字 stock_id）
+    # 5. 停利警報（Phase 3）
+    t = _check_take_profit(current_price, buy_price, atr_pct=atr_pct)
+    if t is not None:
+        triggers.append(t)
+
+    # 6. 月營收（台股：純數字 stock_id）
     if stock_id.isdigit():
         t = _check_revenue_yoy_neg2(stock_id)
         if t is not None:
