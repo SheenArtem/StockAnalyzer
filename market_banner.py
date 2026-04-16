@@ -205,21 +205,29 @@ def _render_index_card(col, data):
     col.metric(name, f"{price:,.0f}" if price > 1000 else f"{price:,.2f}",
                delta=delta_str)
 
-    # 乖離率 + KD 用 caption 緊湊顯示
+    # 乖離率 + KD — 用 markdown + HTML 顯眼呈現
     ma20 = data.get('ma20_bias')
     ma60 = data.get('ma60_bias')
     k = data.get('k')
     d = data.get('d')
 
-    parts = []
+    lines = []
     if ma20 is not None:
-        parts.append(f"月線乖離 {ma20:+.2f}%")
+        c = '#FF4444' if ma20 < -5 else '#FF8800' if ma20 < 0 else '#00AA00' if ma20 < 5 else '#CC0000'
+        lines.append(f'月線乖離 <span style="color:{c};font-weight:bold">{ma20:+.2f}%</span>')
     if ma60 is not None:
-        parts.append(f"季線乖離 {ma60:+.2f}%")
+        c = '#FF4444' if ma60 < -5 else '#FF8800' if ma60 < 0 else '#00AA00' if ma60 < 5 else '#CC0000'
+        lines.append(f'季線乖離 <span style="color:{c};font-weight:bold">{ma60:+.2f}%</span>')
     if k is not None and d is not None:
-        parts.append(f"K={k:.0f} D={d:.0f}")
-    if parts:
-        col.caption(" | ".join(parts))
+        kd_c = '#FF4444' if k < 20 else '#CC0000' if k > 80 else '#333333'
+        lines.append(f'KD <span style="color:{kd_c};font-weight:bold">{k:.0f} / {d:.0f}</span>')
+    if lines:
+        col.markdown(
+            '<div style="font-size:0.95rem;line-height:1.6">'
+            + ' &nbsp;|&nbsp; '.join(lines)
+            + '</div>',
+            unsafe_allow_html=True,
+        )
 
 
 def render_market_banner():
