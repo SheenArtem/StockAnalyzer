@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.16.15")
+    st.caption("Version: v2026.04.16.16")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
