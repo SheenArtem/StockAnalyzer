@@ -713,16 +713,26 @@ class TaiwanFearGreedIndex:
         Ratio > 2.0 = 100, < 0.5 = 0, linear interpolation.
         """
         try:
-            today = datetime.now()
-            date_str = today.strftime('%Y%m%d')
-
-            url = (
-                'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX'
-                f'?date={date_str}&response=json'
-            )
-            resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False)
-            resp.raise_for_status()
-            data = resp.json()
+            # 嘗試今天和前幾個交易日（今日資料可能尚未發布或遇假日）
+            from datetime import timedelta
+            data = None
+            for days_back in range(0, 5):
+                dt = datetime.now() - timedelta(days=days_back)
+                if dt.weekday() >= 5:  # 跳過週末
+                    continue
+                date_str = dt.strftime('%Y%m%d')
+                url = (
+                    'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX'
+                    f'?date={date_str}&response=json'
+                )
+                resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False)
+                resp.raise_for_status()
+                d = resp.json()
+                if 'tables' in d:
+                    data = d
+                    break
+            if data is None:
+                return {'score': None, 'error': 'No TWSE data available'}
 
             advances = 0
             declines = 0
@@ -738,16 +748,15 @@ class TaiwanFearGreedIndex:
                                 name = str(row[0]).strip()
                                 if '上漲' in name:
                                     try:
-                                        advances = int(
-                                            str(row[1]).replace(',', '').strip()
-                                        )
+                                        # 值可能含括號如 '8,749(136)'，取括號前數字
+                                        val = str(row[1]).split('(')[0].replace(',', '').strip()
+                                        advances = int(val)
                                     except ValueError:
                                         pass
                                 elif '下跌' in name:
                                     try:
-                                        declines = int(
-                                            str(row[1]).replace(',', '').strip()
-                                        )
+                                        val = str(row[1]).split('(')[0].replace(',', '').strip()
+                                        declines = int(val)
                                     except ValueError:
                                         pass
 
