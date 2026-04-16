@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.16.4")
+    st.caption("Version: v2026.04.16.5")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -341,6 +341,15 @@ def validate_ticker(ticker):
     if not re.match(pattern, ticker):
         return False, "股票代號格式不正確 (只允許英數字、點號)"
     return True, ""
+
+# ====================================================================
+#  大盤儀表板 Banner（所有模式共用）
+# ====================================================================
+try:
+    from market_banner import render_market_banner
+    render_market_banner()
+except Exception as _banner_err:
+    logger.debug("Market banner failed: %s", _banner_err)
 
 if st.session_state.get('app_mode') == 'screener':
     # ====================================================================
@@ -3540,140 +3549,7 @@ elif st.session_state.get('analysis_active', False):
         # Tab 5: 情緒/期權分析
         # ==========================================
         with tab5:
-            st.markdown("#### 🔮 市場情緒與期權分析")
-
-            # Fear & Greed Index
-            try:
-                from taifex_data import TaiwanFearGreedIndex
-                fgi = TaiwanFearGreedIndex()
-                with st.spinner("計算恐懼貪婪指數..."):
-                    fg_result = fgi.calculate()
-                    fg_score = fg_result.get('score', 50)
-                    fg_label = fg_result.get('label', 'N/A')
-
-                    fg1, fg2 = st.columns([1, 2])
-                    with fg1:
-                        # Gauge-like display
-                        color = '#FF4444' if fg_score < 25 else '#FF8800' if fg_score < 40 else '#FFD700' if fg_score < 60 else '#88CC00' if fg_score < 75 else '#00CC44'
-                        st.metric("恐懼貪婪指數", f"{fg_score:.0f}", delta=fg_label)
-                        st.progress(int(fg_score))
-                        st.caption("0=極度恐懼 → 100=極度貪婪")
-                    with fg2:
-                        components = fg_result.get('components', {})
-                        if components:
-                            label_map = {
-                                'market_momentum': '市場動能',
-                                'market_breadth': '漲跌家數',
-                                'put_call_ratio': 'Put/Call比',
-                                'volatility': '波動率',
-                                'margin_balance': '融資餘額'
-                            }
-                            comp_data = []
-                            for name, val in components.items():
-                                # val 是 dict，score 可能是 None（取得失敗）
-                                if isinstance(val, dict):
-                                    score = val.get('score')
-                                    if score is not None:
-                                        status = "恐懼" if score < 40 else "貪婪" if score > 60 else "中性"
-                                        comp_data.append({"指標": label_map.get(name, name), "分數": f"{score:.0f}", "狀態": status})
-                                    else:
-                                        comp_data.append({"指標": label_map.get(name, name), "分數": "N/A", "狀態": "無資料"})
-                                else:
-                                    comp_data.append({"指標": label_map.get(name, name), "分數": f"{val:.0f}" if isinstance(val, (int, float)) else str(val), "狀態": ""})
-                            if comp_data:
-                                st.table(pd.DataFrame(comp_data))
-            except ImportError:
-                st.info("taifex_data 模組尚未安裝")
-            except Exception as e:
-                st.warning(f"恐懼貪婪指數暫時無法取得: {e}")
-
-            # === CNN Fear & Greed Index (美股) ===
-            try:
-                from cnn_fear_greed import CNNFearGreedIndex
-                st.markdown("---")
-                st.markdown("#### 🇺🇸 CNN Fear & Greed Index (美股)")
-
-                cnn_fg = CNNFearGreedIndex()
-                with st.spinner("取得 CNN Fear & Greed Index..."):
-                    cnn_result = cnn_fg.get_index()
-                    cnn_score = cnn_result.get('score')
-
-                    if cnn_score is not None:
-                        cnn_c1, cnn_c2 = st.columns([1, 2])
-                        with cnn_c1:
-                            cnn_color = CNNFearGreedIndex.get_color(cnn_score)
-                            st.metric("CNN 恐懼貪婪", f"{cnn_score:.0f}", delta=cnn_result.get('label', ''))
-                            st.progress(int(min(cnn_score, 100)))
-
-                            # 歷史比較
-                            prev = cnn_result.get('previous_close')
-                            week = cnn_result.get('one_week_ago')
-                            month = cnn_result.get('one_month_ago')
-                            year = cnn_result.get('one_year_ago')
-
-                            hist_data = []
-                            if prev is not None:
-                                hist_data.append({"時間": "前日收盤", "分數": f"{prev:.0f}"})
-                            if week is not None:
-                                hist_data.append({"時間": "一週前", "分數": f"{week:.0f}"})
-                            if month is not None:
-                                hist_data.append({"時間": "一月前", "分數": f"{month:.0f}"})
-                            if year is not None:
-                                hist_data.append({"時間": "一年前", "分數": f"{year:.0f}"})
-                            if hist_data:
-                                st.table(pd.DataFrame(hist_data))
-
-                        with cnn_c2:
-                            # 子指標
-                            cnn_components = cnn_result.get('components', {})
-                            if cnn_components:
-                                cnn_comp_data = []
-                                for name, val in cnn_components.items():
-                                    c_score = val.get('score')
-                                    c_rating = val.get('rating', 'N/A')
-                                    if c_score is not None:
-                                        status = "恐懼" if c_score < 40 else "貪婪" if c_score > 60 else "中性"
-                                        cnn_comp_data.append({"指標": name, "分數": f"{c_score:.0f}", "狀態": status})
-                                    else:
-                                        cnn_comp_data.append({"指標": name, "分數": "N/A", "狀態": c_rating})
-                                if cnn_comp_data:
-                                    st.table(pd.DataFrame(cnn_comp_data))
-                    else:
-                        st.caption(f"CNN F&G: {cnn_result.get('error', '無法取得')}")
-            except ImportError:
-                pass
-            except Exception as e:
-                st.caption(f"CNN Fear & Greed 暫時無法取得: {e}")
-
-            st.markdown("---")
-
-            # TAIFEX Data
-            try:
-                from taifex_data import TAIFEXData
-                taifex = TAIFEXData()
-                tc1, tc2 = st.columns(2)
-                with tc1:
-                    st.markdown("**期貨正逆價差**")
-                    try:
-                        basis = taifex.get_futures_basis()
-                        if basis.get('basis') is not None:
-                            b_val = basis['basis']
-                            st.metric("基差", f"{b_val:.0f} 點", delta="正價差 (偏多)" if b_val > 0 else "逆價差 (偏空)")
-                    except Exception:
-                        st.caption("期貨數據暫時無法取得")
-                with tc2:
-                    st.markdown("**Put/Call Ratio**")
-                    try:
-                        pcr = taifex.get_put_call_ratio()
-                        if pcr.get('pc_ratio') is not None:
-                            pc = pcr['pc_ratio']
-                            st.metric("P/C Ratio", f"{pc:.2f}", delta="恐懼" if pc > 1.0 else "貪婪" if pc < 0.7 else "中性")
-                    except Exception:
-                        st.caption("選擇權數據暫時無法取得")
-            except ImportError:
-                pass
-            except Exception:
-                pass
+            st.info("市場情緒與期權資料已移至頁面頂端「📊 大盤儀表板」，所有模式共用。")
 
         # ==========================================
         # Tab 6: 除息/營收分析
