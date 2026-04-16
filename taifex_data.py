@@ -709,80 +709,22 @@ class TaiwanFearGreedIndex:
     # ------------------------------------------------------------------
     def _calc_market_breadth(self) -> Dict[str, Any]:
         """
-        Advance/Decline ratio from TWSE.
+        Advance/Decline ratio — 用 twse_api 全市場行情算純股票漲跌家數。
         Ratio > 2.0 = 100, < 0.5 = 0, linear interpolation.
         """
         try:
-            # 嘗試今天和前幾個交易日（今日資料可能尚未發布或遇假日）
-            from datetime import timedelta
-            data = None
-            for days_back in range(0, 5):
-                dt = datetime.now() - timedelta(days=days_back)
-                if dt.weekday() >= 5:  # 跳過週末
-                    continue
-                date_str = dt.strftime('%Y%m%d')
-                url = (
-                    'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX'
-                    f'?date={date_str}&response=json'
-                )
-                resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False)
-                resp.raise_for_status()
-                d = resp.json()
-                if 'tables' in d:
-                    data = d
-                    break
-            if data is None:
-                return {'score': None, 'error': 'No TWSE data available'}
+            from twse_api import TWSEOpenData
+            api = TWSEOpenData()
+            df = api.get_market_daily_all()
 
-            advances = 0
-            declines = 0
+            if df.empty or 'change_pct' not in df.columns:
+                return {'score': None, 'error': 'No market data'}
 
-            # 從 TWSE JSON 解析漲跌家數
-            if 'tables' in data:
-                for table in data['tables']:
-                    title = table.get('title', '')
-                    # 尋找「漲跌」相關表格
-                    if '漲跌' in title or '每日收盤行情' in title:
-                        for row in table.get('data', []):
-                            if isinstance(row, list) and len(row) > 2:
-                                name = str(row[0]).strip()
-                                if '上漲' in name:
-                                    try:
-                                        # 值可能含括號如 '8,749(136)'，取括號前數字
-                                        val = str(row[1]).split('(')[0].replace(',', '').strip()
-                                        advances = int(val)
-                                    except ValueError:
-                                        pass
-                                elif '下跌' in name:
-                                    try:
-                                        val = str(row[1]).split('(')[0].replace(',', '').strip()
-                                        declines = int(val)
-                                    except ValueError:
-                                        pass
-
-            # 若從 JSON 解析失敗，嘗試從大盤統計取得
-            if advances == 0 and declines == 0:
-                # 備用: 從 groups 欄位計算
-                if 'groups' in data:
-                    for group in data['groups']:
-                        if isinstance(group, dict):
-                            for row in group.get('data', []):
-                                if isinstance(row, list) and len(row) > 3:
-                                    try:
-                                        change = str(row[2]).replace(',', '').strip()
-                                        if change.startswith('+') or (
-                                            change and float(change) > 0
-                                        ):
-                                            advances += 1
-                                        elif change.startswith('-') or (
-                                            change and float(change) < 0
-                                        ):
-                                            declines += 1
-                                    except (ValueError, IndexError):
-                                        continue
+            changes = df['change_pct'].dropna()
+            advances = int((changes > 0).sum())
+            declines = int((changes < 0).sum())
 
             if advances == 0 and declines == 0:
-                logger.warning("Could not parse advance/decline data from TWSE")
                 return {'score': None, 'error': 'No advance/decline data'}
 
             if declines > 0:
