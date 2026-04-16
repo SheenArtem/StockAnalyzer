@@ -242,24 +242,24 @@ def render_market_banner():
         tw = data.get('tw', {})
         us = data.get('us', {})
 
+        # 台股左邊、美股右邊
         r1c1, r1c2, r1c3, r1c4 = st.columns(4)
 
-        # 台股
+        # 左: 台股指數 + 台灣 FGI
         _render_index_card(r1c1, tw)
 
-        # 美股
-        _render_index_card(r1c2, us)
-
-        # --- FGI ---
         tw_fgi = data.get('tw_fgi') or {}
         tw_score = tw_fgi.get('score')
         tw_label = tw_fgi.get('label', '')
 
         if tw_score is not None:
-            r1c3.metric("台灣 FGI", f"{tw_score:.0f}", delta=tw_label)
-            r1c3.progress(int(min(max(tw_score, 0), 100)))
+            r1c2.metric("台灣 FGI", f"{tw_score:.0f}", delta=tw_label)
+            r1c2.progress(int(min(max(tw_score, 0), 100)))
         else:
-            r1c3.metric("台灣 FGI", "N/A")
+            r1c2.metric("台灣 FGI", "N/A")
+
+        # 右: 美股指數 + CNN FGI
+        _render_index_card(r1c3, us)
 
         cnn_fgi = data.get('cnn_fgi') or {}
         cnn_score = cnn_fgi.get('score')
