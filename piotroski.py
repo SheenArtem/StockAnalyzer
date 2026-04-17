@@ -215,9 +215,12 @@ def _fetch_income(dl, stock_id, start_date):
     {period_str: {revenue, gross_profit, operating_income, net_income}}
     """
     try:
-        df = dl.taiwan_stock_financial_statement(
-            stock_id=stock_id, start_date=start_date)
-        if df.empty:
+        # P1 磁碟快取：財報季更，TTL 60 天（省 ~99% FinMind 配額）
+        from cache_manager import get_finmind_cached
+        df = get_finmind_cached(dl, 'financial_statement', stock_id,
+                                'taiwan_stock_financial_statement',
+                                ttl_days=60, start_date_filter=start_date)
+        if df is None or df.empty:
             return None
     except Exception:
         return None
@@ -254,9 +257,11 @@ def _fetch_balance(dl, stock_id, start_date):
                   retained_earnings, equity}}
     """
     try:
-        df = dl.taiwan_stock_balance_sheet(
-            stock_id=stock_id, start_date=start_date)
-        if df.empty:
+        from cache_manager import get_finmind_cached
+        df = get_finmind_cached(dl, 'balance_sheet', stock_id,
+                                'taiwan_stock_balance_sheet',
+                                ttl_days=60, start_date_filter=start_date)
+        if df is None or df.empty:
             return None
     except Exception:
         return None
@@ -296,9 +301,11 @@ def _fetch_cashflow(dl, stock_id, start_date):
     {period_str: {operating_cf, investing_cf, financing_cf, capex}}
     """
     try:
-        df = dl.taiwan_stock_cash_flows_statement(
-            stock_id=stock_id, start_date=start_date)
-        if df.empty:
+        from cache_manager import get_finmind_cached
+        df = get_finmind_cached(dl, 'cash_flows_statement', stock_id,
+                                'taiwan_stock_cash_flows_statement',
+                                ttl_days=60, start_date_filter=start_date)
+        if df is None or df.empty:
             return None
     except Exception:
         return None

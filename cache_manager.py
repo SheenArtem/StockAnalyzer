@@ -14,6 +14,82 @@ CACHE_DIR = "data_cache"
 # Module-level lock for cache write operations
 _cache_lock = threading.Lock()
 
+
+# ================================================================
+# FinMind low-frequency disk cache (P1-P3 optimization, 2026-04-17)
+# ================================================================
+# 財報季更、月營收月更、股利年更 — 不需要每日抓
+# 磁碟快取顯著節省 FinMind 配額（估計 -75% 每日 SCAN 用量）
+
+def get_finmind_cached(dl, cache_key, stock_id, method_name, ttl_days,
+                       start_date_filter=None, fixed_wide_start='2015-01-01'):
+    """Disk-cached FinMind fetch for low-frequency datasets.
+
+    永遠用 `fixed_wide_start` 抓完整歷史快取，caller 可選傳 `start_date_filter`
+    在回傳前過濾。TTL 依資料更新頻率設定：
+      - 財報（季更）: 60 days
+      - 月營收（月更）: 20 days
+      - 股利（年/半年）: 30 days
+
+    Args:
+        dl: FinMindTracker (or raw DataLoader) instance
+        cache_key: 快取分類鍵，例：'financial_statement' / 'month_revenue'
+        stock_id: 股票代號
+        method_name: dl 上的方法名，例：'taiwan_stock_financial_statement'
+        ttl_days: 快取有效天數
+        start_date_filter: 呼叫端想要的起始日期（optional，讀取時過濾）
+        fixed_wide_start: 快取底層一律用此起始日抓（預設 2015-01-01，涵蓋 10 年）
+
+    Returns:
+        DataFrame（empty 時回 pd.DataFrame()）
+    """
+    from pathlib import Path
+    path = Path(CACHE_DIR) / 'finmind_cache' / f"{cache_key}_{stock_id}.parquet"
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    df = None
+    # 1. 嘗試讀磁碟快取
+    if path.exists():
+        age_days = (time.time() - path.stat().st_mtime) / 86400
+        if age_days < ttl_days:
+            try:
+                df = pd.read_parquet(path)
+                logger.debug("finmind_cache HIT %s/%s (age %.1fd)", cache_key, stock_id, age_days)
+            except Exception as e:
+                logger.warning("finmind_cache read failed %s: %s", path, e)
+                df = None
+
+    # 2. 快取 miss 或過期 → 抓 FinMind
+    if df is None:
+        try:
+            method = getattr(dl, method_name)
+            df = method(stock_id=stock_id, start_date=fixed_wide_start)
+            if df is not None and not df.empty:
+                with _cache_lock:
+                    try:
+                        df.to_parquet(path)
+                        logger.debug("finmind_cache WRITE %s/%s (%d rows)",
+                                     cache_key, stock_id, len(df))
+                    except Exception as e:
+                        logger.warning("finmind_cache write failed %s: %s", path, e)
+        except Exception as e:
+            logger.warning("FinMind fetch failed %s/%s: %s", cache_key, stock_id, e)
+            return pd.DataFrame()
+
+    if df is None or df.empty:
+        return pd.DataFrame() if df is None else df
+
+    # 3. Apply start_date filter
+    if start_date_filter and 'date' in df.columns:
+        try:
+            filter_date = pd.to_datetime(start_date_filter)
+            df_dates = pd.to_datetime(df['date'])
+            df = df[df_dates >= filter_date].copy()
+        except Exception as e:
+            logger.debug("start_date_filter skipped: %s", e)
+
+    return df
+
 # ================================================================
 # FinMind DataLoader Factory (shared, token-aware, rate-tracked)
 # ================================================================
