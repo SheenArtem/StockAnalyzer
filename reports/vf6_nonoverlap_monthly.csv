@@ -1,0 +1,7 @@
+mode,horizon,n_periods,mean_per_period_pct,std_per_period_pct,sharpe_annualized,compound_return_pct,cagr_pct,max_drawdown_pct,win_rate_pct
+mixed,fwd_20d,64,1.1785,7.0907,0.5757,81.1052,11.7795,-31.2092,54.6875
+mixed,fwd_40d,64,3.0251,11.1691,0.9382,362.4609,33.2605,-45.6086,54.6875
+pure_right,fwd_20d,64,2.7730,7.4721,1.2856,387.6760,34.5937,-30.0103,62.5000
+pure_right,fwd_40d,64,5.7184,11.0774,1.7882,2391.0972,82.7356,-42.3732,68.7500
+pure_left,fwd_20d,64,1.0280,7.1953,0.4949,63.8199,9.6968,-37.4673,51.5625
+pure_left,fwd_40d,64,2.6428,10.8493,0.8438,274.8360,28.1136,-53.2999,60.9375

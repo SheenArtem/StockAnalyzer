@@ -19,8 +19,21 @@ import numpy as np
 # ============================================================
 DEFAULT_HARD_STOP_PCT = 0.08       # -8%
 DEFAULT_MA20_BREAK_PCT = 0.03      # 週 MA20 跌破 3% 才觸發
-DEFAULT_MIN_SL_GAP = 0.03         # 停損距進場至少 3%
+DEFAULT_MIN_SL_GAP = 0.03         # 停損距進場至少 3%（下限）
+MIN_SL_GAP_ATR_MULT = 1.5         # VF-1 驗證：高 ATR 股需至少 1.5 個日 ATR 距離
 DEFAULT_TP_PCTS = (0.15, 0.25, 0.40)  # +15%, +25%, +40%
+
+
+def compute_min_sl_gap(atr_pct=None):
+    """VF-1 驗證：動態 min_sl_gap = max(3%, atr% × 1.5)。
+
+    高波動股（ATR > 2%）將提高門檻避免 MA20W 距 entry 過近被噪音打穿。
+    低波動 / 未提供 atr_pct 時退回固定 3%。
+    驗證報告：reports/vf1_min_sl_gap_validation.md（B 級，勝率 +8.3pp、R:R>5 虛高率 -71%）。
+    """
+    if atr_pct is None or atr_pct <= 0:
+        return DEFAULT_MIN_SL_GAP
+    return max(DEFAULT_MIN_SL_GAP, atr_pct * MIN_SL_GAP_ATR_MULT / 100.0)
 
 # ============================================================
 #  Phase 2 ATR% 動態參數
@@ -32,6 +45,9 @@ ATR_STOP_CEIL = 0.14              # 停損上限 -14%
 ATR_STOP_MULTIPLIER = 3.0         # stop_pct = atr_pct * multiplier
 ATR_TP_SCALE_FLOOR = 0.7          # 低波動: TP 打 7 折
 ATR_TP_SCALE_CEIL = 1.6           # 高波動: TP 放大 1.6 倍
+MA20_BREAK_ATR_MULT = 1.2         # MA20 跌破容忍 = atr% × 此倍數（clip MA20_BREAK_FLOOR~CEIL）
+MA20_BREAK_FLOOR = 0.02           # 低波動下限 2%
+MA20_BREAK_CEIL = 0.05            # 高波動上限 5%
 
 # ============================================================
 #  Phase 3 防甩轎 + Break-even
@@ -43,21 +59,24 @@ BREAKEVEN_TRIGGER_PCT = 0.08      # 獲利 >= 8% 後停損提升至成本價（P
 BREAKEVEN_ATR_MULTIPLIER = 3.0    # breakeven_trigger = atr_pct * multiplier (動態)
 
 # ============================================================
-#  Phase 4 Regime Overlay
+#  Phase 4 Regime Overlay — ⚠️ 已停用（VF-G3 Part 1 驗證 D 級，2026-04-17）
 # ============================================================
-# HMM regime -> (SL 乘數, TP 乘數)
-# SL 乘數 > 1 = 放寬停損（更遠）；< 1 = 收緊停損（更近）
-# TP 乘數 > 1 = 放寬停利（讓利潤跑）；< 1 = 提前停利
+# 驗證結果：8 組 regime 乘數跑輸 (1.0, 1.0)：
+#   - V1 vs V2 delta mean -0.13%, Sharpe -0.006
+#   - Walk-forward 61 windows 中 V1 只勝 17 次（28%，跨期不穩）
+#   - Volatile (最大樣本 n=5349) 的 (1.2, 0.8) 反而拖累 mean -0.343%
+# 參數保留成 dict 以便 regression 時復活比對，但預設全 (1.0, 1.0)。
+# 報告：reports/vfg3_part1_regime_exit_mult.md
 REGIME_EXIT_MULT = {
-    'trending': (0.85, 1.20),  # 趨勢明確：收緊停損（跌就是真跌）、放寬停利（讓趨勢跑）
-    'ranging':  (1.00, 1.00),  # 震盪：維持預設
-    'volatile': (1.20, 0.80),  # 高波動：放寬停損（避免甩轎）、提前停利（落袋為安）
-    'neutral':  (1.00, 1.00),  # 中性：維持預設
+    'trending': (1.00, 1.00),
+    'ranging':  (1.00, 1.00),
+    'volatile': (1.00, 1.00),
+    'neutral':  (1.00, 1.00),
 }
 
 
 def compute_exit_plan(entry_price, weekly_ma20=None, atr_pct=None,
-                      regime=None, min_sl_gap=DEFAULT_MIN_SL_GAP):
+                      regime=None, min_sl_gap=None):
     """
     計算停損 + 停利計畫。
 
@@ -72,9 +91,11 @@ def compute_exit_plan(entry_price, weekly_ma20=None, atr_pct=None,
         例：2.5 表示每日平均振幅為價格的 2.5%。
     regime : str or None
         HMM 市場狀態 ('trending'/'ranging'/'volatile'/'neutral')。
-        提供時啟用 Phase 4 regime overlay。
-    min_sl_gap : float
-        停損距進場最小距離（比例），避免噪音觸發
+        ⚠️ Phase 4 regime overlay 已停用（VF-G3 Part 1 驗證 D 級）。
+        參數保留供 UI 顯示與未來研究，不影響 SL/TP 計算。
+    min_sl_gap : float or None
+        停損距進場最小距離（比例），避免噪音觸發。None 時依 atr_pct 動態計算
+        （VF-1 驗證：max(3%, atr% × 1.5)）；傳入數字則強制覆寫。
 
     Returns
     -------
@@ -92,6 +113,10 @@ def compute_exit_plan(entry_price, weekly_ma20=None, atr_pct=None,
     """
     if entry_price <= 0:
         return _empty_plan()
+
+    # VF-1：min_sl_gap 未指定時依 atr_pct 動態
+    if min_sl_gap is None:
+        min_sl_gap = compute_min_sl_gap(atr_pct)
 
     # Phase 4: regime overlay 乘數
     sl_mult, tp_mult = REGIME_EXIT_MULT.get(regime, (1.0, 1.0))
@@ -179,8 +204,9 @@ def compute_ma20_break_threshold(weekly_ma20, atr_pct=None):
         return 0.0
 
     if atr_pct is not None and atr_pct > 0:
-        # 高波動給更寬容忍：break_pct 範圍 2% ~ 5%
-        break_pct = np.clip(atr_pct / 100.0 * 1.2, 0.02, 0.05)
+        # 高波動給更寬容忍（VF-G1 TODO：此倍數與 floor/ceil 待 grid search 驗證）
+        break_pct = np.clip(atr_pct / 100.0 * MA20_BREAK_ATR_MULT,
+                            MA20_BREAK_FLOOR, MA20_BREAK_CEIL)
     else:
         break_pct = DEFAULT_MA20_BREAK_PCT
 
