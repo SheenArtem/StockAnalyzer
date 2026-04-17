@@ -29,7 +29,7 @@ DEFAULT_CONFIG = {
     'twse_value_pct': 0.0002,   # (legacy fallback) 上市成交值佔比
     'tpex_value_pct': 0.0005,   # (legacy fallback) 上櫃成交值佔比
     'market_cap_top_n': 300,     # 市值前 N 大
-    'min_avg_tv_20d': 5e8,       # 20 日均成交值門檻（5 億）
+    'min_avg_tv_60d': 5e8,       # 60 日均成交值門檻（5 億）— 對齊 QM 20-60d 持有期間
     'min_price': 0,              # 最低股價門檻（預設關閉）
     'momentum_change_min': -1.0, # 當日漲跌幅下限 %（允許微跌）
 
@@ -431,15 +431,15 @@ class MomentumScreener:
             mc_sorted = sorted(tv_data.items(), key=lambda x: x[1].get('market_cap', 0), reverse=True)
             mc_top_ids = {sid for sid, _ in mc_sorted[:mc_top_n]}
 
-            # 20 日均成交值 > 門檻
-            min_avg_tv = cfg.get('min_avg_tv_20d', 5e8)
+            # 60 日均成交值 > 門檻
+            min_avg_tv = cfg.get('min_avg_tv_60d', 5e8)
             tv_pass_ids = {sid for sid, d in tv_data.items()
-                           if d.get('avg_tv_20d', 0) >= min_avg_tv}
+                           if d.get('avg_tv_60d', 0) >= min_avg_tv}
 
             # 聯集
             eligible_ids = mc_top_ids | tv_pass_ids
             self.progress(f"  Stage 1: market_cap top {mc_top_n}={len(mc_top_ids)}, "
-                          f"avg_tv>={min_avg_tv/1e8:.0f}億={len(tv_pass_ids)}, "
+                          f"avg_tv_60d>={min_avg_tv/1e8:.0f}億={len(tv_pass_ids)}, "
                           f"union={len(eligible_ids)}")
 
             passed = df[df['stock_id'].isin(eligible_ids)].copy()
@@ -493,8 +493,8 @@ class MomentumScreener:
     @staticmethod
     def _fetch_tv_marketcap_volume():
         """
-        TradingView batch: 市值 + 均量（1hr cache）。
-        Returns: {stock_id: {market_cap, avg_tv_20d}} or {}
+        TradingView batch: 市值 + 60日均量（1hr cache）。
+        Returns: {stock_id: {market_cap, avg_tv_60d}} or {}
         """
         import time as _time
 
@@ -509,7 +509,7 @@ class MomentumScreener:
             from tradingview_screener import Query
             result = (Query()
                 .select('name', 'market_cap_basic', 'close',
-                        'average_volume_10d_calc', 'average_volume_30d_calc')
+                        'average_volume_60d_calc')
                 .set_markets('taiwan')
                 .limit(5000)
                 .get_scanner_data()
@@ -522,18 +522,14 @@ class MomentumScreener:
                     continue
                 mc = row.get('market_cap_basic')
                 close = row.get('close')
-                v10 = row.get('average_volume_10d_calc')
-                v30 = row.get('average_volume_30d_calc')
+                v60 = row.get('average_volume_60d_calc')
                 if mc is None or (isinstance(mc, float) and np.isnan(mc)):
                     mc = 0
-                # 20d avg TV ~= close * avg(10d_vol, 30d_vol)
+                # 60d avg TV = close × 60d avg volume
                 avg_tv = 0
-                if close and v10 and v30:
-                    avg_vol = (v10 + v30) / 2
-                    avg_tv = close * avg_vol
-                elif close and v10:
-                    avg_tv = close * v10
-                data[sid] = {'market_cap': mc, 'avg_tv_20d': avg_tv}
+                if close and v60:
+                    avg_tv = close * v60
+                data[sid] = {'market_cap': mc, 'avg_tv_60d': avg_tv}
 
             logger.info("TV market cap batch: %d stocks", len(data))
             setattr(MomentumScreener, cache_attr, data)
