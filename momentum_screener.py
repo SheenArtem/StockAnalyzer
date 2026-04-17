@@ -213,7 +213,14 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None,
     if not action_plan or not action_plan.get('is_actionable'):
         return action_plan
 
-    entry_basis = action_plan.get('rec_entry_high') or action_plan.get('current_price', 0)
+    # R:R 用進場區間中點（entry_basis），而非樂觀的 entry_high
+    # 進場區間代表「掛單接價」的合理區間，R:R 要反映平均情境
+    rec_entry_low = action_plan.get('rec_entry_low') or 0
+    rec_entry_high = action_plan.get('rec_entry_high') or 0
+    if rec_entry_low > 0 and rec_entry_high > 0:
+        entry_basis = (rec_entry_low + rec_entry_high) / 2
+    else:
+        entry_basis = rec_entry_high or action_plan.get('current_price', 0)
     if entry_basis is None or entry_basis <= 0:
         return action_plan
 
@@ -234,6 +241,12 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None,
     rec_sl_price = plan['stop_loss']
     rec_sl_method = f"QM. {plan['stop_method']}"
     hard_sl = plan['hard_stop']
+
+    # --- 硬約束：SL 必須低於 entry_low，避免停損落在進場區間內 ---
+    # 若週 MA20 落在進場區間內（entry_low 以上）→ fallback 到硬停損
+    if rec_entry_low > 0 and rec_sl_price >= rec_entry_low:
+        rec_sl_price = hard_sl
+        rec_sl_method = f"QM. {plan['stop_method']} (MA20 在進場區間內, fallback)"
 
     # --- 停利三段（exit_manager 依 ATR% 縮放） ---
     tp_lvls = plan['tp_levels']
@@ -307,20 +320,25 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None,
     })
 
     # Regime tag for display
+    # VF-G3 Part 1 後 regime overlay 停用，只在 mult != 1.0 時才顯示
     regime_tag = ''
     if regime and regime != 'neutral':
         sl_m, tp_m = plan.get('regime_sl_mult', 1.0), plan.get('regime_tp_mult', 1.0)
-        regime_tag = f" [regime={regime}: SL×{sl_m}, TP×{tp_m}]"
+        if sl_m != 1.0 or tp_m != 1.0:
+            regime_tag = f" [regime={regime}: SL×{sl_m}, TP×{tp_m}]"
 
     base_strategy = qm_plan.get('strategy', '')
+    # VF-G2/Ext 驗證（2026-04-17, D 級拒絕 trailing；pure-hold 60d 贏主動 TP +6.2pp）
+    # ⚠️ 多頭年驗證（2021-25 僅 2022 空頭），空頭年三階 TP 可能救命，故保留 TP 當心理參考
     qm_note = (
-        "\n\n**QM 波段操作要點** (驗證: 60d Sharpe 1.67 / 勝率 76% / 平均 +14%)\n"
+        "\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n"
         f"- 第 1 批閘門: {gate['text']}\n"
         f"- 第 2 批補倉: {batch2_text}\n"
-        "- 持倉目標 **40-60 日**，不要短抱 (Sharpe 高點在 20d，報酬高點在 60d)\n"
+        "- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n"
         f"- 停損: **{rec_sl_method}** → {rec_sl_price:.2f}{regime_tag}\n"
-        f"- 停利: +{tp1_pct:.0f}% 減 1/3 → +{tp2_pct:.0f}% 改用週 MA10 移動停損 → +{tp3_pct:.0f}% 清倉\n"
-        "- 出場訊號: 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分"
+        f"- 停利: +{tp1_pct:.0f}% / +{tp2_pct:.0f}% / +{tp3_pct:.0f}% **僅供心理參考，不強制**\n"
+        "  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n"
+        "- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分"
     )
     qm_plan['strategy'] = base_strategy + qm_note
 

@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.17.04")
+    st.caption("Version: v2026.04.17.09")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -399,354 +399,10 @@ if st.session_state.get('app_mode') == 'screener':
         return f'T{tier} {"+".join(modes)}'
 
     # ====================================================================
-    # Tab 1: 右側動能選股 (hidden)
+    # Removed 2026-04-17: 右側動能選股 (TW+US) 隱藏 tab
+    # VF-6 A 級驗證：QM pure_right 改版後與舊動能選股重疊；移除舊 code 減少維護
+    # 若需復活，見 git history commit 前版本或 data/latest/momentum_result.json
     # ====================================================================
-    if False:  # hidden tab
-
-        with st.expander("📋 篩選條件說明"):
-            st.markdown("""
-**Stage 1 初篩（市值 + 流動性聯集）**
-
-| 條件 | 門檻 | 說明 |
-|------|------|------|
-| 市值前 300 大 | TradingView | 大型+中型股池 |
-| **OR** 20 日均成交值 | > 5 億 | 高流動性中小型股也入選 |
-| 當日漲跌幅 | > -1% | 允許微跌，排除大跌股 |
-
-**Stage 2 評分（觸發分數 + 趨勢分數）**
-
-由 `analysis_engine.py` 計算，綜合技術面、籌碼面、型態辨識等指標。
-
-**訊號代碼對照表**
-
-| 訊號 | 中文 | 說明 |
-|------|------|------|
-| `supertrend_bull` | Supertrend 多方 | 價格在趨勢線上方，趨勢向上 |
-| `supertrend_bear` | Supertrend 空方 | 價格在趨勢線下方，趨勢向下 |
-| `macd_golden` | MACD 黃金交叉 | MACD 線突破訊號線 / 柱狀體翻正 |
-| `macd_dead` | MACD 死亡交叉 | MACD 線跌破訊號線 / 柱狀體翻負 |
-| `rsi_bull_div` | RSI 底背離 | 價格創新低但 RSI 沒有，反彈訊號 |
-| `rsi_bear_div` | RSI 頂背離 | 價格創新高但 RSI 沒有，轉弱訊號 |
-| `rvol_high` | 爆量確認 | 成交量放大，突破有量能支撐 |
-| `rvol_low` | 量能萎縮 | 成交量極低，賣壓枯竭訊號 |
-| `inst_buy` | 法人買超 | 三大法人積極或持續買超 |
-| `inst_sell` | 法人賣超 | 三大法人大量賣超 |
-| `etf_sync_buy` | ETF 同步買超 | 多檔主動型 ETF 同時買入 |
-| `etf_buy` | ETF 買超 | 主動型 ETF 買超 |
-| `etf_sync_sell` | ETF 同步賣超 | 多檔主動型 ETF 同時賣出 |
-| `squeeze_fire` | 壓縮釋放 | 布林帶壓縮後突破，波動率擴張 |
-
-**低波放量指標（RVOL-ATR）**
-
-```
-RVOL     = 今日成交量 / 20日均量        （相對成交量）
-ATR_pct  = ATR(14) / 收盤價 x 100      （波動率佔比）
-低波放量 = RVOL 的 Z-Score - ATR_pct 的 Z-Score
-         （Z-Score = 252 日滾動標準化）
-```
-
-越高 = 成交量異常放大 + 波動率異常收斂 = 有人安靜吃貨。
-IC 驗證 60 日 Sharpe 9.50、勝率 76%，單一指標最強。
-""")
-
-        latest_file = _Path('data/latest/momentum_result.json')
-        scan_result = None
-        if latest_file.exists():
-            try:
-                with open(latest_file, 'r', encoding='utf-8') as _f:
-                    scan_result = _json.load(_f)
-            except Exception:
-                scan_result = None
-
-        if scan_result and scan_result.get('results'):
-            results = scan_result['results']
-            st.caption(
-                f"掃描日期: {scan_result.get('scan_date', '?')} {scan_result.get('scan_time', '')} | "
-                f"全市場 {scan_result.get('total_scanned', 0)} 檔 → "
-                f"初篩 {scan_result.get('passed_initial', 0)} 檔 → "
-                f"評分 {scan_result.get('scored_count', 0)} 檔 | "
-                f"耗時 {scan_result.get('elapsed_seconds', 0):.0f}s"
-            )
-
-            # Market regime (same for all picks in one scan)
-            _regime_raw = results[0].get('regime', 'unknown') if results else 'unknown'
-            _regime_map = {
-                'trending': ('趨勢盤', '大盤有明確方向', '加重趨勢信號 (T×1.3)，降低量能權重'),
-                'ranging':  ('盤整盤', '大盤橫盤震盪',   '加重量能信號 (V×1.3)，降低趨勢權重'),
-                'volatile': ('高波動', '大盤劇烈震盪',   '三組略降，量能稍加重，籌碼面權重降低'),
-                'neutral':  ('中性',   '無法判斷',       '三組等權重 (1:1:1)'),
-            }
-            _rn, _rd, _re = _regime_map.get(_regime_raw, ('未知', '', ''))
-            st.info(f"🏛️ 目前市場狀態: **{_rn}** — {_rd}｜評分影響: {_re}")
-
-            # Build DataFrame for display
-            _scenario_map = {'A': 'A 強攻', 'B': 'B 拉回', 'C': 'C 搶短', 'D': 'D 空手', 'N': 'N 觀望'}
-            _rows = []
-            for r in results:
-                _rl = r.get('rvol_lowatr')
-                _sc = r.get('scenario', {}).get('code', '')
-                _rows.append({
-                    '代號': r['stock_id'],
-                    '名稱': r.get('name', ''),
-                    '收盤': r.get('price', 0),
-                    '漲跌%': r.get('change_pct', 0),
-                    '均量(億)': round(r.get('avg_trading_value_5d', 0) / 1e8, 2),
-                    '觸發分數': r.get('trigger_score', 0),
-                    '趨勢分數': r.get('trend_score', 0),
-                    '劇本': _scenario_map.get(_sc, _sc),
-                    'ETF買超': r.get('etf_buy_count', 0),
-                    '低波放量': round(_rl, 2) if _rl is not None else None,
-                    'Top20': '★' if r.get('rvol_lowatr_top20') else '',
-                    '共振': _convergence_label(r['stock_id'], _conv_map_tw),
-                    '關鍵訊號': ', '.join(r.get('signals', [])[:3]),
-                })
-            _df_results = pd.DataFrame(_rows)
-
-            # rvol_lowatr Top20 filter
-            _show_top20 = st.checkbox("只顯示 低波放量 Top 20 (低波放量精選)", key='tw_mom_top20')
-            if _show_top20:
-                _df_results = _df_results[_df_results['Top20'] == '★']
-
-            # Sorting
-            _sort_options_m = {
-                '觸發分數 (高→低)': ('觸發分數', False),
-                '趨勢分數 (高→低)': ('趨勢分數', False),
-                '低波放量 (高→低)': ('低波放量', False),
-                '均量(億) (高→低)': ('均量(億)', False),
-                '漲跌% (高→低)': ('漲跌%', False),
-            }
-            _sort_choice = st.selectbox(
-                "排序方式", list(_sort_options_m.keys()),
-                key='momentum_tw_sort',
-            )
-            _sort_col, _sort_asc = _sort_options_m[_sort_choice]
-            _df_results = _df_results.sort_values(_sort_col, ascending=_sort_asc).reset_index(drop=True)
-            _df_results.index = range(1, len(_df_results) + 1)
-
-            st.dataframe(
-                _df_results,
-                width='stretch',
-                height=600,
-                column_config={
-                    '觸發分數': st.column_config.NumberColumn(format="%.1f"),
-                    '趨勢分數': st.column_config.NumberColumn(format="%.1f"),
-                    '漲跌%': st.column_config.NumberColumn(format="%.1f%%"),
-                    '收盤': st.column_config.NumberColumn(format="%.1f"),
-                    '均量(億)': st.column_config.NumberColumn(format="%.2f"),
-                },
-            )
-
-            st.caption("觸發分數 -10~+10 (日線進場信號) / 趨勢分數 -5~+5 (週線趨勢) / 低波放量 越高=低波放量")
-
-            # Detailed action plan (expandable per stock)
-            with st.expander("個股操作建議"):
-                _selected = st.selectbox(
-                    "選擇股票",
-                    options=[f"{r['stock_id']} {r.get('name', '')}" for r in results],
-                    key='screener_detail_select',
-                )
-                if _selected:
-                    _sid = _selected.split()[0]
-                    _match = next((r for r in results if r['stock_id'] == _sid), None)
-                    if _match:
-                        _sc = _match.get('scenario', {})
-                        _ap = _match.get('action_plan', {})
-                        _cl = _match.get('checklist', {})
-
-                        # Header: score + scenario
-                        st.markdown(f"### {_sid} {_match.get('name', '')}")
-                        st.markdown(f"**{_sc.get('title', '')}** — {_sc.get('desc', '')}")
-                        st.markdown(f"觸發分數: **{_match['trigger_score']:+.1f}** / "
-                                    f"趨勢分數: **{_match['trend_score']:+.1f}**")
-
-                        # Strategy + entry/exit
-                        if _ap.get('strategy'):
-                            st.markdown(f"\n{_ap['strategy']}")
-
-                        _col_l, _col_r = st.columns(2)
-                        with _col_l:
-                            st.markdown("**進場區間**")
-                            _el = _ap.get('rec_entry_low')
-                            _eh = _ap.get('rec_entry_high')
-                            if _el and _eh:
-                                st.markdown(f"- {_ap.get('rec_entry_desc', '')}: **{_el:.1f} ~ {_eh:.1f}**")
-                            else:
-                                st.markdown("- (無建議)")
-
-                            if _ap.get('tp_list'):
-                                st.markdown("**停利參考**")
-                                for _tp in _ap['tp_list']:
-                                    _rec = ' **(建議)**' if _tp.get('is_rec') else ''
-                                    st.markdown(f"- {_tp['method']}: {_tp['price']:.1f} — {_tp.get('desc', '')}{_rec}")
-
-                        with _col_r:
-                            if _ap.get('sl_list'):
-                                st.markdown("**停損參考**")
-                                for _sl in _ap['sl_list']:
-                                    _loss = _sl.get('loss')
-                                    _loss_str = f" ({_loss:+.1f}%)" if _loss is not None else ''
-                                    st.markdown(f"- {_sl['method']}: {_sl['price']:.1f}{_loss_str}")
-
-                            _rr = _ap.get('rr_ratio')
-                            if _rr:
-                                st.markdown(f"\n**風險報酬比**: {_rr:.1f}:1")
-
-                        # Checklist
-                        if _cl:
-                            st.markdown("---")
-                            if _cl.get('risk'):
-                                st.markdown("**風險警示**")
-                                for _item in _cl['risk']:
-                                    st.markdown(f"- {_item}")
-                            if _cl.get('active'):
-                                st.markdown("**加碼訊號**")
-                                for _item in _cl['active']:
-                                    st.markdown(f"- {_item}")
-                            if _cl.get('future'):
-                                st.markdown("**後續觀察**")
-                                for _item in _cl['future']:
-                                    st.markdown(f"- {_item}")
-
-                        # Trigger details (collapsed)
-                        with st.expander("評分明細", expanded=False):
-                            for d in _match.get('trigger_details', []):
-                                st.markdown(f"- {d}")
-
-        else:
-            st.info("尚無掃描結果。\n\n"
-                    "在命令列執行 `python scanner_job.py --mode momentum` 進行完整掃描\n"
-                    "（含觸發分數，約需 15-30 分鐘）")
-
-    # ====================================================================
-    # Tab US: 美股動能選股 (hidden)
-    # ====================================================================
-    if False:  # hidden tab
-
-        with st.expander("📋 Screening Criteria"):
-            st.markdown("""
-**Stage 1 Initial Filter**
-
-| Criteria | Threshold | Description |
-|----------|-----------|-------------|
-| Universe | S&P 500 | 美股以 S&P 500 成分股為掃描範圍 |
-| Min Volume | > 500,000 | 日均成交量，過濾低流動性 |
-| Min Price | > $5.00 | 排除低價股 (penny stocks) |
-| Daily Change | > -1% | 允許微跌，排除大跌股 |
-
-**Stage 2 Scoring**
-
-同台股動能評分，由 `analysis_engine.py` 計算觸發分數 + 趨勢分數。
-
-**Signal Reference**
-
-| Signal | 中文 | Description |
-|--------|------|-------------|
-| `supertrend_bull` | Supertrend 多方 | Price above Supertrend line |
-| `macd_golden` | MACD 黃金交叉 | MACD line crosses above signal |
-| `rsi_bull_div` | RSI 底背離 | Bullish divergence |
-| `rsi_bear_div` | RSI 頂背離 | Bearish divergence |
-| `rvol_high` | 爆量確認 | Volume surge confirms breakout |
-| `rvol_low` | 量能萎縮 | Volume dry-up, selling exhaustion |
-| `squeeze_fire` | 壓縮釋放 | Bollinger squeeze breakout |
-""")
-
-        us_file = _Path('data/latest/momentum_us_result.json')
-        us_result = None
-        if us_file.exists():
-            try:
-                with open(us_file, 'r', encoding='utf-8') as _f:
-                    us_result = _json.load(_f)
-            except Exception:
-                us_result = None
-
-        if us_result and us_result.get('results'):
-            us_results = us_result['results']
-            st.caption(
-                f"Scan: {us_result.get('scan_date', '?')} {us_result.get('scan_time', '')} | "
-                f"Universe: {us_result.get('total_scanned', 0)} → "
-                f"Passed: {us_result.get('passed_initial', 0)} → "
-                f"Scored: {us_result.get('scored_count', 0)} | "
-                f"Time: {us_result.get('elapsed_seconds', 0):.0f}s"
-            )
-
-            _us_regime_raw = us_results[0].get('regime', 'unknown') if us_results else 'unknown'
-            _us_regime_map = {
-                'trending': ('Trending', 'Clear market direction', 'Trend weight +30%, Volume weight -30%'),
-                'ranging':  ('Ranging',  'Sideways market',        'Volume weight +30%, Trend weight -30%'),
-                'volatile': ('Volatile', 'High volatility',        'All groups slightly reduced, chip weight lowered'),
-                'neutral':  ('Neutral',  'Undetermined',           'Equal weights (1:1:1)'),
-            }
-            _urn, _urd, _ure = _us_regime_map.get(_us_regime_raw, ('Unknown', '', ''))
-            st.info(f"🏛️ Market Regime: **{_urn}** — {_urd} | Scoring impact: {_ure}")
-
-            _us_rows = []
-            for r in us_results:
-                _rl = r.get('rvol_lowatr')
-                _us_rows.append({
-                    'Ticker': r['stock_id'],
-                    'Price': r.get('price', 0),
-                    'Chg%': r.get('change_pct', 0),
-                    'TV(M)': round(r.get('avg_trading_value_5d', 0) / 1e6, 1),
-                    'Score': r.get('trigger_score', 0),
-                    'Trend': r.get('trend_score', 0),
-                    '低波放量': round(_rl, 2) if _rl is not None else None,
-                    'Top20': '★' if r.get('rvol_lowatr_top20') else '',
-                    'Conv': _convergence_label(r['stock_id'], _conv_map_us),
-                    'Signals': ', '.join(r.get('signals', [])[:3]),
-                })
-            _us_df = pd.DataFrame(_us_rows)
-
-            _show_top20_us = st.checkbox("Show 低波放量 Top 20 only", key='us_mom_top20')
-            if _show_top20_us:
-                _us_df = _us_df[_us_df['Top20'] == '★']
-
-            _sort_opts_us_m = {
-                'Score (High→Low)': ('Score', False),
-                'Trend (High→Low)': ('Trend', False),
-                '低波放量 (High→Low)': ('低波放量', False),
-                'TV(M) (High→Low)': ('TV(M)', False),
-                'Chg% (High→Low)': ('Chg%', False),
-            }
-            _us_sort = st.selectbox("Sort by", list(_sort_opts_us_m.keys()), key='momentum_us_sort')
-            _us_sc, _us_sa = _sort_opts_us_m[_us_sort]
-            _us_df = _us_df.sort_values(_us_sc, ascending=_us_sa).reset_index(drop=True)
-            _us_df.index = range(1, len(_us_df) + 1)
-
-            st.dataframe(
-                _us_df,
-                width='stretch',
-                height=600,
-                column_config={
-                    'Score': st.column_config.NumberColumn(format="%.1f"),
-                    'Trend': st.column_config.NumberColumn(format="%.1f"),
-                    'Chg%': st.column_config.NumberColumn(format="%.1f%%"),
-                    'Price': st.column_config.NumberColumn(format="$%.2f"),
-                    'TV(M)': st.column_config.NumberColumn(format="%.1f"),
-                },
-            )
-            st.caption("Score -10~+10 (daily trigger) / Trend -5~+5 (weekly trend) / 低波放量 higher=low vol+high vol")
-
-            with st.expander("Detailed Scores"):
-                _us_selected = st.selectbox(
-                    "Select stock",
-                    options=[r['stock_id'] for r in us_results],
-                    key='us_detail_select',
-                )
-                if _us_selected:
-                    _us_match = next((r for r in us_results if r['stock_id'] == _us_selected), None)
-                    if _us_match:
-                        st.markdown(f"**{_us_selected}** — Score: {_us_match['trigger_score']:+.1f} / Trend: {_us_match['trend_score']:+.1f}")
-                        for d in _us_match.get('trigger_details', []):
-                            st.markdown(f"- {d}")
-
-        else:
-            st.info("No US scan results yet.\n\n"
-                    "**Usage:**\n"
-                    "1. Click 'Quick Preview' for S&P 500 initial filter\n"
-                    "2. Run `python scanner_job.py --mode momentum --market us` for full scan\n"
-                    "3. Full scan takes ~30-60 min for S&P 500")
-
-        st.caption("💡 Full scan: `python scanner_job.py --mode momentum --market us`")
 
     # ====================================================================
     # Tab Swing: 波段選股 (hidden)
@@ -1436,6 +1092,9 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 _ap = r.get('action_plan', {}) or {}
                 _sl = _ap.get('rec_sl_price')
                 _rr = _ap.get('rr_ratio')
+                _el = _ap.get('rec_entry_low')
+                _eh = _ap.get('rec_entry_high')
+                _entry_str = f"{_el:.1f}~{_eh:.1f}" if (_el and _eh) else None
                 _qm_rows.append({
                     '代號': r['stock_id'],
                     '名稱': r.get('name', ''),
@@ -1447,6 +1106,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '擇時': _timing_badge(_ts),
                     '觸發分數': _ts,
                     '收盤': r.get('price', 0),
+                    '建議進場': _entry_str,
                     '推薦停損': _sl if _sl else None,
                     'R:R': _rr if _rr else None,
                     '漲跌%': r.get('change_pct', 0),
@@ -1480,6 +1140,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '觸發分數': st.column_config.NumberColumn(format="%+.1f"),
                     '漲跌%': st.column_config.NumberColumn(format="%.1f%%"),
                     '收盤': st.column_config.NumberColumn(format="%.1f"),
+                    '建議進場': st.column_config.TextColumn(help="rec_entry_low ~ rec_entry_high"),
                     '推薦停損': st.column_config.NumberColumn(format="%.1f"),
                     'R:R': st.column_config.NumberColumn(format="%.2f"),
                 },
