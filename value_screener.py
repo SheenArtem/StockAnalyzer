@@ -194,6 +194,18 @@ class ValueScreener:
         # 排除 ETF (台股 ETF 以 "00" 開頭，如 0050/0056/0061)
         market_df = market_df[~market_df['stock_id'].str.startswith('00')].copy()
 
+        # 排除處置股（TWSE 上市；TPEX 尚未實作）
+        try:
+            disp = api.get_tw_disposition_stocks()
+            if disp:
+                before = len(market_df)
+                market_df = market_df[~market_df['stock_id'].isin(disp)]
+                removed = before - len(market_df)
+                if removed > 0:
+                    self.progress(f"排除處置股 {removed} 檔 (共 {len(disp)} 在處置中)")
+        except Exception as e:
+            logger.warning("Disposition exclusion skipped: %s", e)
+
         total_market = len(market_df)
 
         pe_df = api.get_pe_dividend_all_combined()
