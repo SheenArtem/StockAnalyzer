@@ -6,6 +6,8 @@ import threading
 import pandas as pd
 import datetime
 import time
+from pathlib import Path
+from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +15,9 @@ CACHE_DIR = "data_cache"
 
 # Module-level lock for cache write operations
 _cache_lock = threading.Lock()
+
+# USE_MOPS=true 時優先用 MOPS REST API（預設啟用）
+USE_MOPS = os.getenv("USE_MOPS", "true").lower() == "true"
 
 
 # ================================================================
@@ -89,6 +94,181 @@ def get_finmind_cached(dl, cache_key, stock_id, method_name, ttl_days,
             logger.debug("start_date_filter skipped: %s", e)
 
     return df
+
+# ================================================================
+# Calendar-aware stale check helpers
+# ================================================================
+
+def _is_cache_stale_monthly(df: pd.DataFrame, today: date) -> bool:
+    """月營收：過本月 13 號後若 cache 缺上月資料 -> stale。"""
+    if today.day < 13:
+        return False  # 還沒到公告期，舊快取仍有效
+    last_month_date = (today.replace(day=1) - timedelta(days=1))
+    last_month_str = last_month_date.strftime("%Y-%m")
+    if "date" not in df.columns or df.empty:
+        return True
+    try:
+        cache_latest = pd.to_datetime(df["date"]).max().strftime("%Y-%m")
+        return cache_latest < last_month_str
+    except Exception:
+        return True
+
+
+def _is_cache_stale_quarterly(df: pd.DataFrame, today: date) -> bool:
+    """財報：過已知季度 deadline + 7 天 buffer 若 cache 缺該季 -> stale。
+
+    Deadline（台灣規定）:
+      Q4 (次年 3/31 + 7d)  -> expected 12 月底
+      Q1 (5/15 + 7d)       -> expected 3 月底
+      Q2 (8/14 + 7d)       -> expected 6 月底
+      Q3 (11/14 + 7d)      -> expected 9 月底
+    """
+    year = today.year
+    DEADLINES = [
+        (date(year, 4, 7),   f"{year - 1}-12"),   # Q4
+        (date(year, 5, 22),  f"{year}-03"),         # Q1
+        (date(year, 8, 21),  f"{year}-06"),         # Q2
+        (date(year, 11, 21), f"{year}-09"),         # Q3
+    ]
+    if "date" not in df.columns or df.empty:
+        return True
+    try:
+        cache_latest = pd.to_datetime(df["date"]).max().strftime("%Y-%m")
+    except Exception:
+        return True
+
+    expected_latest = None
+    for deadline, exp_period in DEADLINES:
+        if today >= deadline:
+            if expected_latest is None or exp_period > expected_latest:
+                expected_latest = exp_period
+
+    if expected_latest is None:
+        return False
+    return cache_latest < expected_latest
+
+
+def _apply_date_filter(df: pd.DataFrame, start_date_filter) -> pd.DataFrame:
+    """按 start_date_filter 過濾 DataFrame（若無 date 欄則直接回傳）。"""
+    if start_date_filter is None or "date" not in df.columns or df.empty:
+        return df
+    try:
+        filter_dt = pd.to_datetime(start_date_filter)
+        df_dates = pd.to_datetime(df["date"])
+        return df[df_dates >= filter_dt].copy()
+    except Exception as e:
+        logger.debug("start_date_filter skipped: %s", e)
+        return df
+
+
+# ================================================================
+# Unified fundamental cache (MOPS primary + FinMind fallback)
+# ================================================================
+
+def get_cached_fundamentals(
+    dl,
+    cache_key: str,
+    stock_id: str,
+    mops_fetcher,           # callable: mops_fetcher(stock_id) -> DataFrame
+    finmind_method: str,    # dl 上的方法名
+    freshness: str = "quarterly",  # 'monthly' / 'quarterly' / 'annual'
+    start_date_filter=None,
+    mtime_max_age_days: int = 180,
+    fixed_wide_start: str = "2015-01-01",
+):
+    """三層快取：磁碟 -> MOPS primary -> FinMind fallback。
+
+    磁碟快取目錄：data_cache/fundamental_cache/
+    檔案：{cache_key}_{stock_id}.parquet
+
+    freshness:
+      'monthly'   -> calendar-aware: 每月 13 號後檢查是否缺上月
+      'quarterly' -> calendar-aware: 按季度公告 deadline 檢查
+      'annual'    -> mtime TTL 30 天
+
+    mtime_max_age_days: 超過此天數強制 refresh（兜底）
+    """
+    cache_path = Path(CACHE_DIR) / "fundamental_cache" / f"{cache_key}_{stock_id}.parquet"
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    today = date.today()
+
+    df_cached = None
+    cache_stale = True
+
+    if cache_path.exists() and cache_path.stat().st_size > 0:
+        age_days = (time.time() - cache_path.stat().st_mtime) / 86400
+        try:
+            df_cached = pd.read_parquet(cache_path)
+            logger.debug("fundamental_cache READ %s/%s (age %.1fd)", cache_key, stock_id, age_days)
+        except Exception as e:
+            logger.warning("fundamental_cache read failed %s: %s", cache_path, e)
+            df_cached = None
+
+        if df_cached is not None and not df_cached.empty:
+            # Calendar-aware stale check
+            if freshness == "monthly":
+                cache_stale = _is_cache_stale_monthly(df_cached, today)
+            elif freshness == "quarterly":
+                cache_stale = _is_cache_stale_quarterly(df_cached, today)
+            elif freshness == "annual":
+                cache_stale = age_days > 30
+            else:
+                cache_stale = age_days > mtime_max_age_days
+
+            # 兜底：無論 calendar 怎麼說，超過 mtime_max_age_days 強制 refresh
+            if age_days > mtime_max_age_days:
+                cache_stale = True
+        else:
+            cache_stale = True
+
+    if not cache_stale and df_cached is not None and not df_cached.empty:
+        logger.debug("fundamental_cache HIT %s/%s", cache_key, stock_id)
+        return _apply_date_filter(df_cached, start_date_filter)
+
+    # MISS -> fetch
+    new_df = None
+    if USE_MOPS and mops_fetcher is not None:
+        try:
+            new_df = mops_fetcher(stock_id)
+            if new_df is not None and not new_df.empty:
+                logger.debug("fundamental_cache MOPS HIT %s/%s (%d rows)",
+                             cache_key, stock_id, len(new_df))
+            else:
+                new_df = None
+        except Exception as e:
+            logger.warning("MOPS failed %s/%s: %s (fallback to FinMind)",
+                           cache_key, stock_id, e)
+            new_df = None
+
+    if new_df is None or new_df.empty:
+        # FinMind fallback
+        try:
+            method = getattr(dl, finmind_method)
+            new_df = method(stock_id=stock_id, start_date=fixed_wide_start)
+            if new_df is not None and not new_df.empty:
+                logger.debug("fundamental_cache FinMind HIT %s/%s (%d rows)",
+                             cache_key, stock_id, len(new_df))
+        except Exception as e:
+            logger.warning("FinMind failed %s/%s: %s", cache_key, stock_id, e)
+            # 若 cache 有舊資料，降級使用（總比沒有好）
+            if df_cached is not None and not df_cached.empty:
+                logger.info("fundamental_cache STALE FALLBACK %s/%s", cache_key, stock_id)
+                return _apply_date_filter(df_cached, start_date_filter)
+            return pd.DataFrame()
+
+    if new_df is not None and not new_df.empty:
+        with _cache_lock:
+            try:
+                new_df.to_parquet(cache_path)
+                logger.debug("fundamental_cache WRITE %s/%s (%d rows)",
+                             cache_key, stock_id, len(new_df))
+            except Exception as e:
+                logger.warning("fundamental_cache write failed %s: %s", cache_path, e)
+
+    if new_df is None or new_df.empty:
+        return pd.DataFrame()
+    return _apply_date_filter(new_df, start_date_filter)
+
 
 # ================================================================
 # FinMind DataLoader Factory (shared, token-aware, rate-tracked)

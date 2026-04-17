@@ -215,11 +215,20 @@ def _fetch_income(dl, stock_id, start_date):
     {period_str: {revenue, gross_profit, operating_income, net_income}}
     """
     try:
-        # P1 磁碟快取：財報季更，TTL 60 天（省 ~99% FinMind 配額）
-        from cache_manager import get_finmind_cached
-        df = get_finmind_cached(dl, 'financial_statement', stock_id,
-                                'taiwan_stock_financial_statement',
-                                ttl_days=60, start_date_filter=start_date)
+        from cache_manager import get_cached_fundamentals, get_finmind_cached, USE_MOPS
+        if USE_MOPS:
+            import mops_fetcher
+            df = get_cached_fundamentals(
+                dl, 'financial_statement', stock_id,
+                mops_fetcher=mops_fetcher.fetch_financial_statement_income,
+                finmind_method='taiwan_stock_financial_statement',
+                freshness='quarterly',
+                start_date_filter=start_date,
+            )
+        else:
+            df = get_finmind_cached(dl, 'financial_statement', stock_id,
+                                    'taiwan_stock_financial_statement',
+                                    ttl_days=60, start_date_filter=start_date)
         if df is None or df.empty:
             return None
     except Exception:
@@ -257,21 +266,35 @@ def _fetch_balance(dl, stock_id, start_date):
                   retained_earnings, equity}}
     """
     try:
-        from cache_manager import get_finmind_cached
-        df = get_finmind_cached(dl, 'balance_sheet', stock_id,
-                                'taiwan_stock_balance_sheet',
-                                ttl_days=60, start_date_filter=start_date)
+        from cache_manager import get_cached_fundamentals, get_finmind_cached, USE_MOPS
+        if USE_MOPS:
+            import mops_fetcher
+            df = get_cached_fundamentals(
+                dl, 'balance_sheet', stock_id,
+                mops_fetcher=mops_fetcher.fetch_financial_statement_balance,
+                finmind_method='taiwan_stock_balance_sheet',
+                freshness='quarterly',
+                start_date_filter=start_date,
+            )
+        else:
+            df = get_finmind_cached(dl, 'balance_sheet', stock_id,
+                                    'taiwan_stock_balance_sheet',
+                                    ttl_days=60, start_date_filter=start_date)
         if df is None or df.empty:
             return None
     except Exception:
         return None
 
     result = {}
+    # Accept both casings: MOPS 用 'NonCurrentLiabilities'（正確大小寫），
+    # FinMind 歷史上用 'NoncurrentLiabilities'（小寫 c）。
+    # 兼容兩者以避免 FinMind fallback 時 F5 Leverage 永遠 0 的 bug。
     type_map = {
         'TotalAssets': 'total_assets',
         'CurrentAssets': 'current_assets',
         'CurrentLiabilities': 'current_liabilities',
         'NonCurrentLiabilities': 'long_term_debt',
+        'NoncurrentLiabilities': 'long_term_debt',  # FinMind 小寫變體
         'Liabilities': 'total_liabilities',
         'RetainedEarnings': 'retained_earnings',
         'Equity': 'equity',
@@ -301,10 +324,20 @@ def _fetch_cashflow(dl, stock_id, start_date):
     {period_str: {operating_cf, investing_cf, financing_cf, capex}}
     """
     try:
-        from cache_manager import get_finmind_cached
-        df = get_finmind_cached(dl, 'cash_flows_statement', stock_id,
-                                'taiwan_stock_cash_flows_statement',
-                                ttl_days=60, start_date_filter=start_date)
+        from cache_manager import get_cached_fundamentals, get_finmind_cached, USE_MOPS
+        if USE_MOPS:
+            import mops_fetcher
+            df = get_cached_fundamentals(
+                dl, 'cash_flows_statement', stock_id,
+                mops_fetcher=mops_fetcher.fetch_financial_statement_cashflow,
+                finmind_method='taiwan_stock_cash_flows_statement',
+                freshness='quarterly',
+                start_date_filter=start_date,
+            )
+        else:
+            df = get_finmind_cached(dl, 'cash_flows_statement', stock_id,
+                                    'taiwan_stock_cash_flows_statement',
+                                    ttl_days=60, start_date_filter=start_date)
         if df is None or df.empty:
             return None
     except Exception:

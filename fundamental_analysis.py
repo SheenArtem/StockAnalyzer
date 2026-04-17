@@ -297,11 +297,21 @@ def get_taiwan_stock_revenue(stock_id):
         dl = _get_data_loader()
         # 抓取近 90 天 (確保有上個月資料)
         start_date = (datetime.datetime.now() - datetime.timedelta(days=90)).strftime('%Y-%m-%d')
-        # P2 磁碟快取：月營收月更，TTL 20 天（省 ~97% FinMind 配額）
-        from cache_manager import get_finmind_cached
-        df = get_finmind_cached(dl, 'month_revenue', stock_id,
-                                'taiwan_stock_month_revenue',
-                                ttl_days=20, start_date_filter=start_date)
+        # P2 磁碟快取：月營收月更，MOPS primary + FinMind fallback
+        from cache_manager import get_cached_fundamentals, get_finmind_cached, USE_MOPS
+        if USE_MOPS:
+            import mops_fetcher
+            df = get_cached_fundamentals(
+                dl, 'month_revenue', stock_id,
+                mops_fetcher=mops_fetcher.fetch_monthly_revenue,
+                finmind_method='taiwan_stock_month_revenue',
+                freshness='monthly',
+                start_date_filter=start_date,
+            )
+        else:
+            df = get_finmind_cached(dl, 'month_revenue', stock_id,
+                                    'taiwan_stock_month_revenue',
+                                    ttl_days=20, start_date_filter=start_date)
 
         if df is not None and not df.empty:
             latest = df.iloc[-1]
@@ -309,7 +319,7 @@ def get_taiwan_stock_revenue(stock_id):
             rev_val = latest['revenue'] / 1_000_000 # Convert to Millions
             return {
                 'revenue': rev_val,
-                'yoy': latest['revenue_year_growth']
+                'yoy': latest.get('revenue_year_growth', 0)
             }
     except Exception as e:
         print(f"Revenue Error: {e}")
@@ -323,11 +333,21 @@ def get_taiwan_stock_dividend_policy(stock_id):
         dl = _get_data_loader()
         # 股利通常一年一次，抓 2 年確保有資料
         start_date = (datetime.datetime.now() - datetime.timedelta(days=730)).strftime('%Y-%m-%d')
-        # P3 磁碟快取：股利年/半年更，TTL 30 天（省 ~98% FinMind 配額）
-        from cache_manager import get_finmind_cached
-        df = get_finmind_cached(dl, 'dividend', stock_id,
-                                'taiwan_stock_dividend',
-                                ttl_days=30, start_date_filter=start_date)
+        # P3 磁碟快取：股利年/半年更，MOPS primary + FinMind fallback
+        from cache_manager import get_cached_fundamentals, get_finmind_cached, USE_MOPS
+        if USE_MOPS:
+            import mops_fetcher
+            df = get_cached_fundamentals(
+                dl, 'dividend', stock_id,
+                mops_fetcher=mops_fetcher.fetch_dividend,
+                finmind_method='taiwan_stock_dividend',
+                freshness='annual',
+                start_date_filter=start_date,
+            )
+        else:
+            df = get_finmind_cached(dl, 'dividend', stock_id,
+                                    'taiwan_stock_dividend',
+                                    ttl_days=30, start_date_filter=start_date)
 
         if df is not None and not df.empty:
             # Sort by date
@@ -350,10 +370,20 @@ def get_revenue_history(stock_id, months=36):
         # 36 months + buffer
         start_date = (datetime.datetime.now() - datetime.timedelta(days=months*30 + 30)).strftime('%Y-%m-%d')
         # P2 復用同一份 month_revenue 快取（caller 提 36m window，cache 存 10 年從 2015）
-        from cache_manager import get_finmind_cached
-        df = get_finmind_cached(dl, 'month_revenue', stock_id,
-                                'taiwan_stock_month_revenue',
-                                ttl_days=20, start_date_filter=start_date)
+        from cache_manager import get_cached_fundamentals, get_finmind_cached, USE_MOPS
+        if USE_MOPS:
+            import mops_fetcher
+            df = get_cached_fundamentals(
+                dl, 'month_revenue', stock_id,
+                mops_fetcher=mops_fetcher.fetch_monthly_revenue,
+                finmind_method='taiwan_stock_month_revenue',
+                freshness='monthly',
+                start_date_filter=start_date,
+            )
+        else:
+            df = get_finmind_cached(dl, 'month_revenue', stock_id,
+                                    'taiwan_stock_month_revenue',
+                                    ttl_days=20, start_date_filter=start_date)
         if df is not None and not df.empty:
              df['date'] = pd.to_datetime(df['date'])
              df.sort_values('date', inplace=True)
