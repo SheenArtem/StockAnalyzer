@@ -733,8 +733,9 @@ class RevenueTracker:
     def get_monthly_revenue(self, stock_id: str, months: int = 24) -> pd.DataFrame:
         """Fetch monthly revenue data for a Taiwan stock.
 
-        Primary source: FinMind TaiwanStockMonthRevenue
-        Fallback: MOPS website scraping
+        Unified path via cache_manager.get_cached_fundamentals:
+          disk cache -> MOPS REST API (primary) -> FinMind (fallback).
+        Last resort: legacy MOPS HTML scraper (_fetch_revenue_mops).
 
         Returns
         -------
@@ -749,9 +750,9 @@ class RevenueTracker:
             logger.info("Monthly revenue cache hit for %s", stock_id)
             return cached
 
-        df = self._fetch_revenue_finmind(stock_id, months)
+        df = self._fetch_revenue_unified(stock_id, months)
         if df is None or df.empty:
-            logger.info("FinMind revenue unavailable for %s, trying MOPS", stock_id)
+            logger.info("Unified revenue unavailable for %s, trying MOPS HTML scrape", stock_id)
             df = self._fetch_revenue_mops(stock_id, months)
 
         if df is None or df.empty:
@@ -909,44 +910,53 @@ class RevenueTracker:
         ])
 
     # -----------------------------------------------------------------
-    # FinMind revenue
+    # Unified revenue fetch (MOPS primary + FinMind fallback + disk cache)
     # -----------------------------------------------------------------
-    def _fetch_revenue_finmind(self, stock_id: str, months: int) -> pd.DataFrame | None:
-        """Fetch monthly revenue from FinMind."""
+    def _fetch_revenue_unified(self, stock_id: str, months: int) -> pd.DataFrame | None:
+        """Fetch monthly revenue via unified cache manager.
+
+        Routes through cache_manager.get_cached_fundamentals, which does:
+          disk parquet cache (TTL 20d calendar-aware) -> MOPS REST API -> FinMind.
+        Returns DataFrame with computed yoy_pct / mom_pct / cumulative columns,
+        or None on total failure.
+        """
         try:
+            from cache_manager import get_cached_fundamentals, get_finmind_cached, USE_MOPS
             dl = _get_finmind_loader()
             today = datetime.date.today()
             start_date = (today - datetime.timedelta(days=months * 35)).strftime('%Y-%m-%d')
 
-            raw = dl.taiwan_stock_month_revenue(
-                stock_id=stock_id,
-                start_date=start_date,
-            )
+            if USE_MOPS:
+                import mops_fetcher
+                raw = get_cached_fundamentals(
+                    dl, 'month_revenue', stock_id,
+                    mops_fetcher=mops_fetcher.fetch_monthly_revenue,
+                    finmind_method='taiwan_stock_month_revenue',
+                    freshness='monthly',
+                    start_date_filter=start_date,
+                )
+            else:
+                raw = get_finmind_cached(
+                    dl, 'month_revenue', stock_id,
+                    'taiwan_stock_month_revenue',
+                    ttl_days=20, start_date_filter=start_date,
+                )
+
             if raw is None or raw.empty:
                 return None
-
-            # FinMind 欄位: date, stock_id, revenue, ...
             if 'revenue' not in raw.columns:
-                logger.warning("FinMind revenue response missing 'revenue' column for %s", stock_id)
+                logger.warning("Revenue response missing 'revenue' column for %s", stock_id)
                 return None
 
             raw = raw.sort_values('date', ascending=False).reset_index(drop=True)
-
-            # 限制到指定月數
             raw = raw.head(months)
 
             records = []
-            for i, row in raw.iterrows():
+            for _, row in raw.iterrows():
                 date_str = str(row.get('date', ''))
                 revenue = float(row.get('revenue', 0) or 0)
-
-                # year_month: YYYY-MM
                 year_month = date_str[:7] if len(date_str) >= 7 else date_str
-
-                records.append({
-                    'year_month': year_month,
-                    'revenue': revenue,
-                })
+                records.append({'year_month': year_month, 'revenue': revenue})
 
             if not records:
                 return None
@@ -956,7 +966,7 @@ class RevenueTracker:
             return df
 
         except Exception as exc:
-            logger.error("FinMind revenue fetch error for %s: %s", stock_id, exc)
+            logger.error("Unified revenue fetch error for %s: %s", stock_id, exc)
             return None
 
     # -----------------------------------------------------------------
