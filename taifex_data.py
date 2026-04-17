@@ -117,11 +117,13 @@ class TAIFEXData:
             'futures_price': 0.0,
             'spot_price': 0.0,
             'basis_pct': 0.0,
+            'data_date': None,
         }
 
         try:
             today = datetime.now()
             futures_price = 0.0
+            matched_date = None
 
             # 嘗試最近 5 個交易日 (跳過假日)
             for delta in range(5):
@@ -167,6 +169,7 @@ class TAIFEXData:
                         continue
 
                 if futures_price > 0:
+                    matched_date = d.date()
                     break
 
             # 取得加權指數現貨價
@@ -180,6 +183,7 @@ class TAIFEXData:
                     'futures_price': round(futures_price, 2),
                     'spot_price': round(spot_price, 2),
                     'basis_pct': round(basis_pct, 4),
+                    'data_date': matched_date,
                 }
 
             self._cache.set('futures_basis', result)
@@ -213,12 +217,14 @@ class TAIFEXData:
             'call_oi': 0,
             'put_oi': 0,
             'total_oi': 0,
+            'data_date': None,
         }
 
         try:
             today = datetime.now()
             call_oi = 0
             put_oi = 0
+            matched_date = None
 
             for delta in range(5):
                 d = today - timedelta(days=delta)
@@ -264,6 +270,7 @@ class TAIFEXData:
                 if call_oi_total > 0 or put_oi_total > 0:
                     call_oi = call_oi_total
                     put_oi = put_oi_total
+                    matched_date = d.date()
                     break
 
             if call_oi > 0:
@@ -277,6 +284,7 @@ class TAIFEXData:
                 'call_oi': call_oi,
                 'put_oi': put_oi,
                 'total_oi': total_oi,
+                'data_date': matched_date,
             }
 
             self._cache.set('put_call_ratio', result)
@@ -655,12 +663,18 @@ class TaiwanFearGreedIndex:
 
         label = self._score_to_label(composite_score)
 
+        # data_date 由最嚴格的子項 (margin 20:00) 決定，fallback 用 breadth 14:00
+        margin_comp = components.get('margin_balance') or {}
+        breadth_comp = components.get('market_breadth') or {}
+        data_date = margin_comp.get('data_date') or breadth_comp.get('data_date')
+
         result = {
             'score': composite_score,
             'label': label,
             'components': components,
             'available_indicators': len(valid_scores),
             'total_indicators': len(self.WEIGHTS),
+            'data_date': data_date,
         }
 
         self._cache.set('fear_greed_index', result)
@@ -839,6 +853,7 @@ class TaiwanFearGreedIndex:
 
             margin_balance = 0
             margin_prev = 0
+            matched_date = None
 
             # 解析融資餘額
             # MI_MARGN 欄位: [項目, 買進, 賣出, 現金償還, 前日餘額, 今日餘額]
@@ -853,6 +868,7 @@ class TaiwanFearGreedIndex:
                                 try:
                                     margin_balance = int(str(row[5]).replace(',', '').strip())
                                     margin_prev = int(str(row[4]).replace(',', '').strip())
+                                    matched_date = today.date()
                                 except (ValueError, IndexError):
                                     pass
                                 break
@@ -884,6 +900,7 @@ class TaiwanFearGreedIndex:
                                                 bal = int(str(row[5]).replace(',', '').strip())
                                                 if margin_balance == 0:
                                                     margin_balance = bal
+                                                    matched_date = prev_date.date()
                                                 else:
                                                     margin_prev = bal
                                                     break
@@ -911,6 +928,7 @@ class TaiwanFearGreedIndex:
                 'margin_balance': margin_balance,
                 'margin_prev': margin_prev,
                 'change_rate_pct': round(change_rate, 4),
+                'data_date': matched_date,
             }
 
         except requests.RequestException as e:

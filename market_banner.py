@@ -12,10 +12,19 @@ market_banner.py -- 大盤儀表板 Banner
   - 台灣 FGI：taifex_data.TaiwanFearGreedIndex
   - CNN FGI：cnn_fear_greed.CNNFearGreedIndex
   - 期貨/選擇權：taifex_data.TAIFEXData
+
+快取策略（per-indicator，依 reference_banner_cache_timing）：
+  - 台股 14:00 類（tw_index/basis/pcr）：抓到 today → 快取到隔天 14:00；
+    未抓到 → 5 分鐘 retry
+  - 台灣 FGI（20:00 融資）：抓到 today → 快取到隔天 20:00；
+    未抓到 → 30 分鐘 retry
+  - CNN FGI：美股盤中 1h / 閉市 4h
+  - S&P 500：美股盤中 5 分鐘 / 閉市到下個開盤
 """
 
 import logging
 import time
+from datetime import datetime, date as ddate, time as dtime, timedelta
 
 import numpy as np
 import pandas as pd
@@ -23,8 +32,112 @@ import streamlit as st
 
 logger = logging.getLogger(__name__)
 
-# 快取 TTL（秒）
-_BANNER_CACHE_TTL = 300  # 5 分鐘
+# ============================================================
+#  快取配置 (per-indicator)
+# ============================================================
+
+_CACHE_KEY = '_banner_cache_v2'
+
+# 台股日盤後資料發布時間
+_TW_14_CUTOFF = dtime(14, 0)      # 加權指數/漲跌家數/基差/PCR
+_TW_20_CUTOFF = dtime(20, 0)      # 融資餘額
+_TW_14_RETRY = 300                 # 5 分鐘
+_TW_20_RETRY = 1800                # 30 分鐘
+
+# 美股盤中 TW 時區 (粗估 ET 夏令時 21:30 TW - 04:00 TW，冬令 22:30 - 05:00)
+# 為簡單起見採 22:30 - 04:00，實際會因 DST 略有 1 小時誤差，不影響 TTL 策略
+_US_OPEN_TW = dtime(22, 30)
+_US_CLOSE_TW = dtime(4, 0)
+
+_CNN_INTRADAY_TTL = 3600           # 1h
+_CNN_CLOSED_TTL = 4 * 3600         # 4h
+
+_US_INDEX_INTRADAY_TTL = 300       # 5 分鐘
+
+
+# ============================================================
+#  交易日 / 時區 helpers
+# ============================================================
+
+def _now_tw():
+    """Server 運行於 TW 時區，直接回傳 local time。"""
+    return datetime.now()
+
+
+def _is_tw_trading_day(d):
+    """粗判：週一至週五。國定假日不處理（會在隔日被 last_trading_day 覆蓋）。"""
+    return d.weekday() < 5
+
+
+def _last_tw_trading_day_on_or_before(d):
+    """回傳 <= d 的最近交易日。"""
+    while not _is_tw_trading_day(d):
+        d -= timedelta(days=1)
+    return d
+
+
+def _next_tw_trading_day_after(d):
+    """回傳 > d 的下一個交易日。"""
+    d = d + timedelta(days=1)
+    while not _is_tw_trading_day(d):
+        d += timedelta(days=1)
+    return d
+
+
+def _expected_tw_date(cutoff, now=None):
+    """
+    依 cutoff 時間判斷目前應該要拿到的資料日期：
+      - 今天是交易日 且 現在時間 >= cutoff → expected = today
+      - 否則 → expected = 上一個交易日
+    """
+    now = now or _now_tw()
+    today = now.date()
+    if _is_tw_trading_day(today) and now.time() >= cutoff:
+        return today
+    # cutoff 前 或 非交易日 → 上一交易日
+    return _last_tw_trading_day_on_or_before(today - timedelta(days=1))
+
+
+def _next_tw_refresh_at(cutoff, now=None):
+    """
+    下一個應該 refresh 的 datetime：
+      - 今日是交易日 且 現在 < cutoff → 今天 cutoff（今天發布時間還沒到）
+      - 否則 → 下個交易日 cutoff
+    """
+    now = now or _now_tw()
+    today = now.date()
+    if _is_tw_trading_day(today) and now.time() < cutoff:
+        return datetime.combine(today, cutoff)
+    next_day = _next_tw_trading_day_after(today)
+    return datetime.combine(next_day, cutoff)
+
+
+def _is_us_market_hours(now=None):
+    """
+    粗估美股開盤時段 (TW 22:30 ~ 04:00)。
+    DST 冬令時會晚 1 小時，這裡不嚴格區分，影響僅 TTL 粒度。
+    """
+    now = now or _now_tw()
+    t = now.time()
+    # 晚盤：22:30 之後到午夜
+    if t >= _US_OPEN_TW:
+        return _is_tw_trading_day(now.date())
+    # 凌晨：0:00 ~ 04:00 → 視為「昨天」的美股盤中
+    if t <= _US_CLOSE_TW:
+        return _is_tw_trading_day(now.date() - timedelta(days=1))
+    return False
+
+
+def _next_us_open_at(now=None):
+    """下一次美股開盤時間 (TW 22:30 on trading day)。"""
+    now = now or _now_tw()
+    today = now.date()
+    # 若今日是交易日且現在 < 22:30 → 今晚 22:30
+    if _is_tw_trading_day(today) and now.time() < _US_OPEN_TW:
+        return datetime.combine(today, _US_OPEN_TW)
+    # 否則找下一個交易日
+    next_day = _next_tw_trading_day_after(today)
+    return datetime.combine(next_day, _US_OPEN_TW)
 
 
 # ============================================================
@@ -37,12 +150,12 @@ def _fetch_index_metrics(ticker, name):
 
     Returns
     -------
-    dict: price, ma20_bias, ma60_bias, k, d, change_pct
+    dict: price, ma20_bias, ma60_bias, k, d, change_pct, data_date
     """
     result = {
         'name': name, 'price': None, 'change_pct': None,
         'ma20_bias': None, 'ma60_bias': None,
-        'k': None, 'd': None, 'error': None,
+        'k': None, 'd': None, 'error': None, 'data_date': None,
     }
     try:
         import yfinance as yf
@@ -54,6 +167,12 @@ def _fetch_index_metrics(ticker, name):
         close = df['Close']
         high = df['High']
         low = df['Low']
+
+        # 資料日期（最後一根 K 的日期）
+        try:
+            result['data_date'] = df.index[-1].date()
+        except Exception:
+            pass
 
         # 現價 + 漲跌幅
         result['price'] = round(float(close.iloc[-1]), 2)
@@ -91,78 +210,178 @@ def _fetch_index_metrics(ticker, name):
 
 
 # ============================================================
-#  情緒 + 期權指標
+#  Per-indicator 快取
 # ============================================================
 
-def _fetch_sentiment_data():
-    """
-    抓台灣 FGI / CNN FGI / 期貨基差 / P/C Ratio。
+def _get_cache():
+    """取得 session_state 中的快取字典。"""
+    if _CACHE_KEY not in st.session_state:
+        st.session_state[_CACHE_KEY] = {}
+    return st.session_state[_CACHE_KEY]
 
-    Returns
-    -------
-    dict: tw_fgi, cnn_fgi, basis, pcr (each is a sub-dict or None)
-    """
-    data = {'tw_fgi': None, 'cnn_fgi': None, 'basis': None, 'pcr': None}
 
-    # 台灣 FGI
-    try:
-        from taifex_data import TaiwanFearGreedIndex
-        fgi = TaiwanFearGreedIndex()
-        data['tw_fgi'] = fgi.calculate()
-    except Exception as e:
-        logger.debug("TW FGI failed: %s", e)
+def _cache_get(indicator):
+    """若 cache 仍有效 → 回傳 value；否則 None。"""
+    entry = _get_cache().get(indicator)
+    if not entry:
+        return None
+    if time.time() < entry.get('expires_at', 0):
+        return entry.get('value')
+    return None
+
+
+def _cache_set(indicator, value, data_date, now=None):
+    """寫入快取並依 indicator 規則計算 expires_at。"""
+    now = now or _now_tw()
+    expires_at = _compute_expiry(indicator, data_date, now)
+    _get_cache()[indicator] = {
+        'value': value,
+        'fetched_at': time.time(),
+        'expires_at': expires_at,
+        'data_date': data_date,
+    }
+    logger.debug(
+        "banner cache set: %s data_date=%s expires_in=%.0fs",
+        indicator, data_date, expires_at - time.time(),
+    )
+
+
+def _compute_expiry(indicator, data_date, now):
+    """
+    依指標型別計算 expires_at (epoch secs)。
+
+    規則：
+      - tw_index/basis/pcr (14:00)：data_date==expected → 下個交易日 14:00；
+        否則 → 5 分鐘後重試
+      - tw_fgi (20:00 融資)：data_date==expected → 下個交易日 20:00；
+        否則 → 30 分鐘後重試
+      - us_index：盤中 5 分鐘；閉市 → 下次開盤
+      - cnn_fgi：盤中 1h；閉市 4h
+    """
+    # 台股 14:00 類
+    if indicator in ('tw_index', 'basis', 'pcr'):
+        expected = _expected_tw_date(_TW_14_CUTOFF, now)
+        if data_date == expected:
+            return _next_tw_refresh_at(_TW_14_CUTOFF, now).timestamp()
+        return time.time() + _TW_14_RETRY
+
+    # 台灣 FGI (20:00 融資為主)
+    if indicator == 'tw_fgi':
+        expected = _expected_tw_date(_TW_20_CUTOFF, now)
+        if data_date == expected:
+            return _next_tw_refresh_at(_TW_20_CUTOFF, now).timestamp()
+        return time.time() + _TW_20_RETRY
+
+    # 美股指數
+    if indicator == 'us_index':
+        if _is_us_market_hours(now):
+            return time.time() + _US_INDEX_INTRADAY_TTL
+        return _next_us_open_at(now).timestamp()
 
     # CNN FGI
-    try:
-        from cnn_fear_greed import CNNFearGreedIndex
-        cnn = CNNFearGreedIndex()
-        data['cnn_fgi'] = cnn.get_index()
-    except Exception as e:
-        logger.debug("CNN FGI failed: %s", e)
+    if indicator == 'cnn_fgi':
+        if _is_us_market_hours(now):
+            return time.time() + _CNN_INTRADAY_TTL
+        return time.time() + _CNN_CLOSED_TTL
 
-    # 期貨基差
-    try:
-        from taifex_data import TAIFEXData
-        taifex = TAIFEXData()
-        data['basis'] = taifex.get_futures_basis()
-    except Exception as e:
-        logger.debug("Futures basis failed: %s", e)
-
-    # P/C Ratio
-    try:
-        from taifex_data import TAIFEXData
-        taifex = TAIFEXData()
-        data['pcr'] = taifex.get_put_call_ratio()
-    except Exception as e:
-        logger.debug("PCR failed: %s", e)
-
-    return data
+    # 預設
+    return time.time() + 300
 
 
 # ============================================================
-#  帶快取的主入口
+#  個別 indicator fetch + cache wrapper
+# ============================================================
+
+def _fetch_or_cached_tw_index(now):
+    cached = _cache_get('tw_index')
+    if cached is not None:
+        return cached
+    value = _fetch_index_metrics('^TWII', '加權指數')
+    _cache_set('tw_index', value, value.get('data_date'), now)
+    return value
+
+
+def _fetch_or_cached_us_index(now):
+    cached = _cache_get('us_index')
+    if cached is not None:
+        return cached
+    value = _fetch_index_metrics('^GSPC', 'S&P 500')
+    # us_index 用時間窗口控制 TTL，不做 data_date 驗證
+    _cache_set('us_index', value, value.get('data_date'), now)
+    return value
+
+
+def _fetch_or_cached_tw_fgi(now):
+    cached = _cache_get('tw_fgi')
+    if cached is not None:
+        return cached
+    try:
+        from taifex_data import TaiwanFearGreedIndex
+        value = TaiwanFearGreedIndex().calculate()
+        _cache_set('tw_fgi', value, value.get('data_date'), now)
+        return value
+    except Exception as e:
+        logger.debug("TW FGI failed: %s", e)
+        return None
+
+
+def _fetch_or_cached_cnn_fgi(now):
+    cached = _cache_get('cnn_fgi')
+    if cached is not None:
+        return cached
+    try:
+        from cnn_fear_greed import CNNFearGreedIndex
+        value = CNNFearGreedIndex().get_index()
+        _cache_set('cnn_fgi', value, None, now)
+        return value
+    except Exception as e:
+        logger.debug("CNN FGI failed: %s", e)
+        return None
+
+
+def _fetch_or_cached_basis(now):
+    cached = _cache_get('basis')
+    if cached is not None:
+        return cached
+    try:
+        from taifex_data import TAIFEXData
+        value = TAIFEXData().get_futures_basis()
+        _cache_set('basis', value, value.get('data_date'), now)
+        return value
+    except Exception as e:
+        logger.debug("Futures basis failed: %s", e)
+        return None
+
+
+def _fetch_or_cached_pcr(now):
+    cached = _cache_get('pcr')
+    if cached is not None:
+        return cached
+    try:
+        from taifex_data import TAIFEXData
+        value = TAIFEXData().get_put_call_ratio()
+        _cache_set('pcr', value, value.get('data_date'), now)
+        return value
+    except Exception as e:
+        logger.debug("PCR failed: %s", e)
+        return None
+
+
+# ============================================================
+#  主入口
 # ============================================================
 
 def _get_banner_data():
-    """取得 banner 所有資料，帶 session_state 快取。"""
-    cache_key = '_market_banner_cache'
-    cache_ts_key = '_market_banner_ts'
-
-    cached = st.session_state.get(cache_key)
-    cached_ts = st.session_state.get(cache_ts_key, 0)
-
-    if cached and (time.time() - cached_ts) < _BANNER_CACHE_TTL:
-        return cached
-
-    # 重新抓取
-    tw = _fetch_index_metrics('^TWII', '加權指數')
-    us = _fetch_index_metrics('^GSPC', 'S&P 500')
-    sentiment = _fetch_sentiment_data()
-
-    data = {'tw': tw, 'us': us, **sentiment}
-    st.session_state[cache_key] = data
-    st.session_state[cache_ts_key] = time.time()
-    return data
+    """取得 banner 所有資料，依 per-indicator 策略分開快取。"""
+    now = _now_tw()
+    return {
+        'tw': _fetch_or_cached_tw_index(now),
+        'us': _fetch_or_cached_us_index(now),
+        'tw_fgi': _fetch_or_cached_tw_fgi(now),
+        'cnn_fgi': _fetch_or_cached_cnn_fgi(now),
+        'basis': _fetch_or_cached_basis(now),
+        'pcr': _fetch_or_cached_pcr(now),
+    }
 
 
 # ============================================================
