@@ -426,14 +426,21 @@ class MomentumScreener:
         tv_data = self._fetch_tv_marketcap_volume()
 
         if tv_data:
+            # 先濾掉 ETF (00**) / 特別股 (2881A 等帶字母) / 權證 (6 位代號)
+            # 否則 Top 300 會被特別股等灌水佔名額（TradingView 把母公司 MC 全灌到每個 ticker）
+            tv_clean = {
+                sid: d for sid, d in tv_data.items()
+                if sid.isdigit() and len(sid) == 4 and not sid.startswith('0')
+            }
+
             # 市值前 N 大
             mc_top_n = cfg.get('market_cap_top_n', 300)
-            mc_sorted = sorted(tv_data.items(), key=lambda x: x[1].get('market_cap', 0), reverse=True)
+            mc_sorted = sorted(tv_clean.items(), key=lambda x: x[1].get('market_cap', 0) or 0, reverse=True)
             mc_top_ids = {sid for sid, _ in mc_sorted[:mc_top_n]}
 
             # 60 日均成交值 > 門檻
             min_avg_tv = cfg.get('min_avg_tv_60d', 5e8)
-            tv_pass_ids = {sid for sid, d in tv_data.items()
+            tv_pass_ids = {sid for sid, d in tv_clean.items()
                            if d.get('avg_tv_60d', 0) >= min_avg_tv}
 
             # 聯集
