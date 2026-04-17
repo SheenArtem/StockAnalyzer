@@ -470,6 +470,19 @@ class MomentumScreener:
         if exclude:
             passed = passed[~passed['stock_id'].isin(exclude)]
 
+        # 排除處置股（TWSE 上市；TPEX 尚未實作）
+        try:
+            from twse_api import TWSEOpenData
+            disp = TWSEOpenData().get_tw_disposition_stocks()
+            if disp:
+                before = len(passed)
+                passed = passed[~passed['stock_id'].isin(disp)]
+                removed = before - len(passed)
+                if removed > 0:
+                    self.progress(f"  Stage 1: 排除處置股 {removed} 檔 (共 {len(disp)} 在處置中)")
+        except Exception as e:
+            logger.warning("Disposition exclusion skipped: %s", e)
+
         # Price filter
         if cfg['min_price'] > 0:
             passed = passed[passed['close'] >= cfg['min_price']]

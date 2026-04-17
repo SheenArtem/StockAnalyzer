@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.16.19")
+    st.caption("Version: v2026.04.17.01")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -1382,6 +1382,28 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                         )
                 st.caption("🟢 ≥3 今日可進場 / 🟡 0-3 觀察 / 🔴 <0 等訊號轉強（trigger_score 為日線擇時指標）")
 
+            # 台股市值排名（1 = 台股市值最大）— 復用 momentum_screener 的 1h cache
+            # 過濾 ETF/特別股/權證：僅保留 1000-9999 的一般普通股
+            try:
+                from momentum_screener import MomentumScreener
+                _tv_data_all = MomentumScreener._fetch_tv_marketcap_volume() or {}
+                _tv_data = {
+                    sid: d for sid, d in _tv_data_all.items()
+                    if sid.isdigit() and len(sid) == 4 and not sid.startswith('0')
+                }
+                _mc_rank = {
+                    sid: i + 1
+                    for i, (sid, _) in enumerate(
+                        sorted(
+                            _tv_data.items(),
+                            key=lambda x: x[1].get('market_cap', 0) or 0,
+                            reverse=True,
+                        )
+                    )
+                }
+            except Exception:
+                _mc_rank = {}
+
             _qm_rows = []
             for r in qm_results:
                 _fs = r.get('qm_f_score')
@@ -1394,6 +1416,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 _qm_rows.append({
                     '代號': r['stock_id'],
                     '名稱': r.get('name', ''),
+                    '市值排名': _mc_rank.get(r['stock_id']),
                     '綜合': _cs if _cs is not None else None,
                     'F-Score': _fs if _fs is not None else None,
                     '體質分': round(_bs, 0) if _bs is not None else None,
@@ -1414,6 +1437,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 '體質分 (高→低)': ('體質分', False),
                 '趨勢分數 (高→低)': ('趨勢分數', False),
                 'R:R (高→低)': ('R:R', False),
+                '市值排名 (小→大)': ('市值排名', True),
             }
             _qm_sort = st.selectbox("排序方式", list(_sort_opts_qm.keys()), key='qm_tw_sort')
             _qm_col, _qm_asc = _sort_opts_qm[_qm_sort]
@@ -1425,6 +1449,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 width='stretch',
                 height=600,
                 column_config={
+                    '市值排名': st.column_config.NumberColumn(format="%d", help="1 = 台股市值最大"),
                     '綜合': st.column_config.NumberColumn(format="%.1f"),
                     'F-Score': st.column_config.NumberColumn(format="%d"),
                     '體質分': st.column_config.NumberColumn(format="%.0f"),

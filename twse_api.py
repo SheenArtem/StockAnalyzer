@@ -1340,6 +1340,82 @@ class TWSEOpenData:
                      len(df_twse), len(df_tpex), len(df))
         return df
 
+    # ------------------------------------------------------------------ #
+    #  處置有價證券 (Disposition Stocks)
+    # ------------------------------------------------------------------ #
+
+    def get_tw_disposition_stocks(self):
+        """
+        取得當前仍在處置期間的 TWSE 上市普通股代號集合。
+
+        資料源：TWSE 公告「處置有價證券」(announcement/punish)
+        過濾：
+          - 僅 4 位數一般普通股（排除權證 6 位 / 特別股帶字母）
+          - 處置期間（ROC 格式 YYY/MM/DD～YYY/MM/DD）涵蓋今日
+
+        Returns:
+            set[str]: {stock_id, ...}；失敗則回空 set。
+
+        Note: 目前僅涵蓋 TWSE 上市，TPEX 上櫃 API 需另行開發。
+        """
+        import re
+
+        cached = self._get_cache('disposition_tw')
+        if cached is not None:
+            return cached
+
+        today = datetime.now().date()
+        today_roc = f"{today.year - 1911}/{today.strftime('%m/%d')}"
+
+        url = 'https://www.twse.com.tw/rwd/zh/announcement/punish'
+        try:
+            data = self._fetch_json(url, params={'response': 'json'})
+            if not data or data.get('stat') != 'OK':
+                logger.warning("Disposition fetch: stat=%s", data.get('stat') if data else None)
+                return set()
+
+            rows = data.get('data', []) or []
+            # 處置起迄時間 pattern: "115/04/17～115/04/30"（全形波浪～）
+            period_pat = re.compile(
+                r'(\d{2,3}/\d{1,2}/\d{1,2})\s*[~～-]\s*(\d{2,3}/\d{1,2}/\d{1,2})'
+            )
+            active = set()
+            for row in rows:
+                if not isinstance(row, list) or len(row) < 7:
+                    continue
+                sid = str(row[2]).strip()
+                # 只保留 4 位數一般普通股
+                if not sid.isdigit() or len(sid) != 4 or sid.startswith('0'):
+                    continue
+                period = str(row[6]).strip()
+                m = period_pat.search(period)
+                if not m:
+                    continue
+                start_roc, end_roc = m.group(1), m.group(2)
+                # 補零成 YYY/MM/DD 方便字串比較
+                start_roc = self._normalize_roc(start_roc)
+                end_roc = self._normalize_roc(end_roc)
+                today_norm = self._normalize_roc(today_roc)
+                if start_roc <= today_norm <= end_roc:
+                    active.add(sid)
+
+            self._set_cache('disposition_tw', active)
+            logger.info("TW disposition: %d active stocks (%s)",
+                        len(active), sorted(active))
+            return active
+
+        except Exception as e:
+            logger.warning("Failed to fetch TW disposition: %s", e)
+            return set()
+
+    @staticmethod
+    def _normalize_roc(roc_str):
+        """將 "115/4/2" / "115/04/02" 標準化為 "115/04/02"（方便字串比較）。"""
+        parts = roc_str.split('/')
+        if len(parts) != 3:
+            return roc_str
+        return f"{int(parts[0]):03d}/{int(parts[1]):02d}/{int(parts[2]):02d}"
+
 
 # ====================================================================== #
 #  __main__ test block
