@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.17.02")
+    st.caption("Version: v2026.04.17.03")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -972,6 +972,27 @@ ATR_pct  = ATR(14) / 收盤價 x 100      （波動率佔比）
                 )
                 _pm_hist = _pm_load_hist()
 
+                # 台股市值排名（1 = 台股市值最大）— 與 QM 表格共用 1h cache
+                try:
+                    from momentum_screener import MomentumScreener as _MS
+                    _tv_all = _MS._fetch_tv_marketcap_volume() or {}
+                    _tv_filtered = {
+                        sid: d for sid, d in _tv_all.items()
+                        if sid.isdigit() and len(sid) == 4 and not sid.startswith('0')
+                    }
+                    _pm_mc_rank = {
+                        sid: i + 1
+                        for i, (sid, _) in enumerate(
+                            sorted(
+                                _tv_filtered.items(),
+                                key=lambda x: x[1].get('market_cap', 0) or 0,
+                                reverse=True,
+                            )
+                        )
+                    }
+                except Exception:
+                    _pm_mc_rank = {}
+
                 _pos_rows = []
                 for p in _pos_list:
                     _hk = _pm_hkey(p.get('stock_id', ''), p.get('buy_date', ''))
@@ -981,6 +1002,7 @@ ATR_pct  = ATR(14) / 收盤價 x 100      （波動率佔比）
                     _pos_rows.append({
                         '代號': p.get('stock_id', ''),
                         '名稱': p.get('name', ''),
+                        '市值排名': _pm_mc_rank.get(p.get('stock_id', '')),
                         '進場日': p.get('buy_date', ''),
                         '進場價': p.get('buy_price', 0),
                         '股數': p.get('shares', 0),
@@ -994,6 +1016,7 @@ ATR_pct  = ATR(14) / 收盤價 x 100      （波動率佔比）
                     width='stretch',
                     hide_index=True,
                     column_config={
+                        '市值排名': st.column_config.NumberColumn(format="%d", help="1 = 台股市值最大（僅普通股）"),
                         '進場價': st.column_config.NumberColumn(format="%.2f"),
                         '股數': st.column_config.NumberColumn(format="%d"),
                         '近峰值': st.column_config.NumberColumn(format="%+.1f", help="trigger_score 近 20 日峰值"),
