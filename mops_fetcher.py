@@ -18,6 +18,9 @@ Schema 對齊說明：
   - 股利: 欄位對齊 FinMind taiwan_stock_dividend
 """
 
+import os
+import random
+import threading
 import time
 import logging
 import warnings
@@ -35,21 +38,98 @@ logger = logging.getLogger(__name__)
 _MOPS_ROOT = "https://mops.twse.com.tw"
 _MOPS_API = f"{_MOPS_ROOT}/mops/api/"
 
+# Browser-like headers（模擬 Chrome 130 + MOPS SPA 前端行為）。
+# Referer + Sec-Fetch-* 是 2025 起多數 WAF 的基本門檻。
 _HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) "
-        "Gecko/20100101 Firefox/125.0"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/130.0.0.0 Safari/537.36"
     ),
     "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br, zstd",
     "Content-Type": "application/json",
     "Origin": _MOPS_ROOT,
     "Referer": f"{_MOPS_ROOT}/mops/",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Ch-Ua": '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
 }
 
 # 模組級 session 快取（含 JSESSIONID cookie）
 _session = None
 _session_created_at = None
 _SESSION_TTL_SECONDS = 1800  # 30 分鐘後重新取 cookie
+
+# ---------------------------------------------------------------
+# Global rate limiter + circuit breaker
+# ---------------------------------------------------------------
+# Why: 2026-04-18 MOPS WAF ban 了本機 IP，肇因 backfill smoke test
+# 短時間 ~8 req/sec 持續。Conservative 2 req/sec + jitter 模擬人類。
+# 可用 env 調整：
+#   MOPS_RATE_INTERVAL=0.5  (預設，1/0.5 = 2 req/sec 上限)
+#   MOPS_RATE_JITTER=0.3    (±30% 時間抖動)
+_MIN_INTERVAL = float(os.getenv("MOPS_RATE_INTERVAL", "0.5"))
+_JITTER_FACTOR = float(os.getenv("MOPS_RATE_JITTER", "0.3"))
+
+_rate_lock = threading.Lock()
+_last_request_ts = 0.0
+
+# Circuit breaker：連續失敗達門檻 -> pause N 秒後重置
+_BREAKER_THRESHOLD = int(os.getenv("MOPS_BREAKER_THRESHOLD", "5"))
+_BREAKER_PAUSE = int(os.getenv("MOPS_BREAKER_PAUSE", "600"))  # 10 分鐘
+_breaker_lock = threading.Lock()
+_consecutive_errors = 0
+_breaker_paused_until = 0.0
+
+
+def _throttle() -> None:
+    """全域 rate limit：跨 thread 共享 lock，基準 _MIN_INTERVAL + jitter。"""
+    global _last_request_ts
+    with _rate_lock:
+        now = time.time()
+        jitter = random.uniform(-_JITTER_FACTOR, _JITTER_FACTOR) * _MIN_INTERVAL
+        wait = _MIN_INTERVAL + jitter - (now - _last_request_ts)
+        if wait > 0:
+            time.sleep(wait)
+        _last_request_ts = time.time()
+
+
+def _check_breaker() -> None:
+    """若 circuit breaker 啟動中，等到 pause 結束。"""
+    with _breaker_lock:
+        now = time.time()
+        if _breaker_paused_until > now:
+            wait = _breaker_paused_until - now
+            logger.warning("MOPS circuit breaker active, sleeping %.0fs", wait)
+            time.sleep(wait)
+
+
+def _record_success() -> None:
+    """成功後 reset consecutive error counter。"""
+    global _consecutive_errors
+    with _breaker_lock:
+        _consecutive_errors = 0
+
+
+def _record_failure() -> None:
+    """失敗 +1；達門檻 -> 啟動 circuit breaker。"""
+    global _consecutive_errors, _breaker_paused_until
+    with _breaker_lock:
+        _consecutive_errors += 1
+        if _consecutive_errors >= _BREAKER_THRESHOLD:
+            _breaker_paused_until = time.time() + _BREAKER_PAUSE
+            logger.warning(
+                "MOPS circuit breaker TRIPPED after %d consecutive errors, "
+                "pausing %ds (until %s)",
+                _consecutive_errors, _BREAKER_PAUSE,
+                datetime.fromtimestamp(_breaker_paused_until).strftime("%H:%M:%S"),
+            )
+            _consecutive_errors = 0  # reset 避免 re-trigger
 
 
 def _get_session() -> requests.Session:
@@ -63,7 +143,8 @@ def _get_session() -> requests.Session:
         sess.headers.update(_HEADERS)
         sess.verify = False
         try:
-            r = sess.get(f"{_MOPS_ROOT}/", timeout=15)
+            # 先造訪 /mops/ (SPA 入口) 拿 JSESSIONID（比 / 更像真實使用者）
+            r = sess.get(f"{_MOPS_ROOT}/mops/", timeout=15)
             jsid = sess.cookies.get("JSESSIONID", "")
             logger.debug("MOPS session init: JSESSIONID=%s... HTTP=%d", jsid[:8], r.status_code)
         except Exception as e:
@@ -74,19 +155,27 @@ def _get_session() -> requests.Session:
 
 
 def _post(endpoint: str, payload: dict) -> dict:
-    """POST 到 MOPS API，回傳 result dict。失敗拋 RuntimeError。"""
+    """POST 到 MOPS API，回傳 result dict。失敗拋 RuntimeError。
+
+    內建：全域 throttle、circuit breaker、連續失敗追蹤。
+    """
+    _check_breaker()
+    _throttle()
     sess = _get_session()
     try:
         r = sess.post(f"{_MOPS_API}{endpoint}", json=payload, timeout=20)
         data = r.json()
         if data.get("code") != 200:
+            _record_failure()
             raise RuntimeError(
                 f"MOPS API error: code={data.get('code')} msg={data.get('message')}"
             )
+        _record_success()
         return data.get("result", {})
     except RuntimeError:
         raise
     except Exception as e:
+        _record_failure()
         raise RuntimeError(f"MOPS POST {endpoint} failed: {e}") from e
 
 
@@ -174,10 +263,9 @@ def fetch_monthly_revenue(stock_id: str, start_year: int = 2015) -> pd.DataFrame
                     "revenue_month": month,
                     "revenue_year": year,
                 })
-                time.sleep(0.05)  # 每月間 50ms 避免過快
+                # Rate limit 由 _post()._throttle() 統一處理，這裡不需 sleep
             except Exception as e:
                 logger.debug("MOPS revenue %s %d/%02d: %s", stock_id, year, month, e)
-                time.sleep(0.1)
 
     if not rows:
         return pd.DataFrame(columns=[
@@ -395,10 +483,9 @@ def _fetch_financial_quarters(
                 # 截面表直接加入
                 all_rows.extend(quarter_rows)
 
-            time.sleep(0.08)
+            # Rate limit 由 _post()._throttle() 統一處理
         except Exception as e:
             logger.debug("MOPS %s %s %dQ%d: %s", endpoint, stock_id, ad_year, season, e)
-            time.sleep(0.1)
 
     if cumulative_mode != "none" and cumulative_data:
         for (yr, s), period in sorted(cumulative_data.items()):
