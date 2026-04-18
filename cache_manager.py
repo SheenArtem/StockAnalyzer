@@ -525,9 +525,16 @@ class CacheManager:
                     logger.debug(f"盤中模式: 快取仍有效 (剩餘 {remaining} 秒)")
                     return df, "hit", None
 
-            # 2. 非盤中: 若資料最後日期 < 今天，觸發增量更新
-            if last_date and last_date.date() < now.date():
-                return df, "partial", last_date
+            # 2. 非盤中: 若資料最後日期 < 「最後一個應有資料的交易日」，才觸發增量更新
+            # （週末/假日 today 不是交易日 → 期望日 = 上週五；避免無謂的 FinMind 呼叫）
+            if last_date:
+                from tw_calendar import expected_tw_data_date
+                from datetime import time as _dtime
+                # price: 13:30 收盤後資料定案；chip: 21:00 後 margin/day_trading 發布
+                cutoff = _dtime(13, 30) if data_type == 'price' else _dtime(21, 0)
+                expected = expected_tw_data_date(cutoff, now)
+                if last_date.date() < expected:
+                    return df, "partial", last_date
 
             return df, "hit", None
             
