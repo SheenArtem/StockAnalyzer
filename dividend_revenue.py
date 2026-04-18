@@ -114,7 +114,8 @@ class DividendAnalyzer:
     def get_dividend_history(self, stock_id: str, years: int = 5) -> pd.DataFrame:
         """Fetch historical dividend data for a Taiwan stock.
 
-        Tries Goodinfo.tw first, then falls back to FinMind TaiwanStockDividend.
+        Order: Goodinfo (richest, has fill_days direct) -> unified cache
+        (MOPS REST API primary -> FinMind fallback -> disk parquet).
 
         Returns
         -------
@@ -131,8 +132,8 @@ class DividendAnalyzer:
 
         df = self._fetch_dividend_goodinfo(stock_id, years)
         if df is None or df.empty:
-            logger.info("Goodinfo unavailable for %s, trying FinMind", stock_id)
-            df = self._fetch_dividend_finmind(stock_id, years)
+            logger.info("Goodinfo unavailable for %s, trying unified (MOPS+FinMind)", stock_id)
+            df = self._fetch_dividend_unified(stock_id, years)
 
         if df is None or df.empty:
             logger.warning("No dividend data found for %s", stock_id)
@@ -372,22 +373,38 @@ class DividendAnalyzer:
         return df
 
     # -----------------------------------------------------------------
-    # FinMind fallback
+    # Unified fallback (MOPS REST API primary + FinMind + disk cache)
     # -----------------------------------------------------------------
-    def _fetch_dividend_finmind(self, stock_id: str, years: int) -> pd.DataFrame | None:
-        """Fetch dividend history from FinMind TaiwanStockDividend.
+    def _fetch_dividend_unified(self, stock_id: str, years: int) -> pd.DataFrame | None:
+        """Fetch dividend history via unified cache manager.
 
-        FinMind does NOT provide fill_days, so we compute it via yfinance
-        price data: count trading days from ex_date until close >= pre-ex close.
+        Routes through cache_manager.get_cached_fundamentals which does:
+          disk parquet cache (TTL 30d annual) -> MOPS REST API -> FinMind.
+        Then enriches with fill_days/yield_pct via yfinance prices
+        (neither MOPS nor FinMind provides these directly).
         """
         try:
+            from cache_manager import get_cached_fundamentals, get_finmind_cached, USE_MOPS
             dl = _get_finmind_loader()
             current_year = datetime.date.today().year
             start_date = f"{current_year - years}-01-01"
-            raw = dl.taiwan_stock_dividend(
-                stock_id=stock_id,
-                start_date=start_date,
-            )
+
+            if USE_MOPS:
+                import mops_fetcher
+                raw = get_cached_fundamentals(
+                    dl, 'dividend', stock_id,
+                    mops_fetcher=mops_fetcher.fetch_dividend,
+                    finmind_method='taiwan_stock_dividend',
+                    freshness='annual',
+                    start_date_filter=start_date,
+                )
+            else:
+                raw = get_finmind_cached(
+                    dl, 'dividend', stock_id,
+                    'taiwan_stock_dividend',
+                    ttl_days=30, start_date_filter=start_date,
+                )
+
             if raw is None or raw.empty:
                 return None
 
@@ -440,7 +457,7 @@ class DividendAnalyzer:
             return df
 
         except Exception as exc:
-            logger.error("FinMind dividend fetch error for %s: %s", stock_id, exc)
+            logger.error("Unified dividend fetch error for %s: %s", stock_id, exc)
             return None
 
     def _prefetch_prices_for_fill(self, stock_id: str,
