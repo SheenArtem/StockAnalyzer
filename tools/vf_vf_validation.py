@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 JOURNAL_PATH = ROOT / "data_cache" / "backtest" / "trade_journal_value_tw.parquet"
+SNAPSHOT_PATH = ROOT / "data_cache" / "backtest" / "trade_journal_value_tw_snapshot.parquet"
 
 # (name, weights dict) — must sum to ~1.0
 SCHEMES = [
@@ -101,13 +102,25 @@ def ic_score_vs_fwd(df: pd.DataFrame, score_col: str, horizon: int) -> dict:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--journal", default=str(JOURNAL_PATH))
+    ap.add_argument("--journal", default=str(JOURNAL_PATH),
+                    help="Trade journal (top 50) — limited, all schemes produce same basket.")
+    ap.add_argument("--snapshot", default=None,
+                    help="Full snapshot (all Stage-1 passed) — allows fair re-ranking. "
+                         "Default auto-load trade_journal_value_tw_snapshot.parquet if exists.")
     ap.add_argument("--horizon", type=int, default=60)
     ap.add_argument("--top-n", type=int, default=50)
     args = ap.parse_args()
 
-    journal = load_journal(Path(args.journal))
-    print(f"Loaded: {len(journal)} picks, {journal['week_end_date'].nunique()} weeks, "
+    # Prefer snapshot if available (fair re-ranking)
+    snap_path = Path(args.snapshot) if args.snapshot else SNAPSHOT_PATH
+    if snap_path.exists():
+        journal = load_journal(snap_path)
+        print(f"⭐ Using SNAPSHOT: {snap_path.name}")
+    else:
+        journal = load_journal(Path(args.journal))
+        print(f"⚠️  Using JOURNAL (top 50 only): {Path(args.journal).name}")
+        print(f"   Alt schemes re-rank within V1's top 50 — not fair comparison.")
+    print(f"Loaded: {len(journal)} rows, {journal['week_end_date'].nunique()} weeks, "
           f"{journal['stock_id'].nunique()} unique stocks")
     print(f"Date range: {journal['week_end_date'].min().date()} - "
           f"{journal['week_end_date'].max().date()}")

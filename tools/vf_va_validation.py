@@ -37,6 +37,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 JOURNAL_PATH = ROOT / "data_cache" / "backtest" / "trade_journal_value_tw.parquet"
+SNAPSHOT_PATH = ROOT / "data_cache" / "backtest" / "trade_journal_value_tw_snapshot.parquet"
 REPORT_DIR = ROOT / "reports"
 
 
@@ -152,13 +153,22 @@ def grade(ir: float) -> str:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--journal", default=str(JOURNAL_PATH))
+    ap.add_argument("--snapshot", default=None,
+                    help="Auto-load snapshot if exists (fair universe for threshold test).")
     ap.add_argument("--horizon", type=int, default=60,
                     help="Forward return horizon (5/10/20/40/60/120)")
     ap.add_argument("--save-md", action="store_true",
                     help="Write markdown report to reports/")
     args = ap.parse_args()
 
-    journal = load_journal(Path(args.journal))
+    snap_path = Path(args.snapshot) if args.snapshot else SNAPSHOT_PATH
+    if snap_path.exists():
+        journal = load_journal(snap_path)
+        print(f"⭐ Using SNAPSHOT: {snap_path.name} (fair threshold test universe)")
+    else:
+        journal = load_journal(Path(args.journal))
+        print(f"⚠️  Using JOURNAL only: {Path(args.journal).name}")
+        print(f"   WARNING: threshold tests biased (top 50 already favors low PE/PB)")
     print(f"Loaded journal: {len(journal)} picks, "
           f"{journal['week_end_date'].nunique()} weeks, "
           f"{journal['stock_id'].nunique()} unique stocks")
