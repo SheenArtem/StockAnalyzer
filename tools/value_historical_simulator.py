@@ -109,6 +109,25 @@ def load_income_eps() -> pd.DataFrame:
     return eps[['stock_id', 'date', 'eps_q', 'eps_ttm']]
 
 
+def load_smart_money_scores() -> pd.DataFrame:
+    """Load pre-computed SmartMoney scores from compute_smart_money_historical.py.
+
+    Returns DataFrame with columns [stock_id, week_end_date, smart_money_score, ...].
+    Missing stocks/dates → will fall back to 50 (neutral) in simulator.
+    """
+    p = DATA_DIR / "smart_money_scores.parquet"
+    if not p.exists():
+        logger.warning("smart_money_scores.parquet not found, using placeholder 50")
+        return pd.DataFrame()
+    logger.info("Loading smart_money_scores...")
+    df = pd.read_parquet(p)
+    df['week_end_date'] = pd.to_datetime(df['week_end_date'])
+    logger.info("  %d rows, %d stocks, %s - %s", len(df), df['stock_id'].nunique(),
+                df['week_end_date'].min().date() if len(df) else None,
+                df['week_end_date'].max().date() if len(df) else None)
+    return df
+
+
 def load_balance_bvps() -> pd.DataFrame:
     """Compute BVPS = Equity / shares outstanding per quarter per stock."""
     logger.info("Loading financials_balance (Equity + shares)...")
@@ -321,6 +340,7 @@ def run_simulation(
     end_date: str,
     debug: bool = False,
     save_snapshot: bool = False,
+    smart_money: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Main weekly simulation.
 
@@ -426,8 +446,16 @@ def run_simulation(
         # Revenue: use existing revenue_score
         snap['revenue_s'] = snap['revenue_score'].clip(0, 100)
 
-        # Smart money: placeholder 50 (neutral) for historical sim
-        snap['smart_money_s'] = 50.0
+        # Smart money: lookup from historical SM scores (computed by
+        # compute_smart_money_historical.py). Missing → default 50.
+        if smart_money is not None and not smart_money.empty:
+            sm_at_d = smart_money[smart_money['week_end_date'] == d][
+                ['stock_id', 'smart_money_score']]
+            snap = snap.merge(sm_at_d, on='stock_id', how='left')
+            snap['smart_money_s'] = snap['smart_money_score'].fillna(50.0)
+            snap = snap.drop(columns=['smart_money_score'])
+        else:
+            snap['smart_money_s'] = 50.0
 
         # Composite value score (5-dim weighted)
         snap['value_score'] = (
@@ -552,6 +580,8 @@ def main():
         fwd_returns.to_parquet(FWD_CACHE)
         logger.info("Saved fwd_returns cache: %s", FWD_CACHE)
 
+    smart_money = load_smart_money_scores()
+
     journal, snapshot = run_simulation(
         ohlcv=ohlcv,
         indicators=indicators,
@@ -563,6 +593,7 @@ def main():
         end_date=args.end,
         debug=args.debug,
         save_snapshot=args.save_snapshot,
+        smart_money=smart_money if not smart_money.empty else None,
     )
 
     if journal.empty:
