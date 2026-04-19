@@ -107,12 +107,14 @@ DEFAULT_CONFIG = {
     'batch_delay': 0.3,         # 每檔間隔秒數
     'max_failures': 10,
 
-    # 評分權重
-    'weight_valuation': 0.30,
-    'weight_quality': 0.25,
-    'weight_revenue': 0.15,
-    'weight_technical': 0.15,
-    'weight_smart_money': 0.15,
+    # 評分權重 (VF-VE 驗證 2026-04-19 後調整)
+    # SM composite IR=0.029 D 無 alpha / 改寫投信+自營亦 B 反轉 → 砍除
+    # 15% SM 權重按原比例分到其他 4 維（30:25:15:15 → 35:30:18:17）
+    'weight_valuation': 0.35,
+    'weight_quality': 0.30,
+    'weight_revenue': 0.18,
+    'weight_technical': 0.17,
+    'weight_smart_money': 0.00,
 }
 
 
