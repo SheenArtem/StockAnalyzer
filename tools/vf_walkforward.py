@@ -33,16 +33,13 @@ SNAPSHOT_PATH = ROOT / "data_cache" / "backtest" / "trade_journal_value_tw_snaps
 REPORT_DIR = ROOT / "reports"
 
 SCHEMES = {
-    "V1":  {'valuation': 0.30, 'quality': 0.25, 'revenue': 0.15, 'technical': 0.15, 'smart_money': 0.15},
-    "V3":  {'valuation': 0.50, 'quality': 0.20, 'revenue': 0.10, 'technical': 0.10, 'smart_money': 0.10},
-    # VF-VD 後: 刪 technical 加分（反向），各方案重分配 15%：
-    "V7":  {'valuation': 0.35, 'quality': 0.30, 'revenue': 0.15, 'technical': 0.00, 'smart_money': 0.20},
-    "V8":  {'valuation': 0.40, 'quality': 0.40, 'revenue': 0.20, 'technical': 0.00, 'smart_money': 0.00},
-    "V9":  {'valuation': 0.40, 'quality': 0.35, 'revenue': 0.15, 'technical': 0.00, 'smart_money': 0.10},
-    # 更激進 val-heavy，no tech/sm:
-    "V10": {'valuation': 0.55, 'quality': 0.30, 'revenue': 0.15, 'technical': 0.00, 'smart_money': 0.00},
-    "V11": {'valuation': 0.60, 'quality': 0.25, 'revenue': 0.10, 'technical': 0.05, 'smart_money': 0.00},
-    "V12": {'valuation': 0.50, 'quality': 0.30, 'revenue': 0.10, 'technical': 0.00, 'smart_money': 0.10},
+    "V1":      {'valuation': 0.30, 'quality': 0.25, 'revenue': 0.15, 'technical': 0.15, 'smart_money': 0.15},
+    # V_clean_a: VF-VE 砍 SM 後正式落地版 (2026-04-19)
+    "Vcleana": {'valuation': 0.35, 'quality': 0.30, 'revenue': 0.18, 'technical': 0.17, 'smart_money': 0.00},
+    # 其他 option 對比 (VF-VF walk-forward 備存)
+    "V8":      {'valuation': 0.40, 'quality': 0.40, 'revenue': 0.20, 'technical': 0.00, 'smart_money': 0.00},
+    "V10":     {'valuation': 0.55, 'quality': 0.30, 'revenue': 0.15, 'technical': 0.00, 'smart_money': 0.00},
+    "V11":     {'valuation': 0.60, 'quality': 0.25, 'revenue': 0.10, 'technical': 0.05, 'smart_money': 0.00},
 }
 
 
@@ -150,20 +147,20 @@ def main():
         print(f"  {name}: avg_ret={r[ret_col].mean():.2%}, "
               f"avg_sharpe={r[sharpe_col].mean():.3f}, "
               f"std_sharpe={r[sharpe_col].std(ddof=1):.3f}")
-    v3_wins_v1 = (r['V3_sharpe'] > r['V1_sharpe']).sum()
-    print(f"\nV3 wins V1 in Sharpe: {v3_wins_v1}/{len(r)} ({100*v3_wins_v1/len(r):.1f}%)")
-    v3_wins_v1_ret = (r['V3_ret'] > r['V1_ret']).sum()
-    print(f"V3 wins V1 in basket_ret: {v3_wins_v1_ret}/{len(r)} ({100*v3_wins_v1_ret/len(r):.1f}%)")
-
-    # Decision
-    win_pct = v3_wins_v1 / len(r)
+    # Pairwise win rate vs V1
     print()
-    if win_pct >= 0.70:
-        print(f"✅ V3 wins {win_pct:.0%} of slides → STABLE, 落地信心 A 級")
-    elif win_pct >= 0.55:
-        print(f"⚠️  V3 wins {win_pct:.0%} of slides → MARGINAL，B 級待觀察")
-    else:
-        print(f"❌ V3 wins only {win_pct:.0%} of slides → UNSTABLE (overfit risk)")
+    print("Each scheme vs V1 baseline:")
+    for name in SCHEMES:
+        if name == 'V1':
+            continue
+        sh_col = f'{name}_sharpe'
+        ret_col = f'{name}_ret'
+        if sh_col not in r.columns:
+            continue
+        sh_win = (r[sh_col] > r['V1_sharpe']).sum()
+        ret_win = (r[ret_col] > r['V1_ret']).sum()
+        print(f"  {name}: Sharpe wins {sh_win}/{len(r)} ({100*sh_win/len(r):.0f}%), "
+              f"Ret wins {ret_win}/{len(r)} ({100*ret_win/len(r):.0f}%)")
 
     # Save CSV
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
