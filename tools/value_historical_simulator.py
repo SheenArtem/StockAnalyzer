@@ -208,23 +208,29 @@ def precompute_forward_returns(ohlcv: pd.DataFrame) -> pd.DataFrame:
         low = sdf['Low'].values
         n = len(close)
 
-        rows = {'stock_id': sdf['stock_id'], 'date': sdf['date']}
-        for h in HORIZONS:
-            fwd = np.full(n, np.nan)
-            for j in range(n - h):
-                if close[j] > 0 and not np.isnan(close[j]):
-                    fwd[j] = close[j + h] / close[j] - 1
-            rows[f'fwd_{h}d'] = fwd
+        # Vectorized forward returns: close.shift(-h) / close - 1
+        close_s = pd.Series(close)
+        high_s = pd.Series(high)
+        low_s = pd.Series(low)
 
+        rows = {'stock_id': sdf['stock_id'].values, 'date': sdf['date'].values}
+        for h in HORIZONS:
+            fwd = close_s.shift(-h) / close_s - 1
+            # Mask invalid denominators (0 or NaN)
+            fwd = fwd.where(close_s > 0)
+            rows[f'fwd_{h}d'] = fwd.values
+
+        # Max/min forward drawdown using rolling max/min on reversed series
         for h in MAX_DRAWDOWN_HORIZONS:
-            fwd_max = np.full(n, np.nan)
-            fwd_min = np.full(n, np.nan)
-            for j in range(n - h):
-                if close[j] > 0 and not np.isnan(close[j]):
-                    fwd_max[j] = np.nanmax(high[j + 1: j + h + 1]) / close[j] - 1
-                    fwd_min[j] = np.nanmin(low[j + 1: j + h + 1]) / close[j] - 1
-            rows[f'fwd_{h}d_max'] = fwd_max
-            rows[f'fwd_{h}d_min'] = fwd_min
+            # future_high[j] = max of high[j+1..j+h] → reverse and rolling forward
+            future_high = high_s[::-1].rolling(h, min_periods=1).max()[::-1].shift(-1)
+            future_low  = low_s[::-1].rolling(h,  min_periods=1).min()[::-1].shift(-1)
+            fwd_max = future_high / close_s - 1
+            fwd_min = future_low  / close_s - 1
+            fwd_max = fwd_max.where(close_s > 0)
+            fwd_min = fwd_min.where(close_s > 0)
+            rows[f'fwd_{h}d_max'] = fwd_max.values
+            rows[f'fwd_{h}d_min'] = fwd_min.values
 
         results.append(pd.DataFrame(rows))
 
