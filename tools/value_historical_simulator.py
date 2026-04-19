@@ -334,8 +334,17 @@ def run_simulation(
     start_date: str,
     end_date: str,
     debug: bool = False,
-) -> pd.DataFrame:
-    """Main weekly simulation."""
+    save_snapshot: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Main weekly simulation.
+
+    Returns:
+        (journal, snapshot)
+        journal:  top 50 per week (for trade quality)
+        snapshot: ALL Stage-1-passed stocks per week with raw scores + fwd returns
+                  (for fair factor threshold / weight testing like VF-VA / VF-VF).
+                  Empty DataFrame if save_snapshot=False.
+    """
     # Build scan dates from 2330 trading days
     ref_dates = ohlcv[ohlcv['stock_id'] == '2330'].sort_values('date')['date']
     ref_series = pd.Series(ref_dates.values, index=pd.DatetimeIndex(ref_dates.values))
@@ -362,6 +371,7 @@ def run_simulation(
     bvps_sorted = bvps.sort_values(['stock_id', 'date'])
 
     all_picks = []
+    all_snapshots = []   # full Stage-1-passed snapshots (for VF-VA/VF)
     weeks_processed = 0
     weeks_no_picks = 0
 
@@ -451,6 +461,25 @@ def run_simulation(
         # Need at least valuation data to rank (drop no-data rows)
         snap = snap.dropna(subset=['value_score'])
 
+        # Save full snapshot before top-N filter (for VF-VA/VF factor/weight tests)
+        if save_snapshot and not snap.empty:
+            snap_cols = [
+                'stock_id', 'Close',
+                'pe', 'pb', 'graham_number',
+                'f_score', 'z_score', 'quality_score', 'revenue_score',
+                'valuation_s', 'quality_s', 'revenue_s', 'technical_s', 'smart_money_s',
+                'value_score',
+                'rsi_14', 'rvol_20', 'low52w_prox',
+                'market_cap_tier', 'avg_tv_60d',
+                *[f'fwd_{h}d' for h in HORIZONS],
+                *[f'fwd_{h}d_max' for h in MAX_DRAWDOWN_HORIZONS],
+                *[f'fwd_{h}d_min' for h in MAX_DRAWDOWN_HORIZONS],
+            ]
+            snap_cols = [c for c in snap_cols if c in snap.columns]
+            snapshot = snap[snap_cols].copy()
+            snapshot['week_end_date'] = d
+            all_snapshots.append(snapshot)
+
         # Top 50 by value_score
         top_n = snap.nlargest(VALUE_TOP_N, 'value_score').reset_index(drop=True)
         if top_n.empty:
@@ -483,12 +512,17 @@ def run_simulation(
 
     if not all_picks:
         logger.error("No picks generated!")
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
     journal = pd.concat(all_picks, ignore_index=True)
+    snapshot_df = pd.concat(all_snapshots, ignore_index=True) if all_snapshots else pd.DataFrame()
     logger.info("Simulation complete: %d weeks, %d picks, %d weeks no picks",
                 weeks_processed, len(journal), weeks_no_picks)
-    return journal
+    if save_snapshot:
+        logger.info("  Snapshot: %d rows across %d weeks",
+                    len(snapshot_df), snapshot_df['week_end_date'].nunique()
+                    if not snapshot_df.empty else 0)
+    return journal, snapshot_df
 
 
 # ================================================================
@@ -501,16 +535,38 @@ def main():
     ap.add_argument("--end", default="2025-12-31")
     ap.add_argument("--debug", action="store_true")
     ap.add_argument("--out", default=str(OUT_PATH))
+    ap.add_argument("--save-snapshot", action="store_true",
+                    help="同時存 Stage-1-passed 全股 snapshot 供 VF-VA/VF 驗證")
+    ap.add_argument("--snapshot-out", default=None,
+                    help="snapshot 輸出檔（預設同 --out 但加 _snapshot 後綴）")
+    ap.add_argument("--recompute", action="store_true",
+                    help="強制重算 indicators + fwd_returns（略過 cache）")
     args = ap.parse_args()
 
     ohlcv = load_ohlcv()
     quality_scores = load_quality_scores()
     eps_ttm = load_income_eps()
     bvps = load_balance_bvps()
-    indicators = precompute_indicators(ohlcv)
-    fwd_returns = precompute_forward_returns(ohlcv)
 
-    journal = run_simulation(
+    # Cache precomputed indicators + forward returns (takes 10+ min on first run)
+    IND_CACHE = DATA_DIR / "value_sim_indicators.parquet"
+    FWD_CACHE = DATA_DIR / "value_sim_fwd_returns.parquet"
+    if IND_CACHE.exists() and not args.recompute:
+        logger.info("Loading cached indicators from %s", IND_CACHE)
+        indicators = pd.read_parquet(IND_CACHE)
+    else:
+        indicators = precompute_indicators(ohlcv)
+        indicators.to_parquet(IND_CACHE)
+        logger.info("Saved indicators cache: %s", IND_CACHE)
+    if FWD_CACHE.exists() and not args.recompute:
+        logger.info("Loading cached fwd_returns from %s", FWD_CACHE)
+        fwd_returns = pd.read_parquet(FWD_CACHE)
+    else:
+        fwd_returns = precompute_forward_returns(ohlcv)
+        fwd_returns.to_parquet(FWD_CACHE)
+        logger.info("Saved fwd_returns cache: %s", FWD_CACHE)
+
+    journal, snapshot = run_simulation(
         ohlcv=ohlcv,
         indicators=indicators,
         fwd_returns=fwd_returns,
@@ -520,6 +576,7 @@ def main():
         start_date=args.start,
         end_date=args.end,
         debug=args.debug,
+        save_snapshot=args.save_snapshot,
     )
 
     if journal.empty:
@@ -529,9 +586,18 @@ def main():
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     journal.to_parquet(out_path)
-    logger.info("Saved: %s (%d rows, %d weeks, %d unique stocks)",
+    logger.info("Saved journal: %s (%d rows, %d weeks, %d unique stocks)",
                 out_path, len(journal), journal['week_end_date'].nunique(),
                 journal['stock_id'].nunique())
+
+    if args.save_snapshot and not snapshot.empty:
+        snap_path = Path(args.snapshot_out) if args.snapshot_out else (
+            out_path.with_name(out_path.stem + "_snapshot" + out_path.suffix)
+        )
+        snapshot.to_parquet(snap_path)
+        logger.info("Saved snapshot: %s (%d rows, %d weeks, %d unique stocks)",
+                    snap_path, len(snapshot), snapshot['week_end_date'].nunique(),
+                    snapshot['stock_id'].nunique())
 
 
 if __name__ == "__main__":
