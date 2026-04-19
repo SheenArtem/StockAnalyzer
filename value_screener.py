@@ -826,6 +826,8 @@ class ValueScreener:
                     details.append(f"流動比率={cr:.1f} 偏低 (-8)")
 
         # --- Z-Score ---
+        # VF-VB 驗證 (2026-04-19): safe 區加分反而 underperform (IR=-0.271 B 反轉)
+        # 保留 distress 罰分（排除破產風險股），刪除 safe 加分。
         if all_result and all_result.get('zscore'):
             z_result = all_result['zscore']
             z = z_result['zscore']
@@ -833,11 +835,8 @@ class ValueScreener:
             if zone == 'distress':
                 score -= 20
                 details.append(f"Z-Score={z:.1f} 危險區 (破產風險) (-20)")
-            elif zone == 'safe':
-                score += 8
-                details.append(f"Z-Score={z:.1f} 安全區 (+8)")
             else:
-                details.append(f"Z-Score={z:.1f} 灰色區 [資訊]")
+                details.append(f"Z-Score={z:.1f} [資訊]")
 
         # --- ROIC / FCF ---
         if all_result and all_result.get('extra'):
@@ -1077,10 +1076,19 @@ class ValueScreener:
 
     def _score_technical(self, stock_id, details, price_df=None):
         """
-        技術面轉折分數: RSI 超賣 + 量能萎縮 + Squeeze 壓縮
+        技術面分數: VF-VD 驗證（2026-04-19）後大幅簡化
+
+        原加分邏輯全部反 alpha：
+          - RSI < 30 超賣 +20    → IR=-0.225 B 反轉（近超賣 return 更低）
+          - RVOL < 0.5 量萎縮 +15 → IR=-0.208 B 反轉（量萎縮 return 更低）
+          - 近 52w 低 +15        → pass vs fail -3.03% 差距（價值陷阱）
+          - Squeeze +12          → 未獨立驗證，保守刪除
+
+        保留僅「RSI > 70 偏高 -10」作為反向超買警示（VF-VD 發現超買反而 +3.87%
+        但此為 momentum effect，非 Value 應追求；留小幅扣分避免追高）。
 
         Args:
-            price_df: pre-loaded daily price DataFrame (from _score_single) to avoid duplicate fetch
+            price_df: pre-loaded daily price DataFrame to avoid duplicate fetch
         """
         score = 50
 
@@ -1097,47 +1105,11 @@ class ValueScreener:
             df_day = calculate_all_indicators(df_day)
             current = df_day.iloc[-1]
 
-            # RSI oversold
+            # RSI 只保留「極度超買」警示（小幅扣分避免追高）
             rsi = current.get('RSI', 50)
-            if pd.notna(rsi):
-                if rsi < 30:
-                    score += 20
-                    details.append(f"RSI={rsi:.0f} 超賣 (+20)")
-                elif rsi < 40:
-                    score += 10
-                    details.append(f"RSI={rsi:.0f} 偏低 (+10)")
-                elif rsi > 70:
-                    score -= 10
-                    details.append(f"RSI={rsi:.0f} 偏高 (-10)")
-
-            # Volume dry-up (RVOL < 0.5 = selling exhaustion)
-            rvol = current.get('RVOL', 1.0)
-            if pd.notna(rvol):
-                if rvol < 0.5:
-                    score += 15
-                    details.append(f"量能萎縮 RVOL={rvol:.2f} (賣壓枯竭) (+15)")
-                elif rvol < 0.7:
-                    score += 8
-                    details.append(f"量能偏低 RVOL={rvol:.2f} (+8)")
-
-            # Squeeze compression (Bollinger inside Keltner)
-            squeeze = current.get('Squeeze_On', False)
-            if squeeze:
-                score += 12
-                details.append("布林壓縮 Squeeze (+12)")
-
-            # Price near 52-week low
-            if len(df_day) >= 252:
-                low_52w = df_day['Low'].iloc[-252:].min()
-                close = current.get('Close', 0)
-                if close > 0 and low_52w > 0:
-                    from_low_pct = (close - low_52w) / low_52w * 100
-                    if from_low_pct < 10:
-                        score += 15
-                        details.append(f"距 52 週低點 {from_low_pct:.1f}% (+15)")
-                    elif from_low_pct < 20:
-                        score += 8
-                        details.append(f"距 52 週低點 {from_low_pct:.1f}% (+8)")
+            if pd.notna(rsi) and rsi > 80:
+                score -= 5
+                details.append(f"RSI={rsi:.0f} 極度超買 (-5)")
 
         except Exception as e:
             logger.debug("Technical scoring failed for %s: %s", stock_id, e)

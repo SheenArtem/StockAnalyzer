@@ -33,9 +33,16 @@ SNAPSHOT_PATH = ROOT / "data_cache" / "backtest" / "trade_journal_value_tw_snaps
 REPORT_DIR = ROOT / "reports"
 
 SCHEMES = {
-    "V1": {'valuation': 0.30, 'quality': 0.25, 'revenue': 0.15, 'technical': 0.15, 'smart_money': 0.15},
-    "V3": {'valuation': 0.50, 'quality': 0.20, 'revenue': 0.10, 'technical': 0.10, 'smart_money': 0.10},
-    "V6": {'valuation': 0.35, 'quality': 0.30, 'revenue': 0.15, 'technical': 0.20, 'smart_money': 0.00},
+    "V1":  {'valuation': 0.30, 'quality': 0.25, 'revenue': 0.15, 'technical': 0.15, 'smart_money': 0.15},
+    "V3":  {'valuation': 0.50, 'quality': 0.20, 'revenue': 0.10, 'technical': 0.10, 'smart_money': 0.10},
+    # VF-VD 後: 刪 technical 加分（反向），各方案重分配 15%：
+    "V7":  {'valuation': 0.35, 'quality': 0.30, 'revenue': 0.15, 'technical': 0.00, 'smart_money': 0.20},
+    "V8":  {'valuation': 0.40, 'quality': 0.40, 'revenue': 0.20, 'technical': 0.00, 'smart_money': 0.00},
+    "V9":  {'valuation': 0.40, 'quality': 0.35, 'revenue': 0.15, 'technical': 0.00, 'smart_money': 0.10},
+    # 更激進 val-heavy，no tech/sm:
+    "V10": {'valuation': 0.55, 'quality': 0.30, 'revenue': 0.15, 'technical': 0.00, 'smart_money': 0.00},
+    "V11": {'valuation': 0.60, 'quality': 0.25, 'revenue': 0.10, 'technical': 0.05, 'smart_money': 0.00},
+    "V12": {'valuation': 0.50, 'quality': 0.30, 'revenue': 0.10, 'technical': 0.00, 'smart_money': 0.10},
 }
 
 
@@ -104,10 +111,12 @@ def main():
 
     print(f"Total slides: {len(slides)}")
     print()
-    print("=" * 100)
-    print(f"{'Slide':<20}{'V1 Ret':>10}{'V1 Sharpe':>12}{'V3 Ret':>10}{'V3 Sharpe':>12}"
-          f"{'V6 Ret':>10}{'V6 Sharpe':>12}{'V3-V1 Sharpe':>15}")
-    print("-" * 100)
+    print("=" * (22 + 14 * len(SCHEMES)))
+    hdr = f"{'Slide':<20}"
+    for name in SCHEMES:
+        hdr += f"{name+' Sh':>14}"
+    print(hdr)
+    print("-" * (22 + 14 * len(SCHEMES)))
 
     results = []
     for i, (t0, t1) in enumerate(slides):
@@ -123,15 +132,11 @@ def main():
             row[f'{name}_n'] = stats['n']
         results.append(row)
         label = f"{t0.strftime('%Y-%m')}→{t1.strftime('%Y-%m')}"
-        v1_sharpe = row.get('V1_sharpe', np.nan)
-        v3_sharpe = row.get('V3_sharpe', np.nan)
-        v6_sharpe = row.get('V6_sharpe', np.nan)
-        gap = (v3_sharpe - v1_sharpe) if not pd.isna(v1_sharpe) and not pd.isna(v3_sharpe) else np.nan
-        print(f"{label:<20}"
-              f"{row.get('V1_ret', 0):>10.2%}{row.get('V1_sharpe', 0):>12.3f}"
-              f"{row.get('V3_ret', 0):>10.2%}{row.get('V3_sharpe', 0):>12.3f}"
-              f"{row.get('V6_ret', 0):>10.2%}{row.get('V6_sharpe', 0):>12.3f}"
-              f"{gap:>15.3f}")
+        line = f"{label:<20}"
+        for name in SCHEMES:
+            s = row.get(f'{name}_sharpe', np.nan)
+            line += f"{s:>14.3f}"
+        print(line)
 
     # Summary
     r = pd.DataFrame(results)

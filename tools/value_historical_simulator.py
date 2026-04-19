@@ -294,35 +294,15 @@ def score_valuation(row: pd.Series) -> float:
 
 
 def score_technical(row: pd.Series) -> float:
-    """Technical reversal signal 0-100 (RSI, RVOL, 52w low)."""
+    """Technical score 0-100 (VF-VD 驗證後簡化版, 2026-04-19).
+
+    原 RSI<30 / RVOL<0.5 / 近 52w 低 全部 IR 反轉 (B rev)，刪除。
+    只保留 RSI > 80 極度超買小幅扣分。
+    """
     score = 50.0
     rsi = row.get('rsi_14')
-    rvol = row.get('rvol_20')
-    low52w_prox = row.get('low52w_prox')
-
-    # RSI oversold
-    if pd.notna(rsi):
-        if rsi < 30:
-            score += 15
-        elif rsi < 40:
-            score += 8
-        elif rsi > 70:
-            score -= 10
-
-    # RVOL shrinking (selling exhaustion)
-    if pd.notna(rvol):
-        if rvol < 0.5:
-            score += 8
-        elif rvol < 0.7:
-            score += 4
-
-    # Close to 52-week low
-    if pd.notna(low52w_prox):
-        if low52w_prox < 1.10:   # within 10% of low
-            score += 12
-        elif low52w_prox < 1.20:
-            score += 6
-
+    if pd.notna(rsi) and rsi > 80:
+        score -= 5
     return max(0, min(100, score))
 
 
