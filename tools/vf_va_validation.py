@@ -190,13 +190,15 @@ def main():
     print(f"{'Factor':<20}{'IC_mean':>10}{'IC_std':>10}{'IR':>8}{'Weeks':>8}{'Grade':>15}")
     print("-" * 70)
     ic_results = {}
+    # Handle column naming: snapshot uses 'Close', trade_journal uses 'entry_price'
+    price_col = 'entry_price' if 'entry_price' in journal.columns else 'Close'
     for factor, higher_better, note in factors:
         if factor == 'graham_number':
             # For Graham: compute ratio as "close / graham" (low = undervalued)
             # Actually simpler: use graham - close and make higher = better
             # But our col is just graham_number. Use ratio column derived inline.
             tmp = journal.copy()
-            tmp['graham_ratio'] = tmp['graham_number'] / tmp['entry_price']
+            tmp['graham_ratio'] = tmp['graham_number'] / tmp[price_col]
             res = ic_analysis(tmp, 'graham_ratio', args.horizon)
             ic_results['graham_ratio'] = res
         else:
@@ -218,7 +220,7 @@ def main():
     for factor, higher_better, _ in factors:
         sub = journal.dropna(subset=[factor])
         if factor == 'graham_number':
-            res = decile_spread(sub.assign(graham_ratio=sub['graham_number']/sub['entry_price']),
+            res = decile_spread(sub.assign(graham_ratio=sub['graham_number']/sub[price_col]),
                                  'graham_ratio', args.horizon, higher_is_better=True)
         else:
             res = decile_spread(sub, factor, args.horizon, higher_is_better=False)
