@@ -16,9 +16,10 @@ CACHE_DIR = "data_cache"
 # Module-level lock for cache write operations
 _cache_lock = threading.Lock()
 
-# USE_MOPS=true 時優先用 MOPS REST API（預設啟用）
-# 啟動時讀 env var，可用 set_use_mops(bool) 在 runtime 切換（scanner --no-mops 用）
-USE_MOPS = os.getenv("USE_MOPS", "true").lower() == "true"
+# USE_MOPS=true 時優先用 MOPS REST API
+# 2026-04-18 起 MOPS WAF ban 本機 IP，預設改 false（純 FinMind 路徑）
+# WAF 解禁後把預設改回 "true" 即可（或 set USE_MOPS=true）
+USE_MOPS = os.getenv("USE_MOPS", "false").lower() == "true"
 
 
 def set_use_mops(enabled: bool) -> None:

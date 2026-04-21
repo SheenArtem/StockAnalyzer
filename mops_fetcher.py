@@ -18,6 +18,7 @@ Schema 對齊說明：
   - 股利: 欄位對齊 FinMind taiwan_stock_dividend
 """
 
+import json
 import os
 import random
 import threading
@@ -66,15 +67,18 @@ _session_created_at = None
 _SESSION_TTL_SECONDS = 1800  # 30 分鐘後重新取 cookie
 
 # ---------------------------------------------------------------
-# Global rate limiter + circuit breaker
+# Global rate limiter + circuit breaker + daily cap + backfill mutex
 # ---------------------------------------------------------------
 # Why: 2026-04-18 MOPS WAF ban 了本機 IP，肇因 backfill smoke test
 # 短時間 ~8 req/sec 持續。Conservative 2 req/sec + jitter 模擬人類。
-# 2026-04-20: 2 req/sec 還是被 ban (VPN 測試無效)，預設調整到 3s / 0.33 req/sec
+# 2026-04-20: 2 req/sec 還是被 ban (VPN 測試無效)，調整到 3s / 0.33 req/sec
+# 2026-04-21: WAF 解禁後擬恢復用 5s 當起步（3 階段再降：5→4→3）+ 加 daily cap
+#             + backfill mutex 避免併發。rollback 期間 USE_MOPS=false 不走本模組。
 # 可用 env 調整：
-#   MOPS_RATE_INTERVAL=3.0  (預設，1/3 = 0.33 req/sec)
+#   MOPS_RATE_INTERVAL=5.0  (預設，1/5 = 0.2 req/sec)
 #   MOPS_RATE_JITTER=0.3    (±30% 時間抖動)
-_MIN_INTERVAL = float(os.getenv("MOPS_RATE_INTERVAL", "3.0"))
+#   MOPS_DAILY_CAP=500      (每日最多 500 req，爆 cap 拒絕)
+_MIN_INTERVAL = float(os.getenv("MOPS_RATE_INTERVAL", "5.0"))
 _JITTER_FACTOR = float(os.getenv("MOPS_RATE_JITTER", "0.3"))
 
 _rate_lock = threading.Lock()
@@ -86,6 +90,30 @@ _BREAKER_PAUSE = int(os.getenv("MOPS_BREAKER_PAUSE", "600"))  # 10 分鐘
 _breaker_lock = threading.Lock()
 _consecutive_errors = 0
 _breaker_paused_until = 0.0
+
+# Daily cap：每日 req 總數上限。狀態寫 data_cache/mops_daily_usage.json，
+# 跨 process / 跨執行保留計數；過 00:00 自動歸零。
+_DAILY_CAP = int(os.getenv("MOPS_DAILY_CAP", "500"))
+_daily_lock = threading.Lock()
+_DAILY_USAGE_FILE = Path(__file__).parent / "data_cache" / "mops_daily_usage.json"
+
+
+class MopsDailyCapExceeded(RuntimeError):
+    """Daily cap 達上限，本次 request 被拒絕。"""
+
+
+# Backfill semaphore：歷史回填必須 serialize（禁止併發 MOPS call），
+# live SCAN 不受影響。用 `with mops_fetcher.backfill_lock(): ...` 包起來。
+_backfill_semaphore = threading.Semaphore(1)
+
+
+def backfill_lock():
+    """Backfill 的 contextmanager，確保只有一個 backfill job 在打 MOPS。
+    用法：
+        with mops_fetcher.backfill_lock():
+            mops_fetcher.fetch_monthly_revenue(...)
+    """
+    return _backfill_semaphore
 
 
 def _throttle() -> None:
@@ -115,6 +143,33 @@ def _record_success() -> None:
     global _consecutive_errors
     with _breaker_lock:
         _consecutive_errors = 0
+
+
+def _check_daily_cap() -> None:
+    """檢查並 +1 今日 req 計數。超過 _DAILY_CAP 拋 MopsDailyCapExceeded。"""
+    today = date.today().isoformat()
+    with _daily_lock:
+        state = {"date": today, "count": 0}
+        if _DAILY_USAGE_FILE.exists():
+            try:
+                state = json.loads(_DAILY_USAGE_FILE.read_text(encoding="utf-8"))
+                if state.get("date") != today:
+                    state = {"date": today, "count": 0}  # 跨日歸零
+            except Exception:
+                pass
+        if state["count"] >= _DAILY_CAP:
+            raise MopsDailyCapExceeded(
+                f"MOPS daily cap {_DAILY_CAP} reached ({state['count']} today), "
+                f"refusing further requests until tomorrow"
+            )
+        state["count"] += 1
+        try:
+            _DAILY_USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            _DAILY_USAGE_FILE.write_text(
+                json.dumps(state, ensure_ascii=False), encoding="utf-8"
+            )
+        except Exception as e:
+            logger.debug("MOPS daily usage write failed: %s", e)
 
 
 def _record_failure() -> None:
@@ -158,9 +213,12 @@ def _get_session() -> requests.Session:
 def _post(endpoint: str, payload: dict) -> dict:
     """POST 到 MOPS API，回傳 result dict。失敗拋 RuntimeError。
 
-    內建：全域 throttle、circuit breaker、連續失敗追蹤。
+    內建：全域 throttle、circuit breaker、daily cap、連續失敗追蹤。
+    Daily cap 爆表時拋 MopsDailyCapExceeded（RuntimeError 子類），
+    上層可以 catch 後 fallback 到 FinMind。
     """
     _check_breaker()
+    _check_daily_cap()
     _throttle()
     sess = _get_session()
     try:
