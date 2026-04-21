@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.19.2")
+    st.caption("Version: v2026.04.21.1")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -358,13 +358,13 @@ if st.session_state.get('app_mode') == 'screener':
     import json as _json
     from pathlib import Path as _Path
 
-    screener_tab_qm, screener_tab_meanrev, screener_tab_track = st.tabs(
-        ["🛡️ 品質選股", "🔄 均值回歸", "📊 績效追蹤"]
+    # 2026-04-21: Value TW tab 恢復顯示 (VF-VC P3-b 落地，權重 30/25/30/15/0)
+    screener_tab_qm, screener_tab2, screener_tab_meanrev, screener_tab_track = st.tabs(
+        ["🛡️ 品質選股", "💎 價值 (台股)", "🔄 均值回歸", "📊 績效追蹤"]
     )
     # Hidden tabs (code preserved, just not displayed)
-    # Value tabs paused pending Phase 1 enhancement (see project_value_enhancement.md)
     screener_tab1 = screener_tab_us = screener_tab_swing = screener_tab_conv = None
-    screener_tab2 = screener_tab_us_val = None
+    screener_tab_us_val = None  # US Value 仍暫停（VF-VD 只驗 TW）
 
     # ====================================================================
     # Pre-load convergence data for badges on all tabs
@@ -1373,10 +1373,9 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
         st.caption("💡 共振偵測自動執行於 `--mode all` / `--mode both` 掃描後")
 
     # ====================================================================
-    # Tab 2: 左側價值選股 (paused pending Phase 1 enhancement)
+    # Tab 2: 左側價值選股 (VF-VC P3-b 2026-04-21 恢復, 權重 30/25/30/15/0)
     # ====================================================================
-    if False:  # Value tab hidden — restore by changing to: with screener_tab2:
-     with st.container():
+    with screener_tab2:
 
         with st.expander("📋 篩選條件說明"):
             st.markdown("""
@@ -1444,7 +1443,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '估值': s.get('valuation', 0),
                     '體質': s.get('quality', 0),
                     '營收': s.get('revenue', 0),
-                    '技術轉折': s.get('technical', 0),
+                    # 技術轉折 欄位隱藏 — VF-VD 驗證 2026-04-19 所有加分反 alpha 砍除，全為 50 baseline
                     '聰明錢': s.get('smart_money', 0),
                 })
             _v_df_results = pd.DataFrame(_v_rows)
@@ -1473,7 +1472,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '均量(億)': st.column_config.NumberColumn(format="%.2f"),
                 },
             )
-            st.caption("綜合分數 0~100 (估值+體質+營收+技術轉折+聰明錢加總)")
+            st.caption("綜合分數 0~100 (估值 30% + 體質 25% + 營收 30% + 技術 15% + 聰明錢 0%)")
 
             # Detailed scoring
             with st.expander("個股詳細評分"):
@@ -2863,8 +2862,47 @@ elif st.session_state.get('analysis_active', False):
                              st.warning("⚠️ 查無法人數據")
 
                          st.markdown("---")
-                         st.info("💡 **集保股權分散 (Shareholding Distribution)**：因 API 限制為付費數據，暫無法顯示詳細大戶/散戶比例。建議搭配「三大法人」與「EFI 指標」判斷主力動向。")
-                         
+
+                         # === 集保股權分散表 (TDCC 1-5 週更) ===
+                         try:
+                             from tdcc_reader import compute_summary, load_stock_distribution
+                             tdcc_sum = compute_summary(source)
+                             if tdcc_sum:
+                                 date_str = tdcc_sum['data_date']
+                                 st.markdown(f"#### 🏛️ 集保股權分散 (TDCC {date_str[:4]}-{date_str[4:6]}-{date_str[6:8]})")
+
+                                 col_sh1, col_sh2, col_sh3, col_sh4 = st.columns(4)
+                                 col_sh1.metric("總持股人數", f"{tdcc_sum['total_people']:,}")
+                                 col_sh2.metric("散戶股數占比", f"{tdcc_sum['retail_shares_pct']:.2f}%",
+                                                help="level 1-5：持股 <20 張（含零股）")
+                                 col_sh3.metric("大戶股數占比", f"{tdcc_sum['large_shares_pct']:.2f}%",
+                                                help="level 11-15：持股 >200 張（含機構/法人/主力）")
+                                 col_sh4.metric("巨鯨股數占比", f"{tdcc_sum['whale_shares_pct']:.2f}%",
+                                                help="level 15：持股 >1,000 張（巨型法人/家族信託）")
+
+                                 # 解讀
+                                 if tdcc_sum['whale_shares_pct'] > 60:
+                                     st.success(f"🐋 巨鯨集中度極高（{tdcc_sum['whale_shares_pct']:.1f}%）— 股權高度集中在少數大戶/機構，籌碼相對穩定")
+                                 elif tdcc_sum['whale_shares_pct'] > 40:
+                                     st.info(f"🏛️ 巨鯨持股偏高（{tdcc_sum['whale_shares_pct']:.1f}%）— 股權集中，注意主力動向")
+                                 elif tdcc_sum['retail_shares_pct'] > 40:
+                                     st.warning(f"👥 散戶比例偏高（{tdcc_sum['retail_shares_pct']:.1f}%）— 股權分散，波動可能較大")
+
+                                 with st.expander("📊 17 級距完整分布", expanded=False):
+                                     dist_df = load_stock_distribution(source)
+                                     if dist_df is not None and not dist_df.empty:
+                                         display_df = dist_df[['level', 'level_label', 'people_count', 'shares', 'pct']].copy()
+                                         display_df.columns = ['級距', '持股範圍', '人數', '股數', '占庫存%']
+                                         display_df['人數'] = display_df['人數'].map(lambda x: f"{x:,}")
+                                         display_df['股數'] = display_df['股數'].map(lambda x: f"{x:,}")
+                                         display_df['占庫存%'] = display_df['占庫存%'].map(lambda x: f"{x:.4f}")
+                                         st.dataframe(display_df, width='stretch', hide_index=True)
+                                     st.caption(f"資料來源: TDCC OpenAPI 1-5 集保戶股權分散表（每週五收盤，資料日期 {date_str}）")
+                             else:
+                                 st.info("💡 **集保股權分散 (TDCC 1-5)**：目前無此股票的 TDCC 快照資料。週六凌晨自動抓取，或手動執行 `python tools/tdcc_shareholding.py --force`")
+                         except Exception as tdcc_err:
+                             st.info(f"💡 集保股權分散暫不可用: {tdcc_err}")
+
                      else:
                          st.error(f"❌ 籌碼讀取失敗: {err}")
                  except Exception as e:

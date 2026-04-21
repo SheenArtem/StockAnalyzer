@@ -3,9 +3,24 @@ AI 研究報告模組 — Phase 1
 收集個股所有數據，組裝 prompt，呼叫 Claude CLI 生成研究報告。
 """
 import subprocess
+import shutil
 import json
 import logging
 import os
+
+
+def _find_claude_cli():
+    """Resolve claude CLI absolute path.
+
+    Windows subprocess.run with list args doesn't honor PATHEXT lookup for .cmd
+    scripts. Use shutil.which which handles PATHEXT properly. Returns full path
+    (e.g. ...\\npm\\claude.cmd) or 'claude' as fallback.
+    """
+    resolved = shutil.which("claude")
+    return resolved or "claude"
+
+
+_CLAUDE_CLI = _find_claude_cli()
 import numpy as np
 import pandas as pd
 
@@ -228,7 +243,7 @@ def _build_technical_data(df_day):
     return "\n".join(lines) if lines else "N/A"
 
 
-def _build_chip_data(chip_data, us_chip_data, is_us):
+def _build_chip_data(chip_data, us_chip_data, is_us, ticker=None):
     """[CHIP_DATA] 籌碼面數據"""
     lines = []
 
@@ -269,6 +284,17 @@ def _build_chip_data(chip_data, us_chip_data, is_us):
                 lines.append(f"\n{label} (近 5 日):")
                 tail = df.tail(5)
                 lines.append(tail.to_string())
+
+        # TDCC 集保股權分散（週更 snapshot，若有資料則附上）
+        if ticker:
+            try:
+                from tdcc_reader import format_shareholding_for_prompt
+                stock_id = str(ticker).replace('.TW', '').strip()
+                tdcc_txt = format_shareholding_for_prompt(stock_id)
+                if tdcc_txt:
+                    lines.append(f"\n{tdcc_txt}")
+            except Exception:
+                pass
 
     return "\n".join(lines) if lines else "N/A"
 
@@ -723,7 +749,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[TRIGGER_SCORE]\n{_build_trigger_score(report)}")
     data_sections.append(f"[TRIGGER_DETAILS]\n{_build_trigger_details(report)}")
     data_sections.append(f"[TECHNICAL_DATA]\n{_build_technical_data(df_day)}")
-    data_sections.append(f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us)}")
+    data_sections.append(f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us, ticker=ticker)}")
     data_sections.append(f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data, ticker)}")
     data_sections.append(f"[MARKET_CONTEXT]\n{_build_market_context(report)}")
     data_sections.append(f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}")
@@ -791,7 +817,7 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 
     try:
         result = subprocess.run(
-            ["claude", "-p",
+            [_CLAUDE_CLI, "-p",
              "--allowedTools", "WebSearch,WebFetch",
              "--output-format", "text"],
             input=prompt,
@@ -837,7 +863,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[TRIGGER_SCORE]\n{_build_trigger_score(report)}",
         f"[TRIGGER_DETAILS]\n{_build_trigger_details(report)}",
         f"[TECHNICAL_DATA]\n{_build_technical_data(df_day)}",
-        f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us)}",
+        f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us, ticker=ticker)}",
         f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data, ticker)}",
         f"[MARKET_CONTEXT]\n{_build_market_context(report)}",
         f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}",
@@ -920,7 +946,7 @@ def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_
 
     try:
         result = subprocess.run(
-            ["claude", "-p",
+            [_CLAUDE_CLI, "-p",
              "--allowedTools", "WebSearch,WebFetch",
              "--output-format", "text"],
             input=prompt,
