@@ -4,6 +4,15 @@ aggregate_fundamental_cache.py
 把 VF-L1a backfill 產生的 per-stock parquet（data_cache/fundamental_cache/）
 匯總成歷史回測用的聚合檔（data_cache/backtest/financials_*.parquet）。
 
+⚠️ RF-1 鐵則（2026-04-21）：
+  **本工具是唯一被允許寫入 data_cache/backtest/financials_*.parquet 的檔案。**
+  任何 backfill tool 只能寫 fundamental_cache/{cache_key}_{sid}.parquet（per-stock），
+  然後在結束時呼叫本工具聚合到 backtest/。絕對禁止 backfill 直接寫 backtest/。
+
+  背景：VF-VC P3-a 事件（2026-04-20）就是因 backfill 直接寫 backtest/ 而 live cache stale，
+  導致 scanner 重抓觸發 MOPS WAF ban。本規則確保 live + backtest 永遠一致。
+  詳見 memory/feedback_unified_cache.md。
+
 - 輸入目錄: data_cache/fundamental_cache/
   檔名模式: {cache_key}_{stock_id}.parquet
   cache_key in: financial_statement / balance_sheet / cash_flows_statement
@@ -16,10 +25,6 @@ aggregate_fundamental_cache.py
   python tools/aggregate_fundamental_cache.py           # 全部 4 類
   python tools/aggregate_fundamental_cache.py --category income
   python tools/aggregate_fundamental_cache.py --dry-run
-
-為什麼要做：
-  compute_historical_fscore.py 讀聚合檔，VF-L1a 後 universe 從 298 擴到 2389，
-  必須重新聚合才能算新 universe 的 quality_scores。
 """
 from __future__ import annotations
 
@@ -74,6 +79,11 @@ def aggregate_category(cache_key: str, out_file: str, dry_run: bool = False) -> 
                 logger.warning("Skipping %s: no stock_id column", f.name)
                 skipped += 1
                 continue
+            # RF-1 schema normalization：fundamental_cache 歷史上混用 str vs datetime64,
+            # pyarrow concat 會報 ArrowTypeError，統一轉 str 對齊 FinMind 原始格式。
+            if "date" in df.columns and df["date"].dtype != "object":
+                df = df.copy()
+                df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.strftime("%Y-%m-%d")
             frames.append(df)
         except Exception as e:
             logger.warning("Skipping %s: %s", f.name, e)

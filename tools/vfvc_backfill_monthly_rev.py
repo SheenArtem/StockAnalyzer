@@ -1,11 +1,23 @@
 """
 vfvc_backfill_monthly_rev.py
 ============================
-VF-VC P3-a: 補回 207 檔在 snapshot 有但在 financials_revenue.parquet 幾乎無資料的股票
+VF-VC P3-a: 補回在 snapshot 有但 live cache 幾乎無資料的股票 monthly revenue
 (1101/1102/1303/... 水泥大型股)。目標：把 monthly revenue 回填完整供 VF-VC 1m YoY 使用。
 
-只拉 monthly revenue (不動其他 4 類基本面)。
-輸出：直接覆寫 financials_revenue.parquet 的對應 stock_id 區段。
+2026-04-21 RF-1 重構：
+---------------------
+原版只寫 data_cache/backtest/financials_revenue.parquet，導致 live scanner
+讀 data_cache/fundamental_cache/month_revenue_*.parquet 時看不到新資料 →
+觸發 MOPS 重抓 → WAF ban（VF-VC 事件）。
+
+新版：
+  1. per-stock 寫入 data_cache/fundamental_cache/month_revenue_{sid}.parquet
+     （這是 cache_manager.get_cached_fundamentals() 的 live 路徑）
+  2. 全部 backfill 完後自動呼叫 aggregate_fundamental_cache.py --category revenue
+     聚合到 data_cache/backtest/financials_revenue.parquet（simulator 用）
+
+規則：任何 backfill tool 只能寫 fundamental_cache/，絕對禁止直接寫 backtest/。
+詳見 feedback_unified_cache.md。
 
 用法: python tools/vfvc_backfill_monthly_rev.py --universe data_cache/vfvc_missing_monthly_rev.txt
 """
@@ -13,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -27,12 +40,16 @@ logging.basicConfig(level=logging.INFO,
                     datefmt="%H:%M:%S")
 logger = logging.getLogger("vfvc_bf")
 
+LIVE_CACHE_DIR = ROOT / "data_cache" / "fundamental_cache"
+
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--universe", default="data_cache/vfvc_missing_monthly_rev.txt")
     ap.add_argument("--start", default="2015-01-01")
     ap.add_argument("--end", default="2026-04-30")
+    ap.add_argument("--skip-aggregate", action="store_true",
+                    help="不自動跑 aggregate（僅測試用）")
     args = ap.parse_args()
 
     stocks = [l.strip() for l in open(args.universe) if l.strip()]
@@ -42,16 +59,13 @@ def main():
     dl = get_finmind_loader()
     logger.info("FinMind loaded, has_token=%s", dl.has_token)
 
-    rev_path = ROOT / "data_cache" / "backtest" / "financials_revenue.parquet"
-    existing = pd.read_parquet(rev_path) if rev_path.exists() else pd.DataFrame()
-    logger.info("Existing parquet: %d rows, %d stocks",
-                len(existing), existing['stock_id'].nunique() if not existing.empty else 0)
+    LIVE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    all_new = []
     t0 = time.time()
     call_count = 0
     hour_start = time.time()
     fail_stocks = []
+    ok_stocks = []
 
     for i, sid in enumerate(stocks):
         # Rate-limit: 600/hr = 1 req / 6 sec, leave buffer
@@ -75,59 +89,71 @@ def main():
                 logger.warning("[%s] FinMind empty", sid)
                 continue
 
-            # Match schema of financials_revenue.parquet
-            raw = raw.copy()
             if 'revenue' not in raw.columns:
                 fail_stocks.append(sid)
                 continue
+            raw = raw.copy()
             raw['revenue'] = pd.to_numeric(raw['revenue'], errors='coerce')
             raw = raw.dropna(subset=['revenue'])
             if raw.empty:
                 fail_stocks.append(sid)
                 continue
 
-            # Ensure column names match parquet schema
+            # Schema 對齊 live cache（cache_manager 寫入 FinMind 原始 schema）
             keep_cols = ['date', 'stock_id', 'country', 'revenue',
                          'revenue_month', 'revenue_year', 'revenue_last_year',
                          'revenue_year_growth', 'revenue_last_month',
                          'revenue_month_growth']
             present = [c for c in keep_cols if c in raw.columns]
-            all_new.append(raw[present])
+            out_df = raw[present].copy()
+
+            # 寫 per-stock live cache（這是 RF-1 的關鍵改動：從 backtest 改寫到 fundamental_cache）
+            live_path = LIVE_CACHE_DIR / f"month_revenue_{sid}.parquet"
+            out_df.to_parquet(live_path)
+            ok_stocks.append(sid)
 
         except Exception as e:
             fail_stocks.append(sid)
             logger.warning("[%s] error: %s", sid, e)
 
         if (i + 1) % 25 == 0:
-            logger.info("[%d/%d] %.1fmin elapsed", i + 1, len(stocks),
-                        (time.time() - t0) / 60)
+            logger.info("[%d/%d] %.1fmin elapsed, ok=%d fail=%d",
+                        i + 1, len(stocks), (time.time() - t0) / 60,
+                        len(ok_stocks), len(fail_stocks))
 
-    if all_new:
-        new_df = pd.concat(all_new, ignore_index=True)
-        logger.info("Fetched %d rows for %d stocks",
-                    len(new_df), new_df['stock_id'].nunique())
-
-        # Merge with existing: remove old rows for these stocks, append new
-        if not existing.empty:
-            existing = existing[~existing['stock_id'].isin(new_df['stock_id'])]
-            combined = pd.concat([existing, new_df], ignore_index=True)
-        else:
-            combined = new_df
-        combined = combined.sort_values(['stock_id', 'date']).reset_index(drop=True)
-
-        # Backup before overwrite
-        bk = rev_path.with_suffix('.parquet.bak_vfvc')
-        if rev_path.exists() and not bk.exists():
-            import shutil
-            shutil.copy2(rev_path, bk)
-            logger.info("Backup: %s", bk)
-
-        combined.to_parquet(rev_path)
-        logger.info("Saved: %s (%d rows, %d stocks)",
-                    rev_path, len(combined), combined['stock_id'].nunique())
+    logger.info("Backfill done: %d ok / %d fail / %.1fmin",
+                len(ok_stocks), len(fail_stocks), (time.time() - t0) / 60)
 
     if fail_stocks:
         logger.warning("Failed (%d): %s", len(fail_stocks), fail_stocks[:20])
+
+    # ================================================================
+    # RF-1 鐵則：per-stock 寫完後，呼叫 aggregate 聚合到 backtest/
+    # 確保 backfill 不會再造成 live 與 backtest 資料不一致
+    # ================================================================
+    if args.skip_aggregate:
+        logger.warning("--skip-aggregate 啟用，未聚合 backtest/financials_revenue.parquet")
+        return
+
+    if not ok_stocks:
+        logger.warning("No stocks backfilled, skip aggregate")
+        return
+
+    logger.info("Running aggregate_fundamental_cache.py --category revenue ...")
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "aggregate_fundamental_cache.py"),
+         "--category", "revenue"],
+        cwd=str(ROOT),
+        capture_output=True, text=True,
+    )
+    if result.returncode == 0:
+        logger.info("Aggregate OK")
+        # print tail of aggregate output
+        for line in result.stdout.splitlines()[-8:]:
+            logger.info("  %s", line)
+    else:
+        logger.error("Aggregate FAILED (rc=%d):\n%s", result.returncode, result.stderr)
+        sys.exit(result.returncode)
 
 
 if __name__ == "__main__":

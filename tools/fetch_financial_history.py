@@ -1,17 +1,28 @@
 """
 批次抓取 FinMind 歷史季報（損益/資產負債/現金流/月營收）
 
-存到 data_cache/backtest/financials_tw.parquet（合併所有 dataset）
+2026-04-21 RF-1 重構：
+---------------------
+原版直接寫 data_cache/backtest/financials_*.parquet，導致 live scanner
+讀 data_cache/fundamental_cache/ 時看不到。現改成：
+  1. per-stock 寫 data_cache/fundamental_cache/{cache_key}_{sid}.parquet
+  2. 最後自動呼叫 aggregate_fundamental_cache.py 聚合到 backtest/
+
+規則：backfill tool 只能寫 fundamental_cache/，禁止直接寫 backtest/。
+詳見 feedback_unified_cache.md。
+
 FinMind 600 call/hr 限制，300 股 x 4 dataset = 1200 call，約 2hr。
 
 用法:
     python tools/fetch_financial_history.py              # 抓 top300
     python tools/fetch_financial_history.py --sample 10  # 測試 10 支
+    python tools/fetch_financial_history.py --skip-aggregate  # 不跑 aggregate
 """
 
 import argparse
 import json
 import logging
+import subprocess
 import sys
 import time
 from datetime import datetime, timedelta
@@ -29,15 +40,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("fetch_fin")
 
-OUT_DIR = _ROOT / "data_cache" / "backtest"
+OUT_DIR = _ROOT / "data_cache" / "backtest"  # for universe + checkpoint only
+LIVE_CACHE_DIR = _ROOT / "data_cache" / "fundamental_cache"  # RF-1: backfill 寫入目標
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+LIVE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-# FinMind datasets to fetch
+# FinMind datasets to fetch: (finmind_dataset, short_name, fundamental_cache_key)
+# cache_key 對齊 cache_manager.get_cached_fundamentals() + backfill_fundamentals.CATEGORIES
 DATASETS = [
-    ('TaiwanStockFinancialStatements', 'income'),
-    ('TaiwanStockBalanceSheet', 'balance'),
-    ('TaiwanStockCashFlowsStatement', 'cashflow'),
-    ('TaiwanStockMonthRevenue', 'revenue'),
+    ('TaiwanStockFinancialStatements', 'income',   'financial_statement'),
+    ('TaiwanStockBalanceSheet',        'balance',  'balance_sheet'),
+    ('TaiwanStockCashFlowsStatement',  'cashflow', 'cash_flows_statement'),
+    ('TaiwanStockMonthRevenue',        'revenue',  'month_revenue'),
 ]
 
 # Rate limiting
@@ -98,7 +112,7 @@ def fetch_all(tickers, start_date='2020-01-01'):
         if (i + 1) % 20 == 0 or i < 3:
             logger.info(f"[{i+1}/{total}] {sid} (calls={call_count})")
 
-        for dataset, name in DATASETS:
+        for dataset, name, cache_key in DATASETS:
             try:
                 if dataset == 'TaiwanStockFinancialStatements':
                     df = dl.taiwan_stock_financial_statement(
@@ -116,7 +130,9 @@ def fetch_all(tickers, start_date='2020-01-01'):
                 if df is not None and not df.empty:
                     df = df.copy()
                     df['stock_id'] = sid
-                    all_data.setdefault(name, []).append(df)
+                    # RF-1: 寫 per-stock live cache（取代舊版 in-memory accumulate + 寫 backtest）
+                    live_path = LIVE_CACHE_DIR / f"{cache_key}_{sid}.parquet"
+                    df.to_parquet(live_path)
 
                 call_count += 1
             except Exception as e:
@@ -139,21 +155,29 @@ def fetch_all(tickers, start_date='2020-01-01'):
     return all_data
 
 
-def save_parquets(all_data):
-    """Save each dataset as a separate parquet file."""
-    for name, dfs in all_data.items():
-        if not dfs:
-            continue
-        combined = pd.concat(dfs, ignore_index=True)
-        out_path = OUT_DIR / f"financials_{name}.parquet"
-        combined.to_parquet(out_path, index=False)
-        logger.info(f"Saved {out_path}: {len(combined)} rows, {combined['stock_id'].nunique()} stocks")
+def run_aggregate():
+    """RF-1: 呼叫 aggregate_fundamental_cache.py 聚合 fundamental_cache/ → backtest/financials_*.parquet。"""
+    logger.info("Running aggregate_fundamental_cache.py (all categories)...")
+    result = subprocess.run(
+        [sys.executable, str(_ROOT / "tools" / "aggregate_fundamental_cache.py")],
+        cwd=str(_ROOT),
+        capture_output=True, text=True,
+    )
+    if result.returncode == 0:
+        logger.info("Aggregate OK")
+        for line in result.stdout.splitlines()[-12:]:
+            logger.info(f"  {line}")
+    else:
+        logger.error(f"Aggregate FAILED (rc={result.returncode}):\n{result.stderr}")
+        sys.exit(result.returncode)
 
 
 def main():
     parser = argparse.ArgumentParser(description='Fetch FinMind historical financials')
     parser.add_argument('--sample', type=int, default=None, help='Only fetch N stocks (for testing)')
     parser.add_argument('--since', default='2020-01-01', help='Start date (default: 2020-01-01)')
+    parser.add_argument('--skip-aggregate', action='store_true',
+                        help='不自動跑 aggregate（僅測試用）')
     args = parser.parse_args()
 
     tickers = load_universe(args.sample)
@@ -162,11 +186,16 @@ def main():
                 f"~{len(tickers) * CALLS_PER_STOCK / FINMIND_RATE_LIMIT:.1f} hours")
 
     start = time.time()
-    all_data = fetch_all(tickers, start_date=args.since)
-    save_parquets(all_data)
+    fetch_all(tickers, start_date=args.since)
 
     elapsed = time.time() - start
-    logger.info(f"Done in {elapsed/60:.1f} min")
+    logger.info(f"Fetch done in {elapsed/60:.1f} min")
+
+    # RF-1: backfill 完後自動聚合，不然 backtest/financials_*.parquet 會 stale
+    if args.skip_aggregate:
+        logger.warning("--skip-aggregate 啟用，未聚合 backtest/")
+    else:
+        run_aggregate()
 
     # Clean up checkpoint
     cp = OUT_DIR / "_fetch_checkpoint.json"
