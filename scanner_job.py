@@ -26,6 +26,68 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
+# VF-G4 Regime Filter (DRY-RUN)
+# ============================================================
+# 讀 data/tracking/regime_log.jsonl 最新 regime，判斷是否 pass filter。
+# 不改 scanner 邏輯，只寫 audit 供事後分析。
+
+_REGIME_LOG_PATH = Path('data/tracking/regime_log.jsonl')
+_REGIME_FILTER_AUDIT = Path('data/tracking/regime_filter_audit.jsonl')
+
+_FILTER_REGIMES = {
+    'volatile':         {'volatile'},
+    'volatile_ranging': {'volatile', 'ranging'},
+    'excl_trending':    {'volatile', 'ranging', 'neutral'},  # 排除 trending
+}
+
+
+def _load_latest_regime():
+    """Load today's regime from regime_log.jsonl (最後一行)。"""
+    if not _REGIME_LOG_PATH.exists():
+        return None
+    lines = [l for l in _REGIME_LOG_PATH.read_text(encoding='utf-8').splitlines() if l.strip()]
+    if not lines:
+        return None
+    try:
+        return json.loads(lines[-1])
+    except Exception:
+        return None
+
+
+def _compute_regime_filter_status(filter_name):
+    """判斷今日 regime 是否 pass filter。回傳 dict 或 None。"""
+    rec = _load_latest_regime()
+    if rec is None:
+        return None
+    today_regime = rec.get('regime', 'unknown')
+    passes = today_regime in _FILTER_REGIMES.get(filter_name, set())
+    return {
+        'date': rec.get('date'),
+        'today_regime': today_regime,
+        'filter': filter_name,
+        'passes': passes,
+        'ret_20d': rec.get('ret_20d'),
+        'range_20d': rec.get('range_20d'),
+    }
+
+
+def _append_regime_filter_audit(scan_type, market, n_picks, regime_filter_info):
+    """Append scan 的 regime filter 決策到 audit log。"""
+    if regime_filter_info is None:
+        return
+    entry = {
+        'scan_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'scan_type': scan_type,
+        'market': market,
+        'n_picks': n_picks,
+        **regime_filter_info,
+    }
+    _REGIME_FILTER_AUDIT.parent.mkdir(parents=True, exist_ok=True)
+    with open(_REGIME_FILTER_AUDIT, 'a', encoding='utf-8') as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+
+# ============================================================
 # Level 1 Health Check — detect silent failures (e.g. yfinance 429)
 # ============================================================
 _MIN_SCAN_SIZE = {      # 正常 total_scanned 下限，低於此代表資料源掛了
@@ -288,6 +350,11 @@ def main():
                         help='Minimal output')
     parser.add_argument('--no-mops', action='store_true',
                         help='Disable MOPS REST API (use FinMind only). Avoid WAF ban / circuit breaker cycles.')
+    parser.add_argument('--regime-filter', default=None,
+                        choices=['volatile', 'volatile_ranging', 'excl_trending'],
+                        help='VF-G4 DRY-RUN regime filter: 記錄今日 regime 是否 pass filter '
+                             '(data/tracking/regime_filter_audit.jsonl)，picks 照舊不過濾。'
+                             '用途: 提前累積 filter 決策 audit，shadow run 成熟後才正式 enforce。')
     parser.add_argument('--twse-pct', type=float, default=0.0002,
                         help='TWSE value pct threshold (default: 0.0002)')
     parser.add_argument('--tpex-pct', type=float, default=0.0005,
@@ -309,6 +376,19 @@ def main():
         from cache_manager import set_use_mops
         set_use_mops(False)
         logging.getLogger(__name__).info("MOPS disabled via --no-mops flag (using FinMind only)")
+
+    # --regime-filter: DRY-RUN 讀今日 regime，記錄 audit（不改 scanner 行為）
+    regime_filter_info = None
+    if args.regime_filter:
+        regime_filter_info = _compute_regime_filter_status(args.regime_filter)
+        _log = logging.getLogger(__name__)
+        if regime_filter_info:
+            _log.info("[REGIME FILTER DRY-RUN] today=%s filter=%s would_%s",
+                      regime_filter_info['today_regime'],
+                      args.regime_filter,
+                      "PASS (keep)" if regime_filter_info['passes'] else "SKIP (drop)")
+        else:
+            _log.warning("[REGIME FILTER] Cannot determine today's regime (regime_log.jsonl empty?)")
 
     # Build config
     config = {
@@ -357,6 +437,7 @@ def main():
                 m_result = m_screener.run(market=mkt)
                 MomentumScreener.save_results(m_result, args.output_dir)
                 progress(f"Momentum [{mkt}] results saved")
+                _append_regime_filter_audit('momentum', mkt, len(m_result.get('results', [])), regime_filter_info)
                 # Level 1 health check
                 healthy, issues = check_scan_health(m_result, mkt, 'momentum')
                 if not healthy and args.notify:
@@ -391,6 +472,7 @@ def main():
                 v_result = v_screener.run(market=mkt)
                 ValueScreener.save_results(v_result, args.output_dir)
                 progress(f"Value [{mkt}] results saved")
+                _append_regime_filter_audit('value', mkt, len(v_result.get('results', [])), regime_filter_info)
                 # Level 1 health check
                 healthy, issues = check_scan_health(v_result, mkt, 'value')
                 if not healthy and args.notify:
@@ -410,6 +492,7 @@ def main():
             s_result = s_screener.run(market=mkt, mode='swing')
             MomentumScreener.save_results(s_result, args.output_dir)
             progress(f"Swing [{mkt}] results saved")
+            _append_regime_filter_audit('swing', mkt, len(s_result.get('results', [])), regime_filter_info)
             healthy, issues = check_scan_health(s_result, mkt, 'swing')
             if not healthy and args.notify:
                 send_alert_notification('swing', mkt, issues)
@@ -426,6 +509,7 @@ def main():
             qm_result = qm_screener.run(market=mkt, mode='qm')
             MomentumScreener.save_results(qm_result, args.output_dir)
             progress(f"QM [{mkt}] results saved")
+            _append_regime_filter_audit('qm', mkt, len(qm_result.get('results', [])), regime_filter_info)
             healthy, issues = check_scan_health(qm_result, mkt, 'qm')
             if not healthy and args.notify:
                 send_alert_notification('qm', mkt, issues)
