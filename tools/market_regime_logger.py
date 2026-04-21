@@ -51,8 +51,45 @@ def load_top300():
     return []
 
 
+def _twse_trading_days_between(start: pd.Timestamp, end: pd.Timestamp) -> list:
+    """回傳 start < d <= end 之間的 TWSE 交易日（含 end，排除 start 當日）。
+    用 pandas 工作日（週一到五）近似；台灣假日較多但 TWSE bulk 會回 404 自動跳過。"""
+    days = pd.bdate_range(start=start + pd.Timedelta(days=1), end=end)
+    return [d for d in days]
+
+
+def _fetch_todays_close_from_twse(universe: list, dates: list) -> pd.Series:
+    """對每個日期呼叫 TWSE bulk，過濾 universe 算等權 close。
+    回傳 Series indexed by date。"""
+    from twse_api import TWSEOpenData
+    api = TWSEOpenData()
+    result = {}
+    univ_set = set(universe)
+    for d in dates:
+        try:
+            df = api.get_market_daily_all(date=d.to_pydatetime())
+            if df is None or df.empty:
+                logger.debug("  TWSE bulk %s: empty (假日?)", d.strftime('%Y-%m-%d'))
+                continue
+            # 過濾 universe
+            df = df[df['stock_id'].astype(str).isin(univ_set)]
+            if df.empty:
+                continue
+            # 等權 close
+            close = pd.to_numeric(df['close'], errors='coerce').dropna()
+            if close.empty:
+                continue
+            avg = float(close.mean())
+            result[d] = avg
+            logger.info("  TWSE bulk %s: %d stocks matched, avg=%.2f",
+                        d.strftime('%Y-%m-%d'), len(close), avg)
+        except Exception as e:
+            logger.warning("  TWSE bulk %s failed: %s", d.strftime('%Y-%m-%d'), e)
+    return pd.Series(result).sort_index() if result else pd.Series(dtype='float64')
+
+
 def compute_today_regime() -> dict:
-    """Compute today's market regime from cached OHLCV."""
+    """Compute today's market regime from cached OHLCV + TWSE live supplement."""
     logger.info("Loading OHLCV: %s", OHLCV_PATH)
     ohlcv = pd.read_parquet(OHLCV_PATH)
     ohlcv['date'] = pd.to_datetime(ohlcv['date'])
@@ -68,6 +105,22 @@ def compute_today_regime() -> dict:
 
     if len(daily_avg) < 60:
         raise RuntimeError(f"Insufficient history: {len(daily_avg)} days")
+
+    # 若 parquet 落後，從 TWSE bulk 補齊到今天
+    parquet_latest = daily_avg.index[-1]
+    today = pd.Timestamp.now().normalize()
+    missing_days = _twse_trading_days_between(parquet_latest, today)
+    if missing_days:
+        logger.info("Parquet latest=%s, today=%s → fetching %d missing days from TWSE",
+                    parquet_latest.date(), today.date(), len(missing_days))
+        supplement = _fetch_todays_close_from_twse(universe, missing_days)
+        if not supplement.empty:
+            daily_avg = pd.concat([daily_avg, supplement]).sort_index()
+            logger.info("Extended daily_avg: %d → %d days (now through %s)",
+                        len(daily_avg) - len(supplement), len(daily_avg),
+                        daily_avg.index[-1].date())
+    else:
+        logger.info("Parquet is up to date (latest=%s)", parquet_latest.date())
 
     # Rolling windows
     ret20 = daily_avg.pct_change(20)
