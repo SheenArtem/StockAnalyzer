@@ -302,49 +302,57 @@ def compute_quality_score(fscore, zscore, curr, prev):
 
 def compute_revenue_score(stock_id, curr_date, revenue_raw):
     """
-    營收分 0-100 (baseline 50, ±): YoY 趨勢 + 衰退收斂 + 驚喜
+    營收分 0-100 (baseline 50, ±): 1m 單月 YoY 分數
+
+    VF-VC 驗證（2026-04-20）:
+      舊 3m rolling YoY + tail(15) bug: IR -1.075 反向（衰退分支死碼，只剩 50/60 二元）
+      新 1m 單月 YoY:                   IR +0.335, quarterly walk-forward IR +0.615 (A)
+                                        5/6 年度正向、17/24 季度正向
+
+    注：舊版為何方向錯 — value pool 中「月營收 YoY 已轉正」的股票通常已反彈完，
+    後續動能有限；真正的左側機會是營收衰退但正在收斂的股票。
     """
     score = 50
     try:
         sub = revenue_raw[
             (revenue_raw['stock_id'] == stock_id) &
             (revenue_raw['date'] <= curr_date)
-        ].sort_values('date').tail(15).copy()
+        ].sort_values('date').tail(16).copy()
 
         if len(sub) < 13:
             return score
 
         sub['rev'] = pd.to_numeric(sub['revenue'], errors='coerce')
-        sub = sub.dropna(subset=['rev'])
+        sub = sub.dropna(subset=['rev']).reset_index(drop=True)
         if len(sub) < 13:
             return score
 
-        # Compute YoY
-        sub_sorted = sub.sort_values('date').reset_index(drop=True)
-        if len(sub_sorted) >= 13:
-            # Use last 3 months vs 3 months prior year for stability
-            last_3 = sub_sorted.tail(3)['rev'].sum()
-            prev_yr_3 = sub_sorted.iloc[-15:-12]['rev'].sum() if len(sub_sorted) >= 15 else sub_sorted.head(3)['rev'].sum()
-            if prev_yr_3 > 0:
-                yoy_latest = (last_3 / prev_yr_3 - 1) * 100
+        # 1m YoY: 最新月 vs 12 個月前同月
+        latest = sub.iloc[-1]['rev']
+        yr_ago = sub.iloc[-13]['rev']
+        if yr_ago <= 0:
+            return score
+        yoy_latest = (latest / yr_ago - 1) * 100
 
-                # Prev YoY for trend check
-                prev_3 = sub_sorted.iloc[-6:-3]['rev'].sum()
-                prev_yr_prev_3 = sub_sorted.iloc[-18:-15]['rev'].sum() if len(sub_sorted) >= 18 else None
-                yoy_prev = None
-                if prev_yr_prev_3 and prev_yr_prev_3 > 0:
-                    yoy_prev = (prev_3 / prev_yr_prev_3 - 1) * 100
+        # prev-month YoY (3 月前) for trend convergence/acceleration
+        yoy_prev = None
+        if len(sub) >= 16:
+            prev_month = sub.iloc[-4]['rev']
+            yr_ago_prev = sub.iloc[-16]['rev']
+            if yr_ago_prev > 0:
+                yoy_prev = (prev_month / yr_ago_prev - 1) * 100
 
-                if yoy_latest > 0:
-                    score += 10
-                elif yoy_prev is not None:
-                    if abs(yoy_latest - yoy_prev) >= 0.5:
-                        if yoy_latest > yoy_prev:
-                            bonus = min(20, (yoy_latest - yoy_prev) * 2)
-                            score += bonus
-                        else:
-                            penalty = min(20, abs(yoy_latest - yoy_prev) * 2)
-                            score -= penalty
+        if yoy_latest > 0:
+            score += 10
+        elif yoy_prev is not None and abs(yoy_latest - yoy_prev) >= 0.5:
+            if yoy_latest > yoy_prev:
+                # 衰退收斂: 低點信號
+                bonus = min(20, (yoy_latest - yoy_prev) * 2)
+                score += bonus
+            else:
+                # 加速衰退
+                penalty = min(20, abs(yoy_latest - yoy_prev) * 2)
+                score -= penalty
     except Exception:
         pass
 

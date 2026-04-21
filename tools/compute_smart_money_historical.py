@@ -52,32 +52,36 @@ def load_avg_tv() -> pd.DataFrame:
 
 
 def score_smart_money(row: pd.Series) -> float:
-    """Convert normalized 5d net buy % into 0-100 score (aligned with _score_smart_money logic).
+    """Compute SM composite score from trust + dealer only (外資 IR 0.034 D 剔除).
 
-    - 外資 + 投信 + 自營商 5 日淨買佔 20 日均成交值比率
-    - 正向加分、負向扣分
+    VF-VE 驗證 (2026-04-19):
+      外資 IR 0.034 D 無 alpha → 權重 0
+      投信 IR 0.163 B → 50% 權重
+      自營商 IR 0.222 B → 50% 權重
+
+    Input row: trust_pct / dealer_pct (5d net buy / 20d avg_tv × 100)
+    Output: 0-100 score
     """
     score = 50.0
-    total_pct = row.get('total_pct', 0)
-    foreign_pct = row.get('foreign_pct', 0)
     trust_pct = row.get('trust_pct', 0)
+    dealer_pct = row.get('dealer_pct', 0)
 
-    # 三大法人合計 (total)
-    if pd.notna(total_pct):
-        if total_pct > 2:
+    # 投信 + 自營 composite (等權重) — 兩者 IR 都 B 級
+    if pd.notna(trust_pct) and pd.notna(dealer_pct):
+        composite_pct = (trust_pct + dealer_pct) / 2  # 平均
+        if composite_pct > 1:
             score += 15
-        elif total_pct > 0.5:
+        elif composite_pct > 0.3:
             score += 8
-        elif total_pct < -2:
+        elif composite_pct < -1:
             score -= 15
-        elif total_pct < -0.5:
+        elif composite_pct < -0.3:
             score -= 8
 
-    # 外資 + 投信同步買超 bonus (vs 自營)
-    if pd.notna(foreign_pct) and pd.notna(trust_pct):
-        if foreign_pct > 0.3 and trust_pct > 0.3:
-            score += 10  # 外資投信同步買超 (機構型 smart money)
-        elif foreign_pct < -0.3 and trust_pct < -0.3:
+        # Bonus: 兩者同時正買超
+        if trust_pct > 0.5 and dealer_pct > 0.5:
+            score += 10
+        elif trust_pct < -0.5 and dealer_pct < -0.5:
             score -= 10
 
     return max(0, min(100, score))
