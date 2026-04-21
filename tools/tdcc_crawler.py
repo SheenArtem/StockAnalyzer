@@ -30,17 +30,18 @@ import argparse
 import sys
 from pathlib import Path
 
-# 復用 1-1 的下載邏輯
+# 復用各 dataset 的下載邏輯
 from tdcc_universe_download import main as run_universe_1_1
+from tdcc_shareholding import main as run_shareholding_1_5
 
 TDCC_CACHE_ROOT = Path("data_cache/tdcc")
 
 # dataset id → (description, handler fn or None)
+# 註：1-6 經實測是「債券」而非股票集保分散表（欄位：債券代號/債券餘額/公司債類別），
+# 故不做 1-6。若未來 TDCC 新增股票月頻分散表再補。
 DATASETS: dict[str, tuple[str, callable | None]] = {
     "1-1": ("證券基本資料主檔", run_universe_1_1),
-    # TODO Phase 2:
-    # "1-5": ("集保戶股權分散表", None),
-    # "1-6": ("集保戶股權分散表依證券", None),
+    "1-5": ("集保戶股權分散表（週更）", run_shareholding_1_5),
 }
 
 
