@@ -57,10 +57,11 @@ echo [%date% %time%] Market regime logger done >> scanner.log
 REM Run QM + Value (TW only) — VF-VC P3-b 2026-04-20 落地
 REM Value 權重改 30/25/30/15/0 (V_rev_heavy, WF 24 季 15 贏 V_live 63%)
 REM Chain invocations: QM 不做 tracking，Value 最後執行帶 tracking
-python scanner_job.py --mode qm --market tw --no-tracking --no-mops --push --notify >> scanner.log 2>&1
+REM --regime-filter: VF-G4 DRY-RUN 記錄今日 regime 是否 pass volatile filter (audit 不過濾 picks)
+python scanner_job.py --mode qm --market tw --no-tracking --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
 set PY_EXIT_QM=%ERRORLEVEL%
 
-python scanner_job.py --mode value --market tw --no-mops --push --notify >> scanner.log 2>&1
+python scanner_job.py --mode value --market tw --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
 set PY_EXIT_VAL=%ERRORLEVEL%
 
 REM Take worst exit code
