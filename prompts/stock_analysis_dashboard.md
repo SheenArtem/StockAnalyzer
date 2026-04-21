@@ -10,6 +10,8 @@
 
 ```typescript
 {
+  schema_version: "1.0",      // 固定為 "1.0"，勿更動（未來 schema 擴充才變）
+
   meta: {
     ticker: string,          // e.g. "2330.TW" or "NVDA"
     name: string,            // 公司中文名
@@ -161,6 +163,7 @@
 
 ```json
 {
+  "schema_version": "1.0",
   "meta": {
     "ticker": "2330.TW",
     "name": "台積電",

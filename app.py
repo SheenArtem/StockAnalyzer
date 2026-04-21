@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.21.1")
+    st.caption("Version: v2026.04.21.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -2006,10 +2006,12 @@ elif st.session_state.get('app_mode') == 'ai_reports':
                                 key='html_download_btn',
                             )
 
-                        st.caption("💡 iframe 預覽可能受沙盒限制；如排版不完整請點「在瀏覽器開啟」查看完整儀表板")
+                        st.caption("💡 儀表板會自動度量內容高度調整；如仍顯示不全請點「在瀏覽器開啟」")
                         # 內嵌 iframe 預覽（React 需要 JS 執行，components.html 會放在 iframe 內可用）
+                        # 模板 2026-04-21 加了 postMessage(streamlit:setFrameHeight) 動態回報實際高度，
+                        # Streamlit iframe 會自動 resize；height=1200 只是首次 render 的保險值
                         import streamlit.components.v1 as _components
-                        _components.html(_sel_content, height=1400, scrolling=True)
+                        _components.html(_sel_content, height=1200, scrolling=True)
                     else:
                         # 報告含 <span style="color:..."> 顏色標記，需允許 HTML 才能正確渲染
                         st.markdown(_sel_content, unsafe_allow_html=True)
