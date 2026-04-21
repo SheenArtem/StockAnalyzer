@@ -286,6 +286,8 @@ def main():
                         help='Skip performance tracking (use when chaining multiple scanner_job invocations)')
     parser.add_argument('--quiet', action='store_true',
                         help='Minimal output')
+    parser.add_argument('--no-mops', action='store_true',
+                        help='Disable MOPS REST API (use FinMind only). Avoid WAF ban / circuit breaker cycles.')
     parser.add_argument('--twse-pct', type=float, default=0.0002,
                         help='TWSE value pct threshold (default: 0.0002)')
     parser.add_argument('--tpex-pct', type=float, default=0.0005,
@@ -301,6 +303,12 @@ def main():
         level=log_level,
         format='%(asctime)s [%(levelname)s] %(name)s - %(message)s',
     )
+
+    # Apply --no-mops flag early (before any module imports USE_MOPS via function call)
+    if args.no_mops:
+        from cache_manager import set_use_mops
+        set_use_mops(False)
+        logging.getLogger(__name__).info("MOPS disabled via --no-mops flag (using FinMind only)")
 
     # Build config
     config = {

@@ -70,10 +70,11 @@ _SESSION_TTL_SECONDS = 1800  # 30 分鐘後重新取 cookie
 # ---------------------------------------------------------------
 # Why: 2026-04-18 MOPS WAF ban 了本機 IP，肇因 backfill smoke test
 # 短時間 ~8 req/sec 持續。Conservative 2 req/sec + jitter 模擬人類。
+# 2026-04-20: 2 req/sec 還是被 ban (VPN 測試無效)，預設調整到 3s / 0.33 req/sec
 # 可用 env 調整：
-#   MOPS_RATE_INTERVAL=0.5  (預設，1/0.5 = 2 req/sec 上限)
+#   MOPS_RATE_INTERVAL=3.0  (預設，1/3 = 0.33 req/sec)
 #   MOPS_RATE_JITTER=0.3    (±30% 時間抖動)
-_MIN_INTERVAL = float(os.getenv("MOPS_RATE_INTERVAL", "0.5"))
+_MIN_INTERVAL = float(os.getenv("MOPS_RATE_INTERVAL", "3.0"))
 _JITTER_FACTOR = float(os.getenv("MOPS_RATE_JITTER", "0.3"))
 
 _rate_lock = threading.Lock()

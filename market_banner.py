@@ -371,8 +371,13 @@ def _fetch_or_cached_pcr(now):
 #  主入口
 # ============================================================
 
+@st.cache_data(ttl=120, show_spinner=False)
 def _get_banner_data():
-    """取得 banner 所有資料，依 per-indicator 策略分開快取。"""
+    """取得 banner 所有資料，依 per-indicator 策略分開快取。
+
+    外層加 @st.cache_data(ttl=120) 避免每次 page rerun (切 tab / 按鈕) 都重做 6 個 fetch。
+    底層 per-indicator 有 disk TTL cache，這層只是加速 Streamlit session 內重複 render。
+    """
     now = _now_tw()
     return {
         'tw': _fetch_or_cached_tw_index(now),
@@ -449,10 +454,14 @@ def _render_index_card(col, data):
         )
 
 
+@st.fragment
 def render_market_banner():
     """
     渲染大盤儀表板 Banner。在 app.py 主內容區頂端呼叫。
     使用 st.expander 包裝，預設展開。
+
+    @st.fragment 使此 banner 成為獨立 rerun 單位，切 tab / 按鈕不會觸發
+    主 page 全部 rerun（即使 cache 命中，Streamlit rerun 本身也有 overhead）。
     """
     with st.expander("📊 大盤儀表板", expanded=True):
         data = _get_banner_data()

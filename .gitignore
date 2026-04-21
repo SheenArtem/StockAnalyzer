@@ -11,6 +11,13 @@ ml_models/
 
 # UI test screenshots (auto-generated, auto-cleaned)
 tools/screenshots/
+tools/screenshots_*/
+
+# 一次性 UI smoke test 腳本
+tools/ui_test_p*.py
+
+# Kronos POC (暫停, memory 有記錄)
+tools/kronos_smoke*.py
 
 # Local-only calibration scripts
 local/
@@ -41,6 +48,17 @@ data/ai_reports/
 
 # 回測分析日誌（可重產）
 reports/_*.log
+reports/*.log
+scanner_*.log
+scanner_mops_*.log
+
+# POC 抽樣資料
+reports/mops_poc_samples/
+reports/tdcc_poc_samples/
+
+# AI CLI 評測產物（Gemini/Claude 對照樣本）
+reports/claude_[0-9]*
+reports/gemini_[0-9]*
 
 # 日 IC parquet（可重產，較大）
 reports/*.parquet
@@ -50,3 +68,9 @@ tools/_test_dashboard_output.html
 
 # 外部參考 (research sample)
 /remixed-*.tsx
+
+# 外部第三方 repo（Kronos/TradingAgents 評估用，不納入版控）
+third_party/
+
+# 備份檔
+*.bak_*

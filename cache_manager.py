@@ -17,7 +17,17 @@ CACHE_DIR = "data_cache"
 _cache_lock = threading.Lock()
 
 # USE_MOPS=true 時優先用 MOPS REST API（預設啟用）
+# 啟動時讀 env var，可用 set_use_mops(bool) 在 runtime 切換（scanner --no-mops 用）
 USE_MOPS = os.getenv("USE_MOPS", "true").lower() == "true"
+
+
+def set_use_mops(enabled: bool) -> None:
+    """Runtime 切換 MOPS 開關。呼叫後，之後所有 `from cache_manager import USE_MOPS`
+    都會讀到新值（因為是 module 屬性）。
+    用途：scanner_job.py --no-mops CLI 啟動時關閉 MOPS 不依賴 env。
+    """
+    global USE_MOPS
+    USE_MOPS = enabled
 
 
 # ================================================================
