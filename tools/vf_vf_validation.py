@@ -44,6 +44,11 @@ SCHEMES = [
     ("V4_qm_like",    {'valuation': 0.00, 'quality': 0.50, 'revenue': 0.30, 'technical': 0.20, 'smart_money': 0.00}),
     ("V5_quality",    {'valuation': 0.20, 'quality': 0.40, 'revenue': 0.20, 'technical': 0.15, 'smart_money': 0.05}),
     ("V6_no_sm",      {'valuation': 0.35, 'quality': 0.30, 'revenue': 0.15, 'technical': 0.20, 'smart_money': 0.00}),
+    # VF-VC P3-a (2026-04-20) 新增 — 評估 live 35/30/18/17/0 + revenue 權重變化
+    ("V_live",        {'valuation': 0.35, 'quality': 0.30, 'revenue': 0.18, 'technical': 0.17, 'smart_money': 0.00}),
+    ("V_no_rev",      {'valuation': 0.43, 'quality': 0.36, 'revenue': 0.00, 'technical': 0.21, 'smart_money': 0.00}),
+    ("V_half_rev",    {'valuation': 0.39, 'quality': 0.33, 'revenue': 0.09, 'technical': 0.19, 'smart_money': 0.00}),
+    ("V_rev_heavy",   {'valuation': 0.30, 'quality': 0.25, 'revenue': 0.30, 'technical': 0.15, 'smart_money': 0.00}),
 ]
 
 

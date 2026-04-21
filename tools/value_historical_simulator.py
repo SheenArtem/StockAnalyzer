@@ -341,6 +341,7 @@ def run_simulation(
     debug: bool = False,
     save_snapshot: bool = False,
     smart_money: pd.DataFrame | None = None,
+    revenue_monthly: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Main weekly simulation.
 
@@ -376,6 +377,12 @@ def run_simulation(
     eps_sorted = eps_ttm.sort_values(['stock_id', 'date'])
     bvps_sorted = bvps.sort_values(['stock_id', 'date'])
 
+    # Monthly revenue_score override (VF-VC: 1m YoY 須月度更新才有 alpha)
+    rm_sorted = None
+    if revenue_monthly is not None and not revenue_monthly.empty:
+        rm_sorted = revenue_monthly.sort_values(['stock_id', 'date'])
+        logger.info("  Using monthly revenue_score override (%d rows)", len(rm_sorted))
+
     all_picks = []
     all_snapshots = []   # full Stage-1-passed snapshots (for VF-VA/VF)
     weeks_processed = 0
@@ -406,6 +413,23 @@ def run_simulation(
                     'quality_score', 'revenue_score']],
             on='stock_id', how='left',
         )
+
+        # Override revenue_score with monthly PIT value if available
+        if rm_sorted is not None:
+            rm_pit = (
+                rm_sorted[rm_sorted['date'] <= d]
+                .groupby('stock_id')
+                .last()
+                .reset_index()
+                .rename(columns={'revenue_score': 'revenue_score_monthly'})
+            )
+            snap = snap.merge(
+                rm_pit[['stock_id', 'revenue_score_monthly']],
+                on='stock_id', how='left',
+            )
+            # Prefer monthly when available, fallback to quarterly
+            snap['revenue_score'] = snap['revenue_score_monthly'].fillna(snap['revenue_score'])
+            snap = snap.drop(columns=['revenue_score_monthly'])
 
         # PIT lookup: EPS TTM
         eps_pit = eps_sorted[eps_sorted['date'] <= d].groupby('stock_id').last().reset_index()
@@ -582,6 +606,15 @@ def main():
 
     smart_money = load_smart_money_scores()
 
+    # Monthly revenue_score override (VF-VC P3-a)
+    RM_PATH = DATA_DIR / "revenue_scores_monthly.parquet"
+    revenue_monthly = None
+    if RM_PATH.exists():
+        revenue_monthly = pd.read_parquet(RM_PATH)
+        revenue_monthly['date'] = pd.to_datetime(revenue_monthly['date'])
+        logger.info("Loaded monthly revenue override: %d rows, %d stocks",
+                    len(revenue_monthly), revenue_monthly['stock_id'].nunique())
+
     journal, snapshot = run_simulation(
         ohlcv=ohlcv,
         indicators=indicators,
@@ -594,6 +627,7 @@ def main():
         debug=args.debug,
         save_snapshot=args.save_snapshot,
         smart_money=smart_money if not smart_money.empty else None,
+        revenue_monthly=revenue_monthly,
     )
 
     if journal.empty:

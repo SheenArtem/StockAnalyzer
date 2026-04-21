@@ -107,13 +107,14 @@ DEFAULT_CONFIG = {
     'batch_delay': 0.3,         # 每檔間隔秒數
     'max_failures': 10,
 
-    # 評分權重 (VF-VE 驗證 2026-04-19 後調整)
-    # SM composite IR=0.029 D 無 alpha / 改寫投信+自營亦 B 反轉 → 砍除
-    # 15% SM 權重按原比例分到其他 4 維（30:25:15:15 → 35:30:18:17）
-    'weight_valuation': 0.35,
-    'weight_quality': 0.30,
-    'weight_revenue': 0.18,
-    'weight_technical': 0.17,
+    # 評分權重 (VF-VC P3-b 落地 2026-04-20)
+    # revenue_score bug 修完後 (IR -1.075 → +0.465) revenue 是有效因子
+    # V_rev_heavy 30/25/30/15/0 walk-forward 24 季 15 贏 V_live (63%)，Sharpe 0.469 → 0.489
+    # 歷程: 30:25:15:15:15 (V1 原始) → 35:30:18:17:0 (VF-VE 砍 SM) → 30:25:30:15:0 (VF-VC 修 revenue)
+    'weight_valuation': 0.30,
+    'weight_quality': 0.25,
+    'weight_revenue': 0.30,
+    'weight_technical': 0.15,
     'weight_smart_money': 0.00,
 }
 
