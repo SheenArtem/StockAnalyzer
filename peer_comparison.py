@@ -1,7 +1,11 @@
 """
 同業比較模組 — 找同產業公司，比較估值/獲利指標
 
-台股: FinMind 產業分類 + TWSE/TPEX PER 數據
+台股（2026-04-21 起）優先順序：
+  1. MANUAL_PEER_OVERRIDE — 手動白名單覆蓋 TV 已知誤分類
+  2. TradingView sector + industry — 112 細分類，精準度優於 FinMind 大類
+  3. FinMind industry_category — fallback（~30 大類，粒度最粗）
+
 美股: Finviz sector/industry
 """
 
@@ -15,6 +19,52 @@ logger = logging.getLogger(__name__)
 
 _CACHE = {}
 _CACHE_TTL = 3600  # 1 hour
+_TV_MAP_CACHE = {'data': None, 'ts': 0}
+_TV_MAP_TTL = 7 * 24 * 3600  # 7 days — industry classification rarely changes
+
+
+# ============================================================
+# MANUAL_PEER_OVERRIDE — 修正 TradingView 已知誤分類
+# ============================================================
+# Key: target stock_id, Value: list of peer stock_ids (不含 target 自己)
+# 觸發條件：TV industry 誤分類（probe 結果 2026-04-21 確認）
+# 未列出的股票走 TV industry → FinMind 的優先順序
+def _expand_groups(groups):
+    """Expand {label: [sid1, sid2, ...]} into {sid: [other_sids]} symmetric override dict."""
+    out = {}
+    for sids in groups.values():
+        for i, sid in enumerate(sids):
+            peers = [s for s in sids if s != sid]
+            # Merge if sid appears in multiple groups
+            if sid in out:
+                out[sid] = list(dict.fromkeys(out[sid] + peers))
+            else:
+                out[sid] = peers
+    return out
+
+
+# 按族群定義（auto-expand 保證 symmetric）
+_PEER_GROUPS = {
+    '重電': ['1519', '1503', '1513', '1504', '1514'],
+    '工具機/線性傳動': ['2049', '4583', '7750', '4538', '8255', '1597'],
+    '晶圓代工': ['2330', '2303', '6770', '5347'],
+    'IC 封測 OSAT': ['3711', '6239', '2449', '2441', '3374'],
+    '面板': ['3481', '2409', '6116'],
+    '光學鏡頭': ['3008', '3406', '3019'],
+    '散熱模組': ['3017', '4540', '2421', '3483'],
+    'NB/AI 伺服器 ODM': ['2382', '3231', '2324', '2356', '6669', '3706'],
+    'PCB 載板/CCL': ['3037', '8046', '3189', '3044', '6213', '2383'],
+    '海運貨櫃': ['2603', '2609', '2615'],
+    '航空': ['2610', '2618'],
+    '金控': ['2881', '2882', '2891', '2886', '2880', '2892', '2887', '2883'],
+    '水泥': ['1101', '1102', '1103', '1104'],
+    '塑化三寶': ['1301', '1303', '1326'],
+    '食品': ['1216', '1201', '1210', '1227'],
+    '電信': ['2412', '3045', '4904'],
+    '記憶體 flash/DRAM': ['2337', '2344', '2408'],
+}
+
+MANUAL_PEER_OVERRIDE = _expand_groups(_PEER_GROUPS)
 
 
 def _cache_get(key):
@@ -29,6 +79,74 @@ def _cache_set(key, data):
     _CACHE[key] = (data, time.time())
 
 
+def _fetch_tv_industry_map():
+    """Bulk fetch TradingView sector/industry for all TW stocks.
+
+    Returns DataFrame with columns [stock_id, sector, industry], indexed by stock_id.
+    Cached 7 days (industry classification changes rarely).
+    """
+    now = time.time()
+    if _TV_MAP_CACHE['data'] is not None and now - _TV_MAP_CACHE['ts'] < _TV_MAP_TTL:
+        return _TV_MAP_CACHE['data']
+    try:
+        from tradingview_screener import Query
+        result = (Query()
+            .select('name', 'sector', 'industry')
+            .set_markets('taiwan')
+            .limit(5000)
+            .get_scanner_data())
+        df = result[1]
+        if df is None or df.empty:
+            return None
+        df = df.rename(columns={'name': 'stock_id'})
+        df['stock_id'] = df['stock_id'].astype(str)
+        df = df.dropna(subset=['sector', 'industry']).set_index('stock_id')
+        _TV_MAP_CACHE['data'] = df
+        _TV_MAP_CACHE['ts'] = now
+        logger.info("Fetched TV industry map for %d TW stocks", len(df))
+        return df
+    except Exception as e:
+        logger.warning("TV industry map fetch failed: %s", e)
+        return None
+
+
+def _get_peer_ids_and_label(stock_id, info):
+    """Resolve peer ids + industry label for a target stock.
+
+    Priority:
+      1. MANUAL_PEER_OVERRIDE → explicit peer list
+      2. TradingView sector + industry → all stocks in same group
+      3. FinMind industry_category → fallback
+
+    Returns (peer_ids: list[str], industry_label: str, source: str).
+    """
+    # 1. Manual override
+    if stock_id in MANUAL_PEER_OVERRIDE:
+        peer_ids = list(MANUAL_PEER_OVERRIDE[stock_id])
+        if stock_id not in peer_ids:
+            peer_ids = [stock_id] + peer_ids
+        return peer_ids, 'Manual override', 'manual'
+
+    # 2. TradingView industry
+    tv_map = _fetch_tv_industry_map()
+    if tv_map is not None and stock_id in tv_map.index:
+        target = tv_map.loc[stock_id]
+        t_sector = target['sector']
+        t_industry = target['industry']
+        mask = (tv_map['sector'] == t_sector) & (tv_map['industry'] == t_industry)
+        peer_ids = tv_map[mask].index.tolist()
+        label = f"{t_sector} / {t_industry}"
+        return peer_ids, label, 'tv'
+
+    # 3. FinMind fallback
+    target_row = info[info['stock_id'] == stock_id]
+    if target_row.empty:
+        return [], '', 'none'
+    industry = target_row.iloc[0].get('industry_category', '')
+    peer_ids = info[info['industry_category'] == industry]['stock_id'].tolist()
+    return peer_ids, industry, 'finmind'
+
+
 def get_tw_peer_comparison(stock_id, max_peers=10):
     """
     Get peer comparison for a Taiwan stock.
@@ -36,6 +154,7 @@ def get_tw_peer_comparison(stock_id, max_peers=10):
     Returns:
         dict: {
             'industry': str,
+            'industry_source': 'manual' | 'tv' | 'finmind',
             'target': dict (PE/PB/DY for target stock),
             'peers': DataFrame (peer stocks with PE/PB/DY),
             'rank': dict (target's rank within peers),
@@ -47,7 +166,7 @@ def get_tw_peer_comparison(stock_id, max_peers=10):
     if cached is not None:
         return cached
 
-    # 1. Get industry classification from FinMind
+    # 1. Load FinMind info (for stock names + fallback)
     try:
         from cache_manager import get_finmind_loader
         dl = get_finmind_loader()
@@ -56,20 +175,13 @@ def get_tw_peer_comparison(stock_id, max_peers=10):
         logger.warning("FinMind stock info failed: %s", e)
         return None
 
-    target_row = info[info['stock_id'] == stock_id]
-    if target_row.empty:
-        logger.warning("Stock %s not found in FinMind info", stock_id)
+    # 2. Resolve peer ids via priority chain (manual → TV → FinMind)
+    peer_ids, industry, source = _get_peer_ids_and_label(stock_id, info)
+    if not peer_ids:
+        logger.warning("No peer group found for %s", stock_id)
         return None
 
-    industry = target_row.iloc[0].get('industry_category', '')
-    market_type = target_row.iloc[0].get('type', '')  # 'twse' or 'tpex'
-
-    # 2. Get all stocks in same industry
-    peer_ids = info[info['industry_category'] == industry]['stock_id'].tolist()
-    peer_names = dict(zip(
-        info[info['industry_category'] == industry]['stock_id'],
-        info[info['industry_category'] == industry]['stock_name'],
-    ))
+    peer_names = dict(zip(info['stock_id'], info['stock_name']))
 
     # 3. Get PER data for all TWSE + TPEX stocks
     per_data = _fetch_all_per_data()
@@ -113,6 +225,7 @@ def get_tw_peer_comparison(stock_id, max_peers=10):
 
     result = {
         'industry': industry,
+        'industry_source': source,
         'target': target_data,
         'peers': selected,
         'rank': rank,
@@ -304,7 +417,9 @@ def format_peer_comparison(result):
         return "N/A (peer data unavailable)"
 
     lines = []
-    lines.append(f"Industry: {result['industry']}")
+    src = result.get('industry_source', '')
+    src_tag = f" [{src}]" if src else ""
+    lines.append(f"Industry: {result['industry']}{src_tag}")
     lines.append(f"Total peers: {result['total_in_industry']}")
 
     target = result.get('target')
