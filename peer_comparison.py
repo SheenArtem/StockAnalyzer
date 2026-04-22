@@ -374,10 +374,34 @@ def _fetch_all_per_data():
     return df
 
 
-def _select_representative_peers(peer_per, stock_id, max_peers):
-    """Select representative peers: lowest PE, highest PE, and around target."""
+def _get_tw_market_caps():
+    """Get {stock_id: market_cap} from MomentumScreener TV cache (1h cache)."""
+    try:
+        from momentum_screener import MomentumScreener
+        tv_data = MomentumScreener._fetch_tv_marketcap_volume() or {}
+        return {sid: d.get('market_cap', 0) or 0 for sid, d in tv_data.items()}
+    except Exception as e:
+        logger.warning("TW market cap lookup failed: %s", e)
+        return {}
+
+
+def _select_representative_peers(peer_per, stock_id, max_peers, market_caps=None):
+    """Phase 1c (2026-04-22): Market-cap aware peer selection.
+
+    當 industry 大 (>max_peers) 時，舊邏輯只挑 PE 極端 + 鄰近，會漏掉「核心同業標竿」
+    （例：2454 聯發科在半導體 140 檔裡，舊邏輯可能挑到無名 small-cap 而非 2330/3034）。
+
+    新邏輯按優先級填入 max_peers 個 slot：
+      P1: target stock 自己（必含）
+      P2: 市值 top 3 (核心同業標竿)
+      P3: PE 鄰近 ±2 (直接估值對比)
+      P4: PE 最低 + 最高 (估值區間)
+      P5: 均勻採樣填補剩餘空位
+    """
     if len(peer_per) <= max_peers:
-        return peer_per
+        selected = peer_per.copy()
+        selected['is_target'] = selected['stock_id'] == stock_id
+        return selected
 
     target_idx = peer_per[peer_per['stock_id'] == stock_id].index
     if target_idx.empty:
@@ -386,27 +410,44 @@ def _select_representative_peers(peer_per, stock_id, max_peers):
     tidx = target_idx[0]
     n = len(peer_per)
 
-    # Always include: top 2 lowest PE, top 2 highest PE, target, and neighbors
-    indices = set()
-    indices.update(range(min(2, n)))  # lowest PE
-    indices.update(range(max(0, n - 2), n))  # highest PE
-    indices.add(tidx)  # target itself
+    if market_caps is None:
+        market_caps = _get_tw_market_caps()
 
-    # Add neighbors around target
+    indices_priority = [tidx]  # P1: target
+
+    # P2: Top 3 by market cap (excluding target)
+    if market_caps:
+        peer_mcap = peer_per.assign(
+            _mcap=peer_per['stock_id'].map(market_caps).fillna(0)
+        )
+        top_mcap = peer_mcap.nlargest(4, '_mcap')  # nlargest 4 in case target is #1
+        for idx in top_mcap.index:
+            if idx != tidx and idx not in indices_priority:
+                indices_priority.append(idx)
+                if len(indices_priority) >= 4:  # target + 3 mcap
+                    break
+
+    # P3: PE neighbors (±2)
     for offset in [-2, -1, 1, 2]:
         idx = tidx + offset
-        if 0 <= idx < n:
-            indices.add(idx)
+        if 0 <= idx < n and idx not in indices_priority:
+            indices_priority.append(idx)
 
-    # Fill remaining slots with evenly spaced stocks
-    while len(indices) < max_peers and len(indices) < n:
-        for step in np.linspace(0, n - 1, max_peers, dtype=int):
-            indices.add(step)
-            if len(indices) >= max_peers:
+    # P4: PE extremes (lowest + highest)
+    for idx in [0, n - 1]:
+        if idx not in indices_priority:
+            indices_priority.append(idx)
+
+    # P5: evenly spaced fill
+    if len(indices_priority) < max_peers:
+        for step in np.linspace(0, n - 1, max_peers * 2, dtype=int):
+            if int(step) not in indices_priority:
+                indices_priority.append(int(step))
+            if len(indices_priority) >= max_peers:
                 break
 
-    selected = peer_per.iloc[sorted(indices)].copy()
-    # Mark target stock
+    selected_idx = sorted(indices_priority[:max_peers])
+    selected = peer_per.iloc[selected_idx].copy()
     selected['is_target'] = selected['stock_id'] == stock_id
     return selected
 
