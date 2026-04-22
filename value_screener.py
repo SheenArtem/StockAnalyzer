@@ -31,6 +31,46 @@ logger = logging.getLogger(__name__)
 _tv_batch_cache = {}
 _tv_batch_ts = 0
 
+# DDM discount-rate cache (VF-Value-ex1, 2026-04-22)
+_discount_rate_cache = {'tw': (None, 0.0), 'us': (None, 0.0)}
+_DISCOUNT_RATE_TTL = 24 * 3600  # yields stable intraday, refresh daily
+
+
+def _get_discount_rate(is_us):
+    """Dynamic DDM discount rate = risk-free + equity risk premium.
+
+    Replaces old hard-coded r=10% (VF-Value-ex1, 2026-04-22).
+
+    - TW: TW 10Y 公債殖利率 + TW ERP 6.0%
+          yfinance 無 TW treasury ticker；先 hardcode 1.8% (2026 Q2 央行基準)，
+          每季 review 調整。未來若訂閱 FinMind TaiwanGovernmentBond 可 live fetch.
+          => r = 1.8% + 6.0% = 7.8%
+    - US: ^TNX (US 10Y) + US ERP 5.5%
+          => r ≈ 4.3% + 5.5% = 9.8% (2026-04)
+
+    Cache 1 day.
+    """
+    key = 'us' if is_us else 'tw'
+    cached, ts = _discount_rate_cache.get(key, (None, 0.0))
+    if cached is not None and time.time() - ts < _DISCOUNT_RATE_TTL:
+        return cached
+
+    if is_us:
+        try:
+            import yfinance as yf
+            tnx = yf.Ticker('^TNX').history(period='5d')['Close']
+            rfr = float(tnx.iloc[-1]) / 100 if len(tnx) else 0.045
+        except Exception:
+            rfr = 0.045  # fallback 4.5%
+        rate = rfr + 0.055  # ERP 5.5%
+    else:
+        # TW 10Y yield ~1.8% (2026-Q2 央行基準)；TODO: FinMind live fetch
+        rate = 0.018 + 0.060  # ERP 6.0% → 7.8%
+
+    _discount_rate_cache[key] = (rate, time.time())
+    logger.info("DDM discount rate [%s]: %.2f%%", key, rate * 100)
+    return rate
+
 
 def _fetch_tradingview_batch(market='tw'):
     """
@@ -714,7 +754,7 @@ class ValueScreener:
             price = row.get('close', 0)
             if dy > 2 and price > 0:
                 cash_div = dy * price / 100
-                discount_rate = 0.10
+                discount_rate = _get_discount_rate(is_us)  # VF-Value-ex1: dynamic r
                 growth_rate = 0.02
                 if not is_us:
                     try:
@@ -1194,12 +1234,18 @@ class ValueScreener:
             if fs_result:
                 fscore = fs_result['fscore']
                 comp = fs_result['components']
-                if fscore >= 7:
+                # VF-Value-ex2 (2026-04-22): US F-Score thresholds stricter than TW.
+                # S&P 500 F>=7 = 35.8% too common; TW全市場 F>=7 = 9.2% rare.
+                # Shift: F>=8 +25 (US elite 15.3%, aligns TW 9.2% scarcity), F==7 +10, F 5-6 +3.
+                if fscore >= 8:
                     score += 25
-                    details.append(f"F-Score={fscore}/9 strong (P{comp['profitability']}/L{comp['leverage']}/E{comp['efficiency']}) (+25)")
-                elif fscore >= 5:
+                    details.append(f"F-Score={fscore}/9 elite (P{comp['profitability']}/L{comp['leverage']}/E{comp['efficiency']}) (+25)")
+                elif fscore >= 7:
                     score += 10
-                    details.append(f"F-Score={fscore}/9 average (+10)")
+                    details.append(f"F-Score={fscore}/9 strong (P{comp['profitability']}/L{comp['leverage']}/E{comp['efficiency']}) (+10)")
+                elif fscore >= 5:
+                    score += 3
+                    details.append(f"F-Score={fscore}/9 average (+3)")
                 elif fscore <= 3:
                     score -= 20
                     details.append(f"F-Score={fscore}/9 weak (value trap risk) (-20)")
