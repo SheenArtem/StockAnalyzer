@@ -67,18 +67,16 @@ REM (audit only, does not drop picks).
 python scanner_job.py --mode qm --market tw --no-tracking --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
 set PY_EXIT_QM=%ERRORLEVEL%
 
-python scanner_job.py --mode value --market tw --no-tracking --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
+python scanner_job.py --mode value --market tw --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
 set PY_EXIT_VAL=%ERRORLEVEL%
 
-REM US Value added 2026-04-22 after VF-L1b Phase 1 + VF-Value-ex2 landed.
-REM Tracking runs here (last in chain) to cover both TW+US picks.
-python scanner_job.py --mode value --market us --push --notify >> scanner.log 2>&1
-set PY_EXIT_VAL_US=%ERRORLEVEL%
+REM US Value scan removed 2026-04-22 after VF-Value-ex2 EDGAR walk-forward D reverse
+REM (F>=8 alpha -10%% annualized on 52K panel). US signals unvalidated -- restore
+REM when US QM/Value VF verification completes with A/B-grade signals.
 
 REM Take worst exit code
 set PY_EXIT=%PY_EXIT_QM%
 if not "%PY_EXIT_VAL%"=="0" set PY_EXIT=%PY_EXIT_VAL%
-if not "%PY_EXIT_VAL_US%"=="0" set PY_EXIT=%PY_EXIT_VAL_US%
 
 REM ------------------------------------------------------------
 REM Auto-generate AI reports for QM office picks (top 3).

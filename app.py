@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.22.1")
+    st.caption("Version: v2026.04.22.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -359,12 +359,14 @@ if st.session_state.get('app_mode') == 'screener':
     from pathlib import Path as _Path
 
     # 2026-04-21: Value TW tab 恢復顯示 (VF-VC P3-b 落地，權重 30/25/30/15/0)
-    # 2026-04-22: Value US tab 恢復顯示 (VF-L1b Phase 1 + VF-Value-ex2 落地)
-    screener_tab_qm, screener_tab2, screener_tab_us_val, screener_tab_meanrev, screener_tab_track = st.tabs(
-        ["🛡️ 品質選股", "💎 價值 (台股)", "🌎 價值 (美股)", "🔄 均值回歸", "📊 績效追蹤"]
+    # 2026-04-22: Value US tab 再度隱藏 — VF-Value-ex2 EDGAR walk-forward D 級反向
+    # 且 US 側動能/估值/營收/技術全部 signal 未經 IC 驗證。picks 無實證基礎，避免誤導。
+    # 恢復條件：US QM/Value 跑完同級 VF 驗證（類 TW 25+45 項）且有 A/B 級訊號。
+    screener_tab_qm, screener_tab2, screener_tab_meanrev, screener_tab_track = st.tabs(
+        ["🛡️ 品質選股", "💎 價值 (台股)", "🔄 均值回歸", "📊 績效追蹤"]
     )
     # Hidden tabs (code preserved, just not displayed)
-    screener_tab1 = screener_tab_us = screener_tab_swing = screener_tab_conv = None
+    screener_tab1 = screener_tab_us = screener_tab_swing = screener_tab_conv = screener_tab_us_val = None
 
     # ====================================================================
     # Pre-load convergence data for badges on all tabs
@@ -1541,9 +1543,11 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     "（含 5 維評分，約需 20-40 分鐘）")
 
     # ====================================================================
-    # Tab US Value: 美股價值選股 (paused pending Phase 1 enhancement)
+    # Tab US Value: 美股價值選股
+    # 2026-04-22 (再隱藏): VF-Value-ex2 EDGAR walk-forward D 級反向，
+    # US 全 signal 未經 IC 驗證。保留程式碼待未來 US QM 驗證後恢復。
     # ====================================================================
-    with screener_tab_us_val:  # 2026-04-22: Value US tab restored (VF-L1b + VF-Value-ex2)
+    if False:  # screener_tab_us_val — 隱藏，待 US QM/Value VF 驗證完成
 
         with st.expander("📋 Screening Criteria"):
             st.markdown("""
