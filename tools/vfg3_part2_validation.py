@@ -65,7 +65,10 @@ import pandas as pd
 from scipy.stats import spearmanr
 
 ROOT = Path(r"c:\GIT\StockAnalyzer")
-JOURNAL = ROOT / "data_cache" / "backtest" / "trade_journal_qm_tw_pure_right.parquet"
+# 2026-04-21: swapped from trade_journal_qm_tw_pure_right.parquet (5yr only) to
+# trade_journal_qm_tw.parquet (mixed 10.5yr) for the VF-G 10.5yr rerun. Cross-sectional
+# IC tests regime re-weighting on trend/body scores, which exist in both journals.
+JOURNAL = ROOT / "data_cache" / "backtest" / "trade_journal_qm_tw.parquet"
 OUT_MD = ROOT / "reports" / "vfg3_part2_regime_selection_mult.md"
 OUT_VERSIONS = ROOT / "reports" / "vfg3_part2_versions.csv"
 OUT_REGIME = ROOT / "reports" / "vfg3_part2_by_regime.csv"

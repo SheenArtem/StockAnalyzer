@@ -291,7 +291,7 @@ def walk_forward(df, window_train=12, window_test=4, stride=4,
         test_weeks = weeks[start + window_train:start + window_train + window_test]
         df_train = df[df["week_end_date"].isin(train_weeks)]
         df_test = df[df["week_end_date"].isin(test_weeks)]
-        if len(df_train) < 200 or len(df_test) < 100:
+        if len(df_train) < 80 or len(df_test) < 30:
             continue
 
         train_res = []

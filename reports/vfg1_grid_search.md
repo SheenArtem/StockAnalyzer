@@ -1,13 +1,13 @@
 # VF-G1 QM Stop-Loss 4-Parameter Grid Search
 
-Generated: 2026-04-21 17:16
+Generated: 2026-04-21 20:25
 
 ## TL;DR
 
 - **Best combo (honest BE)**: stop=2.0/be=1.5/ceil=0.10/ma20=1.0  Sharpe=0.127  mean=1.14%  win=46.5%
 - **Baseline** (3.0/3.0/0.14/1.2): Sharpe=0.117  mean=1.12%  win=49.1%
 - **Delta (best - baseline)**: Sharpe +0.010  mean +0.03%
-- **Walk-forward stability**: no data
+- **Walk-forward stability**: best combo avg test_rank = 263.5/480
 - **Grade: D** -- best-vs-baseline delta insufficient (keep current) -- recommend: `keep_baseline`
 
 ## 0A. No-Exit Baseline (CRITICAL CONTEXT)
@@ -70,7 +70,12 @@ Baseline (3.0/3.0/0.14/1.2) Sharpe = 0.117, ranked **#221/480**.  46.0%ile.
 
 ## 4. Walk-Forward Summary
 
-Walk-forward not produced.
+Windows: 79 (12 weeks train / 4 weeks test, stride 4)
+
+Best combo WF: test_rank mean=263.5, median=381, std=181.2
+Best combo lands in test top-5: 1/8 windows; top-20: 1/8 windows.
+
+Baseline WF: test_rank mean=194.2, median=181
 
 ## 5. Hypothesis: Volatile Regime Needs Wider STOP?
 
