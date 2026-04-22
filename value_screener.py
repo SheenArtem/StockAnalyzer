@@ -506,8 +506,94 @@ class ValueScreener:
                 time.sleep(self.config['batch_delay'])
 
         self._clear_checkpoint(cp_file)
+
+        # VF-Turnover (2026-04-22): volatile regime 才啟動 turnover quintile 加減分
+        # Value 池 IC 驗證: D10-D1 +28.5% ann, volatile regime A 級 +128% ann
+        # 陷阱: bull regime IC 線性反向 → 必須 regime gate, 不可全時啟動
+        if not market.startswith('us'):  # TW only
+            self._apply_turnover_regime_bonus(scored, market)
+
         scored.sort(key=lambda x: x['value_score'], reverse=True)
         return scored[:self.config['top_n']]
+
+    # ================================================================
+    # VF-Turnover Regime-gated Decile Bonus (2026-04-22)
+    # ================================================================
+    def _apply_turnover_regime_bonus(self, scored, market):
+        """Volatile regime 啟動 turnover quintile 加減分（台股 only）.
+
+        規則:
+          - 讀 data/tracking/regime_log.jsonl 最新 regime
+          - 若 regime == 'volatile': 計算 turnover_20d, 分 quintile, Q5 +5 / Q1 -5
+          - 其他 regime: 純 details 資訊, 不改 score
+
+        turnover_20d = avg_vol_20d / (market_cap / latest_close) × 100
+          其中 market_cap 來自 MomentumScreener TV batch cache (1h, 無新增 API)
+        """
+        if not scored:
+            return
+
+        # Step 1: 讀取今日 regime
+        import json
+        regime_path = Path('data/tracking/regime_log.jsonl')
+        current_regime = None
+        if regime_path.exists():
+            try:
+                lines = [l for l in regime_path.read_text(encoding='utf-8').splitlines() if l.strip()]
+                if lines:
+                    current_regime = json.loads(lines[-1]).get('regime')
+            except Exception as e:
+                logger.warning("Read regime_log failed: %s", e)
+
+        # Step 2: 載入 TV market_cap batch (MomentumScreener 1h cache)
+        market_caps = {}
+        try:
+            from momentum_screener import MomentumScreener
+            tv_data = MomentumScreener._fetch_tv_marketcap_volume() or {}
+            market_caps = {sid: d.get('market_cap', 0) or 0 for sid, d in tv_data.items()}
+        except Exception as e:
+            logger.warning("TV market_cap batch failed: %s", e)
+
+        # Step 3: 計算 turnover 並加 details
+        import numpy as np
+        turnovers = []
+        for s in scored:
+            sid = s['stock_id']
+            avg_vol = s.get('_avg_vol_20d', 0) or 0
+            mc = market_caps.get(sid, 0) or 0
+            price = s.get('price', 0) or 0
+            if avg_vol > 0 and mc > 0 and price > 0:
+                shares = mc / price
+                turnover = avg_vol / shares * 100
+                s['_turnover_20d'] = round(turnover, 2)
+                turnovers.append((sid, turnover, s))
+
+        if not turnovers:
+            return
+
+        # Step 4: regime gate
+        if current_regime != 'volatile':
+            # 非 volatile regime: 純 details 資訊, 不改 score
+            for _, to, s in turnovers:
+                s['details'].append(f"周轉率={to:.2f}% [info, non-volatile regime]")
+            return
+
+        # Step 5: volatile regime → quintile 加減分
+        turnover_vals = np.array([t[1] for t in turnovers])
+        q_low, q_high = np.percentile(turnover_vals, [20, 80])
+
+        for sid, to, s in turnovers:
+            if to >= q_high:
+                s['value_score'] = round(s['value_score'] + 5.0, 1)
+                s['details'].append(f"周轉率={to:.2f}% Q5 (volatile regime +5)")
+            elif to <= q_low:
+                s['value_score'] = round(s['value_score'] - 5.0, 1)
+                s['details'].append(f"周轉率={to:.2f}% Q1 (volatile regime -5)")
+            else:
+                s['details'].append(f"周轉率={to:.2f}% [mid quintile, volatile regime +0]")
+
+        logger.info("VF-Turnover regime=%s, quintile cuts: Q1<=%.2f%% / Q5>=%.2f%%",
+                    current_regime, q_low, q_high)
 
     # ================================================================
     # Checkpoint helpers
@@ -558,6 +644,7 @@ class ValueScreener:
         _price_df = None
         _latest_close = 0
         avg_tv_5d = 0
+        _avg_vol_20d = 0  # 20日均量 (股)，供 VF-Turnover regime gate 計算周轉率
         if not is_us:
             try:
                 from technical_analysis import load_and_resample
@@ -568,6 +655,9 @@ class ValueScreener:
                     if 'Close' in _price_df.columns and 'Volume' in _price_df.columns:
                         tv = (_price_df['Close'] * _price_df['Volume']).tail(5)
                         avg_tv_5d = int(tv.mean()) if len(tv) > 0 else 0
+                    if 'Volume' in _price_df.columns:
+                        vol_20 = _price_df['Volume'].tail(20)
+                        _avg_vol_20d = float(vol_20.mean()) if len(vol_20) > 0 else 0
             except Exception:
                 pass
 
@@ -643,6 +733,7 @@ class ValueScreener:
             'change_pct': round(market_row.get('change_pct', 0), 2),
             'trading_value': int(market_row.get('trading_value', 0)),
             'avg_trading_value_5d': avg_tv_5d,
+            '_avg_vol_20d': _avg_vol_20d,  # 內部欄位，供 VF-Turnover regime gate 計算
             'PE': market_row.get('PE', 0),
             'PB': market_row.get('PB', 0),
             'dividend_yield': market_row.get('dividend_yield', 0),
