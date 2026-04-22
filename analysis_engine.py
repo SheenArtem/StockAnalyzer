@@ -18,8 +18,8 @@ MORPHOLOGY_CAP = 2              # 形態學分數上限 (±)
 EFI_DEADZONE_RATIO = 0.3       # EFI 死區 = std × 此比例
 CALIBRATION_MEAN = 0.07         # 校準分佈 mean (196K 樣本)
 CALIBRATION_STD = 4.32          # 校準分佈 std
-MARKET_SENTIMENT_CAP = 0.8      # 市場情緒分數上下限 (±) — TAIFEX PCR + 期貨正逆價差
-REVENUE_CATALYST_CAP = 0.5      # 營收催化劑分數上下限 (±) — 營收驚喜 + 連續成長
+MARKET_SENTIMENT_CAP = 0.8      # (2026-04-22 已停用) PCR+基差是大盤訊號, market_banner 顯示即可
+REVENUE_CATALYST_CAP = 0.5      # (2026-04-22 已停用) 月頻資料塞日線 trigger 不當, 改走 📋 基本面快照
 ETF_SIGNAL_CAP = 0.6            # ETF 同步買賣超分數上下限 (±) — 主動型 ETF 持倉變化
 
 # === Regime HMM -- Group weight profiles per market regime ===
@@ -1692,22 +1692,15 @@ class TechnicalAnalyzer:
         details.extend(chip_details)
 
         # ============================================================
-        # MARKET SENTIMENT (TAIFEX PCR + Futures Basis, Taiwan only)
+        # MARKET SENTIMENT / REVENUE CATALYST — 2026-04-22 從 trigger_score 移除
+        # 原因:
+        #   PCR + 期貨基差屬「大盤層級」訊號，對每檔個股加同樣分數語意錯誤
+        #     (已在 market_banner.py 顯示，不需重複塞進個股 trigger)
+        #   營收驚喜屬「月頻基本面」，塞進日線 trigger 會連續整月推高/壓低分數
+        #     (已在 _fetch_fundamental_snapshot 顯示於 📋 基本面快照)
         # ============================================================
-        sentiment_score, sentiment_details = self._analyze_market_sentiment()
-        sent_cap = MARKET_SENTIMENT_CAP * am['sentiment']
-        sentiment_score = max(-sent_cap, min(sent_cap, sentiment_score))
-        score += sentiment_score
-        details.extend(sentiment_details)
-
-        # ============================================================
-        # REVENUE CATALYST (Revenue Surprise + Consecutive Growth, Taiwan only)
-        # ============================================================
-        revenue_score, revenue_details = self._analyze_revenue_catalyst()
-        rev_cap = REVENUE_CATALYST_CAP * am['revenue']
-        revenue_score = max(-rev_cap, min(rev_cap, revenue_score))
-        score += revenue_score
-        details.extend(revenue_details)
+        sentiment_score = 0.0
+        revenue_score = 0.0
 
         # ============================================================
         # ETF SIGNAL (Active ETF Sync Buy/Sell, Taiwan only)
@@ -1727,8 +1720,8 @@ class TechnicalAnalyzer:
             'volume_group': volume_median,
             'pattern_group': pattern_median,
             'chip_score': chip_score,
-            'sentiment_score': sentiment_score,
-            'revenue_score': revenue_score,
+            'sentiment_score': sentiment_score,  # 保留 key 避免下游 breakdown 讀取噴錯
+            'revenue_score': revenue_score,      # 同上
             'etf_score': etf_score,
             'regime': regime_name,
             'regime_weights': gw,
