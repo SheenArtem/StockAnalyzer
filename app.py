@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.22.7")
+    st.caption("Version: v2026.04.22.8")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -2682,7 +2682,7 @@ elif st.session_state.get('analysis_active', False):
                              except Exception as e:
                                  st.caption(f"借券數據計算異常: {e}")
 
-                         # [NEW] Day Trading Rate (當沖率)
+                         # [NEW] Day Trading Rate (當沖率) + 周轉率 (Turnover Rate)
                          df_dt = chip_data.get('day_trading')
                          if df_dt is not None and not df_dt.empty and not df_day.empty:
                              try:
@@ -2693,7 +2693,7 @@ elif st.session_state.get('analysis_active', False):
                                      # Values might be Series if index duplicate? Ensured unique in chip_analysis.
                                      dt_vol = df_dt.loc[latest_date, 'DayTradingVolume']
                                      total_vol = df_day.loc[latest_date, 'Volume']
-                                     
+
                                      # Handle potential Series if scalar expected
                                      if isinstance(dt_vol, pd.Series): dt_vol = dt_vol.iloc[0]
                                      if isinstance(total_vol, pd.Series): total_vol = total_vol.iloc[0]
@@ -2704,13 +2704,19 @@ elif st.session_state.get('analysis_active', False):
                                          dt_vol_lots = dt_vol / 1000  # 轉換為張
                                          total_vol_lots = total_vol / 1000  # 轉換為張
                                          dt_rate = (dt_vol / total_vol) * 100
-                                         
+
+                                         # 周轉率 = 成交量 / 流通股數 × 100%
+                                         shares_out = fund_data.get('Shares Outstanding') if fund_data else None
+                                         turnover_rate = None
+                                         if shares_out and isinstance(shares_out, (int, float)) and shares_out > 0:
+                                             turnover_rate = (total_vol / shares_out) * 100
+
                                          st.markdown("#### ⚡ 當沖週轉概況")
                                          st.caption(f"資料日期: {latest_date.strftime('%Y-%m-%d')}")
-                                         c_dt1, c_dt2, c_dt3 = st.columns(3)
+                                         c_dt1, c_dt2, c_dt3, c_dt4 = st.columns(4)
                                          c_dt1.metric("當沖成交量", f"{dt_vol_lots:,.0f} 張")
                                          c_dt2.metric("當日總量", f"{total_vol_lots:,.0f} 張")
-                                         
+
                                          state_color = "normal"
                                          state_label = "籌碼穩定"
                                          if dt_rate > 50:
@@ -2719,10 +2725,30 @@ elif st.session_state.get('analysis_active', False):
                                          elif dt_rate > 35:
                                              state_label = "偏高"
                                              state_color = "inverse"
-                                         
+
                                          c_dt3.metric("當沖率", f"{dt_rate:.2f}%", delta=state_label, delta_color=state_color)
+
+                                         if turnover_rate is not None:
+                                             # 周轉率: <0.5% 低 / 0.5-2% 正常 / 2-5% 活躍 / >5% 過熱
+                                             to_color = "normal"
+                                             to_label = "流動性正常"
+                                             if turnover_rate > 5:
+                                                 to_label = "⚠️ 過熱換手"
+                                                 to_color = "inverse"
+                                             elif turnover_rate > 2:
+                                                 to_label = "活躍"
+                                                 to_color = "inverse"
+                                             elif turnover_rate < 0.5:
+                                                 to_label = "低流動"
+                                                 to_color = "off"
+                                             c_dt4.metric("周轉率", f"{turnover_rate:.2f}%",
+                                                          delta=to_label, delta_color=to_color)
+                                         else:
+                                             c_dt4.metric("周轉率", "N/A",
+                                                          delta="缺流通股數",
+                                                          delta_color="off")
                              except Exception as e:
-                                 st.caption(f"當沖數據計算異常: {e}")
+                                 st.caption(f"當沖/周轉數據計算異常: {e}")
 
                          # [NEW] Foreign Holding Ratio (外資持股比率)
                          df_sh = chip_data.get('shareholding')
