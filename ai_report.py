@@ -256,14 +256,23 @@ def _build_chip_data(chip_data, us_chip_data, is_us, ticker=None):
 
         short = us_chip_data.get('short_interest', {})
         if short:
-            lines.append(f"空單比例: {_safe_val(short.get('short_percent', 0), '.1f')}%")
-            lines.append(f"Days to Cover: {_safe_val(short.get('days_to_cover', 0), '.1f')}")
+            lines.append(f"空單比例: {_safe_val(short.get('short_percent_of_float', 0), '.1f')}% of float")
+            lines.append(f"Days to Cover (short_ratio): {_safe_val(short.get('short_ratio', 0), '.1f')}")
+            if short.get('short_change_pct'):
+                lines.append(f"空單月變化: {_safe_val(short.get('short_change_pct', 0), '+.1f')}%")
 
-        insider = us_chip_data.get('insider_trades', [])
+        insider = us_chip_data.get('insider_trades', {})
         if insider:
-            lines.append(f"\n近期內部人交易 ({len(insider)} 筆):")
-            for t in insider[:5]:
-                lines.append(f"  - {t}")
+            sentiment = insider.get('sentiment', 'neutral')
+            buy_cnt = insider.get('buy_count', 0)
+            sell_cnt = insider.get('sell_count', 0)
+            net_shares = insider.get('net_shares_purchased', 0)
+            lines.append(f"\n內部人交易情緒: {sentiment} (買 {buy_cnt} / 賣 {sell_cnt}, 淨 {net_shares:+,} 股)")
+            recent = insider.get('recent_trades')
+            if isinstance(recent, pd.DataFrame) and not recent.empty:
+                lines.append(f"近期內部人交易 (前 5 筆 / 共 {len(recent)} 筆):")
+                for _, row in recent.head(5).iterrows():
+                    lines.append(f"  - {row.to_dict()}")
 
         recs = us_chip_data.get('recommendations', {})
         if recs:
