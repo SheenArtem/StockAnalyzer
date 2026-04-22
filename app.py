@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.21.2")
+    st.caption("Version: v2026.04.22.1")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -359,12 +359,12 @@ if st.session_state.get('app_mode') == 'screener':
     from pathlib import Path as _Path
 
     # 2026-04-21: Value TW tab 恢復顯示 (VF-VC P3-b 落地，權重 30/25/30/15/0)
-    screener_tab_qm, screener_tab2, screener_tab_meanrev, screener_tab_track = st.tabs(
-        ["🛡️ 品質選股", "💎 價值 (台股)", "🔄 均值回歸", "📊 績效追蹤"]
+    # 2026-04-22: Value US tab 恢復顯示 (VF-L1b Phase 1 + VF-Value-ex2 落地)
+    screener_tab_qm, screener_tab2, screener_tab_us_val, screener_tab_meanrev, screener_tab_track = st.tabs(
+        ["🛡️ 品質選股", "💎 價值 (台股)", "🌎 價值 (美股)", "🔄 均值回歸", "📊 績效追蹤"]
     )
     # Hidden tabs (code preserved, just not displayed)
     screener_tab1 = screener_tab_us = screener_tab_swing = screener_tab_conv = None
-    screener_tab_us_val = None  # US Value 仍暫停（VF-VD 只驗 TW）
 
     # ====================================================================
     # Pre-load convergence data for badges on all tabs
@@ -1026,6 +1026,43 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 f"耗時 {qm_result.get('elapsed_seconds', 0):.0f}s"
             )
 
+            # 🎯 精選 3 檔（上班族）— TV>=10億 + F>=8 + Comp>=75 + weighted rank
+            # 2026-04-22: set-and-forget 用，篩掉小型高波動 / F<8 雷股 / 過熱 FOMO
+            from tools.qm_office_picks import select_office_picks as _office_pick
+            _office_picks = _office_pick(qm_result, n=3)
+            if _office_picks:
+                with st.expander(
+                    f"🎯 精選 3 檔（上班族不看盤版）— 共 {len(_office_picks)} 檔通過硬篩",
+                    expanded=True,
+                ):
+                    st.caption(
+                        "硬篩：日均成交 ≥ 10 億 · F-Score ≥ 8 · Composite ≥ 75。"
+                        "排序：Composite + ETF×5 − |Trigger|×1.5 + 流動性加分。"
+                    )
+                    _cols = st.columns(len(_office_picks))
+                    for _i, _p in enumerate(_office_picks):
+                        _tv_yi = _p.get('avg_trading_value_5d', 0) / 1e8
+                        with _cols[_i]:
+                            st.markdown(
+                                f"**#{_i+1} {_p['stock_id']} {_p.get('name','')}**"
+                            )
+                            st.metric(
+                                "Office Score",
+                                f"{_p.get('office_score',0):.1f}",
+                                delta=f"QM#{qm_results.index(next(r for r in qm_results if r['stock_id']==_p['stock_id']))+1}",
+                            )
+                            st.markdown(
+                                f"💰 {_p['price']:.0f} · 📊 TV {_tv_yi:.0f}億  \n"
+                                f"F={_p.get('qm_f_score',0)}/9 · "
+                                f"Comp {_p.get('composite_score',0):.1f} · "
+                                f"Trig {_p.get('trigger_score',0):+.1f} · "
+                                f"ETF×{_p.get('etf_buy_count',0)}"
+                            )
+                    st.caption(
+                        "💡 適合持倉 40-60 天的中長線。高 |Trigger| 分代表熱度高，"
+                        "可分批進場避免追高；低 |Trigger| 分適合直接進場後放。"
+                    )
+
             # 🎯 今日擇時 Top 5（依 trigger_score 由高到低）
             #    trigger_score 整合日線 MACD/KD/RSI/RVOL/籌碼/情緒/營收/ETF，
             #    用於「今天該下手哪檔」的進場時機判斷（不影響選股排名）
@@ -1506,8 +1543,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
     # ====================================================================
     # Tab US Value: 美股價值選股 (paused pending Phase 1 enhancement)
     # ====================================================================
-    if False:  # Value tab hidden — restore by changing to: with screener_tab_us_val:
-     with st.container():
+    with screener_tab_us_val:  # 2026-04-22: Value US tab restored (VF-L1b + VF-Value-ex2)
 
         with st.expander("📋 Screening Criteria"):
             st.markdown("""
@@ -2006,12 +2042,13 @@ elif st.session_state.get('app_mode') == 'ai_reports':
                                 key='html_download_btn',
                             )
 
-                        st.caption("💡 儀表板會自動度量內容高度調整；如仍顯示不全請點「在瀏覽器開啟」")
-                        # 內嵌 iframe 預覽（React 需要 JS 執行，components.html 會放在 iframe 內可用）
-                        # 模板 2026-04-21 加了 postMessage(streamlit:setFrameHeight) 動態回報實際高度，
-                        # Streamlit iframe 會自動 resize；height=1200 只是首次 render 的保險值
+                        st.caption("💡 如顯示不全請點「在瀏覽器開啟」看完整版（無高度限制）")
+                        # 內嵌 iframe 預覽 — 固定高 2600px、關閉內部 scrolling 消除雙層 scrollbar。
+                        # Streamlit 的 components.v1.html 不會實際響應 postMessage(streamlit:setFrameHeight)，
+                        # 所以改走「給夠高的固定 height + scrolling=False」，多數報告 2600 可完整顯示；
+                        # 超長報告（極端多 risk item 等）走「在瀏覽器開啟」按鈕。
                         import streamlit.components.v1 as _components
-                        _components.html(_sel_content, height=1200, scrolling=True)
+                        _components.html(_sel_content, height=2600, scrolling=False)
                     else:
                         # 報告含 <span style="color:..."> 顏色標記，需允許 HTML 才能正確渲染
                         st.markdown(_sel_content, unsafe_allow_html=True)
