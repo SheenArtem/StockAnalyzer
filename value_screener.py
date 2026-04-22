@@ -130,7 +130,7 @@ def _fetch_tradingview_batch(market='tw'):
 # ================================================================
 DEFAULT_CONFIG = {
     # Stage 1: 初篩門檻（研究來源：Graham/O'Shaughnessy/台股實證）
-    'max_pe': 20,               # PE 上限（台股合理區間上緣，歷史均值 ~15）
+    'max_pe': 12,               # PE 上限（VF-VA walk-forward 2026-04-22: PE<12 勝 PE<20 15/22 季 68% qWR, +0.28% 年化 alpha）
     'min_pe': 0.1,              # PE 下限（排除虧損股）
     'max_pb': 3.0,              # PB 上限（從 5.0 收緊，Graham 建議 1.5）
     'pe_x_pb_max': 22.5,        # Graham 複合準則：PE × PB < 22.5
