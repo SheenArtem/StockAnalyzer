@@ -8,11 +8,13 @@ position_monitor.py — 持股每日監控 + 出場警報
   - hard: 週 Supertrend 翻空
   - hard: 週 MA20 動態跌破（ATR% 調整 -2%~-5%）
   - hard: 月營收 YoY 連 2 月轉負（台股，每月 10 日後更新）
+  - hard: F-Score 季掉 >=3 分，或掉 >=2 分且新值 <=3（低分區再掉）
   - soft: 停利提醒（TP1/TP2/TP3 依 ATR% 動態）
   - soft: 停損觸及未確認（單日跌破 / 低量洗盤 / 進場緩衝期）
   - soft: trend_score < 1（趨勢論據弱化）
   - soft: trigger_score 峰值 ≥ +5 掉至 ≤ -2（動能急轉，峰值取最近 20 日）
   - soft: trigger_score 連續 5 個交易日 < 0（持續弱化）
+  - soft: F-Score 季掉 >=2 分（一般警告）
 
 trigger_score 歷史累積在 data/latest/position_history.json，每日 scanner 執行後自動寫入。
 
@@ -40,6 +42,7 @@ logger = logging.getLogger(__name__)
 POSITIONS_FILE = Path('data/positions.json')
 ALERTS_FILE = Path('data/latest/position_alerts.json')
 HISTORY_FILE = Path('data/latest/position_history.json')
+QUALITY_SCORES_FILE = Path('data_cache/backtest/quality_scores.parquet')
 
 # trigger_score 歷史保留天數（用於軟警報判斷）
 _HISTORY_MAX_DAYS = 20
@@ -323,6 +326,65 @@ def _check_take_profit(current_price, buy_price, atr_pct=None, regime=None):
     }
 
 
+_quality_scores_cache = None
+
+
+def _load_quality_scores():
+    """Load quality_scores.parquet once per process."""
+    global _quality_scores_cache
+    if _quality_scores_cache is not None:
+        return _quality_scores_cache
+    if not QUALITY_SCORES_FILE.exists():
+        _quality_scores_cache = pd.DataFrame()
+        return _quality_scores_cache
+    try:
+        df = pd.read_parquet(QUALITY_SCORES_FILE, columns=['stock_id', 'date', 'f_score'])
+        df = df.dropna(subset=['f_score'])
+        df['stock_id'] = df['stock_id'].astype(str)
+        _quality_scores_cache = df
+    except Exception as e:
+        logger.warning("Failed to load quality_scores: %s", e)
+        _quality_scores_cache = pd.DataFrame()
+    return _quality_scores_cache
+
+
+def _check_fscore_drop(stock_id):
+    """F-Score 季更新後掉 2 分以上警報。
+
+    severity:
+      - hard: drop >= 3（崩壞）或 drop >= 2 且新值 <= 3（低分區再掉）
+      - soft: drop >= 2（一般警告）
+    """
+    qs = _load_quality_scores()
+    if qs.empty:
+        return None
+    sub = qs[qs['stock_id'] == str(stock_id)].sort_values('date').tail(2)
+    if len(sub) < 2:
+        return None
+    prev_f = int(sub.iloc[0]['f_score'])
+    curr_f = int(sub.iloc[-1]['f_score'])
+    drop = prev_f - curr_f
+    if drop < 2:
+        return None
+
+    prev_date = pd.Timestamp(sub.iloc[0]['date']).strftime('%Y-%m-%d')
+    curr_date = pd.Timestamp(sub.iloc[-1]['date']).strftime('%Y-%m-%d')
+
+    if drop >= 3 or (drop >= 2 and curr_f <= 3):
+        severity = 'hard'
+        desc = f'F-Score 季掉 {drop} 分（低分區）'
+    else:
+        severity = 'soft'
+        desc = f'F-Score 季掉 {drop} 分'
+
+    return {
+        'type': 'fscore_drop',
+        'severity': severity,
+        'desc': desc,
+        'value': f'{prev_date} {prev_f}/9 → {curr_date} {curr_f}/9',
+    }
+
+
 def _check_revenue_yoy_neg2(stock_id):
     """月營收 YoY 連續 2 月轉負（台股）。"""
     try:
@@ -452,9 +514,12 @@ def check_single_position(pos, history=None, today_str=None):
     if t is not None:
         triggers.append(t)
 
-    # 6. 月營收（台股：純數字 stock_id）
+    # 6. 月營收 + F-Score（台股：純數字 stock_id）
     if stock_id.isdigit():
         t = _check_revenue_yoy_neg2(stock_id)
+        if t is not None:
+            triggers.append(t)
+        t = _check_fscore_drop(stock_id)
         if t is not None:
             triggers.append(t)
 
