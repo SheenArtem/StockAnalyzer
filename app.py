@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.22.4")
+    st.caption("Version: v2026.04.22.5")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -386,6 +386,25 @@ if st.session_state.get('app_mode') == 'screener':
                     }
             except Exception:
                 pass
+
+    # ====================================================================
+    # BL-1 (2026-04-22): QM + Value 共振標記
+    # 同時出現在動能 + 價值選股 = 便宜 + 轉強組合，值得優先關注
+    # ====================================================================
+    _qm_value_resonance_tw = set()
+    try:
+        _qm_pre_file = _Path('data/latest/qm_result.json')
+        _val_pre_file = _Path('data/latest/value_result.json')
+        if _qm_pre_file.exists() and _val_pre_file.exists():
+            with open(_qm_pre_file, 'r', encoding='utf-8') as _f:
+                _qm_pre = _json.load(_f)
+            with open(_val_pre_file, 'r', encoding='utf-8') as _f:
+                _val_pre = _json.load(_f)
+            _qm_ids_pre = {r['stock_id'] for r in _qm_pre.get('results', [])}
+            _val_ids_pre = {r['stock_id'] for r in _val_pre.get('results', [])}
+            _qm_value_resonance_tw = _qm_ids_pre & _val_ids_pre
+    except Exception:
+        pass
 
     def _convergence_label(stock_id, conv_map):
         """產生共振標記文字"""
@@ -1027,6 +1046,10 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 f"評分 {qm_result.get('scored_count', 0)} 檔 | "
                 f"耗時 {qm_result.get('elapsed_seconds', 0):.0f}s"
             )
+            if _qm_value_resonance_tw:
+                _res_in_qm = [r['stock_id'] for r in qm_results if r['stock_id'] in _qm_value_resonance_tw]
+                if _res_in_qm:
+                    st.success(f"✨ **動能+價值共振** ({len(_res_in_qm)} 檔): {', '.join(_res_in_qm)} — 同時通過兩個 screener 的稀有組合")
 
             # 🎯 精選 3 檔（上班族）— TV>=10億 + F>=8 + Comp>=75 + weighted rank
             # 2026-04-22: set-and-forget 用，篩掉小型高波動 / F<8 雷股 / 過熱 FOMO
@@ -1137,6 +1160,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 _qm_rows.append({
                     '代號': r['stock_id'],
                     '名稱': r.get('name', ''),
+                    '共振': '✨' if r['stock_id'] in _qm_value_resonance_tw else '',
                     '市值排名': _mc_rank.get(r['stock_id']),
                     '綜合': _cs if _cs is not None else None,
                     'F-Score': _fs if _fs is not None else None,
@@ -1171,6 +1195,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 width='stretch',
                 height=600,
                 column_config={
+                    '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
                     '市值排名': st.column_config.NumberColumn(format="%d", help="1 = 台股市值最大"),
                     '綜合': st.column_config.NumberColumn(format="%.1f"),
                     'F-Score': st.column_config.NumberColumn(format="%d"),
@@ -1466,6 +1491,10 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 f"評分 {value_result.get('scored_count', 0)} 檔 | "
                 f"耗時 {value_result.get('elapsed_seconds', 0):.0f}s"
             )
+            if _qm_value_resonance_tw:
+                _res_in_val = [r['stock_id'] for r in v_results if r['stock_id'] in _qm_value_resonance_tw]
+                if _res_in_val:
+                    st.success(f"✨ **動能+價值共振** ({len(_res_in_val)} 檔): {', '.join(_res_in_val)} — 同時通過兩個 screener 的稀有組合")
 
             _v_rows = []
             for r in v_results:
@@ -1473,6 +1502,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 _v_rows.append({
                     '代號': r['stock_id'],
                     '名稱': r.get('name', ''),
+                    '共振': '✨' if r['stock_id'] in _qm_value_resonance_tw else '',
                     '綜合分數': r.get('value_score', 0),
                     '收盤': r.get('price', 0),
                     'PE': r.get('PE', 0),
@@ -1503,6 +1533,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 width='stretch',
                 height=600,
                 column_config={
+                    '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
                     '綜合分數': st.column_config.NumberColumn(format="%.1f"),
                     'PE': st.column_config.NumberColumn(format="%.1f"),
                     'PB': st.column_config.NumberColumn(format="%.2f"),
