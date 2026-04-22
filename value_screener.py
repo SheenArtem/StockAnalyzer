@@ -1234,7 +1234,11 @@ class ValueScreener:
         #   - 2015-2024 US growth dominance 對 value+quality 雙重 screen 結構性打壓
         #   - 只在 bear regime × P/B bottom 20% 小子集有 +2.48% 但樣本太少
         # 決策：US F-Score 加分全砍，保留 value trap 警告（F<=3 仍-20 保底）
-        # 未來若要品質因子：改用 FCF yield / ROIC / Novy-Marx Gross Profitability
+        # 品質因子後續驗證 (2026-04-22 alt_quality_factors_ic, 37季×1512檔):
+        #   - FCF Yield IC IR +0.29 / 2-of-10 yrs / top-bot -4.97% → D noise
+        #   - ROIC (approx) IC IR -0.41 / 3-of-10 yrs / top-bot -5.36% → D noise
+        #   - Gross Profitability IC IR +0.56 / C 級，也未採用
+        # → US 品質因子加分全砍，僅保留顯示資訊供 AI 報告引用
         try:
             from piotroski import calculate_fscore_us
             fs_result = calculate_fscore_us(stock_id)
@@ -1289,26 +1293,17 @@ class ValueScreener:
         except Exception as e:
             logger.debug("US Z-Score failed for %s: %s", stock_id, e)
 
-        # --- ROIC / FCF from yfinance ---
+        # --- ROIC / FCF from yfinance (info only, 加分已砍 alt_quality_factors_ic D 級) ---
         try:
             from piotroski import calculate_extra_metrics_us
             extras = calculate_extra_metrics_us(stock_id, market_cap=mcap if price > 0 else 0)
             if extras:
                 roic = extras.get('roic', 0)
-                if roic and roic > 15:
-                    score += 8
-                    details.append(f"ROIC={roic:.1f}% high (+8)")
-                elif roic and roic < 0:
-                    score -= 5
-                    details.append(f"ROIC={roic:.1f}% negative (-5)")
-
+                if roic:
+                    details.append(f"ROIC={roic:.1f}% [info, +0 D noise]")
                 fcf_y = extras.get('fcf_yield', 0)
-                if fcf_y and fcf_y > 8:
-                    score += 8
-                    details.append(f"FCF Yield={fcf_y:.1f}% high (+8)")
-                elif fcf_y and fcf_y < -5:
-                    score -= 5
-                    details.append(f"FCF Yield={fcf_y:.1f}% negative (-5)")
+                if fcf_y:
+                    details.append(f"FCF Yield={fcf_y:.1f}% [info, +0 D noise]")
         except Exception:
             pass
 

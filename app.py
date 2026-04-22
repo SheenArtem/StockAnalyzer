@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.22.2")
+    st.caption("Version: v2026.04.22.3")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -1564,7 +1564,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
 | Dimension | Weight | Metrics | Scoring Examples |
 |-----------|--------|---------|------------------|
 | **Valuation** | 30% | PE/PB, Forward PE, Finviz PEG, DDM, Analyst Target | PEG<0.5 +12, Target>30% +10 |
-| **Quality** | 25% | F-Score, Z-Score, ROIC, FCF Yield | F≥7/9 +25, ROIC>15% +8 |
+| **Quality** | 25% | F-Score (info), Z-Score, Current Ratio | Z safe +8, F≤3 -20, ROIC/FCF info only (D noise) |
 | **Revenue** | 15% | Sales Q/Q, EPS Q/Q, Revenue YoY trend | Sales Q/Q>20% +15, EPS Q/Q>25% +10 |
 | **Technical** | 15% | RSI oversold, Volume dry-up, BB squeeze, 52W low | RSI<30 +20, Near 52W low +15 |
 | **Smart Money** | 15% | Institutional %, Short interest, Insider activity | Inst>80% +10, Insider bullish +12, Short>10% -10 |
