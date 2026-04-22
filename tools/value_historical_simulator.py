@@ -129,25 +129,32 @@ def load_smart_money_scores() -> pd.DataFrame:
 
 
 def load_balance_bvps() -> pd.DataFrame:
-    """Compute BVPS = Equity / shares outstanding per quarter per stock."""
-    logger.info("Loading financials_balance (Equity + shares)...")
+    """Compute BVPS = Equity / shares outstanding per quarter per stock.
+
+    Bug fix 2026-04-22: MOPS/FinMind `OrdinaryShare` 欄位實際是 **股本金額 (TWD)**
+    不是股數。台股面額預設 10 TWD，所以流通股數 = OrdinaryShare / 10。
+    原公式 equity / OrdinaryShare 算出來 bvps 被低估 10 倍，PB 被高估 10 倍。
+    """
+    PAR_VALUE_TWD = 10.0  # 台股預設面額；2014 後少數公司可 1/5/10/20/50 但主流仍 10
+
+    logger.info("Loading financials_balance (Equity + share capital)...")
     bal = pd.read_parquet(DATA_DIR / "financials_balance.parquet")
     bal['date'] = pd.to_datetime(bal['date'])
     bal['value'] = pd.to_numeric(bal['value'], errors='coerce')
 
-    # Equity
     eq = bal[bal['type'] == 'Equity'][['stock_id', 'date', 'value']].rename(
         columns={'value': 'equity'}
     )
-    # Shares outstanding (MOPS = OrdinaryShare, FinMind legacy = CommonStockSharesOutstanding)
-    shares = bal[bal['type'].isin(['OrdinaryShare', 'CommonStockSharesOutstanding'])][
-        ['stock_id', 'date', 'value']].rename(columns={'value': 'shares'})
-    # If both, keep first match
-    shares = shares.groupby(['stock_id', 'date'], as_index=False)['shares'].first()
+    # OrdinaryShare = 股本 TWD (not share count). FinMind/MOPS 均此語意
+    share_cap = bal[bal['type'].isin(['OrdinaryShare', 'CommonStockSharesOutstanding'])][
+        ['stock_id', 'date', 'value']].rename(columns={'value': 'share_capital_twd'})
+    share_cap = share_cap.groupby(['stock_id', 'date'], as_index=False)['share_capital_twd'].first()
 
-    bvps = eq.merge(shares, on=['stock_id', 'date'], how='inner')
-    bvps = bvps[(bvps['equity'].notna()) & (bvps['shares'].notna()) & (bvps['shares'] > 0)]
-    bvps['bvps'] = bvps['equity'] / bvps['shares']
+    bvps = eq.merge(share_cap, on=['stock_id', 'date'], how='inner')
+    bvps = bvps[(bvps['equity'].notna()) & (bvps['share_capital_twd'].notna())
+                & (bvps['share_capital_twd'] > 0)]
+    bvps['shares_outstanding'] = bvps['share_capital_twd'] / PAR_VALUE_TWD
+    bvps['bvps'] = bvps['equity'] / bvps['shares_outstanding']
     bvps = bvps[['stock_id', 'date', 'bvps']].sort_values(['stock_id', 'date'])
     logger.info("  BVPS rows: %d, stocks: %d", len(bvps), bvps['stock_id'].nunique())
     return bvps
