@@ -1,14 +1,21 @@
 """
 Compute Piotroski F-Score for US stocks from yfinance quarterly financials.
 
-Input: data_cache/backtest/financials_us.parquet
-Output: data_cache/backtest/quality_scores_us.parquet
-    columns: [ticker, date, f_score, profitability, leverage, efficiency]
+Input:
+  yfinance (default): data_cache/backtest/financials_us.parquet
+  EDGAR:              data_cache/backtest/financials_us_edgar.parquet
+
+Output:
+  yfinance: data_cache/backtest/quality_scores_us.parquet        (live — do NOT overwrite)
+  EDGAR:    data_cache/backtest/quality_scores_us_edgar.parquet
+
+Schema auto-detect:
+  If line_item contains 'NetIncome' (no space) → EDGAR schema
+  If line_item contains 'Net Income' (with space) → yfinance schema
 
 Limitation: yfinance only returns ~5 quarters, so this computes **current** F-Score
 (most recent quarter vs 4 quarters ago). Historical panel requires paid source
-(SimFin / Sharadar). For VF-Value-ex2, this enables descriptive TW vs US
-comparison but not full historical IC.
+(SimFin / Sharadar). EDGAR provides 16+ years of history.
 
 Piotroski F-Score (9 criteria):
   Profitability (4):
@@ -25,6 +32,7 @@ Piotroski F-Score (9 criteria):
     E2 delta Asset Turnover > 0
 """
 
+import argparse
 import logging
 import sys
 from pathlib import Path
@@ -36,8 +44,44 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent
-IN_FIN = ROOT / 'data_cache' / 'backtest' / 'financials_us.parquet'
-OUT = ROOT / 'data_cache' / 'backtest' / 'quality_scores_us.parquet'
+IN_FIN_YFINANCE = ROOT / 'data_cache' / 'backtest' / 'financials_us.parquet'
+IN_FIN_EDGAR = ROOT / 'data_cache' / 'backtest' / 'financials_us_edgar.parquet'
+OUT_YFINANCE = ROOT / 'data_cache' / 'backtest' / 'quality_scores_us.parquet'
+OUT_EDGAR = ROOT / 'data_cache' / 'backtest' / 'quality_scores_us_edgar.parquet'
+
+# 向舊程式碼相容的別名
+IN_FIN = IN_FIN_YFINANCE
+OUT = OUT_YFINANCE
+
+# EDGAR schema → yfinance key 對照（EDGAR 優先，yfinance fallback）
+# _get() 會依序嘗試，第一個存在且非 NaN 的值就採用
+EDGAR_TO_YF = {
+    'net_income': ('NetIncome', 'Net Income', 'Net Income Common Stockholders',
+                   'Net Income From Continuing Operation Net Minority Interest'),
+    'cfo':        ('CFO', 'Operating Cash Flow', 'Cash Flow From Continuing Operating Activities'),
+    'assets':     ('TotalAssets', 'Total Assets'),
+    'lt_debt':    ('LongTermDebt', 'Long Term Debt', 'Long Term Debt And Capital Lease Obligation', 'Total Debt'),
+    'curr_assets':('CurrentAssets', 'Current Assets'),
+    'curr_liab':  ('CurrentLiabilities', 'Current Liabilities'),
+    'shares':     ('SharesOutstanding', 'Share Issued', 'Ordinary Shares Number'),
+    'revenue':    ('Revenue', 'Total Revenue', 'Operating Revenue'),
+    'gross':      ('GrossProfit', 'Gross Profit'),
+}
+
+
+def _detect_schema(df: pd.DataFrame) -> str:
+    """
+    自動偵測 parquet 的 schema。
+    回 'edgar' 或 'yfinance'。
+    """
+    line_items = set(df['line_item'].unique())
+    if 'NetIncome' in line_items:
+        return 'edgar'
+    if 'Net Income' in line_items or 'Net Income Common Stockholders' in line_items:
+        return 'yfinance'
+    # 無法判斷，預設 yfinance（向後相容）
+    logger.warning('Cannot detect schema from line_items, defaulting to yfinance')
+    return 'yfinance'
 
 
 def pivot_stock(df_ticker):
@@ -61,6 +105,9 @@ def compute_fscore_one(ticker, df_ticker):
 
     Actually Piotroski F-Score uses TTM (trailing 12 months) or annual, so we use:
       latest quarter vs Q-4 (year ago) for YoY deltas.
+
+    支援 EDGAR schema（NetIncome）與 yfinance schema（Net Income）兩種命名，
+    透過 EDGAR_TO_YF 對照表 _get() 依序嘗試。
     """
     df_inc = df_ticker[df_ticker['statement'] == 'income']
     df_bal = df_ticker[df_ticker['statement'] == 'balance']
@@ -95,24 +142,24 @@ def compute_fscore_one(ticker, df_ticker):
     cur_cf = cf.loc[d_cf]
     # cashflow prev not strictly needed for most criteria
 
-    # --- Extract values with fallback key names ---
-    ni_cur = _get(cur_inc, 'Net Income', 'Net Income Common Stockholders', 'Net Income From Continuing Operation Net Minority Interest')
-    ni_prev = _get(prev_inc, 'Net Income', 'Net Income Common Stockholders')
-    cfo_cur = _get(cur_cf, 'Operating Cash Flow', 'Cash Flow From Continuing Operating Activities')
-    assets_cur = _get(cur_bal, 'Total Assets')
-    assets_prev = _get(prev_bal, 'Total Assets')
-    lt_debt_cur = _get(cur_bal, 'Long Term Debt', 'Long Term Debt And Capital Lease Obligation', 'Total Debt')
-    lt_debt_prev = _get(prev_bal, 'Long Term Debt', 'Long Term Debt And Capital Lease Obligation', 'Total Debt')
-    curr_assets_cur = _get(cur_bal, 'Current Assets')
-    curr_assets_prev = _get(prev_bal, 'Current Assets')
-    curr_liab_cur = _get(cur_bal, 'Current Liabilities')
-    curr_liab_prev = _get(prev_bal, 'Current Liabilities')
-    shares_cur = _get(cur_bal, 'Share Issued', 'Ordinary Shares Number')
-    shares_prev = _get(prev_bal, 'Share Issued', 'Ordinary Shares Number')
-    revenue_cur = _get(cur_inc, 'Total Revenue', 'Operating Revenue')
-    revenue_prev = _get(prev_inc, 'Total Revenue', 'Operating Revenue')
-    gross_cur = _get(cur_inc, 'Gross Profit')
-    gross_prev = _get(prev_inc, 'Gross Profit')
+    # --- Extract values with fallback key names (EDGAR keys first, yfinance fallback) ---
+    ni_cur = _get(cur_inc, *EDGAR_TO_YF['net_income'])
+    ni_prev = _get(prev_inc, *EDGAR_TO_YF['net_income'])
+    cfo_cur = _get(cur_cf, *EDGAR_TO_YF['cfo'])
+    assets_cur = _get(cur_bal, *EDGAR_TO_YF['assets'])
+    assets_prev = _get(prev_bal, *EDGAR_TO_YF['assets'])
+    lt_debt_cur = _get(cur_bal, *EDGAR_TO_YF['lt_debt'])
+    lt_debt_prev = _get(prev_bal, *EDGAR_TO_YF['lt_debt'])
+    curr_assets_cur = _get(cur_bal, *EDGAR_TO_YF['curr_assets'])
+    curr_assets_prev = _get(prev_bal, *EDGAR_TO_YF['curr_assets'])
+    curr_liab_cur = _get(cur_bal, *EDGAR_TO_YF['curr_liab'])
+    curr_liab_prev = _get(prev_bal, *EDGAR_TO_YF['curr_liab'])
+    shares_cur = _get(cur_bal, *EDGAR_TO_YF['shares'])
+    shares_prev = _get(prev_bal, *EDGAR_TO_YF['shares'])
+    revenue_cur = _get(cur_inc, *EDGAR_TO_YF['revenue'])
+    revenue_prev = _get(prev_inc, *EDGAR_TO_YF['revenue'])
+    gross_cur = _get(cur_inc, *EDGAR_TO_YF['gross'])
+    gross_prev = _get(prev_inc, *EDGAR_TO_YF['gross'])
 
     # --- 9 criteria ---
     score = 0
@@ -174,12 +221,50 @@ def compute_fscore_one(ticker, df_ticker):
 
 
 def main():
-    if not IN_FIN.exists():
-        logger.error('financials_us.parquet missing. Run fetch_us_financials.py first.')
+    ap = argparse.ArgumentParser(description='Compute Piotroski F-Score for US stocks')
+    ap.add_argument(
+        '--source', choices=['yfinance', 'edgar', 'auto'], default='auto',
+        help='資料來源: yfinance / edgar / auto（自動偵測，預設）'
+    )
+    ap.add_argument(
+        '--input', default=None,
+        help='覆寫輸入 parquet 路徑（預設依 --source 選擇）'
+    )
+    ap.add_argument(
+        '--output', default=None,
+        help='覆寫輸出 parquet 路徑（預設依偵測到的 schema 選擇）'
+    )
+    args = ap.parse_args()
+
+    # --- 決定輸入路徑 ---
+    if args.input:
+        in_path = Path(args.input)
+    elif args.source == 'edgar':
+        in_path = IN_FIN_EDGAR
+    elif args.source == 'yfinance':
+        in_path = IN_FIN_YFINANCE
+    else:
+        # auto: 優先 edgar 若存在，否則 yfinance
+        in_path = IN_FIN_EDGAR if IN_FIN_EDGAR.exists() else IN_FIN_YFINANCE
+
+    if not in_path.exists():
+        logger.error('Input parquet missing: %s', in_path)
         sys.exit(1)
 
-    df = pd.read_parquet(IN_FIN)
-    logger.info('Loaded %d rows, %d tickers', len(df), df['ticker'].nunique())
+    df = pd.read_parquet(in_path)
+    logger.info('Loaded %d rows, %d tickers from %s', len(df), df['ticker'].nunique(), in_path.name)
+
+    # --- 偵測 schema ---
+    schema = _detect_schema(df)
+    logger.info('Detected schema: %s', schema)
+
+    # --- 決定輸出路徑 ---
+    if args.output:
+        out_path = Path(args.output)
+    elif schema == 'edgar':
+        out_path = OUT_EDGAR
+    else:
+        out_path = OUT_YFINANCE
 
     rows = []
     skipped = 0
@@ -195,9 +280,9 @@ def main():
             skipped += 1
 
     out = pd.DataFrame(rows)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    out.to_parquet(OUT, index=False)
-    logger.info('Saved %d tickers -> %s (skipped %d)', len(out), OUT, skipped)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out.to_parquet(out_path, index=False)
+    logger.info('Saved %d tickers -> %s (skipped %d)', len(out), out_path, skipped)
     logger.info('F-Score distribution:')
     print(out['f_score'].value_counts().sort_index().to_string())
     logger.info('Summary: mean=%.2f median=%d std=%.2f', out['f_score'].mean(), out['f_score'].median(), out['f_score'].std())
