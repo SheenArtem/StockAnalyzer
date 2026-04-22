@@ -122,6 +122,7 @@ def get_fundamentals(ticker):
 
         data = {
             'Market Cap': get_val('marketCap', "{:,.0f}"),
+            'Shares Outstanding': info.get('sharesOutstanding'),  # raw int, for 周轉率 計算
             'PE Ratio': get_val('trailingPE'),
             'Forward PE': get_val('forwardPE'),
             'EPS (TTM)': get_val('trailingEps'),
