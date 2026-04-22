@@ -1227,30 +1227,25 @@ class ValueScreener:
         """US quality score: F-Score + Z-Score + finviz fundamentals."""
         score = 50
 
-        # --- Piotroski F-Score (primary quality signal) ---
+        # --- Piotroski F-Score ---
+        # VF-Value-ex2 驗證結果 (2026-04-22 EDGAR 37季×1512檔 walk-forward IC):
+        #   - 全市場 F>=8 alpha vs F<=5 = -10.11% 年化 (D 級反向)
+        #   - 加 P/B bottom 30% 原版 screen 仍 -4.64%, bottom 20% 仍 -3.15%
+        #   - 2015-2024 US growth dominance 對 value+quality 雙重 screen 結構性打壓
+        #   - 只在 bear regime × P/B bottom 20% 小子集有 +2.48% 但樣本太少
+        # 決策：US F-Score 加分全砍，保留 value trap 警告（F<=3 仍-20 保底）
+        # 未來若要品質因子：改用 FCF yield / ROIC / Novy-Marx Gross Profitability
         try:
             from piotroski import calculate_fscore_us
             fs_result = calculate_fscore_us(stock_id)
             if fs_result:
                 fscore = fs_result['fscore']
                 comp = fs_result['components']
-                # VF-Value-ex2 (2026-04-22): US F-Score thresholds stricter than TW.
-                # S&P 500 F>=7 = 35.8% too common; TW全市場 F>=7 = 9.2% rare.
-                # Shift: F>=8 +25 (US elite 15.3%, aligns TW 9.2% scarcity), F==7 +10, F 5-6 +3.
-                if fscore >= 8:
-                    score += 25
-                    details.append(f"F-Score={fscore}/9 elite (P{comp['profitability']}/L{comp['leverage']}/E{comp['efficiency']}) (+25)")
-                elif fscore >= 7:
-                    score += 10
-                    details.append(f"F-Score={fscore}/9 strong (P{comp['profitability']}/L{comp['leverage']}/E{comp['efficiency']}) (+10)")
-                elif fscore >= 5:
-                    score += 3
-                    details.append(f"F-Score={fscore}/9 average (+3)")
-                elif fscore <= 3:
+                if fscore <= 3:
                     score -= 20
                     details.append(f"F-Score={fscore}/9 weak (value trap risk) (-20)")
                 else:
-                    details.append(f"F-Score={fscore}/9 (+0)")
+                    details.append(f"F-Score={fscore}/9 (P{comp['profitability']}/L{comp['leverage']}/E{comp['efficiency']}) (+0 中性 VF-Value-ex2 D)")
 
                 cr = fs_result['data'].get('current_ratio', 0)
                 if cr > 0:
