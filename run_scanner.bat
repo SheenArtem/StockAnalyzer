@@ -1,3 +1,4 @@
+@echo off
 REM ============================================================
 REM  StockAnalyzer Auto Scanner - Windows Task Scheduler
 REM
@@ -12,6 +13,10 @@ REM       Program: C:\GIT\StockAnalyzer\run_scanner.bat
 REM       Start in: C:\GIT\StockAnalyzer
 REM    5. Conditions: uncheck "Start only if on AC power"
 REM    6. Settings: check "Run task as soon as possible after missed"
+REM
+REM  NOTE: This file must be ASCII-only (no CJK chars) to avoid cmd.exe
+REM  cp950/UTF-8 encoding errors that previously corrupted exit codes
+REM  (e.g. exit=9009 on 2026-04-20 was caused by mangled Chinese REM lines).
 REM ============================================================
 
 cd /d C:\GIT\StockAnalyzer
@@ -19,8 +24,8 @@ cd /d C:\GIT\StockAnalyzer
 REM Force UTF-8 for Python I/O (prevents cp950 UnicodeDecodeError on emoji output)
 set PYTHONIOENCODING=utf-8
 
-REM 2026-04-20: MOPS WAF ban local IP，用 --no-mops CLI flag 強制走 FinMind
-REM VPN 解封後移除 --no-mops 即可（env var 方式行不通，改走 CLI 參數 set_use_mops）
+REM 2026-04-20: MOPS WAF banned local IP; --no-mops CLI flag forces FinMind path.
+REM Remove --no-mops once VPN/IP unblocks (env var approach failed, use CLI flag).
 
 REM Rotate log: keep only previous + current
 if exist scanner_prev.log del scanner_prev.log
@@ -30,43 +35,60 @@ REM Log start time
 echo [%date% %time%] Scanner started >> scanner.log
 
 REM ------------------------------------------------------------
-REM MOPS WAF 解禁探針（1 req/day），連續 3 天成功 Discord 通知
-REM 掛在 scanner 前跑，避免另開 Task Scheduler entry
+REM MOPS WAF unblock probe (1 req/day). 3 consecutive successes -> Discord ping.
+REM Runs before scanner to avoid extra Task Scheduler entry.
 REM ------------------------------------------------------------
 echo [%date% %time%] MOPS probe starting >> scanner.log
 python tools\mops_probe.py >> scanner.log 2>&1
 echo [%date% %time%] MOPS probe done >> scanner.log
 
 REM ------------------------------------------------------------
-REM RF-1 cache consistency check：偵測 fundamental_cache vs backtest drift
-REM 若偵測到 drift，--fix 自動跑 aggregate 修復（不中斷 scan）
-REM 2026-04-21 加入：防 VF-VC 類型事件重現
+REM RF-1 cache consistency check: detect fundamental_cache vs backtest drift.
+REM On drift, --fix runs aggregate repair (non-blocking for scan).
+REM Added 2026-04-21: guard against VF-VC type events.
 REM ------------------------------------------------------------
 echo [%date% %time%] RF-1 consistency check starting >> scanner.log
 python tools\rf1_cache_consistency_check.py --fix >> scanner.log 2>&1
 echo [%date% %time%] RF-1 consistency check done >> scanner.log
 
 REM ------------------------------------------------------------
-REM VF-G4 shadow run：每日記錄 market regime，供事後比對 volatile-only 策略
-REM 2026-04-21 加入：不動 scanner 邏輯，累積 regime log 供 shadow_regime_analysis.py 使用
+REM VF-G4 shadow run: log daily market regime for post-hoc volatile-only analysis.
+REM Added 2026-04-21: no scanner logic change; feeds shadow_regime_analysis.py.
 REM ------------------------------------------------------------
 echo [%date% %time%] Market regime logger starting >> scanner.log
 python tools\market_regime_logger.py >> scanner.log 2>&1
 echo [%date% %time%] Market regime logger done >> scanner.log
 
-REM Run QM + Value (TW only) — VF-VC P3-b 2026-04-20 落地
-REM Value 權重改 30/25/30/15/0 (V_rev_heavy, WF 24 季 15 贏 V_live 63%)
-REM Chain invocations: QM 不做 tracking，Value 最後執行帶 tracking
-REM --regime-filter: VF-G4 DRY-RUN 記錄今日 regime 是否 pass volatile filter (audit 不過濾 picks)
+REM Run QM + Value (TW only) -- VF-VC P3-b live 2026-04-20.
+REM Value weights 30/25/30/15/0 (V_rev_heavy, WF 24 quarters 15 beats V_live 63%).
+REM Chain: QM skips tracking; Value runs tracking last.
+REM --regime-filter: VF-G4 DRY-RUN logs today's regime vs volatile filter
+REM (audit only, does not drop picks).
 python scanner_job.py --mode qm --market tw --no-tracking --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
 set PY_EXIT_QM=%ERRORLEVEL%
 
-python scanner_job.py --mode value --market tw --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
+python scanner_job.py --mode value --market tw --no-tracking --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
 set PY_EXIT_VAL=%ERRORLEVEL%
+
+REM US Value added 2026-04-22 after VF-L1b Phase 1 + VF-Value-ex2 landed.
+REM Tracking runs here (last in chain) to cover both TW+US picks.
+python scanner_job.py --mode value --market us --push --notify >> scanner.log 2>&1
+set PY_EXIT_VAL_US=%ERRORLEVEL%
 
 REM Take worst exit code
 set PY_EXIT=%PY_EXIT_QM%
 if not "%PY_EXIT_VAL%"=="0" set PY_EXIT=%PY_EXIT_VAL%
+if not "%PY_EXIT_VAL_US%"=="0" set PY_EXIT=%PY_EXIT_VAL_US%
+
+REM ------------------------------------------------------------
+REM Auto-generate AI reports for QM office picks (top 3).
+REM Added 2026-04-22 per user request: set-and-forget briefing ready by morning.
+REM Claude CLI per ticker ~30-90s; 3 tickers = ~3-5min. Exit code NOT propagated
+REM to PY_EXIT because report failures are non-critical to main scan success.
+REM ------------------------------------------------------------
+echo [%date% %time%] Auto AI reports starting >> scanner.log
+python tools\auto_ai_reports.py --n 3 --format md >> scanner.log 2>&1
+echo [%date% %time%] Auto AI reports done >> scanner.log
 
 REM Log end time (include python exit code so Task Scheduler shows non-zero on failure)
 echo [%date% %time%] Scanner finished (exit=%PY_EXIT%) >> scanner.log
