@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from analysis_engine import TechnicalAnalyzer
+from scenario_engine import generate_action_plan
 
 # Mock Data
 dates = pd.date_range(end=pd.Timestamp.now(), periods=100)
@@ -29,7 +30,7 @@ print("\n--- Test Scenario A (Active Buy) ---")
 scenario_a = {'code': 'A', 'desc': 'Active', 'title': 'Bull', 'color': 'red'}
 # Set Close > MA20 for visual
 df['Close'].iloc[-1] = 102
-plan_a = analyzer._generate_action_plan(df, scenario_a)
+plan_a = generate_action_plan(df, scenario_a)
 print("Actionable:", plan_a['is_actionable'])
 print("Rec Entry:", plan_a['rec_entry_low'], "-", plan_a['rec_entry_high'])
 print("Rec TP:", plan_a['rec_tp_price'])
@@ -43,7 +44,7 @@ scenario_b = {'code': 'B', 'desc': 'Wait', 'title': 'Pullback', 'color': 'orange
 df['Close'].iloc[-1] = 108
 df['MA60'].iloc[-1] = 100
 df['MA20'].iloc[-1] = 110 # MA20 > MA60, but price < MA20? Or just wait for MA60.
-plan_b = analyzer._generate_action_plan(df, scenario_b)
+plan_b = generate_action_plan(df, scenario_b)
 print("Actionable:", plan_b['is_actionable'])
 print("Rec Entry:", plan_b['rec_entry_low'], "-", plan_b['rec_entry_high'])
 # SL should be based on Entry (100), not Current (108).
@@ -53,7 +54,7 @@ print("Rec SL:", plan_b['rec_sl_price'])
 
 print("\n--- Test Scenario D (Bearish) ---")
 scenario_d = {'code': 'D', 'desc': 'Bear', 'title': 'Bear', 'color': 'green'}
-plan_d = analyzer._generate_action_plan(df, scenario_d)
+plan_d = generate_action_plan(df, scenario_d)
 print("Actionable:", plan_d['is_actionable'])
 if not plan_d['is_actionable']:
     print("Correctly not actionable.")
