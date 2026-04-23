@@ -1286,15 +1286,20 @@ class ValueScreener:
                 inst = batch[stock_id]
 
             # 2nd: fallback to FinMind via ChipAnalyzer
+            # H7 (2026-04-23): 加 scan_mode=True 避免為了 institutional 白白抓 margin/
+            # day_trading/shareholding/sbl 四份資料（value_screener 只用 institutional），
+            # 每 miss 一檔多浪費 4 個 FinMind calls。882 檔 value scan 若 10% miss = 352
+            # 個 call 無端燒掉 600/hr 配額。
             if inst is None or inst.empty:
                 try:
                     from chip_analysis import ChipAnalyzer
                     ca = ChipAnalyzer()
-                    chip_data, _ = ca.get_chip_data(stock_id)
+                    chip_data, _ = ca.get_chip_data(stock_id, scan_mode=True)
                     if chip_data and 'institutional' in chip_data:
                         inst = chip_data['institutional']
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("value_screener chip fetch failed for %s: %s: %s",
+                                 stock_id, type(e).__name__, e)
 
             if inst is not None and not inst.empty and len(inst) >= 5:
                 # Find total column (TWSE/TPEX: '合計', FinMind: '三大法人合計')

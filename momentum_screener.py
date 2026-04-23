@@ -985,8 +985,9 @@ class MomentumScreener:
                     from us_stock_chip import USStockChipAnalyzer
                     usc = USStockChipAnalyzer()
                     us_chip_data, _ = usc.get_chip_data(stock_id)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("momentum_screener US chip fetch failed for %s: %s: %s",
+                                 stock_id, type(e).__name__, e)
         else:
             if self.config['include_chip']:
                 # 1st: use pre-fetched TWSE/TPEX batch for institutional (no FinMind cost)
@@ -999,8 +1000,9 @@ class MomentumScreener:
                         from chip_analysis import ChipAnalyzer
                         ca = ChipAnalyzer()
                         chip_data, _ = ca.get_chip_data(stock_id, scan_mode=True)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("momentum_screener TW chip fetch failed for %s: %s: %s",
+                                     stock_id, type(e).__name__, e)
 
         # 4. Run analysis (scan_mode=True 跳過 PE/除權息等 UI-only 資料)
         try:
