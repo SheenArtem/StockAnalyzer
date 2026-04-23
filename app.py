@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.23.5")
+    st.caption("Version: v2026.04.23.6")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -318,13 +318,10 @@ def validate_ticker(ticker):
     return True, ""
 
 # ====================================================================
-#  大盤儀表板 Banner（所有模式共用）
+#  大盤儀表板 Banner placeholder（所有模式共用）
+#  於頁面頂端保留位置，等主內容渲染完畢後才填入，避免 cache miss 卡住整頁
 # ====================================================================
-try:
-    from market_banner import render_market_banner
-    render_market_banner()
-except Exception as _banner_err:
-    logger.debug("Market banner failed: %s", _banner_err)
+_banner_slot = st.empty()
 
 if st.session_state.get('app_mode') == 'screener':
     # ====================================================================
@@ -3526,4 +3523,16 @@ elif st.session_state.get('analysis_active', False):
 else:
     # 初始歡迎畫面
     st.info("👈 請在左測試欄輸入代號並點擊「開始分析」")
+
+# ====================================================================
+#  填入大盤儀表板 Banner（延後渲染，讓主內容先顯示）
+#  放檔案最尾端：主內容全部 render 完才執行，fetch 卡住也不阻塞頁面
+#  注意：若上方分支觸發 st.stop()，此段不會執行 → banner 在錯誤頁不顯示（可接受）
+# ====================================================================
+try:
+    from market_banner import render_market_banner
+    with _banner_slot.container():
+        render_market_banner()
+except Exception as _banner_err:
+    logger.debug("Market banner failed: %s", _banner_err)
 
