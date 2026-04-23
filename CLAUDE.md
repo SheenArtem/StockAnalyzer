@@ -66,7 +66,10 @@ app.py (Streamlit UI 入口, 3 模式)
   │  ├→ technical_analysis.py   — 技術指標計算 + 互動圖表
   │  │     含: MA, BB, ATR, RSI, KD, MACD, OBV, DMI, EFI, TD Sequential,
   │  │         VWAP, Supertrend, RVOL, Squeeze Momentum
-  │  ├→ analysis_engine.py      — AI 觸發分數計算（最大模組）
+  │  ├→ analysis_engine.py      — AI 觸發分數核心（TechnicalAnalyzer）
+  │  │     ├→ pattern_detection.py   — K 線 / W底 M 頭 / 頭肩 / 三角 / 背離 (M2 拆出)
+  │  │     ├→ addon_factors.py       — 籌碼 / 情緒 / 營收 / ETF 加分因子 (M2 拆出)
+  │  │     ├→ scenario_engine.py     — 劇本 A/B/C/D + 進場計畫 + 監控清單 (M2 拆出)
   │  │     ├→ chip_analysis.py       — 台股籌碼（TWSE/TPEX優先 → FinMind fallback）
   │  │     ├→ us_stock_chip.py       — 美股籌碼（機構持股/ETF/空單/內部交易）
   │  │     └→ pattern_recognition.py — K線型態辨識
@@ -163,7 +166,7 @@ app.py (Streamlit UI 入口, 3 模式)
 
 ### 籌碼面評分（C2-b IC 驗證版）
 
-`analysis_engine.py` `_analyze_chip_factors()` 的方向依據 C2-b 截面 IC 驗證（2026-04-16）。
+`addon_factors.py` `analyze_tw_chip_factors()` 的方向依據 C2-b 截面 IC 驗證（2026-04-16）。
 核心原則：**「籌碼乾淨 = 好」**（法人不追、散戶不擠的股票未來表現更好）。
 
 | 因子 | 方向 | IC IR | 說明 |
@@ -185,7 +188,7 @@ IC 驗證報告在 `reports/chip_ic_matrix.csv`、組合驗證在 `reports/chip_
 ## 注意事項
 
 - **無正式測試套件** — `tools/` 下有手動驗證腳本（verify_/debug_/test_），但無 pytest
-- **analysis_engine.py** 是最大且最複雜的模組（~67KB），修改時注意影響範圍
+- **analysis_engine.py** 經 2026-04-23 M2 重構從 2281 行縮至 937 行 (-59%)，形態偵測 / add-on 因子 / 劇本計畫分別拆到 pattern_detection / addon_factors / scenario_engine，regression 用 `tools/snapshot_run_analysis.py` byte-for-byte 驗證
 - **FinMind 免費額度** — 600 req/hr，容易爆。法人已改 TWSE/TPEX 優先
 - **無 .env** — FinMind token 在 `local/.env`，其他設定以硬編碼 + session state + JSON 為主
 - **Windows 平台** — `.bat` 啟動腳本、路徑處理需注意 Windows 相容性
