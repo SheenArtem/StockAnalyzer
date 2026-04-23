@@ -45,7 +45,7 @@ class ChipAnalyzer:
 
         # 判斷是否為「完全命中」
         if stat_inst == "hit" and stat_margin == "hit" and stat_dt == "hit" and stat_sh == "hit" and stat_sbl == "hit":
-            print(f"⚡ [Cache Hit] 讀取 {stock_id} 籌碼快取")
+            logger.debug("Cache hit: %s chip data (all 5 types)", stock_id)
             if not df_inst.empty: df_inst.index = pd.to_datetime(df_inst.index)
             if not df_margin.empty: df_margin.index = pd.to_datetime(df_margin.index)
             if not df_dt.empty: df_dt.index = pd.to_datetime(df_dt.index)
@@ -54,7 +54,7 @@ class ChipAnalyzer:
             return {"institutional": df_inst, "margin": df_margin, "day_trading": df_dt, "shareholding": df_sh, "sbl": df_sbl}, None
 
         # 準備增量或全量抓取
-        print(f"🔍 正在抓取 {stock_id} 籌碼數據...")
+        logger.info("Fetching chip data for %s (cache miss)", stock_id)
 
         results = {}
         errors = []
@@ -74,7 +74,7 @@ class ChipAnalyzer:
                 if twse_df.empty:
                     twse_df = twse.get_tpex_institutional(stock_id, days=10)
                 if not twse_df.empty:
-                    print(f"   ↳ 法人數據: TWSE/TPEX 官方 API ({len(twse_df)} 天)")
+                    logger.debug("%s institutional: TWSE/TPEX official API (%d days)", stock_id, len(twse_df))
                     # Add '合計' alias for compatibility with analysis_engine
                     if '合計' in twse_df.columns and '三大法人合計' not in twse_df.columns:
                         twse_df['三大法人合計'] = twse_df['合計']
@@ -86,7 +86,7 @@ class ChipAnalyzer:
 
             # 2nd: fallback to FinMind (for longer history or if TWSE failed)
             if not twse_inst_ok:
-                print(f"   ↳ 法人數據: FinMind fallback...")
+                logger.debug("%s institutional: FinMind fallback", stock_id)
                 if stat_inst == "partial" and date_inst:
                     start_date = (date_inst + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
                 else:
@@ -148,10 +148,10 @@ class ChipAnalyzer:
         try:
             if stat_margin == "partial" and date_margin:
                  start_date_m = (date_margin + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-                 print(f"   ↳ 增量更新融資券數據 (從 {start_date_m})...")
+                 logger.debug("%s margin: incremental from %s", stock_id, start_date_m)
             else:
                  start_date_m = '2016-01-01'
-                 print(f"   ↳ 全量下載融資券數據...")
+                 logger.debug("%s margin: full download", stock_id)
 
             raw_margin = self.dl.taiwan_stock_margin_purchase_short_sale(
                 stock_id=stock_id,
@@ -199,10 +199,10 @@ class ChipAnalyzer:
         try:
             if stat_dt == "partial" and date_dt:
                  start_date_d = (date_dt + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-                 print(f"   ↳ 增量更新當沖數據 (從 {start_date_d})...")
+                 logger.debug("%s day_trading: incremental from %s", stock_id, start_date_d)
             else:
                  start_date_d = '2016-01-01'
-                 print(f"   ↳ 全量下載當沖數據...")
+                 logger.debug("%s day_trading: full download", stock_id)
 
             raw_dt = self.dl.taiwan_stock_day_trading(
                 stock_id=stock_id,
@@ -245,10 +245,10 @@ class ChipAnalyzer:
         try:
             if stat_sh == "partial" and date_sh:
                  start_date_s = (date_sh + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-                 print(f"   ↳ 增量更新持股數據 (從 {start_date_s})...")
+                 logger.debug("%s shareholding: incremental from %s", stock_id, start_date_s)
             else:
                  start_date_s = '2016-01-01'
-                 print(f"   ↳ 全量下載持股數據...")
+                 logger.debug("%s shareholding: full download", stock_id)
 
             raw_sh = self.dl.taiwan_stock_shareholding(
                 stock_id=stock_id,
@@ -289,10 +289,10 @@ class ChipAnalyzer:
         try:
             if stat_sbl == "partial" and date_sbl:
                 start_date_sbl = (date_sbl + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-                print(f"   ↳ 增量更新借券數據 (從 {start_date_sbl})...")
+                logger.debug("%s sbl: incremental from %s", stock_id, start_date_sbl)
             else:
                 start_date_sbl = '2016-01-01'
-                print(f"   ↳ 全量下載借券數據...")
+                logger.debug("%s sbl: full download", stock_id)
 
             raw_sbl = self.dl.get_data(
                 dataset="TaiwanDailyShortSaleBalances",
