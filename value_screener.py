@@ -1277,31 +1277,13 @@ class ValueScreener:
             pass
 
         # Institutional accumulation
+        # H7 (2026-04-23): 改用 chip_fetcher 共用 helper（與 momentum_screener 同邏輯不重複）
         if self.config.get('include_chip', True) and stock_id.isdigit():
-            inst = None
-
-            # 1st: use pre-fetched TWSE/TPEX batch data (fast, no extra API calls)
-            batch = getattr(self, '_inst_batch', {})
-            if stock_id in batch:
-                inst = batch[stock_id]
-
-            # 2nd: fallback to FinMind via ChipAnalyzer
-            # H7 (2026-04-23): 加 scan_mode=True 避免為了 institutional 白白抓 margin/
-            # day_trading/shareholding/sbl 四份資料（value_screener 只用 institutional），
-            # 每 miss 一檔多浪費 4 個 FinMind calls。882 檔 value scan 若 10% miss = 352
-            # 個 call 無端燒掉 600/hr 配額。
-            # H5 (2026-04-23): 改用 fetch_chip (純 dict API)，避免 tuple-unpack footgun
-            if inst is None or inst.empty:
-                try:
-                    from chip_analysis import ChipAnalyzer, ChipFetchError
-                    chip_data = ChipAnalyzer().fetch_chip(stock_id, scan_mode=True)
-                    if 'institutional' in chip_data:
-                        inst = chip_data['institutional']
-                except ChipFetchError as e:
-                    logger.debug("value_screener chip fetch failed for %s: %s", stock_id, e)
-                except Exception as e:
-                    logger.debug("value_screener chip unexpected error for %s: %s: %s",
-                                 stock_id, type(e).__name__, e)
+            from chip_fetcher import fetch_institutional_for_scan
+            inst = fetch_institutional_for_scan(
+                stock_id,
+                batch_cache=getattr(self, '_inst_batch', {}),
+            )
 
             if inst is not None and not inst.empty and len(inst) >= 5:
                 # Find total column (TWSE/TPEX: '合計', FinMind: '三大法人合計')

@@ -990,21 +990,15 @@ class MomentumScreener:
                                  stock_id, type(e).__name__, e)
         else:
             if self.config['include_chip']:
-                # 1st: use pre-fetched TWSE/TPEX batch for institutional (no FinMind cost)
-                batch = getattr(self, '_inst_batch', {})
-                if stock_id in batch:
-                    chip_data = {'institutional': batch[stock_id]}
-                else:
-                    # 2nd: fallback to FinMind institutional only（scan_mode 跳過 margin/day_trading/shareholding/sbl）
-                    # H5 (2026-04-23): 改用 fetch_chip (純 dict API)，避免 tuple-unpack footgun
-                    try:
-                        from chip_analysis import ChipAnalyzer, ChipFetchError
-                        chip_data = ChipAnalyzer().fetch_chip(stock_id, scan_mode=True)
-                    except ChipFetchError as e:
-                        logger.debug("momentum_screener TW chip fetch failed for %s: %s", stock_id, e)
-                    except Exception as e:
-                        logger.debug("momentum_screener TW chip unexpected error for %s: %s: %s",
-                                     stock_id, type(e).__name__, e)
+                # H7 (2026-04-23): 改用 chip_fetcher 共用 helper（與 value_screener 同邏輯）
+                from chip_fetcher import fetch_institutional_for_scan
+                inst = fetch_institutional_for_scan(
+                    stock_id,
+                    batch_cache=getattr(self, '_inst_batch', {}),
+                )
+                if inst is not None and not inst.empty:
+                    # TechnicalAnalyzer._analyze_chip_factors 期望 chip_data['institutional']
+                    chip_data = {'institutional': inst}
 
         # 4. Run analysis (scan_mode=True 跳過 PE/除權息等 UI-only 資料)
         try:
