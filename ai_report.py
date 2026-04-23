@@ -284,17 +284,18 @@ def _build_chip_data(chip_data, us_chip_data, is_us, ticker=None):
         elif isinstance(top, dict) and top:
             lines.append(f"\n主要持股人: {json.dumps(top, ensure_ascii=False)}")
 
-    elif not is_us and chip_data:
+    elif not is_us:
         # 台股籌碼
-        for key, label in [('institutional', '三大法人'), ('margin', '融資融券'),
-                           ('day_trading', '當沖'), ('shareholding', '持股分布')]:
-            df = chip_data.get(key)
-            if df is not None and isinstance(df, pd.DataFrame) and not df.empty:
-                lines.append(f"\n{label} (近 5 日):")
-                tail = df.tail(5)
-                lines.append(tail.to_string())
+        if chip_data:
+            for key, label in [('institutional', '三大法人'), ('margin', '融資融券'),
+                               ('day_trading', '當沖'), ('shareholding', '持股分布')]:
+                df = chip_data.get(key)
+                if df is not None and isinstance(df, pd.DataFrame) and not df.empty:
+                    lines.append(f"\n{label} (近 5 日):")
+                    tail = df.tail(5)
+                    lines.append(tail.to_string())
 
-        # TDCC 集保股權分散（週更 snapshot，若有資料則附上）
+        # TDCC 集保股權分散（獨立來源，不受 chip_data 缺失影響）
         if ticker:
             try:
                 from tdcc_reader import format_shareholding_for_prompt
