@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.23.6")
+    st.caption("Version: v2026.04.23.7")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -335,7 +335,7 @@ if st.session_state.get('app_mode') == 'screener':
     # 且 US 側動能/估值/營收/技術全部 signal 未經 IC 驗證。picks 無實證基礎，避免誤導。
     # 恢復條件：US QM/Value 跑完同級 VF 驗證（類 TW 25+45 項）且有 A/B 級訊號。
     screener_tab_qm, screener_tab2, screener_tab_meanrev, screener_tab_track = st.tabs(
-        ["🛡️ 品質選股", "💎 價值 (台股)", "🔄 均值回歸", "📊 績效追蹤"]
+        ["🛡️ 品質選股", "💎 價值池 (搭 regime filter)", "🔄 均值回歸", "📊 績效追蹤"]
     )
     # Hidden tabs (code preserved, just not displayed)
     screener_tab1 = screener_tab_us = screener_tab_swing = screener_tab_conv = screener_tab_us_val = None
@@ -1412,6 +1412,49 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
     # Tab 2: 左側價值選股 (VF-VC P3-b 2026-04-21 恢復, 權重 30/25/30/15/0)
     # ====================================================================
     with screener_tab2:
+
+        # ----------------------------------------------------------------
+        # Regime Badge：告訴使用者今天該不該啟用 Value 池
+        # (2026-04-23 Value Portfolio 回測發現：純 Value 單獨用不如大盤，
+        #  Value+only_volatile 才是 Sharpe 0.932 最佳 — 見
+        #  project_value_portfolio_backtest.md)
+        # ----------------------------------------------------------------
+        _regime_entry = None
+        try:
+            _regime_log = _Path('data/tracking/regime_log.jsonl')
+            if _regime_log.exists():
+                _lines = _regime_log.read_text(encoding='utf-8').strip().split('\n')
+                if _lines:
+                    _regime_entry = _json.loads(_lines[-1])
+        except Exception:
+            _regime_entry = None
+
+        if _regime_entry:
+            _r = _regime_entry.get('regime', 'unknown')
+            _rdate = _regime_entry.get('date', '?')
+            _range20 = _regime_entry.get('range_20d')
+            _ret20 = _regime_entry.get('ret_20d')
+            _range_str = f"{_range20*100:.1f}%" if _range20 is not None else "N/A"
+            _ret_str = f"{_ret20*100:+.1f}%" if _ret20 is not None else "N/A"
+            if _r == 'volatile':
+                st.success(
+                    f"✅ **Regime = volatile** ({_rdate}): range_20d={_range_str}, ret_20d={_ret_str} "
+                    f"→ **建議啟用 Value 池**（回測 Sharpe 0.932 / MDD -12.79%）"
+                )
+            else:
+                st.warning(
+                    f"⚠️ **Regime = {_r}** ({_rdate}): range_20d={_range_str}, ret_20d={_ret_str} "
+                    f"→ 非 volatile 期建議 **sit out**（純 Value top-20 在非 volatile 回測 CAGR 輸 TWII -2.3pp）"
+                )
+        else:
+            st.caption("⚠️ 尚無 regime 資料（`data/tracking/regime_log.jsonl` 缺）— 建議搭 Dual 50/50 策略使用")
+
+        st.caption(
+            "📌 **為何要搭 regime filter？** 純 Value top-20 月頻 rebalance 回測 2020-2025 "
+            "CAGR 12.55% 輸 TWII 14.82%、MDD -44.7%；加上 only_volatile filter 後 "
+            "CAGR 15.05% / **Sharpe 0.932** / **MDD -12.79%**（2022 空頭翻正）。"
+            "詳見 `reports/vf_value_portfolio_backtest_only_volatile.md`。"
+        )
 
         with st.expander("📋 篩選條件說明"):
             st.markdown("""
