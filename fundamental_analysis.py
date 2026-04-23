@@ -145,7 +145,7 @@ def get_fundamentals(ticker):
         if is_tw_stock:
              tw_data = get_taiwan_stock_fundamentals(stock_id)
              if tw_data:
-                 print(f"✅ 使用 FinMind 數據覆蓋台股基本面: {stock_id}")
+                 logger.info("FinMind fundamental data applied: %s", stock_id)
                  if tw_data.get('PE Ratio') != 'N/A': data['PE Ratio'] = tw_data['PE Ratio']
                  if tw_data.get('PB Ratio') != 'N/A': data['PB Ratio'] = tw_data['PB Ratio']
                  if tw_data.get('Dividend Yield') != 'N/A': 
@@ -239,7 +239,7 @@ def get_fundamentals(ticker):
 
         return data
     except Exception as e:
-        print(f"Error fetching fundamentals for {ticker}: {e}")
+        logger.error("Error fetching fundamentals for %s: %s", ticker, e)
         return None
 
 def get_taiwan_stock_fundamentals(stock_id):
@@ -270,7 +270,7 @@ def get_taiwan_stock_fundamentals(stock_id):
             'Dividend Yield': latest['dividend_yield'] # Return raw float for formatting
         }
     except Exception as e:
-        print(f"FinMind Error: {e}")
+        logger.error("FinMind Error: %s", e)
         return {}
 
 def get_taiwan_stock_profile(stock_id):
@@ -323,7 +323,7 @@ def get_taiwan_stock_revenue(stock_id):
                 'yoy': latest.get('revenue_year_growth', 0)
             }
     except Exception as e:
-        print(f"Revenue Error: {e}")
+        logger.error("Revenue Error: %s", e)
     return None
 
 def get_taiwan_stock_dividend_policy(stock_id):
@@ -361,7 +361,7 @@ def get_taiwan_stock_dividend_policy(stock_id):
                 'stock': latest.get('StockEarningsDistribution', 0)
             }
     except Exception as e:
-        print(f"Dividend Error: {e}")
+        logger.error("Dividend Error: %s", e)
     return None
 
 def get_revenue_history(stock_id, months=36):
@@ -449,5 +449,5 @@ def get_financial_statements(stock_id, quarters=12):
         return df_pivot
         
     except Exception as e:
-        print(f"Financials Error: {e}")
+        logger.error("Financials Error: %s", e)
         return pd.DataFrame()

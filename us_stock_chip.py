@@ -56,7 +56,7 @@ class USStockChipAnalyzer:
                 return cached_data, None
         
         try:
-            print(f"📥 正在取得 {ticker} 美股籌碼數據...")
+            logger.info("Fetching US chip data: %s", ticker)
             stock = yf.Ticker(ticker)
             
             result = {
