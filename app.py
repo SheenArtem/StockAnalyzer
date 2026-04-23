@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.23.3")
+    st.caption("Version: v2026.04.23.4")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -1546,6 +1546,40 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                         )
                         for d in _v_match.get('details', []):
                             st.markdown(f"- {d}")
+
+                        # Value-#5b 左側分批進場 SOP（2026-04-23）
+                        _ap = _v_match.get('action_plan')
+                        if _ap:
+                            st.markdown("---")
+                            st.markdown("### 📋 左側操作 SOP")
+                            _col_a, _col_b = st.columns([1, 1])
+                            with _col_a:
+                                st.markdown(f"**進場區間**: {_ap['entry_low']} ~ {_ap['entry_high']}")
+                                _batch_rows = "\n".join([
+                                    f"| {b['pct']}% | {b['price']} | {b['trigger']} |"
+                                    for b in _ap.get('entry_batches', [])
+                                ])
+                                st.markdown(
+                                    "| 批次 | 價位 | 觸發 |\n"
+                                    "|---|---|---|\n"
+                                    f"{_batch_rows}"
+                                )
+                            with _col_b:
+                                st.markdown(
+                                    f"**停損**: {_ap['stop_loss']} ({_ap['stop_method']}, "
+                                    f"{_ap['stop_loss_pct']:+.1f}%)"
+                                )
+                                _tp_rows = "\n".join([
+                                    f"| TP{t['tier']} | {t['price']} | +{t['pct']:.1f}% | {t['method']} | {t['action']} |"
+                                    for t in _ap.get('tp_list', [])
+                                ])
+                                st.markdown(
+                                    "| 階段 | 目標 | 漲幅 | 方法 | 動作 |\n"
+                                    "|---|---|---|---|---|\n"
+                                    f"{_tp_rows}"
+                                )
+                                st.caption(f"建議持倉: {_ap['horizon_days']} 天")
+                            st.info(_ap['strategy_text'])
 
         else:
             st.info("尚無掃描結果。\n\n"

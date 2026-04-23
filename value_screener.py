@@ -72,6 +72,141 @@ def _get_discount_rate(is_us):
     return rate
 
 
+def _build_value_action_plan(price_df, current_price, pe=None, pb=None):
+    """Value-#5b 簡化版（2026-04-23）：左側分批進場 SOP。
+
+    不依賴 trigger_score / 不走 exit_manager 的 QM 乘數（左側特性與右側不同）。
+    產出供 AI 報告 / UI 顯示的純左側操作指引。
+
+    參數:
+        price_df: 日線 DataFrame (需含 Close/High/Low)，用來算 MA60 / 布林 / 前波低點
+        current_price: 當前收盤價
+        pe, pb: 估值，用於 horizon 判斷（極低 PE 表示便宜搶籌碼可能較短 horizon）
+
+    回傳 dict 內容：
+        entry_low, entry_high     - 建議進場價區（收盤 - 5% ~ 收盤）
+        entry_batches             - 分批進場權重（4 批）
+        stop_loss, stop_method    - 左側停損（前波低點，較寬）
+        tp_list                   - 三段停利（MA60 / 布林上緣 / 前高）
+        horizon_days              - 建議持倉期（90-120d）
+        strategy_text             - 操作敘事
+    """
+    if current_price is None or current_price <= 0:
+        return None
+    if price_df is None or price_df.empty or 'Close' not in price_df.columns:
+        return None
+
+    import numpy as _np
+
+    # 前波低點（過去 60 日 Low min，但排除最近 5 日避免抓到當前）
+    swing_low = None
+    if 'Low' in price_df.columns and len(price_df) >= 65:
+        look = price_df['Low'].iloc[-65:-5]
+        if len(look) >= 30:
+            swing_low = float(look.min())
+
+    # MA60 / MA120
+    close = price_df['Close']
+    ma60 = float(close.tail(60).mean()) if len(close) >= 60 else None
+    ma120 = float(close.tail(120).mean()) if len(close) >= 120 else None
+
+    # 布林上下緣 (20 日 MA ± 2σ)
+    bb_upper = bb_lower = None
+    if len(close) >= 20:
+        ma20 = close.tail(20).mean()
+        std20 = close.tail(20).std(ddof=0)
+        bb_upper = float(ma20 + 2 * std20)
+        bb_lower = float(ma20 - 2 * std20)
+
+    # 前高（過去 120 日 High max）
+    prior_high = None
+    if 'High' in price_df.columns and len(price_df) >= 120:
+        prior_high = float(price_df['High'].tail(120).max())
+
+    # --- 進場價區 ---
+    # 左側分批：由當前價往下 5%，分 4 批（30% / 25% / 25% / 20%）
+    entry_high = round(current_price, 2)
+    entry_low = round(current_price * 0.95, 2)
+    entry_batches = [
+        {"pct": 30, "price": round(current_price, 2), "trigger": "即時進場"},
+        {"pct": 25, "price": round(current_price * 0.98, 2), "trigger": "回檔 -2%"},
+        {"pct": 25, "price": round(current_price * 0.95, 2), "trigger": "回檔 -5%"},
+        {"pct": 20, "price": round(current_price * 0.92, 2), "trigger": "深跌 -8% 或 MA60 支撐"},
+    ]
+
+    # --- 停損 ---
+    # 優先前波低點（左側特性：停損較寬）；fallback 用 -15% 硬停損
+    if swing_low and swing_low < current_price * 0.95:
+        stop_loss = round(swing_low, 2)
+        stop_method = "前波 60 日低點"
+    elif bb_lower and bb_lower < current_price * 0.95:
+        stop_loss = round(bb_lower, 2)
+        stop_method = "布林下緣 (20d - 2σ)"
+    else:
+        stop_loss = round(current_price * 0.85, 2)
+        stop_method = "硬停損 -15%"
+    stop_loss_pct = (stop_loss - current_price) / current_price * 100
+
+    # --- 停利三段 ---
+    tp_list = []
+    # TP1: MA60 反壓（若當前 < MA60），或 +10%
+    if ma60 and ma60 > current_price * 1.03:
+        tp_list.append({"tier": 1, "price": round(ma60, 2),
+                        "pct": (ma60 - current_price) / current_price * 100,
+                        "method": "MA60 反壓", "action": "減碼 1/3 落袋"})
+    else:
+        tp1_price = current_price * 1.10
+        tp_list.append({"tier": 1, "price": round(tp1_price, 2), "pct": 10.0,
+                        "method": "+10%", "action": "減碼 1/3 落袋"})
+
+    # TP2: 布林上緣 / +20%
+    tp2_price = bb_upper if (bb_upper and bb_upper > current_price * 1.1) else current_price * 1.20
+    tp_list.append({"tier": 2, "price": round(tp2_price, 2),
+                    "pct": (tp2_price - current_price) / current_price * 100,
+                    "method": "布林上緣" if bb_upper else "+20%",
+                    "action": "再減 1/3，剩下用移動停損"})
+
+    # TP3: 前高 / +35%
+    tp3_price = prior_high if (prior_high and prior_high > current_price * 1.2) else current_price * 1.35
+    tp_list.append({"tier": 3, "price": round(tp3_price, 2),
+                    "pct": (tp3_price - current_price) / current_price * 100,
+                    "method": "前高" if prior_high else "+35%",
+                    "action": "清倉或 120 日到期換股"})
+
+    # --- Horizon ---
+    # 極低 PE (<8) 短一點，一般 120d，高 PE (大型股通道) 更長
+    if pe is not None and pe > 0:
+        if pe < 8:
+            horizon_days = 90
+        elif pe > 20:
+            horizon_days = 150
+        else:
+            horizon_days = 120
+    else:
+        horizon_days = 120
+
+    # --- 操作敘事 ---
+    strategy_text = (
+        f"【左側分批】進場區間 {entry_low}~{entry_high}，"
+        f"分 4 批 30/25/25/20%；"
+        f"停損 {stop_loss} ({stop_method}, {stop_loss_pct:+.1f}%)；"
+        f"TP1={tp_list[0]['price']} {tp_list[0]['method']} 落袋 1/3；"
+        f"持倉 {horizon_days} 天為期"
+    )
+
+    return {
+        'entry_low': entry_low,
+        'entry_high': entry_high,
+        'entry_batches': entry_batches,
+        'stop_loss': stop_loss,
+        'stop_method': stop_method,
+        'stop_loss_pct': round(stop_loss_pct, 2),
+        'tp_list': tp_list,
+        'horizon_days': horizon_days,
+        'strategy_text': strategy_text,
+    }
+
+
 def _fetch_tradingview_batch(market='tw'):
     """
     Batch fetch fundamental data from TradingView for all stocks in a market.
@@ -839,6 +974,18 @@ class ValueScreener:
             except Exception:
                 pass
 
+        # Value-#5b 簡化版 action_plan（純左側分批 SOP，無 trigger 反向）
+        action_plan = None
+        if _price_df is not None and not _price_df.empty and _latest_close > 0:
+            try:
+                action_plan = _build_value_action_plan(
+                    _price_df, _latest_close,
+                    pe=market_row.get('PE'),
+                    pb=market_row.get('PB'),
+                )
+            except Exception as e:
+                logger.warning("build_value_action_plan failed for %s: %s", stock_id, e)
+
         return {
             'stock_id': stock_id,
             'name': market_row.get('stock_name', ''),
@@ -855,6 +1002,7 @@ class ValueScreener:
             'scores': {k: round(v, 1) for k, v in scores.items()},
             'details': details,
             'bypass_reason': market_row.get('bypass_reason', ''),  # Value-#4 大型股通道標記
+            'action_plan': action_plan,  # Value-#5b 左側分批 SOP
         }
 
     # ================================================================
