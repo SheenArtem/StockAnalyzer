@@ -2,17 +2,53 @@
 import logging
 import pandas as pd
 import datetime
+from typing import Dict, Optional, Tuple
 from cache_manager import get_finmind_loader
 
 logger = logging.getLogger(__name__)
+
+
+class ChipFetchError(Exception):
+    """Raised by ChipAnalyzer.fetch_chip() when chip data cannot be retrieved.
+
+    Use `get_chip_data()` (tuple return) if you need to inspect partial failure;
+    use `fetch_chip()` (dict return, raises on total failure) for cleaner caller code.
+    """
+
 
 class ChipAnalyzer:
     def __init__(self):
         self.dl = get_finmind_loader()
 
-    def get_chip_data(self, ticker, force_update=False, scan_mode=False):
+    def fetch_chip(self, ticker: str, scan_mode: bool = False, force_update: bool = False) -> Dict:
+        """取得籌碼面數據（乾淨 API，H5 2026-04-23 新增）。
+
+        2026-04-22 三連 bug 之一是 caller 忘了 unpack tuple → 整個 tuple 當成
+        dict 傳下去 → AttributeError 活到排程才爆。此 method 回傳純 dict，
+        caller 不可能踩到 tuple-unpack footgun。
+
+        Raises:
+            ChipFetchError: 完全抓取失敗（無任何資料集可用）
+        """
+        data, err = self.get_chip_data(ticker, force_update=force_update, scan_mode=scan_mode)
+        if data is None:
+            raise ChipFetchError(err or f"Failed to fetch chip data for {ticker}")
+        return data
+
+    def get_chip_data(
+        self, ticker: str, force_update: bool = False, scan_mode: bool = False,
+    ) -> Tuple[Optional[Dict], Optional[str]]:
         """
         取得籌碼面數據 (三大法人 + 融資融券)
+
+        Returns:
+            Tuple[Optional[Dict], Optional[str]]:
+              - data: dict with keys institutional/margin/day_trading/shareholding/sbl
+                      (None on total failure)
+              - error: combined error string for partial/total failure (None on success)
+
+        ⚠️ Tuple return. Callers 必須 unpack：`data, err = ca.get_chip_data(...)`.
+        若不需要 err，使用新的 `fetch_chip()` method（raises on error, returns dict）。
 
         scan_mode=True: 只抓 institutional（評分用），跳過 margin/day_trading/
           shareholding/sbl（這些不計分，只是 UI 顯示）。節省 4 個 FinMind 呼叫/檔。

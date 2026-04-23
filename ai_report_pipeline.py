@@ -92,11 +92,14 @@ def generate_one_report(
         progress_cb("📥 載入籌碼資料...")
         chip_data, us_chip_data = None, None
         if ticker.isdigit() or ticker.endswith('.TW'):
+            # 用新的 fetch_chip (H5, 2026-04-23): 回純 dict，不會踩到 tuple-unpack footgun
             try:
-                from chip_analysis import ChipAnalyzer
-                chip_data, _err = ChipAnalyzer().get_chip_data(ticker, scan_mode=False)
+                from chip_analysis import ChipAnalyzer, ChipFetchError
+                chip_data = ChipAnalyzer().fetch_chip(ticker, scan_mode=False)
+            except ChipFetchError as e:
+                logger.warning("[%s] TW chip fetch failed: %s", ticker, e)
             except Exception as e:
-                logger.warning("[%s] TW chip load failed: %s: %s", ticker, type(e).__name__, e)
+                logger.warning("[%s] TW chip load unexpected error: %s: %s", ticker, type(e).__name__, e)
         else:
             try:
                 from us_stock_chip import USStockChipAnalyzer
