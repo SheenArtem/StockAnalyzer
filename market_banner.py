@@ -259,7 +259,7 @@ def _compute_expiry(indicator, data_date, now):
       - cnn_fgi：盤中 1h；閉市 4h
     """
     # 台股 14:00 類
-    if indicator in ('tw_index', 'basis', 'pcr'):
+    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio'):
         expected = _expected_tw_date(_TW_14_CUTOFF, now)
         if data_date == expected:
             return _next_tw_refresh_at(_TW_14_CUTOFF, now).timestamp()
@@ -367,6 +367,23 @@ def _fetch_or_cached_pcr(now):
         return None
 
 
+def _fetch_or_cached_m1b_ratio(now):
+    """成交量/M1B 比：近 20 交易日成交金額 / 最新 M1B × 100%"""
+    cached = _cache_get('m1b_ratio')
+    if cached is not None:
+        return cached
+    try:
+        from money_supply import compute_m1b_ratio
+        value = compute_m1b_ratio()
+        if value is not None:
+            # 用 basis/pcr 相同的 14:00 cutoff 規則（依賴 TWSE 當日成交值）
+            _cache_set('m1b_ratio', value, value.get('data_date'), now)
+        return value
+    except Exception as e:
+        logger.debug("M1B ratio failed: %s", e)
+        return None
+
+
 # ============================================================
 #  主入口
 # ============================================================
@@ -386,6 +403,7 @@ def _get_banner_data():
         'cnn_fgi': _fetch_or_cached_cnn_fgi(now),
         'basis': _fetch_or_cached_basis(now),
         'pcr': _fetch_or_cached_pcr(now),
+        'm1b_ratio': _fetch_or_cached_m1b_ratio(now),
     }
 
 
@@ -498,6 +516,27 @@ def render_market_banner():
             c1.markdown(
                 '<div style="font-size:0.95rem;line-height:1.6">'
                 + ' &nbsp;|&nbsp; '.join(parts) + '</div>',
+                unsafe_allow_html=True,
+            )
+
+        # 成交量 / M1B 比 (過熱指標)
+        m1b = data.get('m1b_ratio') or {}
+        r = m1b.get('ratio_pct')
+        if r is not None:
+            color = m1b.get('color', '#333')
+            label = m1b.get('label', '')
+            m_period = m1b.get('m1b_period', '')
+            # 格式化 YYYYMM → YYYY/MM
+            if len(m_period) == 6:
+                m_period = f"{m_period[:4]}/{m_period[4:]}"
+            tip = (f"近 {m1b.get('n_days', 20)} 交易日成交金額 / M1B × 100%；"
+                   f"M1B={m1b.get('m1b_mil_twd', 0)/1e6:.1f}兆 ({m_period})")
+            c1.markdown(
+                f'<div style="font-size:0.95rem;line-height:1.6" title="{tip}">'
+                f'成交量/M1B <span style="color:{color};font-weight:bold">'
+                f'{r:.1f}% {label}</span> '
+                f'<span style="color:#888;font-size:0.85em">(M1B {m_period})</span>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
 
