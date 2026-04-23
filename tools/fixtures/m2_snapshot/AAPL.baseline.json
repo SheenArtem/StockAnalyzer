@@ -1,0 +1,131 @@
+{
+  "action_plan": {
+    "current_price": 273.1700134277344,
+    "entry_confidence": "standard",
+    "is_actionable": true,
+    "is_us_stock": true,
+    "pattern_note": "",
+    "rec_entry_desc": "積極操作 (5MA-現價)",
+    "rec_entry_high": 273.1700134277344,
+    "rec_entry_low": 269.20400390625,
+    "rec_sl_method": "A. ATR 波動停損 (科學)",
+    "rec_sl_price": 260.23403494698664,
+    "rec_tp_price": 319.7198803405761,
+    "rr_ratio": 3.5984805464944616,
+    "sl_atr": 260.23403494698664,
+    "sl_key_candle": 245.6999969482422,
+    "sl_list": [
+      {
+        "desc": "2倍 ATR",
+        "loss": -4.74,
+        "method": "A. ATR 波動停損 (科學)",
+        "price": 260.23403494698664
+      },
+      {
+        "desc": "MA20/60",
+        "loss": -5.08,
+        "method": "B. 均線停損 (趨勢)",
+        "price": 259.30625
+      },
+      {
+        "desc": "大量低點",
+        "loss": -10.06,
+        "method": "C. 關鍵紅K (籌碼)",
+        "price": 245.6999969482422
+      },
+      {
+        "desc": "前波低點",
+        "loss": -10.13,
+        "method": "D. 波段低點停損 (形態)",
+        "price": 245.509994506836
+      }
+    ],
+    "sl_low": 245.509994506836,
+    "sl_ma": 259.30625,
+    "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。",
+    "tp_list": [
+      {
+        "desc": "等幅測距",
+        "is_rec": false,
+        "method": "N 字測量 (1.0)",
+        "price": 301.94001770019526
+      },
+      {
+        "desc": "強勢目標",
+        "is_rec": true,
+        "method": "費波南希 (1.618)",
+        "price": 319.7198803405761
+      }
+    ]
+  },
+  "checklist": {
+    "active": [
+      "若帶量突破 **波段前高 (274.28)**，趨勢續攻，可嘗試加碼。"
+    ],
+    "future": [
+      "目前正乖離過大 (5.3%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+      "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+    ],
+    "risk": [
+      "若收盤跌破 **月線 (259.31)**，短期轉弱，建議減碼或停損。",
+      "若出現 **爆量長黑** (成交值 > $25,216.4M) 且收跌，視為主力出貨訊號。",
+      "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
+    ]
+  },
+  "fundamental_alerts": [],
+  "regime": {
+    "confidence": 0.5,
+    "details": [
+      "Neutral (ADX=11) -- no clear regime signal",
+      "frozen for regression",
+      "ATR expanding -- volatility rising"
+    ],
+    "hmm_state": "neutral",
+    "position_adj": 1.0,
+    "regime": "neutral"
+  },
+  "scenario": {
+    "code": "A",
+    "color": "red",
+    "desc": "週線強多 + 日線訊號佳，順勢重倉。",
+    "title": "🔥 劇本 A：強力進攻"
+  },
+  "score_percentile": 93.4,
+  "ticker": "AAPL",
+  "trend_details": [
+    "✅ 週線均線多頭排列 (Close > 20MA > 60MA) (+2)",
+    "⚠️ DMI 趨勢不明 (ADX=10.0 < 25) (0)",
+    "✅ OBV 能量潮近 5 週上升 (+1)",
+    "✅ 週線 EFI 主力作多 (EFI=343,329,637) (+1)",
+    "🦋 形態學: 潛在【W底 (雙重底)】成形中 (+2)",
+    "🦇 形態學: 潛在【M頭 (雙重頂)】成形中 (-2)",
+    "⚠️ 量價背離：價漲量縮 (追價意願不足) (-0.5)"
+  ],
+  "trend_score": 3.5,
+  "trigger_breakdown": {
+    "chip_score": 1.5,
+    "etf_score": 0.0,
+    "momentum_group": 0.6666666667,
+    "pattern_group": 0.0,
+    "regime": "neutral",
+    "regime_weights": {
+      "momentum": 1.0,
+      "trend": 1.0,
+      "volume": 1.0
+    },
+    "revenue_score": 0.0,
+    "sentiment_score": 0.0,
+    "trend_group": 0.6354470053,
+    "volume_group": 0.2197841724
+  },
+  "trigger_details": [
+    "📈 MeanRev=+1.02 (tanh=+0.77)",
+    "📈 Supertrend 多頭趨勢 (+1)",
+    "✅ MACD 柱狀體翻紅 (+1)",
+    "🔥 MACD 動能持續增強 (+0.5)",
+    "✅ KD 黃金交叉/多方排列 (+1)",
+    "💎 內部人積極買入 (買72/賣0) (+1.5)",
+    "📊 機構持股 65.3% [資訊]"
+  ],
+  "trigger_score": 6.5679198216
+}

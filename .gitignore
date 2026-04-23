@@ -67,3 +67,7 @@ third_party/
 
 # 備份檔
 *.bak_*
+
+# M2 regression fixture（pickle + current.json 可重產，太大不納入版控）
+tools/fixtures/m2_snapshot/*.pkl
+tools/fixtures/m2_snapshot/*.current.json
