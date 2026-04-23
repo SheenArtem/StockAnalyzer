@@ -37,7 +37,7 @@ def _load_office_picks(n=3):
 
 def _run_one(ticker, fmt='html'):
     """Run full AI report pipeline for one ticker. Returns (ok, rid_or_err)."""
-    from technical_analysis import run_analysis
+    from technical_analysis import plot_dual_timeframe as run_analysis
     from analysis_engine import TechnicalAnalyzer
     from chip_analysis import ChipAnalyzer
     from fundamental_analysis import get_fundamentals
@@ -53,7 +53,7 @@ def _run_one(ticker, fmt='html'):
     chip_data, us_chip_data = None, None
     if ticker.isdigit() or ticker.endswith('.TW'):
         try:
-            chip_data = ChipAnalyzer(ticker).get_chip_data(scan_mode=False)
+            chip_data = ChipAnalyzer().get_chip_data(ticker, scan_mode=False)
         except Exception as e:
             logger.warning('[%s] chip load failed: %s', ticker, e)
     else:
