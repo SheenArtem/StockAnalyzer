@@ -12,9 +12,18 @@ logger = logging.getLogger(__name__)
 
 @st.cache_data(ttl=3600)
 def get_chip_data_cached(ticker, force):
-    from chip_analysis import ChipAnalyzer
-    analyzer = ChipAnalyzer()
-    return analyzer.get_chip_data(ticker, force_update=force)
+    """取得籌碼快取。H5 (2026-04-23) 改用 fetch_chip 乾淨 API。
+
+    Returns:
+        dict | None: chip data dict on success, None on fetch failure.
+        Caller 直接 `if chip_data is not None: ...`，不需 unpack。
+    """
+    from chip_analysis import ChipAnalyzer, ChipFetchError
+    try:
+        return ChipAnalyzer().fetch_chip(ticker, force_update=force)
+    except ChipFetchError as e:
+        logger.warning("Chip fetch failed for %s: %s", ticker, e)
+        return None
 
 
 # 設定頁面配置
@@ -106,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.23.1")
+    st.caption("Version: v2026.04.23.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -2131,7 +2140,7 @@ elif st.session_state.get('analysis_active', False):
             if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
                 try:
                     status_text.info(f"⏳ 正在分析 {display_ticker} (技術+籌碼)...")
-                    chip_data, chip_err = get_chip_data_cached(source, is_force)
+                    chip_data = get_chip_data_cached(source, is_force)
                 except Exception as e:
                     logger.error(f"Chip Load Error: {e}", exc_info=True)
                     st.warning(f"⚠️ 籌碼預載失敗: {e}")
@@ -2569,7 +2578,7 @@ elif st.session_state.get('analysis_active', False):
 
                      # Use force state from session_state
                      is_force = st.session_state.get('force_update_cache', False)
-                     chip_data, err = get_chip_data_cached(source, is_force)
+                     chip_data = get_chip_data_cached(source, is_force)
                      loading_msg.empty() # Clear message
                      
                      if chip_data:
