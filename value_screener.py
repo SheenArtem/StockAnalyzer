@@ -1290,15 +1290,17 @@ class ValueScreener:
             # day_trading/shareholding/sbl 四份資料（value_screener 只用 institutional），
             # 每 miss 一檔多浪費 4 個 FinMind calls。882 檔 value scan 若 10% miss = 352
             # 個 call 無端燒掉 600/hr 配額。
+            # H5 (2026-04-23): 改用 fetch_chip (純 dict API)，避免 tuple-unpack footgun
             if inst is None or inst.empty:
                 try:
-                    from chip_analysis import ChipAnalyzer
-                    ca = ChipAnalyzer()
-                    chip_data, _ = ca.get_chip_data(stock_id, scan_mode=True)
-                    if chip_data and 'institutional' in chip_data:
+                    from chip_analysis import ChipAnalyzer, ChipFetchError
+                    chip_data = ChipAnalyzer().fetch_chip(stock_id, scan_mode=True)
+                    if 'institutional' in chip_data:
                         inst = chip_data['institutional']
+                except ChipFetchError as e:
+                    logger.debug("value_screener chip fetch failed for %s: %s", stock_id, e)
                 except Exception as e:
-                    logger.debug("value_screener chip fetch failed for %s: %s: %s",
+                    logger.debug("value_screener chip unexpected error for %s: %s: %s",
                                  stock_id, type(e).__name__, e)
 
             if inst is not None and not inst.empty and len(inst) >= 5:

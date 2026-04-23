@@ -996,12 +996,14 @@ class MomentumScreener:
                     chip_data = {'institutional': batch[stock_id]}
                 else:
                     # 2nd: fallback to FinMind institutional only（scan_mode 跳過 margin/day_trading/shareholding/sbl）
+                    # H5 (2026-04-23): 改用 fetch_chip (純 dict API)，避免 tuple-unpack footgun
                     try:
-                        from chip_analysis import ChipAnalyzer
-                        ca = ChipAnalyzer()
-                        chip_data, _ = ca.get_chip_data(stock_id, scan_mode=True)
+                        from chip_analysis import ChipAnalyzer, ChipFetchError
+                        chip_data = ChipAnalyzer().fetch_chip(stock_id, scan_mode=True)
+                    except ChipFetchError as e:
+                        logger.debug("momentum_screener TW chip fetch failed for %s: %s", stock_id, e)
                     except Exception as e:
-                        logger.debug("momentum_screener TW chip fetch failed for %s: %s: %s",
+                        logger.debug("momentum_screener TW chip unexpected error for %s: %s: %s",
                                      stock_id, type(e).__name__, e)
 
         # 4. Run analysis (scan_mode=True 跳過 PE/除權息等 UI-only 資料)
