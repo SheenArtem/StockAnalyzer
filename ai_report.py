@@ -303,8 +303,8 @@ def _build_chip_data(chip_data, us_chip_data, is_us, ticker=None):
                 tdcc_txt = format_shareholding_for_prompt(stock_id)
                 if tdcc_txt:
                     lines.append(f"\n{tdcc_txt}")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("TDCC shareholding fetch failed for %s: %s: %s", ticker, type(e).__name__, e)
 
     return "\n".join(lines) if lines else "N/A"
 
@@ -1117,8 +1117,9 @@ def load_report_index():
         try:
             with open(_INDEX_PATH, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Report index load failed (%s): %s: %s. Falling back to empty index.",
+                           _INDEX_PATH, type(e).__name__, e)
     return []
 
 
