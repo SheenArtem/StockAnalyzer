@@ -24,6 +24,40 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 
+def _smoke_imports():
+    """Pre-flight import check: verify every lazily-imported symbol exists BEFORE the scheduler
+    commits to a long Claude CLI run. Catches module rename / API drift (2026-04-22 事件的原型）。
+    Fails LOUDLY with the missing symbol so run_scanner.bat can alert Discord.
+    """
+    required = [
+        ('technical_analysis', 'plot_dual_timeframe'),
+        ('analysis_engine', 'TechnicalAnalyzer'),
+        ('chip_analysis', 'ChipAnalyzer'),
+        ('fundamental_analysis', 'get_fundamentals'),
+        ('us_stock_chip', 'USStockChipAnalyzer'),
+        ('ai_report', 'generate_report'),
+        ('ai_report', 'save_report'),
+        ('ai_report', 'generate_report_html'),
+        ('ai_report', 'save_report_html'),
+        ('tools.qm_office_picks', 'select_office_picks'),
+    ]
+    failed = []
+    for mod, attr in required:
+        try:
+            m = __import__(mod, fromlist=[attr])
+            if not hasattr(m, attr):
+                failed.append(f'{mod}.{attr} (module loaded but attribute missing)')
+        except Exception as e:
+            failed.append(f'{mod}.{attr} ({type(e).__name__}: {e})')
+    if failed:
+        logger.critical('=== SMOKE IMPORT CHECK FAILED ===')
+        for f in failed:
+            logger.critical('  missing: %s', f)
+        logger.critical('Aborting before Claude CLI call to avoid silent scheduler failure.')
+        sys.exit(2)
+    logger.info('✓ smoke import check passed (%d symbols verified)', len(required))
+
+
 def _load_office_picks(n=3):
     qm_path = ROOT / 'data' / 'latest' / 'qm_result.json'
     if not qm_path.exists():
@@ -113,7 +147,14 @@ def main():
     ap.add_argument('--tickers', help='comma-separated ticker list; default = top 3 office picks')
     ap.add_argument('--n', type=int, default=3, help='number of office picks (if --tickers not given)')
     ap.add_argument('--format', choices=['html', 'md'], default='md')
+    ap.add_argument('--smoke', action='store_true', help='pre-flight import check only, then exit')
     args = ap.parse_args()
+
+    # Pre-flight import check — fail fast before spending 5min on Claude CLI
+    _smoke_imports()
+    if args.smoke:
+        logger.info('Smoke mode: import check passed, exiting without running Claude CLI.')
+        sys.exit(0)
 
     if args.tickers:
         tickers = [t.strip() for t in args.tickers.split(',') if t.strip()]
