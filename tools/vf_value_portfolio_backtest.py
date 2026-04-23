@@ -311,7 +311,12 @@ def main():
                     default='none',
                     help='Regime filter mode (default: none = Value baseline). '
                          'dual_5050 = half Value+only_volatile + half QM always (parallel)')
+    ap.add_argument('--top-n', type=int, default=None, help='Override TOP_N (default 20)')
     args = ap.parse_args()
+    global TOP_N
+    if args.top_n is not None:
+        TOP_N = args.top_n
+    suffix_topn = f'_top{TOP_N}' if args.top_n is not None else ''
     regime_filter = None if args.regime == 'none' else args.regime
     suffix = '' if regime_filter is None else f'_{regime_filter}'
 
@@ -359,10 +364,11 @@ def main():
     print(f'\nAnnual breakdown:')
     print(annual[['value_ret_pct', 'twii_ret_pct', 'alpha_pct', 'hit_rate']].to_string())
 
-    # Save CSVs (append suffix based on regime)
-    out_csv = OUT_CSV.parent / f'{OUT_CSV.stem}{suffix}.csv'
-    out_annual = OUT_ANNUAL.parent / f'{OUT_ANNUAL.stem}{suffix}.csv'
-    out_md = OUT_MD.parent / f'{OUT_MD.stem}{suffix}.md'
+    # Save CSVs (append suffix based on regime + top-n)
+    full_suffix = f'{suffix}{suffix_topn}'
+    out_csv = OUT_CSV.parent / f'{OUT_CSV.stem}{full_suffix}.csv'
+    out_annual = OUT_ANNUAL.parent / f'{OUT_ANNUAL.stem}{full_suffix}.csv'
+    out_md = OUT_MD.parent / f'{OUT_MD.stem}{full_suffix}.md'
     pr.to_csv(out_csv, index=False)
     annual.to_csv(out_annual)
     print(f'\nCSV saved: {out_csv.relative_to(ROOT)}, {out_annual.relative_to(ROOT)}')
