@@ -81,13 +81,33 @@ if not "%PY_EXIT_VAL%"=="0" set PY_EXIT=%PY_EXIT_VAL%
 REM ------------------------------------------------------------
 REM Auto-generate AI reports for QM office picks (top 3).
 REM Added 2026-04-22 per user request: set-and-forget briefing ready by morning.
-REM Claude CLI per ticker ~30-90s; 3 tickers = ~3-5min. Exit code NOT propagated
-REM to PY_EXIT because report failures are non-critical to main scan success.
+REM
+REM Robustness First (2026-04-23 事件後):
+REM   1. 先跑 --smoke pre-flight（10 秒內）驗證所有 lazy import 正確
+REM   2. 真實執行再記 exit code，失敗時呼叫 report_batch_failure.py ping Discord
+REM   3. 仍不把 AI report 的 exit code 傳給 PY_EXIT（report 失敗非致命），但會留下
+REM      明確的 FAIL 標記 + 盡力通知，避免整夜靜默失敗
 REM ------------------------------------------------------------
+echo [%date% %time%] Auto AI reports smoke check starting >> scanner.log
+python tools\auto_ai_reports.py --smoke >> scanner.log 2>&1
+set AI_SMOKE_EXIT=%ERRORLEVEL%
+if not "%AI_SMOKE_EXIT%"=="0" (
+    echo [%date% %time%] [FAIL] auto_ai_reports smoke check FAILED exit=%AI_SMOKE_EXIT% >> scanner.log
+    python tools\report_batch_failure.py --stage auto_ai_reports_smoke --exit-code %AI_SMOKE_EXIT% >> scanner.log 2>&1
+    goto skip_ai_reports
+)
+
 echo [%date% %time%] Auto AI reports starting >> scanner.log
 python tools\auto_ai_reports.py --n 3 --format md >> scanner.log 2>&1
-echo [%date% %time%] Auto AI reports done >> scanner.log
+set AI_RUN_EXIT=%ERRORLEVEL%
+if not "%AI_RUN_EXIT%"=="0" (
+    echo [%date% %time%] [FAIL] auto_ai_reports FAILED exit=%AI_RUN_EXIT% >> scanner.log
+    python tools\report_batch_failure.py --stage auto_ai_reports --exit-code %AI_RUN_EXIT% >> scanner.log 2>&1
+) else (
+    echo [%date% %time%] Auto AI reports done (exit=0) >> scanner.log
+)
 
+:skip_ai_reports
 REM Log end time (include python exit code so Task Scheduler shows non-zero on failure)
 echo [%date% %time%] Scanner finished (exit=%PY_EXIT%) >> scanner.log
 echo. >> scanner.log
