@@ -79,6 +79,14 @@ set PY_EXIT=%PY_EXIT_QM%
 if not "%PY_EXIT_VAL%"=="0" set PY_EXIT=%PY_EXIT_VAL%
 
 REM ------------------------------------------------------------
+REM Substack sync: download new songfen articles + detect pending INDEX updates.
+REM Added 2026-04-23. Best-effort: failures do not affect scanner exit code.
+REM ------------------------------------------------------------
+echo [%date% %time%] Substack sync starting >> scanner.log
+python tools\sync_substack.py >> scanner.log 2>&1
+echo [%date% %time%] Substack sync done >> scanner.log
+
+REM ------------------------------------------------------------
 REM Auto-generate AI reports for QM office picks (top 3).
 REM Added 2026-04-22 per user request: set-and-forget briefing ready by morning.
 REM
