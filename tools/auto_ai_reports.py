@@ -53,7 +53,7 @@ def _run_one(ticker, fmt='html'):
     chip_data, us_chip_data = None, None
     if ticker.isdigit() or ticker.endswith('.TW'):
         try:
-            chip_data = ChipAnalyzer().get_chip_data(ticker, scan_mode=False)
+            chip_data, _ = ChipAnalyzer().get_chip_data(ticker, scan_mode=False)
         except Exception as e:
             logger.warning('[%s] chip load failed: %s', ticker, e)
     else:
