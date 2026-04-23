@@ -289,99 +289,50 @@ def _compute_expiry(indicator, data_date, now):
 
 
 # ============================================================
-#  個別 indicator fetch + cache wrapper
+#  Pure fetch (thread-safe, no session_state access)
 # ============================================================
 
-def _fetch_or_cached_tw_index(now):
-    cached = _cache_get('tw_index')
-    if cached is not None:
-        return cached
-    value = _fetch_index_metrics('^TWII', '加權指數')
-    _cache_set('tw_index', value, value.get('data_date'), now)
-    return value
+# Banner 輸出 key -> session_state 快取 key
+_OUT_TO_CACHE = {
+    'tw': 'tw_index',
+    'us': 'us_index',
+    'tw_fgi': 'tw_fgi',
+    'cnn_fgi': 'cnn_fgi',
+    'basis': 'basis',
+    'pcr': 'pcr',
+    'm1b_ratio': 'm1b_ratio',
+}
 
 
-def _fetch_or_cached_us_index(now):
-    cached = _cache_get('us_index')
-    if cached is not None:
-        return cached
-    value = _fetch_index_metrics('^GSPC', 'S&P 500')
-    # us_index 用時間窗口控制 TTL，不做 data_date 驗證
-    _cache_set('us_index', value, value.get('data_date'), now)
-    return value
+def _pure_fetch(cache_key):
+    """純抓取，不讀寫 session_state —— worker thread safe。
 
-
-def _fetch_or_cached_tw_fgi(now):
-    cached = _cache_get('tw_fgi')
-    if cached is not None:
-        return cached
+    Streamlit session_state 不支援 background thread 存取，
+    並行抓資料時必須用純 I/O 函式，cache 讀寫留給主執行緒。
+    """
     try:
-        from taifex_data import TaiwanFearGreedIndex
-        value = TaiwanFearGreedIndex().calculate()
-        _cache_set('tw_fgi', value, value.get('data_date'), now)
-        return value
+        if cache_key == 'tw_index':
+            return _fetch_index_metrics('^TWII', '加權指數')
+        if cache_key == 'us_index':
+            return _fetch_index_metrics('^GSPC', 'S&P 500')
+        if cache_key == 'tw_fgi':
+            from taifex_data import TaiwanFearGreedIndex
+            return TaiwanFearGreedIndex().calculate()
+        if cache_key == 'cnn_fgi':
+            from cnn_fear_greed import CNNFearGreedIndex
+            return CNNFearGreedIndex().get_index()
+        if cache_key == 'basis':
+            from taifex_data import TAIFEXData
+            return TAIFEXData().get_futures_basis()
+        if cache_key == 'pcr':
+            from taifex_data import TAIFEXData
+            return TAIFEXData().get_put_call_ratio()
+        if cache_key == 'm1b_ratio':
+            from money_supply import compute_m1b_ratio
+            return compute_m1b_ratio()
     except Exception as e:
-        logger.debug("TW FGI failed: %s", e)
-        return None
-
-
-def _fetch_or_cached_cnn_fgi(now):
-    cached = _cache_get('cnn_fgi')
-    if cached is not None:
-        return cached
-    try:
-        from cnn_fear_greed import CNNFearGreedIndex
-        value = CNNFearGreedIndex().get_index()
-        _cache_set('cnn_fgi', value, None, now)
-        return value
-    except Exception as e:
-        logger.debug("CNN FGI failed: %s", e)
-        return None
-
-
-def _fetch_or_cached_basis(now):
-    cached = _cache_get('basis')
-    if cached is not None:
-        return cached
-    try:
-        from taifex_data import TAIFEXData
-        value = TAIFEXData().get_futures_basis()
-        _cache_set('basis', value, value.get('data_date'), now)
-        return value
-    except Exception as e:
-        logger.debug("Futures basis failed: %s", e)
-        return None
-
-
-def _fetch_or_cached_pcr(now):
-    cached = _cache_get('pcr')
-    if cached is not None:
-        return cached
-    try:
-        from taifex_data import TAIFEXData
-        value = TAIFEXData().get_put_call_ratio()
-        _cache_set('pcr', value, value.get('data_date'), now)
-        return value
-    except Exception as e:
-        logger.debug("PCR failed: %s", e)
-        return None
-
-
-def _fetch_or_cached_m1b_ratio(now):
-    """成交量/M1B 比：近 20 交易日成交金額 / 最新 M1B × 100%"""
-    cached = _cache_get('m1b_ratio')
-    if cached is not None:
-        return cached
-    try:
-        from money_supply import compute_m1b_ratio
-        value = compute_m1b_ratio()
-        if value is not None:
-            # 用 basis/pcr 相同的 14:00 cutoff 規則（依賴 TWSE 當日成交值）
-            _cache_set('m1b_ratio', value, value.get('data_date'), now)
-        return value
-    except Exception as e:
-        logger.debug("M1B ratio failed: %s", e)
-        return None
+        logger.debug("Banner fetch %s failed: %s", cache_key, e)
+    return None
 
 
 # ============================================================
@@ -390,21 +341,57 @@ def _fetch_or_cached_m1b_ratio(now):
 
 @st.cache_data(ttl=120, show_spinner=False)
 def _get_banner_data():
-    """取得 banner 所有資料，依 per-indicator 策略分開快取。
+    """取得 banner 所有資料，cache miss 部分並行抓取。
 
-    外層加 @st.cache_data(ttl=120) 避免每次 page rerun (切 tab / 按鈕) 都重做 6 個 fetch。
-    底層 per-indicator 有 disk TTL cache，這層只是加速 Streamlit session 內重複 render。
+    流程：
+      1. 主執行緒讀快取（session_state）→ 分離已命中 vs 待抓
+      2. 未命中 indicators 用 ThreadPoolExecutor 並行抓（I/O bound，max=7）
+      3. 主執行緒寫快取 + 組合結果
+
+    外層 @st.cache_data(ttl=120) 加速同 session 重複 render (切 tab / rerun)。
+    底層 per-indicator 的 session_state 快取是 disk-like TTL 層。
     """
+    from concurrent.futures import ThreadPoolExecutor
+
     now = _now_tw()
-    return {
-        'tw': _fetch_or_cached_tw_index(now),
-        'us': _fetch_or_cached_us_index(now),
-        'tw_fgi': _fetch_or_cached_tw_fgi(now),
-        'cnn_fgi': _fetch_or_cached_cnn_fgi(now),
-        'basis': _fetch_or_cached_basis(now),
-        'pcr': _fetch_or_cached_pcr(now),
-        'm1b_ratio': _fetch_or_cached_m1b_ratio(now),
-    }
+
+    # 1. 主執行緒讀快取
+    results = {}
+    to_fetch = []
+    for out_key, cache_key in _OUT_TO_CACHE.items():
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            results[out_key] = cached
+        else:
+            to_fetch.append((out_key, cache_key))
+
+    if not to_fetch:
+        return results
+
+    # 2. 並行抓取 cache miss 的 indicators
+    fetched = []
+    with ThreadPoolExecutor(max_workers=len(to_fetch)) as pool:
+        future_map = {
+            pool.submit(_pure_fetch, cache_key): (out_key, cache_key)
+            for out_key, cache_key in to_fetch
+        }
+        for fut in future_map:
+            out_key, cache_key = future_map[fut]
+            try:
+                value = fut.result(timeout=15)
+            except Exception as e:
+                logger.debug("Banner worker %s timeout/error: %s", out_key, e)
+                value = None
+            fetched.append((out_key, cache_key, value))
+
+    # 3. 主執行緒寫快取 + 組合結果
+    for out_key, cache_key, value in fetched:
+        results[out_key] = value
+        if value is not None:
+            data_date = value.get('data_date') if isinstance(value, dict) else None
+            _cache_set(cache_key, value, data_date, now)
+
+    return results
 
 
 # ============================================================
