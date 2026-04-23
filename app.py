@@ -106,7 +106,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.22.9")
+    st.caption("Version: v2026.04.23.1")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -238,94 +238,57 @@ def run_analysis(source_data, force_update=False):
 
 
 # ====================================================================
-#  AI 報告背景執行緒 Worker
-#  讓報告生成不會被 Streamlit rerun 中斷
+#  AI 報告背景執行緒 Worker（使用 shared ai_report_pipeline 避免與 CLI drift）
+#
+#  H3 (2026-04-23): 原本 _ai_report_worker 是 tools/auto_ai_reports._run_one 的
+#  重複實作，任何一邊 refactor 另一邊就走樣 — 2026-04-22 三連 bug 根因。
+#  重構後兩者都呼叫 ai_report_pipeline.generate_one_report()。
+#
+#  H4 (2026-04-23): _ai_report_job_lock 保護 job dict 的多步 state transition
+#  (e.g. 'result' 與 'status' 同時設定)，避免 UI 讀到 status=done 但 result 尚未寫入。
+#  UI 端 iterate job['progress'] 時用 list() 快照避免 concurrent modification。
 # ====================================================================
+_ai_report_job_lock = threading.Lock()
+
+
 def _ai_report_worker(job, ticker, report_format='md'):
     """
     在背景 thread 跑完整 AI 報告流程。
-    job 是一個 dict (session_state 裡的參照)，thread 直接 mutate 欄位。
+    job 是一個 dict (session_state 裡的參照)，thread 透過 _ai_report_job_lock 安全 mutate。
     禁止呼叫任何 st.* UI 函式（會觸發 ScriptRunContext 警告）。
 
     Args:
         report_format: 'md' = 傳統 Markdown 報告；'html' = 互動儀表板
     """
+    from ai_report_pipeline import generate_one_report
+
+    def _progress(msg):
+        with _ai_report_job_lock:
+            job['progress'].append(msg)
+
     try:
-        job['progress'].append("📥 載入價量資料...")
-        figures, errors, df_week, df_day, stock_meta = run_analysis(ticker, force_update=False)
-
-        job['progress'].append("📥 載入籌碼資料...")
-        chip_data = None
-        us_chip_data = None
-        if ticker.isdigit() or ticker.endswith('.TW'):
-            try:
-                chip_data, _ = get_chip_data_cached(ticker, False)
-            except Exception as _e:
-                logger.warning(f"[AI worker] chip load failed: {_e}")
-        else:
-            try:
-                from us_stock_chip import USStockChipAnalyzer
-                _usc = USStockChipAnalyzer()
-                us_chip_data, _ = _usc.get_chip_data(ticker)
-            except Exception as _e:
-                logger.warning(f"[AI worker] US chip load failed: {_e}")
-
-        job['progress'].append("📥 載入基本面資料...")
-        try:
-            fund_data = get_fundamentals(ticker)
-        except Exception as _e:
-            logger.warning(f"[AI worker] fundamental load failed: {_e}")
-            fund_data = None
-
-        job['progress'].append("📊 計算技術分析與觸發分數...")
-        from analysis_engine import TechnicalAnalyzer as _TA
-        _analyzer = _TA(ticker, df_week, df_day, chip_data=chip_data, us_chip_data=us_chip_data)
-        _report = _analyzer.run_analysis()
-
-        if report_format == 'html':
-            job['progress'].append("🤖 Claude AI 生成儀表板 JSON 中（不設逾時，可能需要 1-5 分鐘）...")
-            from ai_report import generate_report_html as _gen_html, save_report_html as _save_html
-            _ok, _content_or_err, _json = _gen_html(
-                ticker, _report, chip_data, us_chip_data, fund_data, df_day,
-                timeout=None,
-            )
-            if _ok:
-                job['progress'].append("💾 組裝 HTML + 儲存到報告庫...")
-                _rid = _save_html(
-                    ticker, _content_or_err,
-                    trigger_score=_report.get('trigger_score'),
-                    trend_score=_report.get('trend_score'),
-                    json_data=_json,
-                )
-                job['result'] = {'rid': _rid, 'content': _content_or_err, 'format': 'html'}
+        result = generate_one_report(ticker, fmt=report_format, progress_cb=_progress)
+        with _ai_report_job_lock:
+            if result['ok']:
+                job['result'] = {
+                    'rid': result['rid'],
+                    'content': result['content'],
+                    'format': result['format'],
+                }
                 job['status'] = 'done'
             else:
-                job['result'] = _content_or_err
-                job['status'] = 'error'
-        else:
-            job['progress'].append("🤖 Claude AI 生成 Markdown 報告中（不設逾時，可能需要 1-5 分鐘）...")
-            from ai_report import generate_report as _gen_report, save_report as _save_report
-            _ok, _content = _gen_report(
-                ticker, _report, chip_data, us_chip_data, fund_data, df_day,
-                timeout=None,
-            )
-            if _ok:
-                job['progress'].append("💾 儲存到報告庫...")
-                _rid = _save_report(
-                    ticker, _content,
-                    trigger_score=_report.get('trigger_score'),
-                    trend_score=_report.get('trend_score'),
-                )
-                job['result'] = {'rid': _rid, 'content': _content, 'format': 'md'}
-                job['status'] = 'done'
-            else:
-                job['result'] = _content
+                err = result.get('error') or 'unknown error'
+                if result.get('traceback'):
+                    err = f"{err}\n\n{result['traceback']}"
+                job['result'] = err
                 job['status'] = 'error'
     except Exception as _e:
+        # Defensive: 通常 generate_one_report 自己會 catch，這層是 last-resort
         import traceback
-        logger.error(f"[AI worker] exception: {_e}", exc_info=True)
-        job['result'] = f"{type(_e).__name__}: {_e}\n\n{traceback.format_exc()}"
-        job['status'] = 'error'
+        logger.error(f"[AI worker] uncaught exception: {_e}", exc_info=True)
+        with _ai_report_job_lock:
+            job['result'] = f"{type(_e).__name__}: {_e}\n\n{traceback.format_exc()}"
+            job['status'] = 'error'
 
 
 # 主程式邏輯
@@ -1943,7 +1906,10 @@ elif st.session_state.get('app_mode') == 'ai_reports':
             st.warning(f"⏳ 正在生成 **{_job['ticker']}** 的研究報告... (已過 {_mm} 分 {_ss} 秒)")
             st.info("💡 可以安心切換到其他頁面，生成會在背景繼續進行。回到此頁會看到進度。")
             with st.expander("進度", expanded=True):
-                for _msg in _job.get('progress', []):
+                # H4: 用 list() 快照避免 worker thread append 時 iterate 出錯
+                with _ai_report_job_lock:
+                    _progress_snapshot = list(_job.get('progress', []))
+                for _msg in _progress_snapshot:
                     st.write(f"• {_msg}")
             # Auto-refresh every 2s to update elapsed + progress
             time.sleep(2)
