@@ -393,23 +393,16 @@ class ChipAnalyzer:
         return results, error_str
 
 if __name__ == "__main__":
-    # Test
+    # Test — use new fetch_chip clean API
     analyzer = ChipAnalyzer()
-    data, err = analyzer.get_chip_data("2330")
-    if data:
-        if err:
-            print(f"Partial errors: {err}")
-        if 'institutional' in data:
-            print("Inst Data Tail:")
-            print(data['institutional'].tail())
-        if 'margin' in data:
-            print("Margin Data Tail:")
-            print(data['margin'].tail())
-        if 'day_trading' in data:
-            print("Day Trading Tail:")
-            print(data['day_trading'].tail())
-        if 'shareholding' in data:
-            print("Shareholding Tail:")
-            print(data['shareholding'].tail())
-    else:
-        print(err)
+    try:
+        data = analyzer.fetch_chip("2330")
+        for key, label in [('institutional', 'Inst Data Tail'),
+                           ('margin', 'Margin Data Tail'),
+                           ('day_trading', 'Day Trading Tail'),
+                           ('shareholding', 'Shareholding Tail')]:
+            if key in data:
+                print(f"{label}:")
+                print(data[key].tail())
+    except ChipFetchError as e:
+        print(f"Fetch failed: {e}")
