@@ -367,7 +367,7 @@ def get_stock_info_smart(ticker):
             if _TW_STOCK_INFO_CACHE is None:
                 with _tw_stock_info_lock:
                     if _TW_STOCK_INFO_CACHE is None:
-                        print("📥 下載台股清單 (Cache)...")
+                        logger.info("Downloading TW stock list (cache miss)")
                         dl = get_finmind_loader()
                         _TW_STOCK_INFO_CACHE = dl.taiwan_stock_info()
             
@@ -377,7 +377,7 @@ def get_stock_info_smart(ticker):
                 meta['name'] = row.iloc[0]['stock_name']
                 meta['sector'] = row.iloc[0]['industry_category']
         except Exception as e:
-            print(f"❌ 無法取得台股資訊: {e}")
+            logger.error("Failed to get TW stock info: %s", e)
 
     # 2. 如果是美股 (英文)，嘗試用 yfinance (但比較慢，暫時略過或簡單處理)
     else:
@@ -405,10 +405,10 @@ def fetch_from_finmind(stock_id, start_date=None, max_retries=3):
         try:
             if attempt > 0:
                 wait = 2 ** attempt
-                print(f"⏳ FinMind 重試 ({attempt+1}/{max_retries})，等待 {wait} 秒...")
+                logger.warning("FinMind retry %d/%d for %s, waiting %ds", attempt+1, max_retries, stock_id, wait)
                 _time.sleep(wait)
 
-            print(f"🔄 嘗試從 FinMind 抓取 {stock_id} ...")
+            logger.info("Fetching %s from FinMind", stock_id)
             dl = get_finmind_loader()
             if start_date is None:
                 start_date = '2016-01-01'
@@ -442,7 +442,7 @@ def fetch_from_finmind(stock_id, start_date=None, max_retries=3):
                 raise FinMindRateLimitError(
                     f"FinMind 429 rate limit for {stock_id}") from e
 
-            print(f"❌ FinMind Download Error: {e}")
+            logger.error("FinMind download error for %s: %s", stock_id, e)
             if attempt == max_retries - 1:
                 return pd.DataFrame()
     return pd.DataFrame()
@@ -470,13 +470,13 @@ def load_and_resample(source, force_update=False):
         cached_df, status, last_date = cm.load_cache(raw_input, 'price', force_reload=force_update)
         
         if status == "hit" and not cached_df.empty:
-            print(f"⚡ [Cache Hit] 讀取 {raw_input} 本地快取")
+            logger.debug("Cache hit: %s (local)", raw_input)
             df_day = cached_df
             ticker_name = raw_input
             stock_meta = get_stock_info_smart(ticker_name)
             
         elif status == "partial" and not cached_df.empty:
-            print(f"🔄 [Incremental] 發現舊資料 (至 {last_date.date()})，正在更新缺少部分...")
+            logger.info("Incremental update: %s (cache through %s)", raw_input, last_date.date())
             ticker_name = raw_input
             
             # Start from next day
@@ -508,7 +508,7 @@ def load_and_resample(source, force_update=False):
                      new_df = yf.download(raw_input, start=start_date_new, interval='1d', progress=False, auto_adjust=False, timeout=30)
                 # else: start_dt is beyond UTC today, skip yf (no data possible anyway)
             except Exception as e:
-                print(f"⚠️ 增量更新失敗 ({e})，將嘗試完整重抓...")
+                logger.warning("Incremental update failed (%s), falling back to full refetch", e)
                 incremental_failed = True
 
             if incremental_failed:
@@ -528,7 +528,7 @@ def load_and_resample(source, force_update=False):
                  df_day = df_day[~df_day.index.duplicated(keep='last')]
                  df_day.sort_index(inplace=True)
                  
-                 print(f"✅ 增量更新完成，新增 {len(new_df)} 筆資料")
+                 logger.info("Incremental update done: +%d rows for %s", len(new_df), raw_input)
                  ticker_name = raw_input if raw_input.isdigit() else raw_input # Simple fix
                  if raw_input.isdigit():
                       stock_meta = get_stock_info_smart(raw_input) 
@@ -539,7 +539,7 @@ def load_and_resample(source, force_update=False):
                  cm.save_cache(raw_input, df_day, 'price')
             else:
                  # No new data found (maybe holiday), trust cache
-                 print(f"✅ 無新資料 (可能是假日)，使用快取數據")
+                 logger.debug("No new data (likely holiday), using cached")
                  df_day = cached_df
                  ticker_name = raw_input
                  stock_meta = get_stock_info_smart(ticker_name)
@@ -549,14 +549,14 @@ def load_and_resample(source, force_update=False):
             # 1. 如果是純數字，啟動智慧判斷序列
             if raw_input.isdigit():
                 # 台股: FinMind 優先 (格式乾淨、穩定、免費 20 年資料)
-                print(f"📥 下載 {raw_input} (FinMind 優先)...")
+                logger.info("Downloading %s (FinMind first)", raw_input)
                 df_day = fetch_from_finmind(raw_input)
                 ticker_name = raw_input
 
                 if df_day.empty:
                     # Fallback 1: yfinance .TW (上市)
                     try_ticker = f"{raw_input}.TW"
-                    print(f"📥 FinMind 無數據，嘗試 {try_ticker} (yfinance)...")
+                    logger.info("FinMind empty for %s, trying %s via yfinance", raw_input, try_ticker)
                     df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)
                     if not df_day.empty:
                         ticker_name = try_ticker
@@ -564,7 +564,7 @@ def load_and_resample(source, force_update=False):
                 if df_day.empty:
                     # Fallback 2: yfinance .TWO (上櫃)
                     try_ticker = f"{raw_input}.TWO"
-                    print(f"📥 嘗試 {try_ticker} (yfinance)...")
+                    logger.info("Trying %s via yfinance", try_ticker)
                     df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)
                     if not df_day.empty:
                         ticker_name = try_ticker
@@ -575,7 +575,7 @@ def load_and_resample(source, force_update=False):
             else:
                 # 2. 非純數字 (如 TSM, AAPL)，直接透過 yfinance
                 ticker_name = raw_input
-                print(f"📥 正在下載 {ticker_name} (yfinance)...")
+                logger.info("Downloading %s via yfinance", ticker_name)
                 df_day = yf.download(ticker_name, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)
                 stock_meta['name'] = ticker_name
             
@@ -585,7 +585,7 @@ def load_and_resample(source, force_update=False):
 
     # 情境 B: 傳入的是 CSV 資料 (DataFrame)
     elif isinstance(source, pd.DataFrame):
-        print(f"📂 正在處理上傳的 CSV 數據...")
+        logger.info("Processing uploaded CSV data")
         ticker_name = "Uploaded_Data"
         df_day = source.copy()
         stock_meta['name'] = "CSV Data"
@@ -612,19 +612,19 @@ def load_and_resample(source, force_update=False):
 
         # [Defensive] Ensure Index is DatetimeIndex (Crucial for Cache Loaded Data)
         if not isinstance(df_day.index, pd.DatetimeIndex):
-            print("⚠️ Index is NOT DatetimeIndex. Attempting conversion...")
+            logger.warning("Index is not DatetimeIndex, attempting conversion")
             try:
                 # Force Coerce
                 df_day.index = pd.to_datetime(df_day.index, errors='coerce')
-                print(f"✅ Conversion Result: {type(df_day.index)}")
+                logger.debug("Index conversion result: %s", type(df_day.index))
                 
                 # Drop NaT (invalid dates)
                 if df_day.index.isna().any():
-                     print("⚠️ Found NaT in index after conversion. Dropping...")
+                     logger.warning("Found NaT in index after conversion, dropping")
                      df_day = df_day[df_day.index.notna()]
                      
             except Exception as e:
-                print(f"❌ Index conversion failed: {e}")
+                logger.error("Index conversion failed: %s", e)
                 raise ValueError(f"Index conversion failed: {e}")
 
         # [Defensive] Ensure Columns are Numeric
@@ -634,11 +634,11 @@ def load_and_resample(source, force_update=False):
                 try:
                     df_day[col] = pd.to_numeric(df_day[col], errors='coerce')
                 except Exception as e:
-                    print(f"⚠️ Column {col} conversion failed: {e}")
+                    logger.warning("Column %s conversion failed: %s", col, e)
         
         # Clean up any rows that became NaN after coercion
         if df_day[cols_to_numeric].isna().any().any():
-            print("⚠️ Found NaN values after numeric conversion. Dropping...")
+            logger.warning("Found NaN values after numeric conversion, dropping")
             df_day = df_day.dropna(subset=cols_to_numeric)
 
         # 自動生成週線
@@ -666,10 +666,10 @@ def plot_dual_timeframe(source, force_update=False):
     
     # 檢查是否有數據
     if df_day.empty:
-        print("❌ 錯誤: 無法取得任何股價數據 (所有來源皆失敗)")
+        logger.error("No price data available (all sources failed)")
         return {}, {'Error': '無法取得數據，請確認代號或網路狀態'}, pd.DataFrame(), pd.DataFrame(), {}
 
-    print(f"🚀 啟動雙週期全方位分析引擎: {ticker}")
+    logger.info("Starting dual-timeframe analysis for %s", ticker)
     
     figures = {}
     errors = {}
@@ -682,7 +682,7 @@ def plot_dual_timeframe(source, force_update=False):
             figures['Weekly'] = fig_week
         except Exception as e:
             errors['Weekly'] = f"週線計算錯誤: {e}"
-            print(f"❌ 週線計算錯誤: {e}")
+            logger.error("Weekly indicator calc error for %s: %s", ticker, e)
     else:
         errors['Weekly'] = "無週線數據"
 
@@ -696,7 +696,7 @@ def plot_dual_timeframe(source, force_update=False):
             figures['Daily'] = fig_day
         except Exception as e:
             errors['Daily'] = f"日線計算錯誤: {e}"
-            print(f"❌ 日線計算錯誤: {e}")
+            logger.error("Daily indicator calc error for %s: %s", ticker, e)
     else:
         errors['Daily'] = "無日線數據"
         
@@ -723,7 +723,7 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
 
             apds.append(mpf.make_addplot(series, **kwargs))
         except Exception as e:
-            print(f"❌ Error adding plot {name}: {e}")
+            logger.warning("Error adding plot %s: %s", name, e)
             
     # Panel 0: 主圖
     add_plot_safe("MA_Lines", plot_df[['MA5', 'MA10', 'MA20']], width=1.0)
@@ -761,7 +761,7 @@ def plot_single_chart(ticker, df, title_suffix, timeframe_label):
     else:
         vol_clean = plot_df['Volume'].fillna(0)
         if (vol_clean == 0).all():
-            print("⚠️ 偵測到無效成交量 (全為0)，將隱藏 Volume 面板")
+            logger.warning("Invalid volume detected (all zeros), hiding volume panel")
             use_volume = False
 
     if len(plot_df) < 2:
@@ -1065,7 +1065,7 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
             ), row=1, col=1)
             
     except Exception as e:
-        print(f"Pattern Warning: {e}")
+        logger.warning("Pattern plot warning: %s", e)
 
     # Layout Configuration
     fig.update_layout(
@@ -1104,7 +1104,7 @@ def analyze_zip_batch(zip_path):
     注意：Gemini 雖然可以解壓縮，但一次畫太多圖會當機。
     策略：先列出清單，讓使用者選擇要分析哪一檔。
     """
-    print(f"📦 收到壓縮檔，正在解壓縮...")
+    logger.info("Received ZIP file, extracting: %s", zip_path)
     
     extracted_files = []
     extract_path = "/mnt/data/extracted_stocks" # Gemini 沙盒常用路徑
@@ -1118,8 +1118,7 @@ def analyze_zip_batch(zip_path):
             zip_ref.extractall(extract_path)
             extracted_files = [f for f in zip_ref.namelist() if f.endswith('.csv')]
             
-        print(f"✅ 解壓縮成功！共發現 {len(extracted_files)} 檔股票數據。")
-        print("請告訴我您想優先分析哪一檔？(輸入代號即可)")
+        logger.info("Extraction succeeded: %d stock CSV files found", len(extracted_files))
         
         # 回傳檔案對應字典 {'2330': 'path/to/2330.TW.csv'}
         file_map = {}
@@ -1132,5 +1131,5 @@ def analyze_zip_batch(zip_path):
         return file_map
 
     except Exception as e:
-        print(f"❌ 解壓縮失敗: {e}")
+        logger.error("ZIP extraction failed: %s", e)
         return {}
