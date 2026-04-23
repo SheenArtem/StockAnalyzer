@@ -1,0 +1,144 @@
+{
+  "action_plan": {
+    "current_price": 2070.0,
+    "entry_confidence": "wait",
+    "is_actionable": true,
+    "is_us_stock": false,
+    "pattern_note": "K線型態【流星線 (Shooting Star)】與買進方向矛盾，建議等待確認",
+    "rec_entry_desc": "積極操作 (5MA-現價)",
+    "rec_entry_high": 2070.0,
+    "rec_entry_low": 2045.0,
+    "rec_sl_method": "A. ATR 波動停損 (科學)",
+    "rec_sl_price": 1973.5714285714287,
+    "rec_tp_price": 2676.75,
+    "rr_ratio": 6.292222222222229,
+    "sl_atr": 1973.5714285714287,
+    "sl_key_candle": 1760.0,
+    "sl_list": [
+      {
+        "desc": "2倍 ATR",
+        "loss": -4.66,
+        "method": "A. ATR 波動停損 (科學)",
+        "price": 1973.5714285714287
+      },
+      {
+        "desc": "MA20/60",
+        "loss": -6.12,
+        "method": "B. 均線停損 (趨勢)",
+        "price": 1943.25
+      },
+      {
+        "desc": "大量低點",
+        "loss": -14.98,
+        "method": "C. 關鍵紅K (籌碼)",
+        "price": 1760.0
+      },
+      {
+        "desc": "前波低點",
+        "loss": -14.98,
+        "method": "D. 波段低點停損 (形態)",
+        "price": 1760.0
+      }
+    ],
+    "sl_low": 1760.0,
+    "sl_ma": 1943.25,
+    "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【流星線 (Shooting Star)】與買進方向矛盾，建議等待確認",
+    "tp_list": [
+      {
+        "desc": "解套賣壓",
+        "is_rec": false,
+        "method": "前波高點",
+        "price": 2135.0
+      },
+      {
+        "desc": "通道壓力",
+        "is_rec": false,
+        "method": "布林上緣",
+        "price": 2162.7296477796385
+      },
+      {
+        "desc": "等幅測距",
+        "is_rec": false,
+        "method": "N 字測量 (1.0)",
+        "price": 2445.0
+      },
+      {
+        "desc": "強勢目標",
+        "is_rec": true,
+        "method": "費波南希 (1.618)",
+        "price": 2676.75
+      }
+    ]
+  },
+  "checklist": {
+    "active": [
+      "若帶量突破 **波段前高 (2135.00)**，趨勢續攻，可嘗試加碼。"
+    ],
+    "future": [
+      "目前正乖離過大 (6.5%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+      "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+    ],
+    "risk": [
+      "若收盤跌破 **月線 (1943.25)**，短期轉弱，建議減碼或停損。",
+      "若出現 **爆量長黑** (成交值 > 1,260.0 億) 且收跌，視為主力出貨訊號。"
+    ]
+  },
+  "fundamental_alerts": [],
+  "regime": {
+    "confidence": 0.6666666667,
+    "details": [
+      "Trending (ADX=36) -- trust breakout signals",
+      "frozen for regression"
+    ],
+    "hmm_state": "neutral",
+    "position_adj": 1.0,
+    "regime": "trending"
+  },
+  "scenario": {
+    "code": "A",
+    "color": "red",
+    "desc": "週線強多 + 日線訊號佳，順勢重倉。",
+    "title": "🔥 劇本 A：強力進攻"
+  },
+  "score_percentile": 67.0,
+  "ticker": "2330.TW",
+  "trend_details": [
+    "✅ 週線均線多頭排列 (Close > 20MA > 60MA) (+2)",
+    "✅ DMI 多方趨勢成形 (ADX=54.6 > 25, +DI > -DI) (+1)",
+    "✅ OBV 能量潮近 5 週上升 (+1)",
+    "✅ 週線 EFI 主力作多 (EFI=3,833,394,857) (+1)",
+    "⚠️ 量價背離：價漲量縮 (追價意願不足) (-0.5)"
+  ],
+  "trend_score": 4.5,
+  "trigger_breakdown": {
+    "chip_score": 0.9,
+    "etf_score": 0.6,
+    "momentum_group": -0.3888888889,
+    "pattern_group": 0.0,
+    "regime": "trending",
+    "regime_weights": {
+      "momentum": 1.0,
+      "trend": 1.0,
+      "volume": 1.0
+    },
+    "revenue_score": 0.0,
+    "sentiment_score": 0.0,
+    "trend_group": 0.5658545698,
+    "volume_group": -0.0352113175
+  },
+  "trigger_details": [
+    "📈 MeanRev=+0.74 (tanh=+0.63)",
+    "📈 Supertrend 多頭趨勢 (+1)",
+    "✅ MACD 柱狀體翻紅 (+1)",
+    "🔻 KD 死亡交叉/空方排列 (-1)",
+    "[Regime] trending -- weights: T=1.0 M=1.0 V=1.0",
+    "💸 外資近5日賣超 (-14,727張) (-0.3)",
+    "❄️ 投信近5日賣超 (-1,265張) → 籌碼沉澱 (+0.3)",
+    "❄️ 外資+投信同步賣超 → 籌碼乾淨 (+0.3)",
+    "✨ 融資水位偏低 (0.4%) → 籌碼乾淨 (+0.2)",
+    "📉 融資5日減 -6.1% → 籌碼沉澱 (+0.2)",
+    "✨ 券資比 0.3% 極低 → 無空方壓力 (+0.2)",
+    "🏦 ETF 同步買超 6 檔 (淨 +1923 張) (+0.6)"
+  ],
+  "trigger_score": 1.9720420301
+}
