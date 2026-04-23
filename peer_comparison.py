@@ -44,10 +44,17 @@ def _expand_groups(groups):
 
 
 # 按族群定義（auto-expand 保證 symmetric）
+# Phase 2 (2026-04-23) 擴充：半導體 subsector 細分，避免 IC 設計被配到晶圓代工巨頭
 _PEER_GROUPS = {
     '重電': ['1519', '1503', '1513', '1504', '1514'],
     '工具機/線性傳動': ['2049', '4583', '7750', '4538', '8255', '1597'],
     '晶圓代工': ['2330', '2303', '6770', '5347'],
+    # IC 設計（Phase 2 新增，高信心 — 都是純 IC 設計公司）
+    'IC 設計': ['2454', '3034', '2379', '3443', '6533', '3529', '6415', '3227', '8016'],
+    # 矽晶圓 / 半導體材料（Phase 2 新增，2 檔核心 + 2 檔相關）
+    '矽晶圓/半導體材料': ['6488', '5483', '8374', '3535'],
+    # GaAs 化合物半導體代工三雄（Phase 2 新增）
+    'GaAs 化合物半導體代工': ['8086', '3105', '2455'],
     'IC 封測 OSAT': ['3711', '6239', '2449', '2441', '3374'],
     '面板': ['3481', '2409', '6116'],
     '光學鏡頭': ['3008', '3406', '3019'],
@@ -386,14 +393,22 @@ def _get_tw_market_caps():
 
 
 def _select_representative_peers(peer_per, stock_id, max_peers, market_caps=None):
-    """Phase 1c (2026-04-22): Market-cap aware peer selection.
+    """Phase 1c (2026-04-22) + Phase 2 (2026-04-23): Market-cap aware peer selection.
 
     當 industry 大 (>max_peers) 時，舊邏輯只挑 PE 極端 + 鄰近，會漏掉「核心同業標竿」
     （例：2454 聯發科在半導體 140 檔裡，舊邏輯可能挑到無名 small-cap 而非 2330/3034）。
 
-    新邏輯按優先級填入 max_peers 個 slot：
+    **Phase 2 (2026-04-23)**：修正「小型股被配到大巨頭」問題 — P2 原本總是挑
+    top-3 mcap，導致 8086 宏捷科（GaAs 小廠）被配到 2330 台積電 / 2454 聯發科。
+    改為 scale-aware：
+      - 若 target 本身是大盤股（mcap 百分位 > 85%）→ 挑 top mcap 同業（同級競爭對手）
+      - 若 target 是中小型股（< 85%）→ 挑 mcap 近似（0.33x ~ 3x）的 peers
+
+    按優先級填入 max_peers 個 slot：
       P1: target stock 自己（必含）
-      P2: 市值 top 3 (核心同業標竿)
+      P2: scale-aware peers
+        P2a (giant target): top mcap in industry
+        P2b (mid/small target): similar mcap (0.33x ~ 3x target) top-3 by mcap
       P3: PE 鄰近 ±2 (直接估值對比)
       P4: PE 最低 + 最高 (估值區間)
       P5: 均勻採樣填補剩餘空位
@@ -415,17 +430,40 @@ def _select_representative_peers(peer_per, stock_id, max_peers, market_caps=None
 
     indices_priority = [tidx]  # P1: target
 
-    # P2: Top 3 by market cap (excluding target)
+    # P2: Scale-aware mcap selection
     if market_caps:
         peer_mcap = peer_per.assign(
             _mcap=peer_per['stock_id'].map(market_caps).fillna(0)
         )
-        top_mcap = peer_mcap.nlargest(4, '_mcap')  # nlargest 4 in case target is #1
-        for idx in top_mcap.index:
-            if idx != tidx and idx not in indices_priority:
-                indices_priority.append(idx)
-                if len(indices_priority) >= 4:  # target + 3 mcap
-                    break
+        target_mcap = market_caps.get(stock_id, 0) or 0
+        # 計算 target 在 peer pool 裡的 mcap 百分位
+        valid_mcaps = peer_mcap['_mcap'][peer_mcap['_mcap'] > 0]
+        if target_mcap > 0 and len(valid_mcaps) >= 5:
+            target_pctile = (valid_mcaps < target_mcap).sum() / len(valid_mcaps)
+        else:
+            target_pctile = 1.0  # 無資料 fallback 到 P2a (舊行為)
+
+        if target_pctile >= 0.85:
+            # P2a: target 是大盤股 — 挑 top mcap（同級競爭對手）
+            top_mcap = peer_mcap.nlargest(4, '_mcap')
+            for idx in top_mcap.index:
+                if idx != tidx and idx not in indices_priority:
+                    indices_priority.append(idx)
+                    if len(indices_priority) >= 4:
+                        break
+        else:
+            # P2b: target 是中小型股 — 挑 mcap 近似（0.33x ~ 3x）top-3
+            lower = target_mcap * 0.33
+            upper = target_mcap * 3.0
+            similar = peer_mcap[
+                (peer_mcap['_mcap'] >= lower)
+                & (peer_mcap['_mcap'] <= upper)
+            ].nlargest(4, '_mcap')  # 在 similar 內仍按 mcap 排序，取較大的
+            for idx in similar.index:
+                if idx != tidx and idx not in indices_priority:
+                    indices_priority.append(idx)
+                    if len(indices_priority) >= 4:
+                        break
 
     # P3: PE neighbors (±2)
     for offset in [-2, -1, 1, 2]:
