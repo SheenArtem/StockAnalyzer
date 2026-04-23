@@ -45,6 +45,7 @@ def generate_one_report(
     ticker: str,
     fmt: str = 'md',
     progress_cb: Optional[Callable[[str], None]] = None,
+    include_songfen: bool = False,
 ) -> dict:
     """Run full AI report pipeline for one ticker.
 
@@ -53,6 +54,8 @@ def generate_one_report(
         fmt: 'md' or 'html'
         progress_cb: optional callable(msg: str) for progress updates.
             Use `logger.info` for CLI, `lambda m: with lock: job['progress'].append(m)` for UI.
+        include_songfen: 只影響 md 格式 — True 時 prompt 附加宋分視角補充分析區塊。
+            html 儀表板格式忽略此參數（schema 固定，不支援自訂區塊）。
 
     Returns:
         dict with keys:
@@ -148,11 +151,12 @@ def generate_one_report(
             result['rid'] = rid
             result['content'] = content_or_err
         else:
-            progress_cb("🤖 Claude AI 生成 Markdown 報告中（不設逾時，1-5 分鐘）...")
+            sf_note = "（含宋分視角）" if include_songfen else ""
+            progress_cb(f"🤖 Claude AI 生成 Markdown 報告中{sf_note}（不設逾時，1-5 分鐘）...")
             from ai_report import generate_report, save_report
             ok, content = generate_report(
                 ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                timeout=None,
+                timeout=None, include_songfen=include_songfen,
             )
             if not ok:
                 result['error'] = content

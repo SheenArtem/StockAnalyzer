@@ -30,6 +30,33 @@ logger = logging.getLogger(__name__)
 _PROMPT_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'stock_analysis_system.md')
 _DASHBOARD_PROMPT_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'stock_analysis_dashboard.md')
 _DASHBOARD_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'report_dashboard_template.html')
+_SONGFEN_FRAMEWORK_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'songfen_framework.md')
+_SONGFEN_INDEX_PATH = os.path.join(os.path.dirname(__file__), 'knowledge', 'songfen', 'INDEX.md')
+
+
+def _load_songfen_block():
+    """載入宋分分析師框架 + 當期 themes，組合成附加 prompt block。
+    若任何檔案缺失直接回空字串，由 caller 自行決定要不要加入。
+    """
+    try:
+        with open(_SONGFEN_FRAMEWORK_PATH, 'r', encoding='utf-8') as f:
+            framework = f.read()
+    except FileNotFoundError:
+        return ""
+
+    themes_block = ""
+    try:
+        with open(_SONGFEN_INDEX_PATH, 'r', encoding='utf-8') as f:
+            index_text = f.read()
+        # 擷取 "## Current Themes" 到檔尾段落
+        marker = "## Current Themes"
+        idx = index_text.find(marker)
+        if idx >= 0:
+            themes_block = "\n\n### 當期時效性主題（從 INDEX.md 擷取）\n\n" + index_text[idx:]
+    except FileNotFoundError:
+        pass
+
+    return framework + themes_block
 
 
 def _load_system_prompt():
@@ -735,7 +762,8 @@ def _build_peer_data(ticker, fund_data):
         return f"N/A (peer comparison failed: {e})"
 
 
-def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
+def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
+                    include_songfen=False):
     """
     組裝完整的 AI 分析 prompt。
 
@@ -746,6 +774,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
         us_chip_data: 美股籌碼數據 (dict)
         fund_data: 基本面數據 (dict)
         df_day: 日線 DataFrame (含技術指標)
+        include_songfen: bool，True 時附加「宋分視角補充分析」區塊（見 prompts/songfen_framework.md）
 
     Returns:
         str: 完整 prompt (system + data)
@@ -807,11 +836,46 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
 
 3. 報告格式嚴格依照上方 Format 規範的 8 大區塊"""
 
+    # 附加：宋分視角補充分析區塊（可選）
+    if include_songfen:
+        songfen_content = _load_songfen_block()
+        if songfen_content:
+            full_prompt += """
+
+---
+
+## 【附加任務】宋分視角補充分析區塊
+
+除上方 9 個標準區塊外，**在報告最末尾新增第 10 區塊**，標題為 `## 10. 宋分視角補充分析`，使用下列「宋分分析師底層框架」套在本檔股票上。
+
+**Format 規範**（嚴格遵守）：
+
+1. 用繁體中文
+2. 不要照抄框架原文 — 框架是思考工具，要輸出**針對 {TICKER} 的具體結論**
+3. 子區塊固定四個視角 + 反面論點：
+   - `### 10.1 re-rate 訊號檢核`（判斷目前在定價三階段哪一階段、若 re-rate 會是哪等級）
+   - `### 10.2 5-layer 損益表拆解重點`（ROIC 趨勢 / 營業槓桿位置 / 標準化 EPS）
+   - `### 10.3 擇時與紀律`（Thesis / 看錯條件 / 當前加碼訊號對應倉位）
+   - `### 10.4 當期 theme 對照`（從下方 Current Themes 挑 1-3 項相關的）
+   - `### 10.5 反面論點（至少 3 點）`（具體到訊號層級，不空泛）
+4. 最後用一句話總結：此股票在宋分框架下處於什麼位置
+
+**禁止**：
+- 把框架原文照貼
+- 用「可能」「或許」掩蓋不確定 → 改說「數據不足」
+- 引用超過 3 個月的 time-sensitive 觀點
+
+---
+
+## 宋分分析師底層框架（供參考，不要原文照抄）
+
+""" + songfen_content
+
     return full_prompt
 
 
 def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                    timeout=None):
+                    timeout=None, include_songfen=False):
     """
     呼叫 Claude CLI 生成 AI 研究報告（含 WebSearch 能力）。
 
@@ -821,9 +885,11 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     Returns:
         tuple: (success: bool, content: str)
     """
-    prompt = assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day)
+    prompt = assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
+                             include_songfen=include_songfen)
 
-    logger.info("AI Report prompt assembled for %s (%d chars)", ticker, len(prompt))
+    logger.info("AI Report prompt assembled for %s (%d chars, songfen=%s)",
+                ticker, len(prompt), include_songfen)
 
     try:
         result = subprocess.run(
