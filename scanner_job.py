@@ -50,7 +50,9 @@ def _load_latest_regime():
         return None
     try:
         return json.loads(lines[-1])
-    except Exception:
+    except Exception as e:
+        logger.warning("regime_log.jsonl last line parse failed (%s: %s). Last line: %r",
+                       type(e).__name__, e, lines[-1][:200])
         return None
 
 
@@ -556,7 +558,8 @@ def main():
                          f"{_mon['alert_count']} alerts "
                          f"(hard={_mon['hard_count']}, soft={_mon['soft_count']})")
         except Exception as e:
-            progress(f"Position monitor failed: {e}")
+            progress(f"[FAIL] Position monitor: {type(e).__name__}: {e}")
+            logger.exception("Position monitor failed")
 
     # Performance tracking: update historical picks with latest prices
     if not args.stage1_only and not args.no_tracking:
@@ -587,7 +590,8 @@ def main():
                                      f"IR {h['ir']:+.3f}, "
                                      f"Win {h['win_rate_vs_bm']:.1f}%")
         except Exception as e:
-            progress(f"Tracking update failed: {e}")
+            progress(f"[FAIL] Tracking update: {type(e).__name__}: {e}")
+            logger.exception("Tracking update failed")
 
     # Git push
     if args.push and not args.stage1_only:
