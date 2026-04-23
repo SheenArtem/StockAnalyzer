@@ -366,8 +366,7 @@ class FinMindTracker:
                 "FinMind API: rate limit reached (%d/%d), pausing %.0fs until next hour",
                 self.request_count, _FINMIND_RATE_LIMIT, wait_seconds,
             )
-            print(f"[FinMind] Rate limit ({self.request_count}/{_FINMIND_RATE_LIMIT}), "
-                  f"waiting {wait_seconds:.0f}s until next hour...")
+            # (duplicate message removed; already logged via logger.warning above)
             time.sleep(wait_seconds)
             with self._lock:
                 self.request_count = 0
