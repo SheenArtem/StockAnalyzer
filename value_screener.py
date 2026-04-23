@@ -156,6 +156,15 @@ DEFAULT_CONFIG = {
     'weight_revenue': 0.30,
     'weight_technical': 0.15,
     'weight_smart_money': 0.00,
+
+    # Value-#4 大型股 Graham 例外通道（2026-04-23）
+    # 解決台積/台達 PE×PB > 22.5 被 Graham 排除問題：市值前 N + F-Score 及格 + 品質趨勢 → 放行 Graham filter
+    # 資料源：TV market_cap (MomentumScreener._fetch_tv_marketcap_volume 1h cache) + quality_scores.parquet
+    'enable_large_cap_bypass': True,
+    'large_cap_rank_top': 50,       # 市值前 N 大（TW 前 50 涵蓋約 80% 大型股市值）
+    'large_cap_min_fscore': 5,      # F-Score >= 5（Piotroski 及格線；>=7 太嚴會洗掉台達電類）
+    'large_cap_min_quality': 50,    # quality_score >= 50（quality_scores.parquet 已含 F+Z+ROIC+FCF 綜合，>50 proxy 趨勢向上）
+    'large_cap_max_pe': 50,         # bypass 通道 PE hard cap（防 PE>50 極端高估進入價值池；台積 PE~30 仍放行）
 }
 
 
@@ -293,7 +302,24 @@ class ValueScreener:
         if cfg['min_dividend_yield'] > 0:
             mask &= merged['dividend_yield'] >= cfg['min_dividend_yield']
 
+        # 6. Value-#4 大型股 Graham 例外通道（2026-04-23）
+        #    被 Graham (#4) 濾掉但屬市值前 N 大 + F-Score 及格 + 品質趨勢 → 放行
+        #    bypass_sids 記錄下來以便 Stage 2 標記 bypass_reason
+        bypass_sids = set()
+        if cfg.get('enable_large_cap_bypass', False):
+            bypass_sids = self._compute_large_cap_bypass(merged, mask)
+            if bypass_sids:
+                mask = mask | merged['stock_id'].isin(bypass_sids)
+                self.progress(f"  Large-cap bypass: added {len(bypass_sids)} stocks "
+                              f"(market_cap top {cfg['large_cap_rank_top']} + "
+                              f"F>={cfg['large_cap_min_fscore']} + "
+                              f"Q>={cfg['large_cap_min_quality']})")
+
         layer1 = merged[mask].copy()
+        # 標記 bypass_reason 讓 Stage 2 + UI 能辨識
+        layer1['bypass_reason'] = ''
+        if bypass_sids:
+            layer1.loc[layer1['stock_id'].isin(bypass_sids), 'bypass_reason'] = 'large_cap_graham_exempt'
         self.progress(f"  Layer 1 (TWSE/TPEX): {total_market} -> {len(layer1)} stocks")
 
         if layer1.empty:
@@ -343,6 +369,94 @@ class ValueScreener:
         result.sort_values('PE', ascending=True, inplace=True)
         result.attrs['total_market'] = total_market
         return result
+
+    # ================================================================
+    # Value-#4 大型股 Graham 例外通道 helper（2026-04-23）
+    # ================================================================
+
+    def _compute_large_cap_bypass(self, merged, current_mask):
+        """找出被 Graham 濾掉但屬「市值前 N 大 + F-Score 及格 + 品質趨勢」的股票。
+
+        條件（AND）：
+          - 當前被 mask 濾掉（not in current_mask）
+          - market_cap 在前 large_cap_rank_top 大
+          - quality_scores.parquet 的 f_score >= large_cap_min_fscore
+          - quality_scores.parquet 的 quality_score >= large_cap_min_quality
+
+        Returns:
+            set: 通過 bypass 條件的 stock_id
+        """
+        cfg = self.config
+        top_n = cfg.get('large_cap_rank_top', 50)
+        min_f = cfg.get('large_cap_min_fscore', 5)
+        min_q = cfg.get('large_cap_min_quality', 50)
+        max_pe = cfg.get('large_cap_max_pe', 50)
+
+        # Candidates: 被 Graham 濾掉的股票
+        rejected_sids = set(merged.loc[~current_mask, 'stock_id'])
+        if not rejected_sids:
+            return set()
+
+        # PE hard cap：排除極端高估（PE > max_pe），避免把「品質型成長股」當價值股放進來
+        if max_pe > 0:
+            has_pe_valid = merged['PE'].notna() & (merged['PE'] > 0) & (merged['PE'] <= max_pe)
+            pe_cap_sids = set(merged.loc[has_pe_valid, 'stock_id'])
+            rejected_sids = rejected_sids & pe_cap_sids
+            if not rejected_sids:
+                return set()
+
+        # Load market_cap from MomentumScreener TV batch (1hr cache, 無新增 API)
+        try:
+            from momentum_screener import MomentumScreener
+            tv_mc = MomentumScreener._fetch_tv_marketcap_volume()
+        except Exception as e:
+            logger.warning("Large-cap bypass: TV market_cap batch failed: %s", e)
+            return set()
+
+        if not tv_mc:
+            return set()
+
+        # 排除非普通股（ETF/特別股/權證）
+        tv_clean = {
+            sid: d.get('market_cap', 0) or 0
+            for sid, d in tv_mc.items()
+            if sid.isdigit() and len(sid) == 4 and not sid.startswith('0')
+        }
+        mc_sorted = sorted(tv_clean.items(), key=lambda x: x[1], reverse=True)
+        top_mc_ids = {sid for sid, _ in mc_sorted[:top_n]}
+
+        # 只保留 rejected ∩ large-cap
+        bypass_candidates = rejected_sids & top_mc_ids
+        if not bypass_candidates:
+            return set()
+
+        # Load latest F-Score + quality_score from quality_scores.parquet
+        try:
+            qs_path = Path('data_cache/backtest/quality_scores.parquet')
+            if not qs_path.exists():
+                logger.warning("Large-cap bypass: quality_scores.parquet not found")
+                return set()
+            qs = pd.read_parquet(qs_path, columns=['stock_id', 'date', 'f_score', 'quality_score'])
+            # 取每檔最新一筆
+            qs = qs.sort_values(['stock_id', 'date']).groupby('stock_id').tail(1)
+            qs_map = qs.set_index('stock_id')[['f_score', 'quality_score']].to_dict('index')
+        except Exception as e:
+            logger.warning("Large-cap bypass: load quality_scores failed: %s", e)
+            return set()
+
+        passed = set()
+        for sid in bypass_candidates:
+            rec = qs_map.get(sid)
+            if not rec:
+                continue  # 無 F-Score 資料 → conservative 不放行
+            f = rec.get('f_score')
+            q = rec.get('quality_score')
+            if f is None or q is None:
+                continue
+            if f >= min_f and q >= min_q:
+                passed.add(sid)
+
+        return passed
 
     # ================================================================
     # Stage 1 US: yfinance batch for S&P 500 fundamentals
@@ -740,6 +854,7 @@ class ValueScreener:
             'value_score': round(total, 1),
             'scores': {k: round(v, 1) for k, v in scores.items()},
             'details': details,
+            'bypass_reason': market_row.get('bypass_reason', ''),  # Value-#4 大型股通道標記
         }
 
     # ================================================================

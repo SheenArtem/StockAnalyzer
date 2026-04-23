@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.23.2")
+    st.caption("Version: v2026.04.23.3")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -1419,9 +1419,11 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
 
 | 條件 | 門檻 | 說明 |
 |------|------|------|
-| PE (本益比) | 0.1 ~ 30 | 排除虧損股 (PE<0) 和高估值股 |
-| PB (股價淨值比) | ≤ 5.0 | 排除資產泡沫股 |
-| 成交值 | > 500 萬 | 過濾極低流動性 |
+| PE (本益比) | 0.1 ~ 12 | 排除虧損股和高估值股（VF-VA B 級落地） |
+| PB (股價淨值比) | ≤ 3.0 | 排除資產泡沫股 |
+| Graham 複合 | PE × PB ≤ 22.5 | PE 或 PB 單邊可偏高，乘積需合理 |
+| 成交值 | > 3000 萬 | 機構可交易水準 |
+| 🏛️ 大型股例外 | 市值前 50 + F≥5 + Q≥50 + PE≤50 | Value-#4 通道：台積/中華電類被 Graham 擋下但體質佳者放行 |
 
 **Stage 2 綜合評分（0-100 分）**
 
@@ -1467,6 +1469,9 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 _res_in_val = [r['stock_id'] for r in v_results if r['stock_id'] in _qm_value_resonance_tw]
                 if _res_in_val:
                     st.success(f"✨ **動能+價值共振** ({len(_res_in_val)} 檔): {', '.join(_res_in_val)} — 同時通過兩個 screener 的稀有組合")
+            _bypass_picks = [r['stock_id'] for r in v_results if r.get('bypass_reason') == 'large_cap_graham_exempt']
+            if _bypass_picks:
+                st.info(f"🏛️ **大型股例外通道** ({len(_bypass_picks)} 檔): {', '.join(_bypass_picks)} — 市值前 50 + F-Score≥5，被 Graham PE×PB≤22.5 擋下但放行")
 
             _v_rows = []
             for r in v_results:
@@ -1475,6 +1480,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '代號': r['stock_id'],
                     '名稱': r.get('name', ''),
                     '共振': '✨' if r['stock_id'] in _qm_value_resonance_tw else '',
+                    '大型股': '🏛️' if r.get('bypass_reason') == 'large_cap_graham_exempt' else '',
                     '綜合分數': r.get('value_score', 0),
                     '收盤': r.get('price', 0),
                     'PE': r.get('PE', 0),
@@ -1506,6 +1512,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 height=600,
                 column_config={
                     '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
+                    '大型股': st.column_config.TextColumn(width='small', help="🏛️ = 走大型股 Graham 例外通道（市值前 50 + F-Score>=5 + quality>=50），PE×PB>22.5 但被放行"),
                     '綜合分數': st.column_config.NumberColumn(format="%.1f"),
                     'PE': st.column_config.NumberColumn(format="%.1f"),
                     'PB': st.column_config.NumberColumn(format="%.2f"),
