@@ -1,5 +1,35 @@
 # StockAnalyzer — 台股/美股右側交易分析系統
 
+## ⚠️ 核心原則：Robustness First（最高優先，凌駕其他規範）
+
+**本專案要求 robustness — 一切修改必須保證正確性。**
+
+作金融決策輔助工具，錯誤不是「之後發現再改」，是「直接誤導交易決策」。任何
+修改（新功能、bug fix、refactor、文件）commit 前必須做到以下任一：
+
+1. **手動跑過一次 end-to-end**（最低門檻）— 特別是 CLI 工具 / 排程腳本 /
+   「set-and-forget」類型的東西，commit 前至少 `python tools/xxx.py ...` 實跑
+   一次確認不炸。lazy import / 動態 signature 的錯誤只有真的呼叫到才會浮出。
+2. **影響面 grep**（跨模組必做）— 改 API signature、return 型別、函式名稱時，
+   先 grep 所有 caller，確認每個呼叫點都對齊（今天 ChipAnalyzer tuple unpack
+   就是 14 caller 中 1 個新加的漏掉）。
+3. **Dry-run / smoke test**（有的話優先用）— 若腳本有 `--dry-run` / 省略 Claude
+   CLI / 只跑資料裝配的模式，commit 前跑一次。
+4. **靜默失敗視為嚴重 bug**（不只是「non-critical」）— 排程吞 exit code、
+   try/except pass、`if x:` 缺 else 分支 ⋯⋯ 都可能讓 bug 多活一晚才被發現。
+   新寫程式優先 fail loud，不要 fail silent。
+
+**反例（2026-04-22 auto_ai_reports 事件教訓）**：昨天下午新增的 CLI 腳本，
+沒有本地實跑，直接進 22:00 排程，三個 bug（import 路徑錯、建構子誤用、tuple
+未 unpack）一次爆光，還因為 `run_scanner.bat` 把 exit code 吞掉，隔天早上才
+發現。**整條失效鏈每一站都違反上面 4 條之一**。
+
+> 若修改無法保證正確性（例如只是探索性 POC、大型 refactor 中間狀態），
+> 必須在 commit message 或 PR description 明確標示「**未驗證**」或「**實驗**」，
+> 不能當成正式變更混入主分支。
+
+---
+
 ## 概述
 基於 Streamlit 的股票分析工具，結合技術面、籌碼面、基本面與 AI 觸發分數，輔助右側交易決策。主要針對台股（FinMind + TWSE/TPEX + TradingView），兼容美股（Yahoo Finance + Finviz + TradingView）。
 
