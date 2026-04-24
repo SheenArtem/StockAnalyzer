@@ -241,10 +241,6 @@ def extract(vtt_path: Path, prefer: str = "gemini", known_tickers: dict | None =
     show_name_map = {
         "money100": "錢線百分百",
         "money_deploy": "鈔錢部署",
-        "non_fan_stock": "非凡股市現場",
-        "guo_zherong": "郭哲榮分析師",
-        "non_fan_news": "非凡財經新聞",
-        "moneyshow": "理財達人秀 (已停用)",
     }
     show_name = show_name_map.get(show_key, show_key)
 
@@ -314,9 +310,7 @@ def extract(vtt_path: Path, prefer: str = "gemini", known_tickers: dict | None =
 
 def list_pending(show_key: str | None = None) -> list[Path]:
     """列出未處理 (無對應 .json) 的 VTT 檔."""
-    shows = [show_key] if show_key else [
-        "money100", "money_deploy", "non_fan_stock", "guo_zherong", "non_fan_news",
-    ]
+    shows = [show_key] if show_key else ["money100", "money_deploy"]
     pending = []
     for sk in shows:
         vtt_dir = VTT_ROOT / sk
@@ -336,7 +330,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("vtt_path", nargs="?", help="單一 VTT 檔路徑")
     ap.add_argument("--all", action="store_true", help="處理全部未萃取的 VTT")
-    ap.add_argument("--show", choices=["money100", "money_deploy", "non_fan_stock", "guo_zherong", "non_fan_news"],
+    ap.add_argument("--show", choices=["money100", "money_deploy"],
                     help="只處理特定節目")
     ap.add_argument("--llm", choices=["gemini", "claude"], default="claude",
                     help="優先 LLM (default claude,失敗自動 fallback Gemini). 2026-04-24 實測 Gemini (含 pro-preview) 不穩定遵守 JSON 指令傾向輸 markdown")

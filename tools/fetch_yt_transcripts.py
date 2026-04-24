@@ -46,25 +46,11 @@ SHOWS = {
         "source": "華視 + 盧燕俐",
         "schedule": "Tue/Thu 20:00-21:00",
     },
-    # moneyshow (理財達人秀) 放棄: YT 完全無字幕 (2026-04-24 實測)
-    "non_fan_stock": {
-        "name": "非凡股市現場",
-        "url": "https://www.youtube.com/channel/UCJcPWs0gpYMx_CghPdELUhw/videos",
-        "source": "非凡電視 (鄭明娟主持)",
-        "schedule": "daily 盤後",
-    },
-    "guo_zherong": {
-        "name": "郭哲榮分析師",
-        "url": "https://www.youtube.com/channel/UChfl3auNxAxOR3wy8a8ysQQ/videos",
-        "source": "摩爾證券投顧",
-        "schedule": "irregular",
-    },
-    "non_fan_news": {
-        "name": "非凡財經新聞",
-        "url": "https://www.youtube.com/channel/UCLHsQL4YChylDX-06BCuNQA/videos",
-        "source": "非凡電視新聞",
-        "schedule": "daily news",
-    },
+    # 曾嘗試但使用者 2026-04-24 要求 revert 的節目 (不加入 SHOWS):
+    # - moneyshow 理財達人秀 (東森): YT 完全無字幕
+    # - non_fan_stock 非凡股市現場
+    # - guo_zherong 郭哲榮分析師
+    # - non_fan_news 非凡財經新聞
 }
 
 
