@@ -719,7 +719,8 @@ class TechnicalAnalyzer:
         # ============================================================
         momentum_signals = []
 
-        # M1. MACD + divergence: histogram + divergence bonus → range ~[-4.5, +4.5] → /4.5
+        # M1. MACD histogram only (divergence 加分已移除 2026-04-24, 方向 IC 驗證反轉 — 見 vf_step1_layer2_divergence_ic.md)
+        # 保留除數 4.5 以維持與 divergence 版本相同的 hist 量級，避免意外放大 MACD 權重
         hist = self._safe_get(current, 'Hist', 0)
         prev_hist = self._safe_get(prev, 'Hist', 0)
         m1_raw = 0.0
@@ -733,26 +734,20 @@ class TechnicalAnalyzer:
             m1_raw -= 1
             details.append("🔻 MACD 柱狀體翻綠 (-1)")
 
-        # MACD 背離偵測 [UPGRADED - Pivot Points 標準檢測]
+        # MACD 背離偵測 (僅 UI 提示，不計分 — IC 驗證方向反轉，見 vf_step1_layer2_divergence_ic.md)
         div_macd = detect_divergence(df, 'MACD')
         if div_macd == 'bull_strong':
-            m1_raw += 3
-            details.append("💎💎 MACD 出現【強烈底背離】訊號 (高勝率反轉) (+3)")
+            details.append("💎💎 MACD【強烈底背離】⚠️ 僅供參考 (IC驗證反向)")
         elif div_macd == 'bull':
-            m1_raw += 2
-            details.append("💎 MACD 出現【底背離】訊號 (+2)")
+            details.append("💎 MACD【底背離】⚠️ 僅供參考 (IC驗證反向)")
         elif div_macd == 'bull_weak':
-            m1_raw += 1
-            details.append("📈 MACD 出現【隱藏底背離】(多頭趨勢延續) (+1)")
+            details.append("📈 MACD【隱藏底背離】⚠️ 僅供參考")
         elif div_macd == 'bear_strong':
-            m1_raw -= 3
-            details.append("💀💀 MACD 出現【強烈頂背離】訊號 (高風險反轉) (-3)")
+            details.append("💀💀 MACD【強烈頂背離】⚠️ 僅供參考 (IC驗證反向)")
         elif div_macd == 'bear':
-            m1_raw -= 2
-            details.append("💀 MACD 出現【頂背離】訊號 (-2)")
+            details.append("💀 MACD【頂背離】⚠️ 僅供參考 (IC驗證反向)")
         elif div_macd == 'bear_weak':
-            m1_raw -= 1
-            details.append("📉 MACD 出現【隱藏頂背離】(空頭趨勢延續) (-1)")
+            details.append("📉 MACD【隱藏頂背離】⚠️ 僅供參考")
         momentum_signals.append(max(-1.0, min(1.0, m1_raw / 4.5)))
 
         # M2. KD: K>D → +1, else -1 → /1
@@ -766,16 +761,17 @@ class TechnicalAnalyzer:
             details.append("🔻 KD 死亡交叉/空方排列 (-1)")
         momentum_signals.append(m2_raw / 1.0)
 
-        # M3. RSI divergence: ±1.5 → /1.5
+        # M3. RSI divergence — 已改為純 UI 提示 (2026-04-24): IC 驗證方向反轉
+        # 見 reports/vf_step1_layer2_divergence_ic.md (RSI 9 組中 7 組 IC<0 顯著)
+        # M3 不再計分，append None 讓 _median_of_signals 過濾
         div_rsi = detect_divergence(df, 'RSI')
-        m3_raw = 0.0
         if div_rsi in ['bull_strong', 'bull']:
-            m3_raw = 1.5 if div_rsi == 'bull_strong' else 1.0
-            details.append(f"✅ RSI 出現{'強烈' if div_rsi == 'bull_strong' else ''}底背離 (+{m3_raw})")
+            strength = '強烈' if div_rsi == 'bull_strong' else ''
+            details.append(f"✅ RSI{strength}底背離 ⚠️ 僅供參考 (IC驗證反向)")
         elif div_rsi in ['bear_strong', 'bear']:
-            m3_raw = -1.5 if div_rsi == 'bear_strong' else -1.0
-            details.append(f"🔻 RSI 出現{'強烈' if div_rsi == 'bear_strong' else ''}頂背離 ({m3_raw:+.1f})")
-        momentum_signals.append(m3_raw / 1.5 if m3_raw != 0 else None)
+            strength = '強烈' if div_rsi == 'bear_strong' else ''
+            details.append(f"🔻 RSI{strength}頂背離 ⚠️ 僅供參考 (IC驗證反向)")
+        momentum_signals.append(None)
 
         # (Squeeze removed — 橫截面 IC 為負，已從 Momentum 組移除)
 
