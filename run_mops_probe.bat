@@ -1,8 +1,8 @@
 @echo off
 REM ============================================================
-REM  MOPS WAF 解禁探針 - Windows Task Scheduler
+REM  MOPS WAF unblock probe - Windows Task Scheduler
 REM
-REM  Schedule: Daily 09:00 (MOPS 晨間流量低，1 req/day 絕對不撞 WAF)
+REM  Schedule: Daily 09:00 (MOPS traffic low in morning; 1 req/day never hits WAF)
 REM
 REM  Setup:
 REM    1. Win+R -> taskschd.msc
@@ -12,8 +12,9 @@ REM    4. Action: Start a program
 REM       Program: C:\GIT\StockAnalyzer\run_mops_probe.bat
 REM       Start in: C:\GIT\StockAnalyzer
 REM
-REM  解禁偵測 3 天後自動 Discord 通知（需 local/.env 有 DISCORD_WEBHOOK_URL）
-REM  狀態檔：data_cache/mops_probe_state.json
+REM  Auto Discord notify after 3 consecutive unblock detections
+REM  (requires DISCORD_WEBHOOK_URL in local/.env).
+REM  State file: data_cache/mops_probe_state.json
 REM ============================================================
 
 cd /d C:\GIT\StockAnalyzer
