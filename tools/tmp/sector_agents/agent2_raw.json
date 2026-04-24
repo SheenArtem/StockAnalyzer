@@ -1,0 +1,169 @@
+{
+  "agent": "Agent2_ICSemiconductor",
+  "generated_at": "2026-04-24",
+  "themes": [
+    {
+      "theme_id": "asic_design_service",
+      "theme_name_zh": "ASIC 設計服務",
+      "theme_name_en": "ASIC Design Service",
+      "description": "協助 CSP / 系統廠客製化晶片的設計服務公司（NRE + MP + IP 三段式營收），台廠三雄世芯 / 創意 / 智原為主流。",
+      "tier1": [
+        {"ticker": "3443", "name": "創意電子", "note": "台積電轉投資，AI 營收占比 20%，切入 Tesla AI5 專案", "multi_theme": []},
+        {"ticker": "3661", "name": "世芯-KY", "note": "AWS Trainium 主要設計量產夥伴", "multi_theme": []},
+        {"ticker": "3035", "name": "智原", "note": "聯電轉投資，2026 有 1-2 個 FinFET ASIC 量產", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "2454", "name": "聯發科", "note": "主業手機 SoC，ASIC 為新興業務（Google TPU v7）", "multi_theme": []},
+        {"ticker": "6533", "name": "晶心科", "note": "提供 RISC-V CPU IP 與 SoC 平台設計服務", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "tier1 三檔業務純度皆高且有共同題材敘事，適合 pair divergence；聯發科為 multi-theme 參考股需注意",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/6262181",
+        "https://www.sinotrade.com.tw/richclub/hotstock/ASIC-6911950439ec3111657868d7"
+      ],
+      "confidence": 90
+    },
+    {
+      "theme_id": "bmc_ic",
+      "theme_name_zh": "BMC / AI 伺服器管理 IC",
+      "theme_name_en": "BMC / AI Server Management IC",
+      "description": "伺服器遠端管理（BMC）核心 SoC 與周邊電源 / 韌體供應商；信驊近乎壟斷（70-80% 市占），新唐為微軟 / Google 扶持的次要力量。",
+      "tier1": [
+        {"ticker": "5274", "name": "信驊", "note": "全球 BMC 市占 70-80%，NVIDIA / AWS / Azure / Meta 主要供應商", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "4919", "name": "新唐", "note": "MCU 廠跨足 BMC，Microsoft SCM BMC 主要供應商", "multi_theme": []},
+        {"ticker": "6231", "name": "系微", "note": "UEFI / BMC firmware 供應商，AST2600/2700 相容", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "信驊壟斷但新唐有 Microsoft SCM / OpenTitan 獨立題材，可測 tier1 vs tier2 divergence",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://finance.technews.tw/2025/12/29/aspeedtech-bmc/",
+        "https://www.ctee.com.tw/news/20260422700158-439901"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "silicon_ip",
+      "theme_name_zh": "矽智財 / IP 授權",
+      "theme_name_en": "Silicon IP",
+      "description": "授權標準 IP 模組（eNVM / USB / SerDes / CPU core）給 IC 設計商收取權利金，毛利率最高的半導體細分領域。",
+      "tier1": [
+        {"ticker": "3529", "name": "力旺", "note": "全球 Logic eNVM / OTP IP 龍頭，涵蓋 0.25um 至 4/5nm", "multi_theme": []},
+        {"ticker": "6643", "name": "M31", "note": "USB / PCIe / 基礎元件 IP，台積電 5nm 客戶採用", "multi_theme": []},
+        {"ticker": "6533", "name": "晶心科", "note": "台灣 RISC-V CPU IP 龍頭", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "3035", "name": "智原", "note": "IP 營收占比約 15%，IP + 設計服務混合業態", "multi_theme": []},
+        {"ticker": "6531", "name": "愛普", "note": "記憶體 IP / 客製化 DRAM 解決方案", "multi_theme": []},
+        {"ticker": "5351", "name": "鈺創", "note": "利基型 DRAM + MemoraiLink AI 記憶體 IP 平台", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "tier1 三檔業務差異大（eNVM / 介面 IP / CPU IP）但常共振，tier2 業務純度較雜",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/4686915",
+        "https://wantrich.chinatimes.com/news/20251103900296-420101"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "cowos_advanced_package",
+      "theme_name_zh": "CoWoS 先進封裝",
+      "theme_name_en": "CoWoS Advanced Packaging",
+      "description": "台積電 2.5D/3D 先進封裝（CoWoS / SoIC / CoPoS）產業鏈，涵蓋代工、ABF 載板、封裝測試、設備與耗材。",
+      "tier1": [
+        {"ticker": "2330", "name": "台積電", "note": "CoWoS 技術提供者，2026 月產能目標 11-14 萬片", "multi_theme": []},
+        {"ticker": "3037", "name": "欣興", "note": "ABF 載板三雄之一，AI 伺服器 GPU / ASIC 主要供應", "multi_theme": []},
+        {"ticker": "8046", "name": "南電", "note": "ABF 載板三雄之一，800G 交換器市占高", "multi_theme": []},
+        {"ticker": "3711", "name": "日月光投控", "note": "CoWoS 外包主要承接廠，月產能 3-4 萬片", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "3189", "name": "景碩", "note": "ABF 載板三雄之三，PC GPU / NVIDIA Rubin 受惠", "multi_theme": []},
+        {"ticker": "3131", "name": "弘塑", "note": "CoWoS 濕製程設備，CoPoS 首波供應鏈", "multi_theme": []},
+        {"ticker": "3583", "name": "辛耘", "note": "CoWoS / CoPoS 濕製程設備供應商", "multi_theme": []},
+        {"ticker": "3680", "name": "家登", "note": "EUV 光罩盒與晶圓載具，CoPoS 首波供應鏈", "multi_theme": []},
+        {"ticker": "2467", "name": "志聖", "note": "貼模設備，CoPoS 供應鏈", "multi_theme": []},
+        {"ticker": "6641", "name": "基士德-KY", "note": "先進封裝設備周邊", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "ABF 載板三雄彼此是最佳 pair 組合；設備股可內部配對（弘塑 vs 辛耘）",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/6010890",
+        "https://money.udn.com/money/story/5607/9252307"
+      ],
+      "confidence": 88
+    },
+    {
+      "theme_id": "hbm_memory",
+      "theme_name_zh": "HBM / 先進記憶體概念",
+      "theme_name_en": "HBM / Advanced Memory Concept",
+      "description": "台灣沒有真正的 HBM 製造商（SK Hynix / Samsung / Micron 壟斷全球 HBM），但有受惠於 HBM 產能排擠 DDR5 的二線 DRAM / 利基型記憶體。",
+      "tier1": [
+        {"ticker": "2408", "name": "南亞科", "note": "台塑集團 DRAM 大廠，與鈺創合資開發客製化 HBM", "multi_theme": []},
+        {"ticker": "2344", "name": "華邦電", "note": "利基型 DRAM + LPDDR 龍頭，邊緣 AI 受惠", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "5351", "name": "鈺創", "note": "MemoraiLink AI 記憶體 IP 平台", "multi_theme": []},
+        {"ticker": "6531", "name": "愛普", "note": "記憶體 IP + 3D 堆疊封裝方案", "multi_theme": []},
+        {"ticker": "6770", "name": "力積電", "note": "DRAM 代工 + 3D 堆疊技術", "multi_theme": []},
+        {"ticker": "2337", "name": "旺宏", "note": "NOR Flash + 3D NAND，DDR4 降評但有替代機會", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "誠實標註：台灣非真 HBM 製造商，是『DRAM 受 HBM 擠壓題材』",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/5601025",
+        "https://finance.technews.tw/2025/08/07/nanya-technology-and-etron-establish-a-joint-venture-with-500-million-yuan/"
+      ],
+      "confidence": 75
+    },
+    {
+      "theme_id": "mobile_soc",
+      "theme_name_zh": "手機 SoC",
+      "theme_name_en": "Mobile SoC",
+      "description": "5G / 4G 智慧型手機應用處理器（AP）設計，台灣 tier1 只有聯發科一家全球規模廠商。",
+      "tier1": [
+        {"ticker": "2454", "name": "聯發科", "note": "全球手機 SoC 市占龍頭，天璣 9400 旗艦", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "3034", "name": "聯詠", "note": "中低階手機 SoC + 顯示驅動 IC，部分重疊但主業不同", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": false,
+      "pair_divergence_note": "聯發科在台股手機 SoC 幾乎無可比公司，本題材不建議做 pair divergence",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://www.bnext.com.tw/article/80779/mediatek-dimensity-9400-launch"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "ai_pc_soc",
+      "theme_name_zh": "AI PC SoC",
+      "theme_name_en": "AI PC SoC",
+      "description": "Copilot+ PC / ARM Windows AI PC 應用處理器（NPU > 40 TOPS）；台灣真正做 SoC 的只有聯發科（與 NVIDIA 合作 N1/N1X），其他為 NB 品牌 / ODM 受惠股。",
+      "tier1": [
+        {"ticker": "2454", "name": "聯發科", "note": "與 NVIDIA Blackwell 合作 N1/N1X AI PC SoC，2026 上市", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "2382", "name": "廣達", "note": "NB ODM 龍頭，Copilot+ PC 主要組裝廠", "multi_theme": []},
+        {"ticker": "4938", "name": "和碩", "note": "NB ODM，Copilot+ PC 組裝受惠", "multi_theme": []},
+        {"ticker": "2357", "name": "華碩", "note": "NB 品牌廠，Copilot+ PC 首批推出品牌", "multi_theme": []},
+        {"ticker": "2353", "name": "宏碁", "note": "NB 品牌廠，Snapdragon X / Copilot+ PC 首批", "multi_theme": []},
+        {"ticker": "2324", "name": "仁寶", "note": "NB ODM，Snapdragon X 陣營組裝", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": false,
+      "pair_divergence_note": "台股 AI PC SoC 設計端只有聯發科，tier2 全是 NB ODM / 品牌（非 SoC 本業），題材純度不一致",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://cmnews.com.tw/article/cmoney-80065491-31fd-11f0-b9d3-089fa8833098",
+        "https://www.sinotrade.com.tw/richclub/hotstock/AI-PC-6659676a76821c21681a4ed4"
+      ],
+      "confidence": 78
+    }
+  ]
+}
