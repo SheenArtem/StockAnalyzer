@@ -1,0 +1,1628 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-24",
+  "description": "台股 AI era 主流題材 sector tag 手動清單 (Q12-c answer)。peer_group 用於 Pair Divergence 驗證。multi_theme 由 merge_sector_tags.py 自動交叉索引。",
+  "source": "3 x general-purpose agent web research (MoneyDJ, 鉅亨, 券商報告, 經濟日報) 2026-04-24",
+  "themes": [
+    {
+      "theme_id": "ai_server_odm",
+      "theme_name_zh": "AI 伺服器 ODM",
+      "theme_name_en": "AI Server ODM",
+      "description": "NVIDIA GB200/GB300 機櫃整機代工組裝。2025 年 GB 機櫃市佔鴻海 52% / 緯創 21% / 廣達 19% 為全球主軸。",
+      "tier1": [
+        {
+          "ticker": "2317",
+          "name": "鴻海",
+          "note": "2025 GB 機櫃市佔 52% 為全球第一",
+          "multi_theme": [
+            "apple_supply_chain",
+            "ev_supply_chain"
+          ]
+        },
+        {
+          "ticker": "2382",
+          "name": "廣達",
+          "note": "GB200 最大出貨者之一，Q1 過渡 GB300",
+          "multi_theme": [
+            "ai_pc_soc",
+            "apple_supply_chain"
+          ]
+        },
+        {
+          "ticker": "3231",
+          "name": "緯創",
+          "note": "大摩首選 GB 機櫃 ODM，2025 市佔約 21%",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6669",
+          "name": "緯穎",
+          "note": "緯創子公司、CSP 白牌伺服器龍頭",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "2356",
+          "name": "英業達",
+          "note": "L6/L10 伺服器代工、AI server 出貨量二線",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3706",
+          "name": "神達",
+          "note": "Mitac Computing 白牌 AI 伺服器追趕者",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2376",
+          "name": "技嘉",
+          "note": "品牌 AI 伺服器 G-series，直接出貨二線 CSP",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2324",
+          "name": "仁寶",
+          "note": "AI server 後進者、比重仍低於 NB",
+          "multi_theme": [
+            "ai_pc_soc"
+          ]
+        },
+        {
+          "ticker": "4938",
+          "name": "和碩",
+          "note": "AI server 追趕切入，純度低於 ODM 四雄",
+          "multi_theme": [
+            "ai_pc_soc",
+            "apple_supply_chain"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "Tier1 四雄與 tier2 追隨者共享 GB 供應鏈事件驅動；可做廣達 vs 英業達、緯創 vs 神達的背離配對。",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://money.udn.com/money/story/5607/9192745",
+        "https://news.cnyes.com/news/id/6213008"
+      ],
+      "confidence": 92
+    },
+    {
+      "theme_id": "ai_cooling",
+      "theme_name_zh": "AI 散熱",
+      "theme_name_en": "AI Cooling (Liquid / Air)",
+      "description": "AI 伺服器冷板、CDU、manifold、風扇、均熱板等熱管理元件。2026 液冷全面成為 GB300/VR200 標配。",
+      "tier1": [
+        {
+          "ticker": "3017",
+          "name": "奇鋐",
+          "note": "散熱龍頭，連 10 月營收創高、NVIDIA/AWS/Google/Meta 全涵蓋",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3324",
+          "name": "雙鴻",
+          "note": "冷板與液冷方案雙引擎、散熱雙雄之一",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2421",
+          "name": "建準",
+          "note": "風扇 + 水冷模組 / RPU / 風扇背牆 / 氣冷輔助液冷櫃",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "8996",
+          "name": "高力",
+          "note": "真空爐硬焊技術 + manifold 分歧管關鍵訂單",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3483",
+          "name": "力致",
+          "note": "水冷與浸沒式液冷方案、2026 量產",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6412",
+          "name": "群電",
+          "note": "散熱模組與風扇、AI server 切入中",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3338",
+          "name": "泰碩",
+          "note": "熱導管 / VC 均熱板，AI server 跟隨者",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6230",
+          "name": "尼得科超眾",
+          "note": "熱導管 / VC，AI server 出貨中",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "奇鋐與雙鴻資金聚焦，與二線有 lead-lag 配對空間。",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/5991433",
+        "https://www.my-finance.com.tw/tw/News_Detail/2234"
+      ],
+      "confidence": 90
+    },
+    {
+      "theme_id": "ai_power",
+      "theme_name_zh": "AI 伺服器電源",
+      "theme_name_en": "AI Server Power (PSU/BBU/HVDC)",
+      "description": "AI 伺服器電源供應器、BBU 備援電池模組、400V/800V HVDC 電源機櫃。NVIDIA 2027 推 800V 架構。",
+      "tier1": [
+        {
+          "ticker": "2308",
+          "name": "台達電",
+          "note": "全球最大 AI server PSU 供應商",
+          "multi_theme": [
+            "ev_supply_chain",
+            "robotics_automation"
+          ]
+        },
+        {
+          "ticker": "2301",
+          "name": "光寶科",
+          "note": "5.5kW PSU + BBU + 500kW 電源櫃",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "6282",
+          "name": "康舒",
+          "note": "金仁寶集團 PSU 三雄，AI server 2025Q3 量產",
+          "multi_theme": [
+            "ev_supply_chain"
+          ]
+        },
+        {
+          "ticker": "3015",
+          "name": "全漢",
+          "note": "中功率 PSU、AI server 追隨者",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3078",
+          "name": "僑威",
+          "note": "PSU 二線廠、AI server 切入中",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3211",
+          "name": "順達",
+          "note": "BBU 從 NB 轉型，2026 BBU 產能擴 2 倍",
+          "multi_theme": []
+        },
+        {
+          "ticker": "4931",
+          "name": "新盛力",
+          "note": "BBU 營收占比已達 50%、HVDC 受惠",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6781",
+          "name": "AES-KY",
+          "note": "高功率客製鋰電池 BBU、打入 NVIDIA GB200/300",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "台達電/光寶科與 BBU 三雄 訂單結構差異大，適合配對。",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://money.udn.com/money/story/5612/9109934",
+        "https://news.cnyes.com/news/id/6273304"
+      ],
+      "confidence": 88
+    },
+    {
+      "theme_id": "abf_substrate",
+      "theme_name_zh": "ABF / IC 載板",
+      "theme_name_en": "ABF / IC Substrate",
+      "description": "AI GPU / ASIC / 高速交換器用 ABF 載板。受惠 NVIDIA Rubin 與 800G 交換器需求放量。",
+      "tier1": [
+        {
+          "ticker": "3037",
+          "name": "欣興",
+          "note": "高階 ABF 布局最完整，涵蓋 GPU 與 ASIC",
+          "multi_theme": [
+            "cowos_advanced_package"
+          ]
+        },
+        {
+          "ticker": "8046",
+          "name": "南電",
+          "note": "800G 交換器 ABF 市佔高",
+          "multi_theme": [
+            "cowos_advanced_package"
+          ]
+        },
+        {
+          "ticker": "3189",
+          "name": "景碩",
+          "note": "受惠 NVIDIA Rubin 與 PC GPU 放量",
+          "multi_theme": [
+            "cowos_advanced_package"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "4958",
+          "name": "臻鼎-KY",
+          "note": "以軟板為主，HDI/MSAP/HLC 延伸題材",
+          "multi_theme": [
+            "apple_supply_chain"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": false,
+      "pair_divergence_note": "ABF 為三寡頭壟斷，tier2 純度不足，建議三雄互相配對。",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/6050727",
+        "https://money.udn.com/money/story/5607/8570593"
+      ],
+      "confidence": 90
+    },
+    {
+      "theme_id": "ccl",
+      "theme_name_zh": "CCL 銅箔基板",
+      "theme_name_en": "Copper Clad Laminate (CCL)",
+      "description": "PCB 原料高階銅箔基板，AI 伺服器主板 2026 由 M7/M8 升 M9，帶動 ASP 與用量雙成長。",
+      "tier1": [
+        {
+          "ticker": "2383",
+          "name": "台光電",
+          "note": "全球最大無鹵素 CCL、AI server / ASIC / 800G 交換器龍頭",
+          "multi_theme": [
+            "apple_supply_chain"
+          ]
+        },
+        {
+          "ticker": "6274",
+          "name": "台燿",
+          "note": "高階 M7+ 高速 CCL 龍頭",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6213",
+          "name": "聯茂",
+          "note": "全球第六大、台灣第二大 CCL",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "1815",
+          "name": "富喬",
+          "note": "Low Dk 玻纖布，CCL 上游 2025 營收 YoY +40%",
+          "multi_theme": []
+        },
+        {
+          "ticker": "1783",
+          "name": "德宏",
+          "note": "玻纖布廠、2025 漲幅 686%",
+          "multi_theme": []
+        },
+        {
+          "ticker": "5340",
+          "name": "建榮",
+          "note": "玻纖布廠、AI 伺服器 CCL 上游受惠",
+          "multi_theme": []
+        },
+        {
+          "ticker": "8358",
+          "name": "金居",
+          "note": "銅箔廠，HVLP 銅箔為高速 CCL 關鍵原料",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "CCL 三雄與玻纖/銅箔上游反映 AI 規格升級題材有時差。",
+      "liquidity_warnings": [
+        "1783",
+        "5340"
+      ],
+      "sources": [
+        "https://www.ctee.com.tw/news/20251206700151-439901",
+        "https://news.cnyes.com/news/id/5825550"
+      ],
+      "confidence": 87
+    },
+    {
+      "theme_id": "pcb_hard",
+      "theme_name_zh": "PCB 硬板（伺服器主板）",
+      "theme_name_en": "PCB Hard Board (Server Motherboard)",
+      "description": "AI 伺服器主板 / UBB / OAM 高多層 PCB（26-30 層），2026 AI server 單櫃 PCB 產值達 1980 美元。",
+      "tier1": [
+        {
+          "ticker": "2368",
+          "name": "金像電",
+          "note": "AI 伺服器主板龍頭、市佔持續擴大",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3044",
+          "name": "健鼎",
+          "note": "高多層板大廠、AI server PCB 供應主力",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2313",
+          "name": "華通",
+          "note": "AI 伺服器 + LEO 衛星雙引擎",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "3715",
+          "name": "定穎投控",
+          "note": "車用為主、AI server PCB 切入追隨",
+          "multi_theme": []
+        },
+        {
+          "ticker": "5469",
+          "name": "瀚宇博",
+          "note": "觀音廠擴 AI server PCB 製程能力、產能全滿",
+          "multi_theme": []
+        },
+        {
+          "ticker": "5289",
+          "name": "宜鼎",
+          "note": "工業應用 PCB / 儲存為主，AI 切入有限（待確認）",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2367",
+          "name": "燿華",
+          "note": "低軌衛星 + PCB 雙引擎，AI server 純度中等",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6476",
+          "name": "高技",
+          "note": "2025 資本支出 10 億擴多層高速板",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "金像電 (龍頭 UBB) vs 健鼎/華通 (二線高多層) 有典型龍二配對。",
+      "liquidity_warnings": [
+        "6476"
+      ],
+      "sources": [
+        "https://money.udn.com/money/story/5607/9213240",
+        "https://finance.technews.tw/2026/04/20/ai-pcb-design/"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "advanced_test",
+      "theme_name_zh": "先進封測（CoWoS 後段 / AI 測試）",
+      "theme_name_en": "Advanced Packaging & Test (CoWoS / AI Test)",
+      "description": "CoWoS 後段封測、AI GPU / TPU 測試、FoCoS 外溢代工。台積電 2026 CoWoS 月產能達 8 萬片。",
+      "tier1": [
+        {
+          "ticker": "3711",
+          "name": "日月光投控",
+          "note": "FoCoS 2026H2 量產、先進封裝 2026 營收 19 億美元",
+          "multi_theme": [
+            "apple_supply_chain",
+            "cowos_advanced_package"
+          ]
+        },
+        {
+          "ticker": "2449",
+          "name": "京元電子",
+          "note": "AI GPU 與 Google TPU 測試訂單，2026 營收 YoY +40%",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "6239",
+          "name": "力成",
+          "note": "記憶體封測龍頭、HBM 與 AI server 間接受惠",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6257",
+          "name": "矽格",
+          "note": "測試代工、AI chip 測試追隨者",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6147",
+          "name": "頎邦",
+          "note": "驅動 IC 封測為主，AI 純度較低",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3374",
+          "name": "精材",
+          "note": "CIS 晶圓級封裝，AI 純度低但屬先進封裝共振",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "日月光 (CoWoS 外溢) vs 京元電 (純 AI 測試) 具配對強度。",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/6255778",
+        "https://money.udn.com/money/story/5607/9112757"
+      ],
+      "confidence": 88
+    },
+    {
+      "theme_id": "semi_equipment",
+      "theme_name_zh": "半導體設備 / 測試耗材",
+      "theme_name_en": "Semi Equipment / Test Interface",
+      "description": "CoWoS / 先進封裝設備（濕製程、點膠、貼合）與 AI 晶圓測試探針卡。受 TSMC CoWoS 產能擴增帶動。",
+      "tier1": [
+        {
+          "ticker": "6515",
+          "name": "穎崴",
+          "note": "探針卡 + 測試介面，2025 前三季營收 +32%、毛利 49%",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6223",
+          "name": "旺矽",
+          "note": "MEMS 探針卡、AI GPU 晶圓測試主力",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6510",
+          "name": "中華精測",
+          "note": "高階探針卡、AI / HPC 晶片測試三雄之一",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "6683",
+          "name": "雍智",
+          "note": "Load Board 起家，延伸至晶圓前段探針卡",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3131",
+          "name": "弘塑",
+          "note": "TSMC CoWoS 濕製程設備，訂單排到 2026",
+          "multi_theme": [
+            "cowos_advanced_package"
+          ]
+        },
+        {
+          "ticker": "6187",
+          "name": "萬潤",
+          "note": "CoWoS 後段點膠 / 封膜 / 散熱貼合設備",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3583",
+          "name": "辛耘",
+          "note": "濕製程與貼合剝離中段設備",
+          "multi_theme": [
+            "cowos_advanced_package"
+          ]
+        },
+        {
+          "ticker": "3680",
+          "name": "家登",
+          "note": "EUV pod 與先進封裝載具，TSMC 擴產受惠",
+          "multi_theme": [
+            "cowos_advanced_package"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "探針卡三雄與 CoWoS 設備三傑事件驅動略異，但同受 TSMC 擴產共振。",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://www.ctee.com.tw/news/20260228700044-439901",
+        "https://money.udn.com/money/story/5612/9188169"
+      ],
+      "confidence": 87
+    },
+    {
+      "theme_id": "asic_design_service",
+      "theme_name_zh": "ASIC 設計服務",
+      "theme_name_en": "ASIC Design Service",
+      "description": "協助 CSP / 系統廠客製化晶片的設計服務公司（NRE + MP + IP 三段式營收），台廠三雄世芯 / 創意 / 智原為主流。",
+      "tier1": [
+        {
+          "ticker": "3443",
+          "name": "創意電子",
+          "note": "台積電轉投資，AI 營收占比 20%，切入 Tesla AI5 專案",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3661",
+          "name": "世芯-KY",
+          "note": "AWS Trainium 主要設計量產夥伴",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3035",
+          "name": "智原",
+          "note": "聯電轉投資，2026 有 1-2 個 FinFET ASIC 量產",
+          "multi_theme": [
+            "silicon_ip"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "2454",
+          "name": "聯發科",
+          "note": "主業手機 SoC，ASIC 為新興業務（Google TPU v7）",
+          "multi_theme": [
+            "ai_pc_soc",
+            "mobile_soc"
+          ]
+        },
+        {
+          "ticker": "6533",
+          "name": "晶心科",
+          "note": "提供 RISC-V CPU IP 與 SoC 平台設計服務",
+          "multi_theme": [
+            "silicon_ip"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "tier1 三檔業務純度皆高且有共同題材敘事，適合 pair divergence；聯發科為 multi-theme 參考股需注意",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/6262181",
+        "https://www.sinotrade.com.tw/richclub/hotstock/ASIC-6911950439ec3111657868d7"
+      ],
+      "confidence": 90
+    },
+    {
+      "theme_id": "bmc_ic",
+      "theme_name_zh": "BMC / AI 伺服器管理 IC",
+      "theme_name_en": "BMC / AI Server Management IC",
+      "description": "伺服器遠端管理（BMC）核心 SoC 與周邊電源 / 韌體供應商；信驊近乎壟斷（70-80% 市占），新唐為微軟 / Google 扶持的次要力量。",
+      "tier1": [
+        {
+          "ticker": "5274",
+          "name": "信驊",
+          "note": "全球 BMC 市占 70-80%，NVIDIA / AWS / Azure / Meta 主要供應商",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "4919",
+          "name": "新唐",
+          "note": "MCU 廠跨足 BMC，Microsoft SCM BMC 主要供應商",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6231",
+          "name": "系微",
+          "note": "UEFI / BMC firmware 供應商，AST2600/2700 相容",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "信驊壟斷但新唐有 Microsoft SCM / OpenTitan 獨立題材，可測 tier1 vs tier2 divergence",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://finance.technews.tw/2025/12/29/aspeedtech-bmc/",
+        "https://www.ctee.com.tw/news/20260422700158-439901"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "silicon_ip",
+      "theme_name_zh": "矽智財 / IP 授權",
+      "theme_name_en": "Silicon IP",
+      "description": "授權標準 IP 模組（eNVM / USB / SerDes / CPU core）給 IC 設計商收取權利金，毛利率最高的半導體細分領域。",
+      "tier1": [
+        {
+          "ticker": "3529",
+          "name": "力旺",
+          "note": "全球 Logic eNVM / OTP IP 龍頭，涵蓋 0.25um 至 4/5nm",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6643",
+          "name": "M31",
+          "note": "USB / PCIe / 基礎元件 IP，台積電 5nm 客戶採用",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6533",
+          "name": "晶心科",
+          "note": "台灣 RISC-V CPU IP 龍頭",
+          "multi_theme": [
+            "asic_design_service"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "3035",
+          "name": "智原",
+          "note": "IP 營收占比約 15%，IP + 設計服務混合業態",
+          "multi_theme": [
+            "asic_design_service"
+          ]
+        },
+        {
+          "ticker": "6531",
+          "name": "愛普",
+          "note": "記憶體 IP / 客製化 DRAM 解決方案",
+          "multi_theme": [
+            "hbm_memory"
+          ]
+        },
+        {
+          "ticker": "5351",
+          "name": "鈺創",
+          "note": "利基型 DRAM + MemoraiLink AI 記憶體 IP 平台",
+          "multi_theme": [
+            "hbm_memory"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "tier1 三檔業務差異大（eNVM / 介面 IP / CPU IP）但常共振，tier2 業務純度較雜",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/4686915",
+        "https://wantrich.chinatimes.com/news/20251103900296-420101"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "cowos_advanced_package",
+      "theme_name_zh": "CoWoS 先進封裝",
+      "theme_name_en": "CoWoS Advanced Packaging",
+      "description": "台積電 2.5D/3D 先進封裝（CoWoS / SoIC / CoPoS）產業鏈，涵蓋代工、ABF 載板、封裝測試、設備與耗材。",
+      "tier1": [
+        {
+          "ticker": "2330",
+          "name": "台積電",
+          "note": "CoWoS 技術提供者，2026 月產能目標 11-14 萬片",
+          "multi_theme": [
+            "apple_supply_chain"
+          ]
+        },
+        {
+          "ticker": "3037",
+          "name": "欣興",
+          "note": "ABF 載板三雄之一，AI 伺服器 GPU / ASIC 主要供應",
+          "multi_theme": [
+            "abf_substrate"
+          ]
+        },
+        {
+          "ticker": "8046",
+          "name": "南電",
+          "note": "ABF 載板三雄之一，800G 交換器市占高",
+          "multi_theme": [
+            "abf_substrate"
+          ]
+        },
+        {
+          "ticker": "3711",
+          "name": "日月光投控",
+          "note": "CoWoS 外包主要承接廠，月產能 3-4 萬片",
+          "multi_theme": [
+            "advanced_test",
+            "apple_supply_chain"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "3189",
+          "name": "景碩",
+          "note": "ABF 載板三雄之三，PC GPU / NVIDIA Rubin 受惠",
+          "multi_theme": [
+            "abf_substrate"
+          ]
+        },
+        {
+          "ticker": "3131",
+          "name": "弘塑",
+          "note": "CoWoS 濕製程設備，CoPoS 首波供應鏈",
+          "multi_theme": [
+            "semi_equipment"
+          ]
+        },
+        {
+          "ticker": "3583",
+          "name": "辛耘",
+          "note": "CoWoS / CoPoS 濕製程設備供應商",
+          "multi_theme": [
+            "semi_equipment"
+          ]
+        },
+        {
+          "ticker": "3680",
+          "name": "家登",
+          "note": "EUV 光罩盒與晶圓載具，CoPoS 首波供應鏈",
+          "multi_theme": [
+            "semi_equipment"
+          ]
+        },
+        {
+          "ticker": "2467",
+          "name": "志聖",
+          "note": "貼模設備，CoPoS 供應鏈",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6641",
+          "name": "基士德-KY",
+          "note": "先進封裝設備周邊",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "ABF 載板三雄彼此是最佳 pair 組合；設備股可內部配對（弘塑 vs 辛耘）",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/6010890",
+        "https://money.udn.com/money/story/5607/9252307"
+      ],
+      "confidence": 88
+    },
+    {
+      "theme_id": "hbm_memory",
+      "theme_name_zh": "HBM / 先進記憶體概念",
+      "theme_name_en": "HBM / Advanced Memory Concept",
+      "description": "台灣沒有真正的 HBM 製造商（SK Hynix / Samsung / Micron 壟斷全球 HBM），但有受惠於 HBM 產能排擠 DDR5 的二線 DRAM / 利基型記憶體。",
+      "tier1": [
+        {
+          "ticker": "2408",
+          "name": "南亞科",
+          "note": "台塑集團 DRAM 大廠，與鈺創合資開發客製化 HBM",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2344",
+          "name": "華邦電",
+          "note": "利基型 DRAM + LPDDR 龍頭，邊緣 AI 受惠",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "5351",
+          "name": "鈺創",
+          "note": "MemoraiLink AI 記憶體 IP 平台",
+          "multi_theme": [
+            "silicon_ip"
+          ]
+        },
+        {
+          "ticker": "6531",
+          "name": "愛普",
+          "note": "記憶體 IP + 3D 堆疊封裝方案",
+          "multi_theme": [
+            "silicon_ip"
+          ]
+        },
+        {
+          "ticker": "6770",
+          "name": "力積電",
+          "note": "DRAM 代工 + 3D 堆疊技術",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2337",
+          "name": "旺宏",
+          "note": "NOR Flash + 3D NAND，DDR4 降評但有替代機會",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "誠實標註：台灣非真 HBM 製造商，是『DRAM 受 HBM 擠壓題材』",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/5601025",
+        "https://finance.technews.tw/2025/08/07/nanya-technology-and-etron-establish-a-joint-venture-with-500-million-yuan/"
+      ],
+      "confidence": 75
+    },
+    {
+      "theme_id": "mobile_soc",
+      "theme_name_zh": "手機 SoC",
+      "theme_name_en": "Mobile SoC",
+      "description": "5G / 4G 智慧型手機應用處理器（AP）設計，台灣 tier1 只有聯發科一家全球規模廠商。",
+      "tier1": [
+        {
+          "ticker": "2454",
+          "name": "聯發科",
+          "note": "全球手機 SoC 市占龍頭，天璣 9400 旗艦",
+          "multi_theme": [
+            "ai_pc_soc",
+            "asic_design_service"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "3034",
+          "name": "聯詠",
+          "note": "中低階手機 SoC + 顯示驅動 IC，部分重疊但主業不同",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": false,
+      "pair_divergence_note": "聯發科在台股手機 SoC 幾乎無可比公司，本題材不建議做 pair divergence",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://www.bnext.com.tw/article/80779/mediatek-dimensity-9400-launch"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "ai_pc_soc",
+      "theme_name_zh": "AI PC SoC",
+      "theme_name_en": "AI PC SoC",
+      "description": "Copilot+ PC / ARM Windows AI PC 應用處理器（NPU > 40 TOPS）；台灣真正做 SoC 的只有聯發科（與 NVIDIA 合作 N1/N1X），其他為 NB 品牌 / ODM 受惠股。",
+      "tier1": [
+        {
+          "ticker": "2454",
+          "name": "聯發科",
+          "note": "與 NVIDIA Blackwell 合作 N1/N1X AI PC SoC，2026 上市",
+          "multi_theme": [
+            "asic_design_service",
+            "mobile_soc"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "2382",
+          "name": "廣達",
+          "note": "NB ODM 龍頭，Copilot+ PC 主要組裝廠",
+          "multi_theme": [
+            "ai_server_odm",
+            "apple_supply_chain"
+          ]
+        },
+        {
+          "ticker": "4938",
+          "name": "和碩",
+          "note": "NB ODM，Copilot+ PC 組裝受惠",
+          "multi_theme": [
+            "ai_server_odm",
+            "apple_supply_chain"
+          ]
+        },
+        {
+          "ticker": "2357",
+          "name": "華碩",
+          "note": "NB 品牌廠，Copilot+ PC 首批推出品牌",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2353",
+          "name": "宏碁",
+          "note": "NB 品牌廠，Snapdragon X / Copilot+ PC 首批",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2324",
+          "name": "仁寶",
+          "note": "NB ODM，Snapdragon X 陣營組裝",
+          "multi_theme": [
+            "ai_server_odm"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": false,
+      "pair_divergence_note": "台股 AI PC SoC 設計端只有聯發科，tier2 全是 NB ODM / 品牌（非 SoC 本業），題材純度不一致",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://cmnews.com.tw/article/cmoney-80065491-31fd-11f0-b9d3-089fa8833098",
+        "https://www.sinotrade.com.tw/richclub/hotstock/AI-PC-6659676a76821c21681a4ed4"
+      ],
+      "confidence": 78
+    },
+    {
+      "theme_id": "cpo_optical",
+      "theme_name_zh": "CPO 矽光子 / 光通訊",
+      "theme_name_en": "CPO Silicon Photonics / Optical Communications",
+      "description": "AI 資料中心銅線傳輸撞功耗散熱牆，2026 進入 CPO 共封裝光學商轉元年，800G/1.6T 光引擎 / 光收發模組 / FAU 連接 / CW 雷射為核心供應鏈。",
+      "tier1": [
+        {
+          "ticker": "2345",
+          "name": "智邦",
+          "note": "AI 交換器龍頭受惠 800G CPO 整合",
+          "multi_theme": [
+            "networking_5g"
+          ]
+        },
+        {
+          "ticker": "4979",
+          "name": "華星光",
+          "note": "矽光子光引擎主力，切入 NVIDIA 800G/1.6T",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3081",
+          "name": "聯亞",
+          "note": "磷化銦 CW 雷射材料少數廠",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3363",
+          "name": "上詮",
+          "note": "TSMC 矽光子聯盟核心 FAU 光纖陣列",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3163",
+          "name": "波若威",
+          "note": "高階光纖分配盒切入 NVIDIA/Google",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "3450",
+          "name": "聯鈞",
+          "note": "光通訊雷射二極體封裝測試",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6451",
+          "name": "訊芯-KY",
+          "note": "與 Broadcom 合作 CPO 封裝架構",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2455",
+          "name": "全新",
+          "note": "砷化鎵/磷化銦磊晶，CPO 雷射源材料",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6715",
+          "name": "嘉基",
+          "note": "光通訊模組，2028 CPO scale-up 潛在受惠",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3402",
+          "name": "漢科",
+          "note": "矽光子製程設備周邊",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6863",
+          "name": "永道-KY",
+          "note": "光纖跳接線二線追隨",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "一線龍頭智邦 4979 華星光 聯亞 vs 二線上詮 波若威 聯鈞，tier1 同題材連動強",
+      "liquidity_warnings": [
+        "3363",
+        "3163",
+        "3450",
+        "6451",
+        "6715",
+        "3402",
+        "6863"
+      ],
+      "sources": [
+        "https://www.sinotrade.com.tw/richclub/industry/2026%E5%B9%B4CPO%E5%85%89%E9%80%9A%E8%A8%8A%E5%95%86%E8%BD%89%E5%85%83%E5%B9%B4-693905de70acc6429c330a23",
+        "https://wantrich.chinatimes.com/news/20251230900419-420101"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "apple_supply_chain",
+      "theme_name_zh": "Apple 蘋果供應鏈",
+      "theme_name_en": "Apple Supply Chain",
+      "description": "iPhone/iPad/Mac 代工組裝 + 關鍵零組件(鏡頭/PCB/散熱/金屬機殼/連接器)。2026 蘋果摺疊 iPhone 上市為焦點。",
+      "tier1": [
+        {
+          "ticker": "2317",
+          "name": "鴻海",
+          "note": "iPhone 主要組裝廠，Apple 營收佔比最高台廠",
+          "multi_theme": [
+            "ai_server_odm",
+            "ev_supply_chain"
+          ]
+        },
+        {
+          "ticker": "2330",
+          "name": "台積電",
+          "note": "A 系列 / M 系列晶片獨家代工，Apple 最大單一客戶",
+          "multi_theme": [
+            "cowos_advanced_package"
+          ]
+        },
+        {
+          "ticker": "3008",
+          "name": "大立光",
+          "note": "iPhone 主鏡頭核心供應商，潛望式長焦主力",
+          "multi_theme": [
+            "optical_lens"
+          ]
+        },
+        {
+          "ticker": "4958",
+          "name": "臻鼎-KY",
+          "note": "iPhone 軟板 PCB 核心供應商",
+          "multi_theme": [
+            "abf_substrate"
+          ]
+        },
+        {
+          "ticker": "2383",
+          "name": "台光電",
+          "note": "高階 CCL/PCB 材料，AI / iPhone 雙題材",
+          "multi_theme": [
+            "ccl"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "4938",
+          "name": "和碩",
+          "note": "iPhone 中低階機種組裝第二大",
+          "multi_theme": [
+            "ai_pc_soc",
+            "ai_server_odm"
+          ]
+        },
+        {
+          "ticker": "2382",
+          "name": "廣達",
+          "note": "Mac / MacBook 主要組裝",
+          "multi_theme": [
+            "ai_pc_soc",
+            "ai_server_odm"
+          ]
+        },
+        {
+          "ticker": "2474",
+          "name": "可成",
+          "note": "iPhone 金屬機殼供應商",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2354",
+          "name": "鴻準",
+          "note": "iPhone 金屬機殼 + 散熱模組",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3711",
+          "name": "日月光投控",
+          "note": "Apple 晶片封測主力",
+          "multi_theme": [
+            "advanced_test",
+            "cowos_advanced_package"
+          ]
+        },
+        {
+          "ticker": "6269",
+          "name": "台郡",
+          "note": "iPhone 軟板二線，MPI 天線",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3406",
+          "name": "玉晶光",
+          "note": "iPhone 前鏡頭 + 稜鏡模組",
+          "multi_theme": [
+            "optical_lens"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "Tier1 鴻海 台積電屬巨型權值，與 tier2 連動低；建議相同層級內做 pair",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://money.udn.com/money/story/5607/9364367",
+        "https://www.stockfeel.com.tw/%E8%98%8B%E6%9E%9C%E6%A6%82%E5%BF%B5%E8%82%A1-%E6%87%B6%E4%BA%BA%E5%8C%85-%E8%98%8B%E6%9E%9C%E4%BE%9B%E6%87%89%E9%8F%88-apple/"
+      ],
+      "confidence": 90
+    },
+    {
+      "theme_id": "networking_5g",
+      "theme_name_zh": "網通 / 5G 基礎建設",
+      "theme_name_en": "Networking / 5G Infrastructure",
+      "description": "企業交換器 / 資料中心網路 / WiFi 7 CPE / 5G FWA / 光纖寬頻 / 低軌衛星地面設備。",
+      "tier1": [
+        {
+          "ticker": "2345",
+          "name": "智邦",
+          "note": "AI 資料中心 400G/800G 交換器全球前三",
+          "multi_theme": [
+            "cpo_optical"
+          ]
+        },
+        {
+          "ticker": "6285",
+          "name": "啟碁",
+          "note": "Starlink 用戶終端主要供應 + 5G FWA + 企業網通",
+          "multi_theme": []
+        },
+        {
+          "ticker": "5388",
+          "name": "中磊",
+          "note": "北美光纖寬頻升級 CPE 主力",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3596",
+          "name": "智易",
+          "note": "光纖 CPE 搶進北美一級電信",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "3380",
+          "name": "明泰",
+          "note": "DOCSIS 4.0 + WiFi 7 2026 雙倍成長",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2419",
+          "name": "仲琦",
+          "note": "明泰子公司，cable modem 出貨高成長",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3491",
+          "name": "昇達科",
+          "note": "低軌衛星波導管龍頭 + 6G 毫米波",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2316",
+          "name": "楠梓電",
+          "note": "網通 PCB 二線追隨",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2332",
+          "name": "友訊",
+          "note": "消費性網通品牌，二線",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6142",
+          "name": "友勁",
+          "note": "WiFi 模組二線追隨",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "智邦屬 AI 交換器主題與 CPE 三虎 節奏分離",
+      "liquidity_warnings": [
+        "2419",
+        "3491",
+        "2316",
+        "2332",
+        "6142"
+      ],
+      "sources": [
+        "https://wantrich.chinatimes.com/news/20251031900003-420101",
+        "https://www.wealth.com.tw/articles/b4caca02-e38d-4e56-8add-e5a08dac382e"
+      ],
+      "confidence": 88
+    },
+    {
+      "theme_id": "ev_supply_chain",
+      "theme_name_zh": "EV 電動車供應鏈",
+      "theme_name_en": "EV Supply Chain (Tesla / MIH)",
+      "description": "Tesla 核心供應鏈 + 鴻海 MIH 電動車聯盟 + 2026 Cybercab 量產起步。Tesla Optimus 與 EV 供應鏈大量重疊。",
+      "tier1": [
+        {
+          "ticker": "2317",
+          "name": "鴻海",
+          "note": "MIH 電動車聯盟主導 + 多家國際 EV 代工合作",
+          "multi_theme": [
+            "ai_server_odm",
+            "apple_supply_chain"
+          ]
+        },
+        {
+          "ticker": "3665",
+          "name": "貿聯-KY",
+          "note": "Tesla 連接線束全球領導廠",
+          "multi_theme": []
+        },
+        {
+          "ticker": "1536",
+          "name": "和大",
+          "note": "世界最大汽車齒輪廠，切入 Tesla Optimus 減速機",
+          "multi_theme": [
+            "robotics_automation"
+          ]
+        },
+        {
+          "ticker": "2308",
+          "name": "台達電",
+          "note": "電動車 OBC/DCDC 車用電源 + 充電樁龍頭",
+          "multi_theme": [
+            "ai_power",
+            "robotics_automation"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "6670",
+          "name": "復盛應用",
+          "note": "Tesla 底盤鍛造件",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6288",
+          "name": "聯嘉",
+          "note": "Tesla Cybertruck 前燈模組 LED",
+          "multi_theme": []
+        },
+        {
+          "ticker": "8255",
+          "name": "朋程",
+          "note": "車用整流二極體 / IGBT 與強茂合作",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2328",
+          "name": "廣宇",
+          "note": "鴻海旗下連接器",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3552",
+          "name": "同致",
+          "note": "車用電子 / 倒車雷達",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6282",
+          "name": "康舒",
+          "note": "EV 充電 / 電源模組",
+          "multi_theme": [
+            "ai_power"
+          ]
+        },
+        {
+          "ticker": "4534",
+          "name": "慶騰",
+          "note": "汽車傳動軸",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "鴻海權值股與 tier2 連動弱；貿聯 vs 和大 為 Tesla 雙強 pair",
+      "liquidity_warnings": [
+        "6670",
+        "6288",
+        "2328",
+        "3552",
+        "4534"
+      ],
+      "sources": [
+        "https://roo.cash/blog/tesla-supply-chain-partners/",
+        "https://money.udn.com/money/story/5612/8314612"
+      ],
+      "confidence": 82
+    },
+    {
+      "theme_id": "sic_third_gen_semi",
+      "theme_name_zh": "SiC 第三代半導體",
+      "theme_name_en": "SiC Third Generation Semiconductor",
+      "description": "碳化矽功率元件應用於 EV 逆變器 / AI 電源 / 快充。2026 Wolfspeed 重整台廠迎轉單。",
+      "tier1": [
+        {
+          "ticker": "6488",
+          "name": "環球晶",
+          "note": "全球第三大矽晶圓廠，6/8 吋 SiC 基板領先",
+          "multi_theme": [
+            "silicon_wafer"
+          ]
+        },
+        {
+          "ticker": "3707",
+          "name": "漢磊",
+          "note": "SiC 晶圓代工 + 平面型 MOSFET 製程",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3016",
+          "name": "嘉晶",
+          "note": "中美晶集團 Si/SiC/GaN 磊晶完整布局",
+          "multi_theme": [
+            "silicon_wafer"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "2481",
+          "name": "強茂",
+          "note": "SiC 二極體 / MOSFET",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2342",
+          "name": "茂矽",
+          "note": "SiC 功率元件，標準型轉第三代",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6706",
+          "name": "盛新材料",
+          "note": "太極旗下 SiC 基板",
+          "multi_theme": []
+        },
+        {
+          "ticker": "4934",
+          "name": "太極",
+          "note": "旗下盛新材料 SiC 基板布局",
+          "multi_theme": []
+        },
+        {
+          "ticker": "1560",
+          "name": "中砂",
+          "note": "與矽力合資穩晟 SiC 基板",
+          "multi_theme": []
+        },
+        {
+          "ticker": "8121",
+          "name": "越峰",
+          "note": "碳化矽磨料二線",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "漢磊 vs 嘉晶 為 SiC 磊晶雙強 pair",
+      "liquidity_warnings": [
+        "2481",
+        "2342",
+        "6706",
+        "1560",
+        "8121"
+      ],
+      "sources": [
+        "https://news.cnyes.com/news/id/6199189",
+        "https://wantrich.chinatimes.com/news/20250917900004-420101"
+      ],
+      "confidence": 87
+    },
+    {
+      "theme_id": "silicon_wafer",
+      "theme_name_zh": "矽晶圓",
+      "theme_name_en": "Silicon Wafer",
+      "description": "12 吋先進製程 + SOI + GaN + 8 吋車用 / 工控功率。2026 AI 需求推升 12 吋產能利用率。",
+      "tier1": [
+        {
+          "ticker": "6488",
+          "name": "環球晶",
+          "note": "全球第三大矽晶圓廠，12 吋 + SiC 雙軌",
+          "multi_theme": [
+            "sic_third_gen_semi"
+          ]
+        },
+        {
+          "ticker": "5483",
+          "name": "中美晶",
+          "note": "環球晶母公司 + 太陽能",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3532",
+          "name": "台勝科",
+          "note": "勝高(SUMCO)台灣子公司，12 吋長約包光",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6182",
+          "name": "合晶",
+          "note": "6/8 吋為主 + 12 吋擴產",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "3016",
+          "name": "嘉晶",
+          "note": "中美晶集團磊晶",
+          "multi_theme": [
+            "sic_third_gen_semi"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "矽晶圓四雄連動性高常同漲同跌",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/4811211",
+        "https://udn.com/news/story/7251/9433352"
+      ],
+      "confidence": 83
+    },
+    {
+      "theme_id": "optical_lens",
+      "theme_name_zh": "光學元件 / 鏡頭",
+      "theme_name_en": "Optical Lens & Components",
+      "description": "手機鏡頭 + 車用 ADAS + AR/VR + 機器人之眼多線並進。大立光 / 玉晶光為光學雙雄。",
+      "tier1": [
+        {
+          "ticker": "3008",
+          "name": "大立光",
+          "note": "手機鏡頭全球龍頭，潛望式 + 稜鏡切入 CPO",
+          "multi_theme": [
+            "apple_supply_chain"
+          ]
+        },
+        {
+          "ticker": "3406",
+          "name": "玉晶光",
+          "note": "iPhone 前鏡頭 + PIC 塑膠元件切入矽光子",
+          "multi_theme": [
+            "apple_supply_chain"
+          ]
+        },
+        {
+          "ticker": "3019",
+          "name": "亞光",
+          "note": "Tesla 人形機器人之眼供應鏈",
+          "multi_theme": [
+            "robotics_automation"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "6209",
+          "name": "今國光",
+          "note": "紅外熱像鏡頭 1 月出貨 +70%",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3362",
+          "name": "先進光",
+          "note": "車用 ADAS 鏡頭模組",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6291",
+          "name": "佳能",
+          "note": "機器人之眼熱門股",
+          "multi_theme": []
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "大立光 vs 玉晶光 連動極高；建議雙雄 vs 亞光 / 佳能(機器人之眼) 題材分流",
+      "liquidity_warnings": [
+        "6209",
+        "3362",
+        "6291"
+      ],
+      "sources": [
+        "https://wantrich.chinatimes.com/news/20260109900218-420101"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "robotics_automation",
+      "theme_name_zh": "機器人 / 自動化",
+      "theme_name_en": "Robotics / Industrial Automation",
+      "description": "2026 實體 AI (Physical AI) 量產元年，NVIDIA/Tesla Optimus/現代人形機器人推進。台廠以零組件為主。",
+      "tier1": [
+        {
+          "ticker": "2049",
+          "name": "上銀",
+          "note": "線性滑軌 / 滾珠螺桿全球龍頭",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2308",
+          "name": "台達電",
+          "note": "馬達 / 驅動 / 電控系統整合",
+          "multi_theme": [
+            "ai_power",
+            "ev_supply_chain"
+          ]
+        },
+        {
+          "ticker": "2395",
+          "name": "研華",
+          "note": "工業電腦 + 邊緣 AI 機器人控制器",
+          "multi_theme": []
+        },
+        {
+          "ticker": "1536",
+          "name": "和大",
+          "note": "Tesla Optimus 行星減速機供應 + 盟英諧波減速機",
+          "multi_theme": [
+            "ev_supply_chain"
+          ]
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "2464",
+          "name": "盟立",
+          "note": "半導體 AMHS + 諧波減速機布局",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6215",
+          "name": "和椿",
+          "note": "自動化零組件 + 人形機器人",
+          "multi_theme": []
+        },
+        {
+          "ticker": "2359",
+          "name": "所羅門",
+          "note": "AI 機器視覺系統整合",
+          "multi_theme": []
+        },
+        {
+          "ticker": "1504",
+          "name": "東元",
+          "note": "馬達 / 驅動，工業機器人基礎",
+          "multi_theme": []
+        },
+        {
+          "ticker": "8374",
+          "name": "羅昇",
+          "note": "自動化傳動代理 + 機器人零件",
+          "multi_theme": []
+        },
+        {
+          "ticker": "6525",
+          "name": "捷敏-KY",
+          "note": "機器人功率模組",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3019",
+          "name": "亞光",
+          "note": "Tesla Optimus 機器人之眼鏡頭",
+          "multi_theme": [
+            "optical_lens"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "上銀 / 台達電 大型權值 vs tier2 小型題材股，divergence 空間最大",
+      "liquidity_warnings": [
+        "6215",
+        "2359",
+        "8374",
+        "6525"
+      ],
+      "sources": [
+        "https://cmnews.com.tw/article/cmoney-01e8e008-f4e4-11f0-a4aa-0b8660d92799",
+        "https://money.udn.com/money/story/5612/8627193"
+      ],
+      "confidence": 85
+    }
+  ]
+}

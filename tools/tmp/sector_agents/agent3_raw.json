@@ -1,0 +1,224 @@
+{
+  "agent": "Agent3_PeripheralThemes",
+  "generated_at": "2026-04-24",
+  "themes": [
+    {
+      "theme_id": "cpo_optical",
+      "theme_name_zh": "CPO 矽光子 / 光通訊",
+      "theme_name_en": "CPO Silicon Photonics / Optical Communications",
+      "description": "AI 資料中心銅線傳輸撞功耗散熱牆，2026 進入 CPO 共封裝光學商轉元年，800G/1.6T 光引擎 / 光收發模組 / FAU 連接 / CW 雷射為核心供應鏈。",
+      "tier1": [
+        {"ticker": "2345", "name": "智邦", "note": "AI 交換器龍頭受惠 800G CPO 整合", "multi_theme": []},
+        {"ticker": "4979", "name": "華星光", "note": "矽光子光引擎主力，切入 NVIDIA 800G/1.6T", "multi_theme": []},
+        {"ticker": "3081", "name": "聯亞", "note": "磷化銦 CW 雷射材料少數廠", "multi_theme": []},
+        {"ticker": "3363", "name": "上詮", "note": "TSMC 矽光子聯盟核心 FAU 光纖陣列", "multi_theme": []},
+        {"ticker": "3163", "name": "波若威", "note": "高階光纖分配盒切入 NVIDIA/Google", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "3450", "name": "聯鈞", "note": "光通訊雷射二極體封裝測試", "multi_theme": []},
+        {"ticker": "6451", "name": "訊芯-KY", "note": "與 Broadcom 合作 CPO 封裝架構", "multi_theme": []},
+        {"ticker": "2455", "name": "全新", "note": "砷化鎵/磷化銦磊晶，CPO 雷射源材料", "multi_theme": []},
+        {"ticker": "6715", "name": "嘉基", "note": "光通訊模組，2028 CPO scale-up 潛在受惠", "multi_theme": []},
+        {"ticker": "3402", "name": "漢科", "note": "矽光子製程設備周邊", "multi_theme": []},
+        {"ticker": "6863", "name": "永道-KY", "note": "光纖跳接線二線追隨", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "一線龍頭智邦 4979 華星光 聯亞 vs 二線上詮 波若威 聯鈞，tier1 同題材連動強",
+      "liquidity_warnings": ["3363", "3163", "3450", "6451", "6715", "3402", "6863"],
+      "sources": [
+        "https://www.sinotrade.com.tw/richclub/industry/2026%E5%B9%B4CPO%E5%85%89%E9%80%9A%E8%A8%8A%E5%95%86%E8%BD%89%E5%85%83%E5%B9%B4-693905de70acc6429c330a23",
+        "https://wantrich.chinatimes.com/news/20251230900419-420101"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "apple_supply_chain",
+      "theme_name_zh": "Apple 蘋果供應鏈",
+      "theme_name_en": "Apple Supply Chain",
+      "description": "iPhone/iPad/Mac 代工組裝 + 關鍵零組件(鏡頭/PCB/散熱/金屬機殼/連接器)。2026 蘋果摺疊 iPhone 上市為焦點。",
+      "tier1": [
+        {"ticker": "2317", "name": "鴻海", "note": "iPhone 主要組裝廠，Apple 營收佔比最高台廠", "multi_theme": []},
+        {"ticker": "2330", "name": "台積電", "note": "A 系列 / M 系列晶片獨家代工，Apple 最大單一客戶", "multi_theme": []},
+        {"ticker": "3008", "name": "大立光", "note": "iPhone 主鏡頭核心供應商，潛望式長焦主力", "multi_theme": []},
+        {"ticker": "4958", "name": "臻鼎-KY", "note": "iPhone 軟板 PCB 核心供應商", "multi_theme": []},
+        {"ticker": "2383", "name": "台光電", "note": "高階 CCL/PCB 材料，AI / iPhone 雙題材", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "4938", "name": "和碩", "note": "iPhone 中低階機種組裝第二大", "multi_theme": []},
+        {"ticker": "2382", "name": "廣達", "note": "Mac / MacBook 主要組裝", "multi_theme": []},
+        {"ticker": "2474", "name": "可成", "note": "iPhone 金屬機殼供應商", "multi_theme": []},
+        {"ticker": "2354", "name": "鴻準", "note": "iPhone 金屬機殼 + 散熱模組", "multi_theme": []},
+        {"ticker": "3711", "name": "日月光投控", "note": "Apple 晶片封測主力", "multi_theme": []},
+        {"ticker": "6269", "name": "台郡", "note": "iPhone 軟板二線，MPI 天線", "multi_theme": []},
+        {"ticker": "3406", "name": "玉晶光", "note": "iPhone 前鏡頭 + 稜鏡模組", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "Tier1 鴻海 台積電屬巨型權值，與 tier2 連動低；建議相同層級內做 pair",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://money.udn.com/money/story/5607/9364367",
+        "https://www.stockfeel.com.tw/%E8%98%8B%E6%9E%9C%E6%A6%82%E5%BF%B5%E8%82%A1-%E6%87%B6%E4%BA%BA%E5%8C%85-%E8%98%8B%E6%9E%9C%E4%BE%9B%E6%87%89%E9%8F%88-apple/"
+      ],
+      "confidence": 90
+    },
+    {
+      "theme_id": "networking_5g",
+      "theme_name_zh": "網通 / 5G 基礎建設",
+      "theme_name_en": "Networking / 5G Infrastructure",
+      "description": "企業交換器 / 資料中心網路 / WiFi 7 CPE / 5G FWA / 光纖寬頻 / 低軌衛星地面設備。",
+      "tier1": [
+        {"ticker": "2345", "name": "智邦", "note": "AI 資料中心 400G/800G 交換器全球前三", "multi_theme": []},
+        {"ticker": "6285", "name": "啟碁", "note": "Starlink 用戶終端主要供應 + 5G FWA + 企業網通", "multi_theme": []},
+        {"ticker": "5388", "name": "中磊", "note": "北美光纖寬頻升級 CPE 主力", "multi_theme": []},
+        {"ticker": "3596", "name": "智易", "note": "光纖 CPE 搶進北美一級電信", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "3380", "name": "明泰", "note": "DOCSIS 4.0 + WiFi 7 2026 雙倍成長", "multi_theme": []},
+        {"ticker": "2419", "name": "仲琦", "note": "明泰子公司，cable modem 出貨高成長", "multi_theme": []},
+        {"ticker": "3491", "name": "昇達科", "note": "低軌衛星波導管龍頭 + 6G 毫米波", "multi_theme": []},
+        {"ticker": "2316", "name": "楠梓電", "note": "網通 PCB 二線追隨", "multi_theme": []},
+        {"ticker": "2332", "name": "友訊", "note": "消費性網通品牌，二線", "multi_theme": []},
+        {"ticker": "6142", "name": "友勁", "note": "WiFi 模組二線追隨", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "智邦屬 AI 交換器主題與 CPE 三虎 節奏分離",
+      "liquidity_warnings": ["2419", "3491", "2316", "2332", "6142"],
+      "sources": [
+        "https://wantrich.chinatimes.com/news/20251031900003-420101",
+        "https://www.wealth.com.tw/articles/b4caca02-e38d-4e56-8add-e5a08dac382e"
+      ],
+      "confidence": 88
+    },
+    {
+      "theme_id": "ev_supply_chain",
+      "theme_name_zh": "EV 電動車供應鏈",
+      "theme_name_en": "EV Supply Chain (Tesla / MIH)",
+      "description": "Tesla 核心供應鏈 + 鴻海 MIH 電動車聯盟 + 2026 Cybercab 量產起步。Tesla Optimus 與 EV 供應鏈大量重疊。",
+      "tier1": [
+        {"ticker": "2317", "name": "鴻海", "note": "MIH 電動車聯盟主導 + 多家國際 EV 代工合作", "multi_theme": []},
+        {"ticker": "3665", "name": "貿聯-KY", "note": "Tesla 連接線束全球領導廠", "multi_theme": []},
+        {"ticker": "1536", "name": "和大", "note": "世界最大汽車齒輪廠，切入 Tesla Optimus 減速機", "multi_theme": []},
+        {"ticker": "2308", "name": "台達電", "note": "電動車 OBC/DCDC 車用電源 + 充電樁龍頭", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "6670", "name": "復盛應用", "note": "Tesla 底盤鍛造件", "multi_theme": []},
+        {"ticker": "6288", "name": "聯嘉", "note": "Tesla Cybertruck 前燈模組 LED", "multi_theme": []},
+        {"ticker": "8255", "name": "朋程", "note": "車用整流二極體 / IGBT 與強茂合作", "multi_theme": []},
+        {"ticker": "2328", "name": "廣宇", "note": "鴻海旗下連接器", "multi_theme": []},
+        {"ticker": "3552", "name": "同致", "note": "車用電子 / 倒車雷達", "multi_theme": []},
+        {"ticker": "6282", "name": "康舒", "note": "EV 充電 / 電源模組", "multi_theme": []},
+        {"ticker": "4534", "name": "慶騰", "note": "汽車傳動軸", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "鴻海權值股與 tier2 連動弱；貿聯 vs 和大 為 Tesla 雙強 pair",
+      "liquidity_warnings": ["6670", "6288", "2328", "3552", "4534"],
+      "sources": [
+        "https://roo.cash/blog/tesla-supply-chain-partners/",
+        "https://money.udn.com/money/story/5612/8314612"
+      ],
+      "confidence": 82
+    },
+    {
+      "theme_id": "sic_third_gen_semi",
+      "theme_name_zh": "SiC 第三代半導體",
+      "theme_name_en": "SiC Third Generation Semiconductor",
+      "description": "碳化矽功率元件應用於 EV 逆變器 / AI 電源 / 快充。2026 Wolfspeed 重整台廠迎轉單。",
+      "tier1": [
+        {"ticker": "6488", "name": "環球晶", "note": "全球第三大矽晶圓廠，6/8 吋 SiC 基板領先", "multi_theme": []},
+        {"ticker": "3707", "name": "漢磊", "note": "SiC 晶圓代工 + 平面型 MOSFET 製程", "multi_theme": []},
+        {"ticker": "3016", "name": "嘉晶", "note": "中美晶集團 Si/SiC/GaN 磊晶完整布局", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "2481", "name": "強茂", "note": "SiC 二極體 / MOSFET", "multi_theme": []},
+        {"ticker": "2342", "name": "茂矽", "note": "SiC 功率元件，標準型轉第三代", "multi_theme": []},
+        {"ticker": "6706", "name": "盛新材料", "note": "太極旗下 SiC 基板", "multi_theme": []},
+        {"ticker": "4934", "name": "太極", "note": "旗下盛新材料 SiC 基板布局", "multi_theme": []},
+        {"ticker": "1560", "name": "中砂", "note": "與矽力合資穩晟 SiC 基板", "multi_theme": []},
+        {"ticker": "8121", "name": "越峰", "note": "碳化矽磨料二線", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "漢磊 vs 嘉晶 為 SiC 磊晶雙強 pair",
+      "liquidity_warnings": ["2481", "2342", "6706", "1560", "8121"],
+      "sources": [
+        "https://news.cnyes.com/news/id/6199189",
+        "https://wantrich.chinatimes.com/news/20250917900004-420101"
+      ],
+      "confidence": 87
+    },
+    {
+      "theme_id": "silicon_wafer",
+      "theme_name_zh": "矽晶圓",
+      "theme_name_en": "Silicon Wafer",
+      "description": "12 吋先進製程 + SOI + GaN + 8 吋車用 / 工控功率。2026 AI 需求推升 12 吋產能利用率。",
+      "tier1": [
+        {"ticker": "6488", "name": "環球晶", "note": "全球第三大矽晶圓廠，12 吋 + SiC 雙軌", "multi_theme": []},
+        {"ticker": "5483", "name": "中美晶", "note": "環球晶母公司 + 太陽能", "multi_theme": []},
+        {"ticker": "3532", "name": "台勝科", "note": "勝高(SUMCO)台灣子公司，12 吋長約包光", "multi_theme": []},
+        {"ticker": "6182", "name": "合晶", "note": "6/8 吋為主 + 12 吋擴產", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "3016", "name": "嘉晶", "note": "中美晶集團磊晶", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "矽晶圓四雄連動性高常同漲同跌",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://news.cnyes.com/news/id/4811211",
+        "https://udn.com/news/story/7251/9433352"
+      ],
+      "confidence": 83
+    },
+    {
+      "theme_id": "optical_lens",
+      "theme_name_zh": "光學元件 / 鏡頭",
+      "theme_name_en": "Optical Lens & Components",
+      "description": "手機鏡頭 + 車用 ADAS + AR/VR + 機器人之眼多線並進。大立光 / 玉晶光為光學雙雄。",
+      "tier1": [
+        {"ticker": "3008", "name": "大立光", "note": "手機鏡頭全球龍頭，潛望式 + 稜鏡切入 CPO", "multi_theme": []},
+        {"ticker": "3406", "name": "玉晶光", "note": "iPhone 前鏡頭 + PIC 塑膠元件切入矽光子", "multi_theme": []},
+        {"ticker": "3019", "name": "亞光", "note": "Tesla 人形機器人之眼供應鏈", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "6209", "name": "今國光", "note": "紅外熱像鏡頭 1 月出貨 +70%", "multi_theme": []},
+        {"ticker": "3362", "name": "先進光", "note": "車用 ADAS 鏡頭模組", "multi_theme": []},
+        {"ticker": "6291", "name": "佳能", "note": "機器人之眼熱門股", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "大立光 vs 玉晶光 連動極高；建議雙雄 vs 亞光 / 佳能(機器人之眼) 題材分流",
+      "liquidity_warnings": ["6209", "3362", "6291"],
+      "sources": [
+        "https://wantrich.chinatimes.com/news/20260109900218-420101"
+      ],
+      "confidence": 85
+    },
+    {
+      "theme_id": "robotics_automation",
+      "theme_name_zh": "機器人 / 自動化",
+      "theme_name_en": "Robotics / Industrial Automation",
+      "description": "2026 實體 AI (Physical AI) 量產元年，NVIDIA/Tesla Optimus/現代人形機器人推進。台廠以零組件為主。",
+      "tier1": [
+        {"ticker": "2049", "name": "上銀", "note": "線性滑軌 / 滾珠螺桿全球龍頭", "multi_theme": []},
+        {"ticker": "2308", "name": "台達電", "note": "馬達 / 驅動 / 電控系統整合", "multi_theme": []},
+        {"ticker": "2395", "name": "研華", "note": "工業電腦 + 邊緣 AI 機器人控制器", "multi_theme": []},
+        {"ticker": "1536", "name": "和大", "note": "Tesla Optimus 行星減速機供應 + 盟英諧波減速機", "multi_theme": []}
+      ],
+      "tier2": [
+        {"ticker": "2464", "name": "盟立", "note": "半導體 AMHS + 諧波減速機布局", "multi_theme": []},
+        {"ticker": "6215", "name": "和椿", "note": "自動化零組件 + 人形機器人", "multi_theme": []},
+        {"ticker": "2359", "name": "所羅門", "note": "AI 機器視覺系統整合", "multi_theme": []},
+        {"ticker": "1504", "name": "東元", "note": "馬達 / 驅動，工業機器人基礎", "multi_theme": []},
+        {"ticker": "8374", "name": "羅昇", "note": "自動化傳動代理 + 機器人零件", "multi_theme": []},
+        {"ticker": "6525", "name": "捷敏-KY", "note": "機器人功率模組", "multi_theme": []},
+        {"ticker": "3019", "name": "亞光", "note": "Tesla Optimus 機器人之眼鏡頭", "multi_theme": []}
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "上銀 / 台達電 大型權值 vs tier2 小型題材股，divergence 空間最大",
+      "liquidity_warnings": ["6215", "2359", "8374", "6525"],
+      "sources": [
+        "https://cmnews.com.tw/article/cmoney-01e8e008-f4e4-11f0-a4aa-0b8660d92799",
+        "https://money.udn.com/money/story/5612/8627193"
+      ],
+      "confidence": 85
+    }
+  ]
+}
