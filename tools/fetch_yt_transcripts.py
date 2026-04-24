@@ -36,21 +36,34 @@ OUT_ROOT = REPO / "data_cache" / "yt_transcripts"
 SHOWS = {
     "money100": {
         "name": "錢線百分百",
-        "playlist_id": "PLlAWMYbuVkC_x_Hfk6vuA8FhWicFgzCN6",
+        "url": "https://www.youtube.com/playlist?list=PLlAWMYbuVkC_x_Hfk6vuA8FhWicFgzCN6",
         "source": "USTV 非凡電視",
         "schedule": "Mon-Fri 21:00 (YT 完整版 22:30/23:00/23:30)",
     },
-    "moneyshow": {
-        "name": "理財達人秀",
-        "playlist_id": "PLVu0pIxQ7F-yvxR_dCP_zBgChK3s84b99",
-        "source": "東森財經",
-        "schedule": "daily",
-    },
     "money_deploy": {
         "name": "鈔錢部署",
-        "playlist_id": "PLR2vWjaKlfQSpDclqTigQyBrJ6QCCWuV6",
+        "url": "https://www.youtube.com/playlist?list=PLR2vWjaKlfQSpDclqTigQyBrJ6QCCWuV6",
         "source": "華視 + 盧燕俐",
         "schedule": "Tue/Thu 20:00-21:00",
+    },
+    # moneyshow (理財達人秀) 放棄: YT 完全無字幕 (2026-04-24 實測)
+    "non_fan_stock": {
+        "name": "非凡股市現場",
+        "url": "https://www.youtube.com/channel/UCJcPWs0gpYMx_CghPdELUhw/videos",
+        "source": "非凡電視 (鄭明娟主持)",
+        "schedule": "daily 盤後",
+    },
+    "guo_zherong": {
+        "name": "郭哲榮分析師",
+        "url": "https://www.youtube.com/channel/UChfl3auNxAxOR3wy8a8ysQQ/videos",
+        "source": "摩爾證券投顧",
+        "schedule": "irregular",
+    },
+    "non_fan_news": {
+        "name": "非凡財經新聞",
+        "url": "https://www.youtube.com/channel/UCLHsQL4YChylDX-06BCuNQA/videos",
+        "source": "非凡電視新聞",
+        "schedule": "daily news",
     },
 }
 
@@ -84,15 +97,16 @@ def fetch_show(show_key: str, playlist_end: int = 10, verbose: bool = True) -> F
         "--write-auto-sub",      # fallback auto-generated
         "--sub-lang", "zh-TW,zh-Hant,zh-Hans,zh,zh.*",  # 台版/繁體/簡體/自動翻譯通吃
         "--download-archive", str(archive),
-        "--playlist-end", str(playlist_end),  # 最新 N 部 (playlist 通常按新 → 舊排序)
+        "--playlist-end", str(playlist_end),  # 最新 N 部 (按新 → 舊排序)
         "--ignore-errors",
+        "--match-filter", "duration > 300",  # 排除 Shorts / 預告 (<5 min)
         "-o", f"{out_dir}/%(upload_date)s_%(id)s_%(title).60B.%(ext)s",
-        f"https://www.youtube.com/playlist?list={show['playlist_id']}",
+        show["url"],  # playlist 或 channel /videos URL
     ]
 
     if verbose:
         sys.stderr.write(f"\n=== {show_key} ({show['name']}) ===\n")
-        sys.stderr.write(f"  playlist: {show['playlist_id']}\n")
+        sys.stderr.write(f"  url: {show['url']}\n")
         sys.stderr.write(f"  playlist_end: {playlist_end}\n")
         sys.stderr.write(f"  pre-archived: {pre_count}\n")
 
@@ -133,6 +147,8 @@ def fetch_show(show_key: str, playlist_end: int = 10, verbose: bool = True) -> F
 def list_downloaded(show_key: str | None = None) -> list[dict]:
     """列出已下載的 VTT 檔（給下游 Stage 2 extract 使用）。"""
     shows = [show_key] if show_key else list(SHOWS.keys())
+    # Backwards compat: also include deprecated moneyshow dir if exists
+    shows = list(dict.fromkeys(shows + (['moneyshow'] if (OUT_ROOT / 'moneyshow').exists() else [])))
     results = []
     for sk in shows:
         show_dir = OUT_ROOT / sk
