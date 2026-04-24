@@ -164,6 +164,38 @@ def send_alert_notification(scan_type, market, issues, webhook_url=None):
         return False
 
 
+def _load_yt_panel():
+    """Lazy-load YT sector panel for mention lookup. Returns None if unavailable."""
+    try:
+        import pandas as pd
+        panel_path = Path('data/sector_tags_dynamic.parquet')
+        if not panel_path.exists():
+            return None
+        return pd.read_parquet(panel_path)
+    except Exception as e:
+        logger.debug("YT panel load skipped: %s", e)
+        return None
+
+
+def _fmt_yt_hint(ticker: str, panel, days: int = 7) -> str:
+    """1-char emoji + count if this ticker has recent YT mentions. '' if none."""
+    if panel is None or panel.empty:
+        return ""
+    try:
+        import pandas as pd
+        from datetime import date, timedelta
+        cutoff = date.today() - timedelta(days=days)
+        sub = panel[(panel['ticker'] == ticker) & (panel['date'] >= cutoff)]
+        if sub.empty:
+            return ""
+        n = len(sub)
+        sent_avg = sub['sentiment'].mean()
+        icon = "🟢" if sent_avg > 0.3 else ("🔴" if sent_avg < -0.3 else "⚪")
+        return f" {icon}YT×{n}"
+    except Exception:
+        return ""
+
+
 def send_discord_notification(result, webhook_url=None):
     """Send scan summary to Discord via webhook."""
     if not webhook_url:
@@ -186,19 +218,24 @@ def send_discord_notification(result, webhook_url=None):
     results = result.get('results', [])
     top5 = results[:5]
 
+    # Load YT panel once for all top5 lookups (TW only; US tickers not covered by YT panel)
+    yt_panel = _load_yt_panel() if market == 'tw' else None
+
     lines = [f"**{label} Screener [{mkt_label}]** — {result.get('scan_date', '?')} {result.get('scan_time', '')}",
              f"Scanned {result.get('total_scanned', 0)} → Passed {result.get('passed_initial', 0)} → Scored {result.get('scored_count', 0)}",
              ""]
 
     if scan_type == 'value':
         for i, r in enumerate(top5, 1):
+            yt_hint = _fmt_yt_hint(r['stock_id'], yt_panel)
             lines.append(f"{i}. **{r['stock_id']}** {r.get('name', '')[:6]} "
-                         f"PE={r.get('PE', 0):.1f} Score={r.get('value_score', 0):.1f}")
+                         f"PE={r.get('PE', 0):.1f} Score={r.get('value_score', 0):.1f}{yt_hint}")
     else:
         for i, r in enumerate(top5, 1):
             sigs = ', '.join(r.get('signals', [])[:2])
+            yt_hint = _fmt_yt_hint(r['stock_id'], yt_panel)
             lines.append(f"{i}. **{r['stock_id']}** {r.get('name', '')[:6]} "
-                         f"Score={r.get('trigger_score', 0):+.1f} [{sigs}]")
+                         f"Score={r.get('trigger_score', 0):+.1f} [{sigs}]{yt_hint}")
 
     content = '\n'.join(lines)
     try:
