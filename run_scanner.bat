@@ -90,11 +90,13 @@ REM ------------------------------------------------------------
 REM Auto-generate AI reports for QM office picks (top 3).
 REM Added 2026-04-22 per user request: set-and-forget briefing ready by morning.
 REM
-REM Robustness First (2026-04-23 事件後):
-REM   1. 先跑 --smoke pre-flight（10 秒內）驗證所有 lazy import 正確
-REM   2. 真實執行再記 exit code，失敗時呼叫 report_batch_failure.py ping Discord
-REM   3. 仍不把 AI report 的 exit code 傳給 PY_EXIT（report 失敗非致命），但會留下
-REM      明確的 FAIL 標記 + 盡力通知，避免整夜靜默失敗
+REM Robustness First (after 2026-04-23 incident):
+REM   1. Run --smoke pre-flight (under 10s) to verify all lazy imports resolve.
+REM   2. Capture exit code on the real run; call report_batch_failure.py to
+REM      ping Discord on failure.
+REM   3. Do NOT propagate AI report exit code to PY_EXIT (report failure is
+REM      non-fatal), but leave clear FAIL marker + best-effort notify to
+REM      avoid silent overnight failures.
 REM ------------------------------------------------------------
 echo [%date% %time%] Auto AI reports smoke check starting >> scanner.log
 python tools\auto_ai_reports.py --smoke >> scanner.log 2>&1
@@ -118,5 +120,23 @@ if not "%AI_RUN_EXIT%"=="0" (
 :skip_ai_reports
 REM Log end time (include python exit code so Task Scheduler shows non-zero on failure)
 echo [%date% %time%] Scanner finished (exit=%PY_EXIT%) >> scanner.log
+
+REM ------------------------------------------------------------
+REM Layer 4: post-check verifier.
+REM Parses scanner.log to confirm every expected BAT echo marker fired
+REM and that git push happened at least twice (QM + Value). Missing any
+REM marker = silent scheduler failure -> Discord ping.
+REM Non-zero exit here propagates to %PY_EXIT% so Task Scheduler sees it.
+REM Added 2026-04-24 after CJK BAT incident.
+REM ------------------------------------------------------------
+python tools\verify_scan_stages.py >> scanner.log 2>&1
+set POST_EXIT=%ERRORLEVEL%
+if not "%POST_EXIT%"=="0" (
+    echo [%date% %time%] [FAIL] verify_scan_stages detected missing stages exit=%POST_EXIT% >> scanner.log
+    REM Only promote post-check failure to PY_EXIT if scanner itself reported success
+    REM (do not mask an already-failing scanner exit code).
+    if "%PY_EXIT%"=="0" set PY_EXIT=%POST_EXIT%
+)
+
 echo. >> scanner.log
 exit /b %PY_EXIT%

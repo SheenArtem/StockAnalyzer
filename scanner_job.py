@@ -477,8 +477,17 @@ def main():
                 _append_regime_filter_audit('value', mkt, len(v_result.get('results', [])), regime_filter_info)
                 # Level 1 health check
                 healthy, issues = check_scan_health(v_result, mkt, 'value')
-                if not healthy and args.notify:
-                    send_alert_notification('value', mkt, issues)
+                if not healthy:
+                    if args.notify:
+                        send_alert_notification('value', mkt, issues)
+                    # Fail-loud (added 2026-04-24): degenerate Value scan must not exit 0.
+                    # Protects against silent data-source failures (FinMind 429 /
+                    # TWSE timeout) that otherwise leave value_result.json stale.
+                    logger.critical(
+                        "Value [%s] health check FAILED: %s. Exit 3.",
+                        mkt, ' | '.join(issues),
+                    )
+                    sys.exit(3)
                 if args.notify:
                     send_discord_notification(v_result)
             if not args.quiet:

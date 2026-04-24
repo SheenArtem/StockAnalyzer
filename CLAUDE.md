@@ -30,6 +30,59 @@
 
 ---
 
+## ⚠️ BAT 檔 ASCII-only 硬規定（排程用 run_*.bat / tools/*.bat 特嚴）
+
+**所有 `.bat` 檔的內容必須只含 ASCII 字元（0x00-0x7F）。中文 REM 註解、
+echo 訊息、全形括號／破折號皆禁止。**
+
+### 原因
+Windows cmd.exe 預設 active code page 為 CP950 (Big5)，讀 UTF-8 編碼的 BAT
+檔時會把多 byte CJK 字元用 CP950 規則亂解，造成下列靜默故障：
+
+- **行被切段**：`python scanner_job.py ... --notify >> scanner.log` 被拆成
+  殘段，產生 `'.py' 不是可執行`、`'--notify' 不是可執行` 這類錯誤
+- **整段 command block 被跳過**：log rotation / `Scanner started` echo /
+  MOPS probe / QM 選股 / Value 選股 / Substack sync 全數靜默跳過
+- **exit code 被污染**：變成 9009 或空值（`exit=`），讓 Task Scheduler 看不
+  出失敗
+- **整夜靜默失敗**：排程看似跑完，實際什麼都沒做，隔天早上才發現
+
+### 歷史事件
+- **2026-04-20 exit=9009**（commit `40389f1` 修）— 中文 REM 污染 BAT
+- **2026-04-23 scanner 前段整段沒跑** — commit `61cc4dc` 加的中文
+  「Robustness First」REM 污染，導致 4/23 22:00 排程只跑到 auto_ai_reports
+  後段，前面 7 個 stage（`Scanner started` / MOPS probe / RF-1 consistency
+  check / Market regime logger / QM 選股 / Value 選股 / Substack sync）全部
+  靜默跳過。當天 QM / Value 都沒產出。
+
+### 替代字元對照
+- `—` → `--`
+- `→` → `->`
+- `✓` / `✗` / `⚠` → `[OK]` / `[FAIL]` / `[WARN]`
+- 中文 REM 註解 → 改英文 REM
+- 中文 echo 訊息 → 改英文或直接刪除
+
+### 豁免
+只有 `快速启动.bat`（檔名本身 CJK、開頭 `chcp 65001 >nul` 切換碼頁、
+純手動啟動專用）可例外。所有 **排程類 BAT（`run_*.bat`）** 及
+**工具類 BAT（`tools/*.bat`）** 一律不得含 CJK。
+
+### 自動驗證
+pre-commit hook (`.git/hooks/pre-commit`) 會偵測 staged `.bat` 檔的非 ASCII
+byte 數並擋 commit。新增排程 BAT 時請確認不踩這規則。
+
+手動驗證指令：
+```bash
+PYTHONIOENCODING=utf-8 python -c "
+import glob
+for p in glob.glob('**/*.bat', recursive=True):
+    if p.endswith('快速启动.bat'): continue
+    n = sum(1 for b in open(p,'rb').read() if b > 127)
+    if n > 0: print(f'{p}: {n} non-ASCII')"
+```
+
+---
+
 ## 概述
 基於 Streamlit 的股票分析工具，結合技術面、籌碼面、基本面與 AI 觸發分數，輔助右側交易決策。主要針對台股（FinMind + TWSE/TPEX + TradingView），兼容美股（Yahoo Finance + Finviz + TradingView）。
 
@@ -147,6 +200,7 @@ app.py (Streamlit UI 入口, 3 模式)
 ### 語言
 
 - **程式碼註解**：繁體中文 + 英文混用
+  - ⚠️ **例外：`.bat` 檔必須純 ASCII（英文 REM），見上面「BAT 檔 ASCII-only 硬規定」**
 - **Commit 訊息**：繁體中文為主，前綴用英文（feat/fix/refactor）
 - **UI 文字**：繁體中文
 

@@ -1,15 +1,15 @@
 @echo off
 REM VF-L1a: verify coverage + retry missing + verify again
 REM
-REM 用法:
-REM   直接雙擊此檔 (或在 cmd 打 tools\vfl1a_verify_and_retry.bat)
+REM Usage:
+REM   Double-click this file, or run: tools\vfl1a_verify_and_retry.bat
 REM
-REM 流程:
-REM   1. 跑 verify 產出 _missing.txt
-REM   2. 如果 missing > 0，自動 retry backfill
-REM   3. 再跑 verify 確認覆蓋率
+REM Flow:
+REM   1. Run verify; produces _missing.txt
+REM   2. If missing > 0, auto retry backfill
+REM   3. Run verify again to confirm coverage
 REM
-REM 需要 VPN 嗎？不需要（純 FinMind，不碰 MOPS）
+REM VPN required? No (pure FinMind, does not touch MOPS)
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0.."
@@ -50,7 +50,7 @@ python tools\backfill_fundamentals.py ^
   --source finmind ^
   --progress-every 25
 if errorlevel 1 (
-    echo [WARN] retry backfill exited non-zero (rate-limit normal^)
+    echo [WARN] retry backfill exited non-zero (rate-limit normal)
 )
 
 echo.
