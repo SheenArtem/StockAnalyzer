@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.23.7")
+    st.caption("Version: v2026.04.25.1")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -334,8 +334,8 @@ if st.session_state.get('app_mode') == 'screener':
     # 2026-04-22: Value US tab 再度隱藏 — VF-Value-ex2 EDGAR walk-forward D 級反向
     # 且 US 側動能/估值/營收/技術全部 signal 未經 IC 驗證。picks 無實證基礎，避免誤導。
     # 恢復條件：US QM/Value 跑完同級 VF 驗證（類 TW 25+45 項）且有 A/B 級訊號。
-    screener_tab_qm, screener_tab2, screener_tab_meanrev, screener_tab_track = st.tabs(
-        ["🛡️ 品質選股", "💎 價值池 (搭 regime filter)", "🔄 均值回歸", "📊 績效追蹤"]
+    screener_tab_qm, screener_tab2, screener_tab_meanrev, screener_tab_track, screener_tab_mode_d = st.tabs(
+        ["🛡️ 品質選股", "💎 價值池 (搭 regime filter)", "🔄 均值回歸", "📊 績效追蹤", "🎯 Mode D"]
     )
     # Hidden tabs (code preserved, just not displayed)
     screener_tab1 = screener_tab_us = screener_tab_swing = screener_tab_conv = screener_tab_us_val = None
@@ -1949,6 +1949,154 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
 
         except Exception as _track_err:
             st.warning(f"追蹤模組載入失敗: {_track_err}")
+
+    # ====================================================================
+    # Mode D tab (2026-04-25): thesis-driven discretionary 策略展示
+    # QM 機械層 + C1 tilt + YT mention + scenario entry
+    # ====================================================================
+    with screener_tab_mode_d:
+        st.markdown("### 🎯 Mode D — Hybrid Thesis-Driven Discretionary")
+        st.caption("QM 機械選股 + C1 月營收拐點 tilt + YT 節目 mention + scenario 進場計畫 → 人工拍板下單（無 API 自動交易）")
+
+        _mode_d_sub1, _mode_d_sub2, _mode_d_sub3 = st.tabs([
+            "📋 今日 Pick", "📺 YT 熱度榜", "📈 C1 拐點清單"
+        ])
+
+        # Lazy-load panels shared by subtabs
+        import pandas as _pd_d
+        _yt_panel = None
+        try:
+            _yt_path = _Path('data/sector_tags_dynamic.parquet')
+            if _yt_path.exists():
+                _yt_panel = _pd_d.read_parquet(_yt_path)
+        except Exception:
+            pass
+        _c1_panel = None
+        try:
+            _c1_path = _Path('data/c1_tilt_flags.parquet')
+            if _c1_path.exists():
+                _c1_panel = _pd_d.read_parquet(_c1_path)
+        except Exception:
+            pass
+
+        # ---- Sub 1: 今日 Pick ----
+        with _mode_d_sub1:
+            try:
+                _qm_file = _Path('data/latest/qm_result.json')
+                if not _qm_file.exists():
+                    st.info("尚無 QM 選股結果，等 Scanner 22:00 跑完。")
+                else:
+                    with open(_qm_file, 'r', encoding='utf-8') as _f:
+                        _qm_data = _json.load(_f)
+                    _picks = _qm_data.get('results', [])[:10]
+                    _scan_dt = f"{_qm_data.get('scan_date', '?')} {_qm_data.get('scan_time', '')}"
+                    st.caption(f"QM top 10 ({_scan_dt})")
+
+                    # Build c1 tilt lookup
+                    _c1_tilt_set = set()
+                    _is_ai_era = False
+                    if _c1_panel is not None and not _c1_panel.empty:
+                        _is_ai_era = bool(_c1_panel['is_ai_era'].iloc[0])
+                        _c1_tilt_set = set(
+                            _c1_panel[_c1_panel['c1_tilt_on']]['stock_id'].astype(str).tolist()
+                        )
+                    st.caption(f"Regime: {'🟢 AI era (C1 tilt ON)' if _is_ai_era else '⚪ Pre-AI (C1 tilt OFF)'}")
+
+                    from datetime import date as _date_d, timedelta as _td_d
+                    _cutoff = _date_d.today() - _td_d(days=7)
+
+                    _rows = []
+                    for i, _r in enumerate(_picks, 1):
+                        _sid = str(_r.get('stock_id', ''))
+                        # YT mention
+                        _yt_cnt = 0
+                        _yt_sent = 0.0
+                        _yt_shows = []
+                        if _yt_panel is not None and not _yt_panel.empty:
+                            _sub = _yt_panel[(_yt_panel['ticker'] == _sid) & (_yt_panel['date'] >= _cutoff)]
+                            _yt_cnt = len(_sub)
+                            if _yt_cnt > 0:
+                                _yt_sent = _sub['sentiment'].mean()
+                                _yt_shows = _sub['show_key'].unique().tolist()
+                        _sent_icon = "🟢" if _yt_sent > 0.3 else ("🔴" if _yt_sent < -0.3 else "⚪")
+                        _yt_str = f"{_sent_icon}×{_yt_cnt}" if _yt_cnt > 0 else "—"
+
+                        # C1 tilt
+                        _c1 = "✅" if _sid in _c1_tilt_set else "—"
+
+                        # Scenario entry
+                        _ap = _r.get('action_plan') or {}
+                        _entry_low = _ap.get('rec_entry_low')
+                        _entry_high = _ap.get('rec_entry_high')
+                        _sl = _ap.get('rec_sl_price')
+                        _tp = _ap.get('rec_tp_price')
+                        _scenario = _ap.get('scenario_code', '-')
+
+                        _rows.append({
+                            '#': i,
+                            '代號': _sid,
+                            '名稱': _r.get('name', '')[:6],
+                            'QM 分': round(_r.get('composite_score', 0), 1),
+                            '觸發': f"{_r.get('trigger_score', 0):+.1f}",
+                            '劇本': _scenario,
+                            '建議進場': f"{_entry_low}-{_entry_high}" if _entry_low else '-',
+                            'SL': _sl if _sl else '-',
+                            'TP': _tp if _tp else '-',
+                            'C1 拐點': _c1,
+                            'YT 7d': _yt_str,
+                        })
+
+                    if _rows:
+                        st.dataframe(_pd_d.DataFrame(_rows), use_container_width=True, hide_index=True)
+                        st.caption("劇本 A=現價可進 / B=等拉回 5-10MA / C=觀望 / D=空頭避開 | C1 ✅ = 月營收 YoY 拐點 (×1.2 加分) | YT 7d = 近 7 日節目提及次數")
+                    else:
+                        st.info("無 pick 資料")
+            except Exception as _e:
+                st.warning(f"今日 Pick 載入失敗: {_e}")
+
+        # ---- Sub 2: YT 熱度榜 ----
+        with _mode_d_sub2:
+            if _yt_panel is None or _yt_panel.empty:
+                st.info("尚無 YT mention 資料。跑 `run_yt_sync.bat` 或 `python tools/build_yt_sector_panel.py` 產生。")
+            else:
+                _window = st.radio("視窗", [7, 14, 30], index=0, horizontal=True, key='_mode_d_yt_window')
+                from datetime import date as _date_d2, timedelta as _td_d2
+                _cutoff2 = _date_d2.today() - _td_d2(days=_window)
+                _recent = _yt_panel[_yt_panel['date'] >= _cutoff2]
+                if _recent.empty:
+                    st.info(f"近 {_window} 日無 mention 資料")
+                else:
+                    _agg = _recent.groupby(['ticker', 'name']).agg(
+                        mentions=('video_id', 'count'),
+                        shows=('show_key', 'nunique'),
+                        sentiment_avg=('sentiment', 'mean'),
+                        confidence_avg=('confidence', 'mean'),
+                    ).reset_index().sort_values('mentions', ascending=False).head(30)
+                    _agg['sentiment'] = _agg['sentiment_avg'].apply(
+                        lambda v: f"🟢 {v:+.2f}" if v > 0.3 else (f"🔴 {v:+.2f}" if v < -0.3 else f"⚪ {v:+.2f}")
+                    )
+                    _display = _agg[['ticker', 'name', 'mentions', 'shows', 'sentiment', 'confidence_avg']].copy()
+                    _display['confidence_avg'] = _display['confidence_avg'].round(0).astype(int)
+                    _display.columns = ['代號', '名稱', '提及次數', '節目數', '情感', '平均信心']
+                    st.dataframe(_display, use_container_width=True, hide_index=True)
+                    st.caption(f"近 {_window} 日 top 30，來源: 錢線百分百 + 鈔錢部署")
+
+        # ---- Sub 3: C1 拐點清單 ----
+        with _mode_d_sub3:
+            if _c1_panel is None or _c1_panel.empty:
+                st.info("尚無 C1 tilt 資料。跑 `python tools/compute_c1_tilt.py` 產生。")
+            else:
+                _tilt_on = _c1_panel[_c1_panel['c1_tilt_on']].copy()
+                _tilt_on = _tilt_on.sort_values('yoy_m0', ascending=False)
+                st.caption(f"C1 tilt ON: {len(_tilt_on)}/{len(_c1_panel)} tickers ({len(_tilt_on)/len(_c1_panel)*100:.1f}%)")
+                _c1_display = _tilt_on[['stock_id', 'yoy_m2', 'yoy_m1', 'yoy_m0']].copy()
+                _c1_display.columns = ['代號', 'YoY T-2 月', 'YoY T-1 月', 'YoY T 月']
+                for _col in ['YoY T-2 月', 'YoY T-1 月', 'YoY T 月']:
+                    _c1_display[_col] = _c1_display[_col].apply(
+                        lambda v: f"{v:+.1f}%" if _pd_d.notna(v) else '—'
+                    )
+                st.dataframe(_c1_display.head(50), use_container_width=True, hide_index=True)
+                st.caption("近 3 月月營收 YoY 從負轉正 (T-2<-2% AND T>+2% or T-1>+2%)。QM 選股在 AI era 自動 ×1.2 加分。")
 
     st.markdown("---")
     st.caption("💡 品質選股掃描: `python scanner_job.py --mode qm` | 價值掃描: `python scanner_job.py --mode value`")
