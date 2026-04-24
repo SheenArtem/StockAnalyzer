@@ -34,9 +34,9 @@ VTT_ROOT = REPO / "data_cache" / "yt_transcripts"
 OUT_ROOT = REPO / "data_cache" / "yt_extracts"
 SECTOR_TAGS_FILE = REPO / "data" / "sector_tags_manual.json"
 
-GEMINI_MODEL = "gemini-3.1-pro-preview"
-GEMINI_FALLBACK_MODEL = "gemini-3-pro-preview"
-CLAUDE_MODEL_FLAG = "--model=claude-sonnet-4-6-20250929"  # or let Claude CLI default
+GEMINI_MODEL = "gemini-3-pro-preview"  # pro-preview 最會遵守 JSON 格式指令 (2026-04-24 實測)
+GEMINI_FALLBACK_MODEL = None  # None = default model
+CLAUDE_MODEL_FLAG = "--model=claude-sonnet-4-6-20250929"
 
 PROMPT_TEMPLATE = """你是台股財經節目內容分析員。stdin 會給你一集節目的自動字幕 (VTT 含時間碼,可忽略),請萃取結構化資訊。
 
@@ -45,7 +45,15 @@ PROMPT_TEMPLATE = """你是台股財經節目內容分析員。stdin 會給你�
 Video ID: {video_id}
 標題: {title}
 
-請**僅輸出純 JSON** (不要 markdown fence、不要任何其他文字),schema 如下:
+**CRITICAL: 僅輸出合法 JSON (RFC 8259)**
+- 所有 key 必須用雙引號 " 包起來
+- String 必須用雙引號
+- 不要 markdown ```fence
+- 不要任何前言/後語/標題/說明
+- 不要 action（不存 memory、不呼叫工具）
+- 輸出必須可直接 json.loads() 解析
+
+schema:
 
 {{
   "guests": ["來賓名字1", "來賓名字2"],
@@ -125,23 +133,34 @@ def parse_vtt_filename(vtt_path: Path) -> dict:
     return {"date": date_iso, "video_id": video_id, "title": title}
 
 
-def call_gemini(prompt: str, vtt_text: str, model: str, timeout: int = 300) -> tuple[str, str | None]:
-    """VTT 透過 stdin 傳 (避開 CLI argv 長度上限)，prompt 放 -p."""
+def call_gemini(prompt: str, vtt_text: str, model: str | None, timeout: int = 300) -> tuple[str, str | None]:
+    """
+    VTT 透過 stdin 傳 (避開 CLI argv 長度上限)。
+    shell=True 必須：Windows 上 gemini CLI 是 gemini.cmd (npm global)，shell=False 找不到。
+    Prompt 用 env var 傳避免 shell 解引號地雷。
+    model=None → 用 default model (限流較鬆)。
+    """
+    import os
+    env = os.environ.copy()
+    env["YT_EXTRACT_PROMPT"] = prompt
+
+    model_flag = f"-m {model} " if model else ""
+    cmd = f'gemini {model_flag}-p "%YT_EXTRACT_PROMPT%" -y'
+
     try:
         result = subprocess.run(
-            ["gemini", "-m", model, "-p", prompt, "-y"],
-            input=vtt_text,
-            capture_output=True, text=True, timeout=timeout,
-            encoding="utf-8", errors="replace",
-            shell=False,
+            cmd, input=vtt_text, capture_output=True, text=True, timeout=timeout,
+            encoding="utf-8", errors="replace", shell=True, env=env,
         )
     except subprocess.TimeoutExpired:
         return "", "gemini timeout"
-    except FileNotFoundError:
-        return "", "gemini CLI not installed"
 
     if result.returncode != 0:
         return result.stdout or "", f"gemini exit {result.returncode}: {result.stderr[:300]}"
+    # 檢查 stderr 是否有 429 rate limit 警告（即使 exit=0）
+    if "429" in (result.stderr or "") and "failed" in result.stderr.lower():
+        # Still treat as soft error; caller may fallback
+        return result.stdout, f"gemini 429 rate limit (stderr warning)"
     return result.stdout, None
 
 
@@ -312,8 +331,8 @@ def main():
     ap.add_argument("--all", action="store_true", help="處理全部未萃取的 VTT")
     ap.add_argument("--show", choices=["money100", "moneyshow", "money_deploy"],
                     help="只處理特定節目")
-    ap.add_argument("--llm", choices=["gemini", "claude"], default="gemini",
-                    help="優先 LLM (default gemini,失敗自動 fallback)")
+    ap.add_argument("--llm", choices=["gemini", "claude"], default="claude",
+                    help="優先 LLM (default claude,失敗自動 fallback Gemini). 2026-04-24 實測 Gemini (含 pro-preview) 不穩定遵守 JSON 指令傾向輸 markdown")
     ap.add_argument("--stdout", action="store_true", help="輸出到 stdout 不存檔 (debug)")
     args = ap.parse_args()
 
