@@ -1,12 +1,12 @@
 {
   "scan_type": "qm",
   "scan_date": "2026-04-24",
-  "scan_time": "08:28",
+  "scan_time": "22:11",
   "market": "tw",
   "total_scanned": 1965,
-  "passed_initial": 229,
+  "passed_initial": 260,
   "scored_count": 20,
-  "elapsed_seconds": 514.9,
+  "elapsed_seconds": 585.4,
   "failures": [],
   "config": {
     "momentum_change_min": -1.0,
@@ -14,31 +14,32 @@
   },
   "results": [
     {
-      "stock_id": "3006",
-      "name": "晶豪科",
-      "market": "twse",
-      "price": 155.5,
-      "change_pct": 8.36,
-      "trading_value": 4915250713,
-      "avg_trading_value_5d": 2511213670,
-      "trigger_score": 3.16,
+      "stock_id": "4979",
+      "name": "華星光",
+      "market": "tpex",
+      "price": 604.0,
+      "change_pct": 6.53,
+      "trading_value": 2247808047,
+      "avg_trading_value_5d": 2913933622,
+      "trigger_score": -3.15,
       "trend_score": 5,
-      "score_percentile": 76.2,
+      "score_percentile": 22.8,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": 0.6476,
+      "rvol_lowatr": -2.1488,
       "signals": [],
       "trigger_details": [
-        "📉 MeanRev=-0.53 (tanh=-0.49)",
+        "📈 MeanRev=+0.79 (tanh=+0.66)",
         "📉 Supertrend 空頭趨勢 (-1)",
-        "🔻 MACD 柱狀體翻綠 (-1)",
-        "📈 MACD 出現【隱藏底背離】(多頭趨勢延續) (+1)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=2.6x (z=1.3) (+0.85)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "💀 MACD【頂背離】⚠️ 僅供參考 (IC驗證反向)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "🔻 RSI頂背離 ⚠️ 僅供參考 (IC驗證反向)",
+        "📊 RVOL=0.1x (z=-1.2) (-0.82)",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💸 外資近5日賣超 (-3,105張) (-0.3)",
-        "❄️ 投信近5日賣超 (-156張) → 籌碼沉澱 (+0.3)",
-        "❄️ 外資+投信同步賣超 → 籌碼乾淨 (+0.3)"
+        "💰 外資近5日買超 (+2,400張) (+0.3)",
+        "❄️ 投信近5日賣超 (-606張) → 籌碼沉澱 (+0.3)",
+        "🏦 ETF 活動: 買 0 / 賣 1 檔 (淨 -1036 張) [資訊]"
       ],
       "scenario": {
         "code": "A",
@@ -46,60 +47,54 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【夜星 (Evening Star)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.2 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 134.07\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 156.3,
-        "rec_entry_high": 155.5,
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 高** — K線型態【多頭母子 (Harami)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-3.2 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 520.39\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 628.2,
+        "rec_entry_high": 582.0,
         "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 134.07,
+        "rec_sl_price": 520.39,
         "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 193.32,
+        "rec_tp_price": 750.32,
         "rr_ratio": 1.71,
         "tp_list": [
           {
             "method": "QM1. +24% 減碼 1/3",
-            "price": 193.32,
+            "price": 750.32,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 218.26,
+            "price": 847.14,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
             "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 255.68,
+            "price": 992.36,
             "desc": "換股輪動",
             "is_rec": false
           },
           {
-            "method": "MA60 季線反壓",
-            "price": 162.50833333333333,
-            "desc": "生命線",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 173.68902069746935,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
             "method": "前波高點",
-            "price": 178.0,
+            "price": 708.0,
             "desc": "解套賣壓",
             "is_rec": false
           },
           {
+            "method": "布林上緣",
+            "price": 710.3391094471646,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
             "method": "N 字測量 (1.0)",
-            "price": 186.5,
+            "price": 948.5,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 205.65800000000002,
+            "price": 1174.997,
             "desc": "強勢目標",
             "is_rec": false
           }
@@ -107,54 +102,60 @@
         "sl_list": [
           {
             "method": "QM-A. 硬停損 -14.0%",
-            "price": 134.07,
+            "price": 520.39,
             "desc": "期望值保護 (atr_dynamic)",
             "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 143.2849998474121,
+            "price": 362.875,
             "desc": "趨勢結構破壞",
-            "loss": -8.09
+            "loss": -40.03
           },
           {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 159.225,
-            "desc": "MA20/60 (壓力/已破)",
-            "loss": 2.4
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 151.0,
-            "desc": "大量低點",
-            "loss": -2.89
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 147.0,
-            "desc": "前波低點",
-            "loss": -5.47
+            "method": "E. 型態停損 (K線)",
+            "price": 569.25,
+            "desc": "型態低點",
+            "loss": -2.19
           },
           {
             "method": "A. ATR 波動停損 (科學)",
-            "price": 134.0,
+            "price": 498.57142857142856,
             "desc": "2倍 ATR",
-            "loss": -13.83
+            "loss": -14.33
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 490.55,
+            "desc": "MA20/60",
+            "loss": -15.71
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 411.0,
+            "desc": "大量低點",
+            "loss": -29.38
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 341.5,
+            "desc": "前波低點",
+            "loss": -41.32
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.2 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-3.2 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
-          "level": "green",
-          "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.2 ≥ 3）"
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-3.2 < 0，訊號矛盾"
         },
         "qm_position_size": {
-          "recommended_pct": 5.4,
-          "base_pct": 8.5,
-          "multiplier": 0.63,
-          "rationale": "base=8.5% (composite 85/80) × multiplier=0.63 (trigger +3.2/5)"
+          "recommended_pct": 4.2,
+          "base_pct": 8.4,
+          "multiplier": 0.5,
+          "rationale": "base=8.4% (composite 84/80) × multiplier=0.50 (trigger -3.1/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -165,11 +166,194 @@
       },
       "checklist": {
         "risk": [
-          "若出現 **爆量長黑** (成交值 > 50.2 億) 且收跌，視為主力出貨訊號。"
+          "若收盤跌破 **月線 (490.55)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 58.3 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
-          "若帶量突破 **波段前高 (178.00)**，趨勢續攻，可嘗試加碼。",
-          "若帶量站上 **月線 (159.22)**，短線翻多，可試單進場。"
+          "若帶量突破 **波段前高 (708.00)**，趨勢續攻，可嘗試加碼。"
+        ],
+        "future": [
+          "目前正乖離過大 (18.6%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+        ]
+      },
+      "qm_quality_score": 79,
+      "qm_body_score": 90,
+      "qm_revenue_score": 62,
+      "qm_quality_details": [
+        "F-Score=9/9 強 (獲利4/槓桿3/效率2) (+25)",
+        "流動比率=6.7 安全 (+5)",
+        "Z-Score=28.4 [資訊]",
+        "連續 4 季獲利 (+5)",
+        "ROE=20.7% 高 (+5) [TV]",
+        "營收正驚喜 +22.2% (+12)"
+      ],
+      "qm_f_score": 9,
+      "composite_score": 84.3,
+      "qm_position_size": {
+        "recommended_pct": 4.2,
+        "base_pct": 8.4,
+        "multiplier": 0.5,
+        "rationale": "base=8.4% (composite 84/80) × multiplier=0.50 (trigger -3.1/5)"
+      }
+    },
+    {
+      "stock_id": "3006",
+      "name": "晶豪科",
+      "market": "twse",
+      "price": 154.5,
+      "change_pct": 0.65,
+      "trading_value": 1582081003,
+      "avg_trading_value_5d": 2245185540,
+      "trigger_score": -5.17,
+      "trend_score": 5,
+      "score_percentile": 11.3,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "rvol_lowatr": -1.3737,
+      "signals": [],
+      "trigger_details": [
+        "📉 MeanRev=-0.41 (tanh=-0.39)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "🔻 MACD 柱狀體翻綠 (-1)",
+        "📈 MACD【隱藏底背離】⚠️ 僅供參考",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "📊 RVOL=0.2x (z=-0.9) (-0.59)",
+        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
+        "💸 外資近5日賣超 (-2,136張) (-0.3)",
+        "❄️ 投信近5日賣超 (-128張) → 籌碼沉澱 (+0.3)",
+        "❄️ 外資+投信同步賣超 → 籌碼乾淨 (+0.3)"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【夜星 (Evening Star)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-5.2 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 134.55\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 156.9,
+        "rec_entry_high": 156.0,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 134.55,
+        "rec_sl_method": "QM. -14.0% 硬停損",
+        "rec_tp_price": 194.0,
+        "rr_ratio": 1.71,
+        "tp_list": [
+          {
+            "method": "QM1. +24% 減碼 1/3",
+            "price": 194.0,
+            "desc": "落袋第一段",
+            "is_rec": true
+          },
+          {
+            "method": "QM2. +40% 移動停損至 MA10W",
+            "price": 219.03,
+            "desc": "鎖住超額",
+            "is_rec": false
+          },
+          {
+            "method": "QM3. +64% 清倉 (或 60 日到期)",
+            "price": 256.58,
+            "desc": "換股輪動",
+            "is_rec": false
+          },
+          {
+            "method": "MA60 季線反壓",
+            "price": 162.53333333333333,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 169.82137749503283,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 176.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 185.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 202.922,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "QM-A. 硬停損 -14.0%",
+            "price": 134.55,
+            "desc": "期望值保護 (atr_dynamic)",
+            "loss": -14.0
+          },
+          {
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": 143.30999984741212,
+            "desc": "趨勢結構破壞",
+            "loss": -8.4
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 158.15,
+            "desc": "MA20/60 (壓力/已破)",
+            "loss": 1.38
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 151.0,
+            "desc": "大量低點",
+            "loss": -3.21
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 147.0,
+            "desc": "前波低點",
+            "loss": -5.77
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 135.35714285714286,
+            "desc": "2倍 ATR",
+            "loss": -13.23
+          }
+        ],
+        "qm_horizon": "40-60d",
+        "qm_hold_days_target": 60,
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-5.2 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_gate": {
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-5.2 < 0，訊號矛盾"
+        },
+        "qm_position_size": {
+          "recommended_pct": 4.2,
+          "base_pct": 8.3,
+          "multiplier": 0.5,
+          "rationale": "base=8.3% (composite 83/80) × multiplier=0.50 (trigger -5.2/5)"
+        },
+        "qm_exit_signals": [
+          "週線 Supertrend 翻空",
+          "週 MA20 跌破 3% 以上 (非插針)",
+          "月營收 YoY 連續 2 個月轉負",
+          "F-Score 季更新後下降 2 分以上"
+        ]
+      },
+      "checklist": {
+        "risk": [
+          "若出現 **爆量長黑** (成交值 > 44.9 億) 且收跌，視為主力出貨訊號。"
+        ],
+        "active": [
+          "若帶量突破 **波段前高 (176.00)**，趨勢續攻，可嘗試加碼。",
+          "若帶量站上 **月線 (158.15)**，短線翻多，可試單進場。"
         ],
         "future": [
           "目前處於空頭趨勢。需等待 **底部形態 (如W底)** 出現，或 **站上月線** 後再考慮進場。",
@@ -187,45 +371,41 @@
         "營收正驚喜 +114.0% (+12)"
       ],
       "qm_f_score": 9,
-      "composite_score": 84.9,
+      "composite_score": 83.4,
       "qm_position_size": {
-        "recommended_pct": 5.4,
-        "base_pct": 8.5,
-        "multiplier": 0.63,
-        "rationale": "base=8.5% (composite 85/80) × multiplier=0.63 (trigger +3.2/5)"
+        "recommended_pct": 4.2,
+        "base_pct": 8.3,
+        "multiplier": 0.5,
+        "rationale": "base=8.3% (composite 83/80) × multiplier=0.50 (trigger -5.2/5)"
       }
     },
     {
       "stock_id": "6789",
       "name": "采鈺",
       "market": "twse",
-      "price": 515.0,
-      "change_pct": 5.21,
-      "trading_value": 13524980950,
-      "avg_trading_value_5d": 5389672776,
-      "trigger_score": 8.34,
+      "price": 566.0,
+      "change_pct": 9.9,
+      "trading_value": 10745097408,
+      "avg_trading_value_5d": 4960864123,
+      "trigger_score": 4.11,
       "trend_score": 5,
-      "score_percentile": 97.2,
+      "score_percentile": 82.5,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": 2.8225,
-      "signals": [
-        "rvol_high"
-      ],
+      "rvol_lowatr": -1.3324,
+      "signals": [],
       "trigger_details": [
-        "📈 MeanRev=+3.33 (tanh=+1.00)",
+        "📈 MeanRev=+3.81 (tanh=+1.00)",
         "📈 Supertrend 多頭趨勢 (+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "🔊 爆量確認 RVOL=4.1x (z=3.7) (+1.0)",
-        "🔥 EFI 資金異常流入 (z=6.1) [異常]",
-        "🚨 異常爆量 RVOL=4.1x (z=3.7)，留意消息面 [異常]",
+        "🔥 EFI 資金異常流入 (z=6.2) [異常]",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💸 外資近5日賣超 (-523張) (-0.3)",
-        "❄️ 投信近5日賣超 (-130張) → 籌碼沉澱 (+0.3)",
+        "💸 外資近5日賣超 (-973張) (-0.3)",
+        "❄️ 投信近5日賣超 (-377張) → 籌碼沉澱 (+0.3)",
         "❄️ 外資+投信同步賣超 → 籌碼乾淨 (+0.3)",
-        "🏦 ETF 活動: 買 1 / 賣 1 檔 (淨 -300 張) [資訊]"
+        "🏦 ETF 活動: 買 0 / 賣 1 檔 (淨 -465 張) [資訊]"
       ],
       "scenario": {
         "code": "A",
@@ -233,54 +413,54 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【晨星 (Morning Star)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+8.3 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 395.56\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 436.2,
-        "rec_entry_high": 483.7,
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【晨星 (Morning Star)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+4.1 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 417.12\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 459.15,
+        "rec_entry_high": 510.9,
         "rec_entry_desc": "等待拉回 (5MA-10MA)",
-        "rec_sl_price": 395.56,
+        "rec_sl_price": 417.12,
         "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 570.34,
+        "rec_tp_price": 601.43,
         "rr_ratio": 1.71,
         "tp_list": [
           {
             "method": "QM1. +24% 減碼 1/3",
-            "price": 570.34,
+            "price": 601.43,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 643.93,
+            "price": 679.04,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
             "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 754.32,
+            "price": 795.44,
             "desc": "換股輪動",
             "is_rec": false
           },
           {
             "method": "布林上緣",
-            "price": 521.6606606724288,
+            "price": 553.5239377161946,
             "desc": "通道壓力",
             "is_rec": false
           },
           {
             "method": "前波高點",
-            "price": 538.0,
+            "price": 566.0,
             "desc": "解套賣壓",
             "is_rec": false
           },
           {
             "method": "N 字測量 (1.0)",
-            "price": 722.2,
+            "price": 777.4,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 869.5930000000001,
+            "price": 942.097,
             "desc": "強勢目標",
             "is_rec": false
           }
@@ -288,54 +468,60 @@
         "sl_list": [
           {
             "method": "QM-A. 硬停損 -14.0%",
-            "price": 395.56,
+            "price": 417.12,
             "desc": "期望值保護 (atr_dynamic)",
             "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 317.075,
+            "price": 319.625,
             "desc": "趨勢結構破壞",
-            "loss": -31.06
+            "loss": -34.1
           },
           {
             "method": "C. 關鍵紅K (籌碼)",
             "price": 488.0,
-            "desc": "大量低點 (壓力/已破)",
-            "loss": 0.89
+            "desc": "大量低點",
+            "loss": -4.48
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 483.12,
+            "desc": "型態低點",
+            "loss": -5.44
           },
           {
             "method": "A. ATR 波動停損 (科學)",
-            "price": 427.7,
+            "price": 449.47142857142853,
             "desc": "2倍 ATR",
-            "loss": -11.58
+            "loss": -12.02
           },
           {
             "method": "B. 均線停損 (趨勢)",
-            "price": 381.05,
+            "price": 392.95,
             "desc": "MA20/60",
-            "loss": -21.22
+            "loss": -23.09
           },
           {
             "method": "D. 波段低點停損 (形態)",
             "price": 299.5,
             "desc": "前波低點",
-            "loss": -38.08
+            "loss": -41.38
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+8.3 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+4.1 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
           "level": "green",
           "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+8.3 ≥ 3）"
+          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+4.1 ≥ 3）"
         },
         "qm_position_size": {
-          "recommended_pct": 12.5,
-          "base_pct": 8.3,
-          "multiplier": 1.5,
-          "rationale": "base=8.3% (composite 83/80) × multiplier=1.50 (trigger +8.3/5)"
+          "recommended_pct": 6.7,
+          "base_pct": 8.2,
+          "multiplier": 0.82,
+          "rationale": "base=8.2% (composite 82/80) × multiplier=0.82 (trigger +4.1/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -346,15 +532,13 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (381.05)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 107.8 億) 且收跌，視為主力出貨訊號。",
+          "若收盤跌破 **月線 (392.95)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 99.2 億) 且收跌，視為主力出貨訊號。",
           "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
         ],
-        "active": [
-          "若帶量突破 **波段前高 (538.00)**，趨勢續攻，可嘗試加碼。"
-        ],
+        "active": [],
         "future": [
-          "目前正乖離過大 (35.2%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "目前正乖離過大 (44.0%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
           "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
         ]
       },
@@ -364,42 +548,44 @@
       "qm_quality_details": [
         "F-Score=9/9 強 (獲利4/槓桿3/效率2) (+25)",
         "流動比率=4.3 安全 (+5)",
-        "Z-Score=9.1 [資訊]",
+        "Z-Score=9.9 [資訊]",
         "連續 4 季獲利 (+5)"
       ],
       "qm_f_score": 9,
-      "composite_score": 83.3,
+      "composite_score": 81.7,
       "qm_position_size": {
-        "recommended_pct": 12.5,
-        "base_pct": 8.3,
-        "multiplier": 1.5,
-        "rationale": "base=8.3% (composite 83/80) × multiplier=1.50 (trigger +8.3/5)"
+        "recommended_pct": 6.7,
+        "base_pct": 8.2,
+        "multiplier": 0.82,
+        "rationale": "base=8.2% (composite 82/80) × multiplier=0.82 (trigger +4.1/5)"
       }
     },
     {
-      "stock_id": "1519",
-      "name": "華城",
-      "market": "twse",
-      "price": 877.0,
-      "change_pct": 4.53,
-      "trading_value": 5192662117,
-      "avg_trading_value_5d": 3172432095,
-      "trigger_score": 2.79,
+      "stock_id": "8064",
+      "name": "東捷",
+      "market": "tpex",
+      "price": 84.2,
+      "change_pct": 9.92,
+      "trading_value": 2044225436,
+      "avg_trading_value_5d": 1469434813,
+      "trigger_score": 6.43,
       "trend_score": 5,
-      "score_percentile": 73.5,
+      "score_percentile": 93.0,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": 0.2749,
+      "rvol_lowatr": -1.2594,
       "signals": [],
       "trigger_details": [
-        "📈 MeanRev=+0.04 (tanh=+0.04)",
+        "📈 MeanRev=+1.81 (tanh=+0.95)",
         "📈 Supertrend 多頭趨勢 (+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
         "✅ KD 黃金交叉/多方排列 (+1)",
+        "📊 RVOL=1.8x (z=0.7) (+0.45)",
+        "⚠️ 量價背離：股價近高但 OBV 下降 (假突破風險) [異常]",
+        "🔥 EFI 資金異常流入 (z=4.7) [異常]",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💸 外資近5日賣超 (-310張) (-0.3)",
-        "🔥 投信近5日買超 (+484張) → 過熱警報 (-0.5)",
-        "🏦 ETF 賣超 2 檔 (淨 -8 張) (-0.3)"
+        "💰 外資近5日買超 (+5,470張) (+0.3)"
       ],
       "scenario": {
         "code": "A",
@@ -407,115 +593,109 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.8）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -13.7% 硬停損** → 766.03\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 897.6,
-        "rec_entry_high": 878.0,
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 高** — K線型態【多頭母子 (Harami)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+6.4 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 71.52\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 82.12,
+        "rec_entry_high": 84.2,
         "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 766.03,
-        "rec_sl_method": "QM. -13.7% 硬停損",
-        "rec_tp_price": 1100.87,
-        "rr_ratio": 1.75,
+        "rec_sl_price": 71.52,
+        "rec_sl_method": "QM. -14.0% 硬停損",
+        "rec_tp_price": 103.12,
+        "rr_ratio": 1.71,
         "tp_list": [
           {
             "method": "QM1. +24% 減碼 1/3",
-            "price": 1100.87,
+            "price": 103.12,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 1242.92,
+            "price": 116.42,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
             "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 1455.99,
+            "price": 136.38,
             "desc": "換股輪動",
             "is_rec": false
           },
           {
-            "method": "MA60 季線反壓",
-            "price": 925.8833333333333,
-            "desc": "生命線",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 942.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
             "method": "布林上緣",
-            "price": 944.231872176148,
+            "price": 88.79615570482554,
             "desc": "通道壓力",
             "is_rec": false
           },
           {
             "method": "N 字測量 (1.0)",
-            "price": 1042.0,
+            "price": 107.4,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 1143.352,
+            "price": 121.7376,
             "desc": "強勢目標",
             "is_rec": false
           }
         ],
         "sl_list": [
           {
-            "method": "QM-A. 硬停損 -13.7%",
-            "price": 766.03,
+            "method": "QM-A. 硬停損 -14.0%",
+            "price": 71.52,
             "desc": "期望值保護 (atr_dynamic)",
-            "loss": -13.7
+            "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 875.0,
+            "price": 56.14000015258789,
             "desc": "趨勢結構破壞",
-            "loss": -1.44
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 851.7,
-            "desc": "MA20/60",
-            "loss": -3.0
+            "loss": -32.49
           },
           {
             "method": "C. 關鍵紅K (籌碼)",
-            "price": 835.0,
+            "price": 77.6,
             "desc": "大量低點",
-            "loss": -4.9
+            "loss": -7.84
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 76.23,
+            "desc": "型態低點",
+            "loss": -9.47
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 74.86000030517577,
+            "desc": "MA20/60",
+            "loss": -11.09
           },
           {
             "method": "A. ATR 波動停損 (科學)",
-            "price": 797.7142857142857,
+            "price": 71.6000008719308,
             "desc": "2倍 ATR",
-            "loss": -9.14
+            "loss": -14.96
           },
           {
             "method": "D. 波段低點停損 (形態)",
-            "price": 778.0,
+            "price": 62.6,
             "desc": "前波低點",
-            "loss": -11.39
+            "loss": -25.65
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.8）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+6.4 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
-          "level": "yellow",
-          "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.8）"
+          "level": "green",
+          "ready": true,
+          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+6.4 ≥ 3）"
         },
         "qm_position_size": {
-          "recommended_pct": 4.5,
-          "base_pct": 8.1,
-          "multiplier": 0.56,
-          "rationale": "base=8.1% (composite 81/80) × multiplier=0.56 (trigger +2.8/5)"
+          "recommended_pct": 10.3,
+          "base_pct": 8.0,
+          "multiplier": 1.29,
+          "rationale": "base=8.0% (composite 80/80) × multiplier=1.29 (trigger +6.4/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -526,8 +706,363 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (851.70)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 63.4 億) 且收跌，視為主力出貨訊號。"
+          "若收盤跌破 **月線 (74.86)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 29.4 億) 且收跌，視為主力出貨訊號。"
+        ],
+        "active": [
+          "若帶量突破 **波段前高 (85.80)**，趨勢續攻，可嘗試加碼。"
+        ],
+        "future": [
+          "目前正乖離過大 (12.5%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+        ]
+      },
+      "qm_quality_score": 68,
+      "qm_body_score": 80,
+      "qm_revenue_score": 50,
+      "qm_quality_details": [
+        "F-Score=9/9 強 (獲利4/槓桿3/效率2) (+25)",
+        "流動比率=2.5 安全 (+5)",
+        "Z-Score=3.5 [資訊]"
+      ],
+      "qm_f_score": 9,
+      "composite_score": 80.3,
+      "qm_position_size": {
+        "recommended_pct": 10.3,
+        "base_pct": 8.0,
+        "multiplier": 1.29,
+        "rationale": "base=8.0% (composite 80/80) × multiplier=1.29 (trigger +6.4/5)"
+      }
+    },
+    {
+      "stock_id": "3533",
+      "name": "嘉澤",
+      "market": "twse",
+      "price": 2520.0,
+      "change_pct": 2.44,
+      "trading_value": 6099691750,
+      "avg_trading_value_5d": 4157374616,
+      "trigger_score": -1.11,
+      "trend_score": 5,
+      "score_percentile": 39.2,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "rvol_lowatr": -1.7057,
+      "signals": [],
+      "trigger_details": [
+        "📈 MeanRev=+0.90 (tanh=+0.72)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
+        "💸 外資近5日賣超 (-180張) (-0.3)",
+        "🔥 投信近5日買超 (+334張) → 過熱警報 (-0.5)",
+        "🏦 ETF 賣超 2 檔 (淨 +60 張) (-0.3)"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【黑三兵 (3 Crows)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-1.1 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 2221.38\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 2586.0,
+        "rec_entry_high": 2580.0,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 2221.38,
+        "rec_sl_method": "QM. -14.0% 硬停損",
+        "rec_tp_price": 3202.92,
+        "rr_ratio": 1.71,
+        "tp_list": [
+          {
+            "method": "QM1. +24% 減碼 1/3",
+            "price": 3202.92,
+            "desc": "落袋第一段",
+            "is_rec": true
+          },
+          {
+            "method": "QM2. +40% 移動停損至 MA10W",
+            "price": 3616.2,
+            "desc": "鎖住超額",
+            "is_rec": false
+          },
+          {
+            "method": "QM3. +64% 清倉 (或 60 日到期)",
+            "price": 4236.12,
+            "desc": "換股輪動",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 2715.1231790558845,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 2730.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 3300.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 3744.96,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "QM-A. 硬停損 -14.0%",
+            "price": 2221.38,
+            "desc": "期望值保護 (atr_dynamic)",
+            "loss": -14.0
+          },
+          {
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": 1708.0,
+            "desc": "趨勢結構破壞",
+            "loss": -33.88
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 2324.25,
+            "desc": "MA20/60",
+            "loss": -9.91
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 2265.714285714286,
+            "desc": "2倍 ATR",
+            "loss": -12.18
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 2010.0,
+            "desc": "大量低點",
+            "loss": -22.09
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 2010.0,
+            "desc": "前波低點",
+            "loss": -22.09
+          }
+        ],
+        "qm_horizon": "40-60d",
+        "qm_hold_days_target": 60,
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-1.1 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_gate": {
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-1.1 < 0，訊號矛盾"
+        },
+        "qm_position_size": {
+          "recommended_pct": 4.0,
+          "base_pct": 8.0,
+          "multiplier": 0.5,
+          "rationale": "base=8.0% (composite 80/80) × multiplier=0.50 (trigger -1.1/5)"
+        },
+        "qm_exit_signals": [
+          "週線 Supertrend 翻空",
+          "週 MA20 跌破 3% 以上 (非插針)",
+          "月營收 YoY 連續 2 個月轉負",
+          "F-Score 季更新後下降 2 分以上"
+        ]
+      },
+      "checklist": {
+        "risk": [
+          "若收盤跌破 **月線 (2324.25)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 83.1 億) 且收跌，視為主力出貨訊號。"
+        ],
+        "active": [
+          "若帶量突破 **波段前高 (2730.00)**，趨勢續攻，可嘗試加碼。"
+        ],
+        "future": [
+          "目前正乖離過大 (11.0%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+        ]
+      },
+      "qm_quality_score": 85,
+      "qm_body_score": 100,
+      "qm_revenue_score": 62,
+      "qm_quality_details": [
+        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
+        "流動比率=3.7 安全 (+5)",
+        "Z-Score=16.8 [資訊]",
+        "連續 4 季獲利 (+5)",
+        "毛利率=48.6% 高 (+5) [TV]",
+        "營益率=30.6% 優 (+5) [TV]",
+        "ROE=21.1% 高 (+5) [TV]",
+        "營收正驚喜 +22.2% (+12)"
+      ],
+      "qm_f_score": 8,
+      "composite_score": 80.2,
+      "qm_position_size": {
+        "recommended_pct": 4.0,
+        "base_pct": 8.0,
+        "multiplier": 0.5,
+        "rationale": "base=8.0% (composite 80/80) × multiplier=0.50 (trigger -1.1/5)"
+      }
+    },
+    {
+      "stock_id": "1519",
+      "name": "華城",
+      "market": "twse",
+      "price": 886.0,
+      "change_pct": 1.03,
+      "trading_value": 3040285784,
+      "avg_trading_value_5d": 2742673883,
+      "trigger_score": -2.32,
+      "trend_score": 5,
+      "score_percentile": 29.0,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "rvol_lowatr": -0.9046,
+      "signals": [],
+      "trigger_details": [
+        "📈 MeanRev=+0.07 (tanh=+0.07)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "📊 RVOL=0.4x (z=-0.8) (-0.53)",
+        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
+        "💰 外資近5日買超 (+449張) (+0.3)",
+        "🔥 投信近5日買超 (+570張) → 過熱警報 (-0.5)"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【黑三兵 (3 Crows)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.3 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -13.5% 硬停損** → 766.75\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 898.2,
+        "rec_entry_high": 875.0,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 766.75,
+        "rec_sl_method": "QM. -13.5% 硬停損",
+        "rec_tp_price": 1099.38,
+        "rr_ratio": 1.78,
+        "tp_list": [
+          {
+            "method": "QM1. +24% 減碼 1/3",
+            "price": 1099.38,
+            "desc": "落袋第一段",
+            "is_rec": true
+          },
+          {
+            "method": "QM2. +40% 移動停損至 MA10W",
+            "price": 1241.24,
+            "desc": "鎖住超額",
+            "is_rec": false
+          },
+          {
+            "method": "QM3. +64% 清倉 (或 60 日到期)",
+            "price": 1454.02,
+            "desc": "換股輪動",
+            "is_rec": false
+          },
+          {
+            "method": "MA60 季線反壓",
+            "price": 924.3833333333333,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 935.6766007166632,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 942.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 1039.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 1140.352,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "QM-A. 硬停損 -13.5%",
+            "price": 766.75,
+            "desc": "期望值保護 (atr_dynamic)",
+            "loss": -13.5
+          },
+          {
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": 874.85,
+            "desc": "趨勢結構破壞",
+            "loss": -1.33
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 849.15,
+            "desc": "MA20/60",
+            "loss": -2.95
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 835.0,
+            "desc": "大量低點",
+            "loss": -4.57
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 796.1428571428571,
+            "desc": "2倍 ATR",
+            "loss": -9.01
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 778.0,
+            "desc": "前波低點",
+            "loss": -11.09
+          }
+        ],
+        "qm_horizon": "40-60d",
+        "qm_hold_days_target": 60,
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.3 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_gate": {
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.3 < 0，訊號矛盾"
+        },
+        "qm_position_size": {
+          "recommended_pct": 4.0,
+          "base_pct": 8.0,
+          "multiplier": 0.5,
+          "rationale": "base=8.0% (composite 80/80) × multiplier=0.50 (trigger -2.3/5)"
+        },
+        "qm_exit_signals": [
+          "週線 Supertrend 翻空",
+          "週 MA20 跌破 3% 以上 (非插針)",
+          "月營收 YoY 連續 2 個月轉負",
+          "F-Score 季更新後下降 2 分以上"
+        ]
+      },
+      "checklist": {
+        "risk": [
+          "若收盤跌破 **月線 (849.15)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 54.9 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
           "若帶量突破 **波段前高 (942.00)**，趨勢續攻，可嘗試加碼。"
@@ -542,7 +1077,7 @@
       "qm_revenue_score": 50,
       "qm_quality_details": [
         "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
-        "Z-Score=4.2 [資訊]",
+        "Z-Score=4.3 [資訊]",
         "ROE=15.3% (+5)",
         "連續 4 季獲利 (+5)",
         "毛利率=40.0% 高 (+5) [TV]",
@@ -550,43 +1085,40 @@
         "ROE=45.9% 高 (+5) [TV]"
       ],
       "qm_f_score": 8,
-      "composite_score": 81.0,
+      "composite_score": 80.2,
       "qm_position_size": {
-        "recommended_pct": 4.5,
-        "base_pct": 8.1,
-        "multiplier": 0.56,
-        "rationale": "base=8.1% (composite 81/80) × multiplier=0.56 (trigger +2.8/5)"
+        "recommended_pct": 4.0,
+        "base_pct": 8.0,
+        "multiplier": 0.5,
+        "rationale": "base=8.0% (composite 80/80) × multiplier=0.50 (trigger -2.3/5)"
       }
     },
     {
       "stock_id": "7750",
       "name": "新代",
       "market": "twse",
-      "price": 2240.0,
-      "change_pct": 9.8,
-      "trading_value": 3150160460,
-      "avg_trading_value_5d": 1360330743,
-      "trigger_score": 3.92,
+      "price": 2120.0,
+      "change_pct": 6.0,
+      "trading_value": 2945547445,
+      "avg_trading_value_5d": 1452533607,
+      "trigger_score": 2.06,
       "trend_score": 5,
-      "score_percentile": 81.3,
+      "score_percentile": 67.8,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": 2.0795,
-      "signals": [
-        "rvol_high"
-      ],
+      "rvol_lowatr": -0.2375,
+      "signals": [],
       "trigger_details": [
-        "📈 MeanRev=+3.62 (tanh=+1.00)",
+        "📈 MeanRev=+2.70 (tanh=+0.99)",
         "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=67.2) (+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "💀💀 MACD 出現【強烈頂背離】訊號 (高風險反轉) (-3)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "🔻 RSI 出現強烈頂背離 (-1.5)",
-        "🔊 爆量確認 RVOL=3.2x (z=2.4) (+1.0)",
-        "🔥 EFI 資金異常流入 (z=7.7) [異常]",
+        "💀💀 MACD【強烈頂背離】⚠️ 僅供參考 (IC驗證反向)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "🔻 RSI強烈頂背離 ⚠️ 僅供參考 (IC驗證反向)",
+        "🔥 EFI 資金異常流入 (z=5.4) [異常]",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💸 外資近5日賣超 (-404張) (-0.3)",
+        "💸 外資近5日賣超 (-480張) (-0.3)",
         "🔥 投信近5日買超 (+10張) → 過熱警報 (-0.5)"
       ],
       "scenario": {
@@ -595,54 +1127,54 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【多頭吞噬 (Engulfing)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.9 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 1629.92\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 1797.5,
-        "rec_entry_high": 1993.0,
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【多頭吞噬 (Engulfing)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.1）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 1690.98\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 1865.5,
+        "rec_entry_high": 2067.0,
         "rec_entry_desc": "等待拉回 (5MA-10MA)",
-        "rec_sl_price": 1629.92,
+        "rec_sl_price": 1690.98,
         "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 2350.11,
+        "rec_tp_price": 2438.15,
         "rr_ratio": 1.71,
         "tp_list": [
           {
             "method": "QM1. +24% 減碼 1/3",
-            "price": 2350.11,
+            "price": 2438.15,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 2653.35,
+            "price": 2752.75,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
             "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 3108.21,
+            "price": 3224.65,
             "desc": "換股輪動",
             "is_rec": false
           },
           {
             "method": "布林上緣",
-            "price": 2147.2960507931093,
+            "price": 2234.667973116633,
             "desc": "通道壓力",
             "is_rec": false
           },
           {
             "method": "前波高點",
-            "price": 2240.0,
+            "price": 2325.0,
             "desc": "解套賣壓",
             "is_rec": false
           },
           {
             "method": "N 字測量 (1.0)",
-            "price": 3003.0,
+            "price": 3162.0,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 3627.1800000000003,
+            "price": 3838.71,
             "desc": "強勢目標",
             "is_rec": false
           }
@@ -650,54 +1182,60 @@
         "sl_list": [
           {
             "method": "QM-A. 硬停損 -14.0%",
-            "price": 1629.92,
+            "price": 1690.98,
             "desc": "期望值保護 (atr_dynamic)",
             "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 1182.95,
+            "price": 1179.95,
             "desc": "趨勢結構破壞",
-            "loss": -37.58
+            "loss": -39.99
           },
           {
             "method": "C. 關鍵紅K (籌碼)",
             "price": 2015.0,
-            "desc": "大量低點 (壓力/已破)",
-            "loss": 1.1
+            "desc": "大量低點",
+            "loss": -2.52
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 1994.85,
+            "desc": "型態低點",
+            "loss": -3.49
           },
           {
             "method": "A. ATR 波動停損 (科學)",
-            "price": 1760.142857142857,
+            "price": 1822.0,
             "desc": "2倍 ATR",
-            "loss": -11.68
+            "loss": -11.85
           },
           {
             "method": "B. 均線停損 (趨勢)",
-            "price": 1570.5,
+            "price": 1616.25,
             "desc": "MA20/60",
-            "loss": -21.2
+            "loss": -21.81
           },
           {
             "method": "D. 波段低點停損 (形態)",
             "price": 1230.0,
             "desc": "前波低點",
-            "loss": -38.28
+            "loss": -40.49
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.9 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.1）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
-          "level": "green",
-          "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.9 ≥ 3）"
+          "level": "yellow",
+          "ready": false,
+          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.1）"
         },
         "qm_position_size": {
-          "recommended_pct": 6.4,
-          "base_pct": 8.1,
-          "multiplier": 0.78,
-          "rationale": "base=8.1% (composite 81/80) × multiplier=0.78 (trigger +3.9/5)"
+          "recommended_pct": 4.0,
+          "base_pct": 8.0,
+          "multiplier": 0.5,
+          "rationale": "base=8.0% (composite 80/80) × multiplier=0.50 (trigger +2.1/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -708,13 +1246,15 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (1570.50)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 27.2 億) 且收跌，視為主力出貨訊號。",
+          "若收盤跌破 **月線 (1616.25)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 29.1 億) 且收跌，視為主力出貨訊號。",
           "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
         ],
-        "active": [],
+        "active": [
+          "若帶量突破 **波段前高 (2325.00)**，趨勢續攻，可嘗試加碼。"
+        ],
         "future": [
-          "目前正乖離過大 (42.6%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "目前正乖離過大 (34.9%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
           "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
         ]
       },
@@ -724,419 +1264,49 @@
       "qm_quality_details": [
         "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
         "流動比率=3.0 安全 (+5)",
-        "Z-Score=22.8 [資訊]",
+        "Z-Score=21.7 [資訊]",
         "連續 4 季獲利 (+5)",
         "毛利率=44.5% 高 (+5) [TV]",
         "營益率=20.2% 優 (+5) [TV]",
         "ROE=28.1% 高 (+5) [TV]"
       ],
       "qm_f_score": 8,
-      "composite_score": 81.0,
-      "qm_position_size": {
-        "recommended_pct": 6.4,
-        "base_pct": 8.1,
-        "multiplier": 0.78,
-        "rationale": "base=8.1% (composite 81/80) × multiplier=0.78 (trigger +3.9/5)"
-      }
-    },
-    {
-      "stock_id": "7822",
-      "name": "倍利科",
-      "market": "twse",
-      "price": 1340.0,
-      "change_pct": 8.06,
-      "trading_value": 1252230995,
-      "avg_trading_value_5d": 716495758,
-      "trigger_score": -2.36,
-      "trend_score": 5,
-      "score_percentile": 28.7,
-      "regime": "volatile",
-      "etf_buy_count": 0,
-      "rvol_lowatr": -0.9826,
-      "signals": [],
-      "trigger_details": [
-        "📉 MeanRev=-2.10 (tanh=-0.97)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "🔻 MACD 柱狀體翻綠 (-1)",
-        "🔻 KD 死亡交叉/空方排列 (-1)",
-        "💀 EFI 資金異常流出 (z=-2.6) [異常]",
-        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0"
-      ],
-      "scenario": {
-        "code": "A",
-        "title": "🔥 劇本 A：強力進攻",
-        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
-      },
-      "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【黑三兵 (3 Crows)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.4 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 1228.08\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 1516.0,
-        "rec_entry_high": 1340.0,
-        "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 1228.08,
-        "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 1770.72,
-        "rr_ratio": 1.71,
-        "tp_list": [
-          {
-            "method": "QM1. +24% 減碼 1/3",
-            "price": 1770.72,
-            "desc": "落袋第一段",
-            "is_rec": true
-          },
-          {
-            "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 1999.2,
-            "desc": "鎖住超額",
-            "is_rec": false
-          },
-          {
-            "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 2341.92,
-            "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "MA60 季線反壓",
-            "price": 1397.5666666666666,
-            "desc": "生命線",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 1827.5799253509003,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 1875.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
-            "method": "N 字測量 (1.0)",
-            "price": 1915.0,
-            "desc": "等幅測距",
-            "is_rec": false
-          },
-          {
-            "method": "費波南希 (1.618)",
-            "price": 2270.35,
-            "desc": "強勢目標",
-            "is_rec": false
-          }
-        ],
-        "sl_list": [
-          {
-            "method": "QM-A. 硬停損 -14.0%",
-            "price": 1228.08,
-            "desc": "期望值保護 (atr_dynamic)",
-            "loss": -14.0
-          },
-          {
-            "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 1178.85,
-            "desc": "趨勢結構破壞",
-            "loss": -17.45
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 1615.5,
-            "desc": "MA20/60 (壓力/已破)",
-            "loss": 20.56
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 1475.0,
-            "desc": "大量低點 (壓力/已破)",
-            "loss": 10.07
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 1300.0,
-            "desc": "前波低點",
-            "loss": -2.99
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 1077.142857142857,
-            "desc": "2倍 ATR",
-            "loss": -19.62
-          }
-        ],
-        "qm_horizon": "40-60d",
-        "qm_hold_days_target": 60,
-        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.4 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
-        "qm_entry_gate": {
-          "level": "red",
-          "ready": false,
-          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.4 < 0，訊號矛盾"
-        },
-        "qm_position_size": {
-          "recommended_pct": 4.0,
-          "base_pct": 8.1,
-          "multiplier": 0.5,
-          "rationale": "base=8.1% (composite 81/80) × multiplier=0.50 (trigger -2.4/5)"
-        },
-        "qm_exit_signals": [
-          "週線 Supertrend 翻空",
-          "週 MA20 跌破 3% 以上 (非插針)",
-          "月營收 YoY 連續 2 個月轉負",
-          "F-Score 季更新後下降 2 分以上"
-        ]
-      },
-      "checklist": {
-        "risk": [
-          "若出現 **爆量長黑** (成交值 > 14.3 億) 且收跌，視為主力出貨訊號。"
-        ],
-        "active": [
-          "若帶量突破 **波段前高 (1875.00)**，趨勢續攻，可嘗試加碼。",
-          "若帶量站上 **月線 (1615.50)**，短線翻多，可試單進場。"
-        ],
-        "future": [
-          "目前處於空頭趨勢。需等待 **底部形態 (如W底)** 出現，或 **站上月線** 後再考慮進場。",
-          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
-        ]
-      },
-      "qm_quality_score": 79,
-      "qm_body_score": 98,
-      "qm_revenue_score": 50,
-      "qm_quality_details": [
-        "F-Score=8/9 強 (獲利4/槓桿3/效率1) (+25)",
-        "Z-Score=51.2 [資訊]",
-        "ROIC=19.6% 優 (+8)",
-        "ROE=20.8% (+5)",
-        "連續 4 季獲利 (+5)",
-        "ROE=81.7% 高 (+5) [TV]"
-      ],
-      "qm_f_score": 8,
-      "composite_score": 80.9,
+      "composite_score": 80.2,
       "qm_position_size": {
         "recommended_pct": 4.0,
-        "base_pct": 8.1,
-        "multiplier": 0.5,
-        "rationale": "base=8.1% (composite 81/80) × multiplier=0.50 (trigger -2.4/5)"
-      }
-    },
-    {
-      "stock_id": "3081",
-      "name": "聯亞",
-      "market": "tpex",
-      "price": 3020.0,
-      "change_pct": 0.5,
-      "trading_value": 19753611210,
-      "avg_trading_value_5d": 8826504141,
-      "trigger_score": 5.09,
-      "trend_score": 5,
-      "score_percentile": 87.7,
-      "regime": "volatile",
-      "etf_buy_count": 3,
-      "rvol_lowatr": 0.0721,
-      "signals": [
-        "etf_sync_buy"
-      ],
-      "trigger_details": [
-        "📈 MeanRev=+2.06 (tanh=+0.97)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=61.8) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔻 KD 死亡交叉/空方排列 (-1)",
-        "📊 RVOL=1.9x (z=0.9) (+0.59)",
-        "🔥 EFI 資金異常流入 (z=2.7) [異常]",
-        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+21張) (+0.3)",
-        "❄️ 投信近5日賣超 (-195張) → 籌碼沉澱 (+0.3)",
-        "🏦 ETF 同步買超 4 檔 (淨 +260 張) (+0.6)"
-      ],
-      "scenario": {
-        "code": "A",
-        "title": "🔥 劇本 A：強力進攻",
-        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
-      },
-      "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+5.1 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 2537.86\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 2882.0,
-        "rec_entry_high": 3020.0,
-        "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 2537.86,
-        "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 3659.24,
-        "rr_ratio": 1.71,
-        "tp_list": [
-          {
-            "method": "QM1. +24% 減碼 1/3",
-            "price": 3659.24,
-            "desc": "落袋第一段",
-            "is_rec": true
-          },
-          {
-            "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 4131.4,
-            "desc": "鎖住超額",
-            "is_rec": false
-          },
-          {
-            "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 4839.64,
-            "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 3161.0689969268633,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 3305.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
-            "method": "N 字測量 (1.0)",
-            "price": 4825.0,
-            "desc": "等幅測距",
-            "is_rec": false
-          },
-          {
-            "method": "費波南希 (1.618)",
-            "price": 5940.49,
-            "desc": "強勢目標",
-            "is_rec": false
-          }
-        ],
-        "sl_list": [
-          {
-            "method": "QM-A. 硬停損 -14.0%",
-            "price": 2537.86,
-            "desc": "期望值保護 (atr_dynamic)",
-            "loss": -14.0
-          },
-          {
-            "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 1275.5,
-            "desc": "趨勢結構破壞",
-            "loss": -56.78
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 2875.0,
-            "desc": "大量低點",
-            "loss": -4.8
-          },
-          {
-            "method": "E. 型態停損 (K線)",
-            "price": 2861.1,
-            "desc": "型態低點",
-            "loss": -5.26
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 2600.714285714286,
-            "desc": "2倍 ATR",
-            "loss": -13.88
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 2189.5,
-            "desc": "MA20/60",
-            "loss": -27.5
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 1500.0,
-            "desc": "前波低點",
-            "loss": -50.33
-          }
-        ],
-        "qm_horizon": "40-60d",
-        "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+5.1 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
-        "qm_entry_gate": {
-          "level": "green",
-          "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+5.1 ≥ 3）"
-        },
-        "qm_position_size": {
-          "recommended_pct": 8.1,
-          "base_pct": 8.0,
-          "multiplier": 1.02,
-          "rationale": "base=8.0% (composite 80/80) × multiplier=1.02 (trigger +5.1/5)"
-        },
-        "qm_exit_signals": [
-          "週線 Supertrend 翻空",
-          "週 MA20 跌破 3% 以上 (非插針)",
-          "月營收 YoY 連續 2 個月轉負",
-          "F-Score 季更新後下降 2 分以上"
-        ]
-      },
-      "checklist": {
-        "risk": [
-          "若收盤跌破 **月線 (2189.50)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 176.5 億) 且收跌，視為主力出貨訊號。",
-          "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
-        ],
-        "active": [
-          "若帶量突破 **波段前高 (3305.00)**，趨勢續攻，可嘗試加碼。"
-        ],
-        "future": [
-          "目前正乖離過大 (37.9%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
-          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
-        ]
-      },
-      "qm_quality_score": 82,
-      "qm_body_score": 95,
-      "qm_revenue_score": 62,
-      "qm_quality_details": [
-        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
-        "流動比率=5.5 安全 (+5)",
-        "Z-Score=222.9 [資訊]",
-        "連續 4 季獲利 (+5)",
-        "毛利率=40.6% 高 (+5) [TV]",
-        "營益率=23.1% 優 (+5) [TV]",
-        "營收正驚喜 +65.4% (+12)"
-      ],
-      "qm_f_score": 8,
-      "composite_score": 79.9,
-      "qm_position_size": {
-        "recommended_pct": 8.1,
         "base_pct": 8.0,
-        "multiplier": 1.02,
-        "rationale": "base=8.0% (composite 80/80) × multiplier=1.02 (trigger +5.1/5)"
+        "multiplier": 0.5,
+        "rationale": "base=8.0% (composite 80/80) × multiplier=0.50 (trigger +2.1/5)"
       }
     },
     {
       "stock_id": "1590",
       "name": "亞德客-KY",
       "market": "twse",
-      "price": 1380.0,
-      "change_pct": 4.15,
-      "trading_value": 4332117345,
-      "avg_trading_value_5d": 2085111422,
-      "trigger_score": 5.34,
+      "price": 1360.0,
+      "change_pct": 1.49,
+      "trading_value": 3902095430,
+      "avg_trading_value_5d": 2057500873,
+      "trigger_score": 3.21,
       "trend_score": 5,
-      "score_percentile": 88.9,
+      "score_percentile": 76.6,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": 2.695,
-      "signals": [
-        "rvol_high"
-      ],
+      "rvol_lowatr": -1.1166,
+      "signals": [],
       "trigger_details": [
-        "📈 MeanRev=+3.29 (tanh=+1.00)",
+        "📈 MeanRev=+2.70 (tanh=+0.99)",
         "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=56.7) (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=59.9) (+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔥 MACD 動能持續增強 (+0.5)",
         "🔻 KD 死亡交叉/空方排列 (-1)",
-        "🔊 爆量確認 RVOL=3.3x (z=4.1) (+1.0)",
-        "🔥 EFI 資金異常流入 (z=7.3) [異常]",
-        "🚨 異常爆量 RVOL=3.3x (z=4.1)，留意消息面 [異常]",
+        "📊 RVOL=1.3x (z=0.5) (+0.37)",
+        "🔥 EFI 資金異常流入 (z=5.6) [異常]",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+579張) (+0.3)",
-        "🔥 投信近5日買超 (+281張) → 過熱警報 (-0.5)",
-        "🏦 ETF 活動: 買 1 / 賣 1 檔 (淨 +132 張) [資訊]"
+        "💰 外資近5日買超 (+341張) (+0.3)",
+        "🔥 投信近5日買超 (+442張) → 過熱警報 (-0.5)",
+        "🏦 ETF 活動: 買 1 / 賣 1 檔 (淨 +230 張) [資訊]"
       ],
       "scenario": {
         "code": "A",
@@ -1144,37 +1314,31 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+5.3 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 1070.70\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 1212.0,
-        "rec_entry_high": 1278.0,
-        "rec_entry_desc": "等待拉回 (5MA-10MA)",
-        "rec_sl_price": 1070.7,
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.2 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 1145.95\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 1300.0,
+        "rec_entry_high": 1365.0,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 1145.95,
         "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 1543.8,
+        "rec_tp_price": 1652.3,
         "rr_ratio": 1.71,
         "tp_list": [
           {
             "method": "QM1. +24% 減碼 1/3",
-            "price": 1543.8,
+            "price": 1652.3,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 1743.0,
+            "price": 1865.5,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
             "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 2041.8,
+            "price": 2185.3,
             "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 1352.3663686774369,
-            "desc": "通道壓力",
             "is_rec": false
           },
           {
@@ -1185,13 +1349,13 @@
           },
           {
             "method": "N 字測量 (1.0)",
-            "price": 1763.0,
+            "price": 1850.0,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 2062.73,
+            "price": 2149.73,
             "desc": "強勢目標",
             "is_rec": false
           }
@@ -1199,54 +1363,54 @@
         "sl_list": [
           {
             "method": "QM-A. 硬停損 -14.0%",
-            "price": 1070.7,
+            "price": 1145.95,
             "desc": "期望值保護 (atr_dynamic)",
             "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 1063.1,
+            "price": 1062.35,
             "desc": "趨勢結構破壞",
-            "loss": -14.61
+            "loss": -20.27
           },
           {
             "method": "C. 關鍵紅K (籌碼)",
             "price": 1330.0,
-            "desc": "大量低點 (壓力/已破)",
-            "loss": 4.07
+            "desc": "大量低點",
+            "loss": -2.56
           },
           {
             "method": "A. ATR 波動停損 (科學)",
-            "price": 1133.2857142857142,
+            "price": 1213.0,
             "desc": "2倍 ATR",
-            "loss": -11.32
+            "loss": -11.14
           },
           {
             "method": "B. 均線停損 (趨勢)",
-            "price": 1115.3,
+            "price": 1133.05,
             "desc": "MA20/60",
-            "loss": -12.73
+            "loss": -16.99
           },
           {
             "method": "D. 波段低點停損 (形態)",
             "price": 970.0,
             "desc": "前波低點",
-            "loss": -24.1
+            "loss": -28.94
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+5.3 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.2 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
           "level": "green",
           "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+5.3 ≥ 3）"
+          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.2 ≥ 3）"
         },
         "qm_position_size": {
-          "recommended_pct": 8.5,
-          "base_pct": 8.0,
-          "multiplier": 1.07,
-          "rationale": "base=8.0% (composite 80/80) × multiplier=1.07 (trigger +5.3/5)"
+          "recommended_pct": 5.1,
+          "base_pct": 7.9,
+          "multiplier": 0.64,
+          "rationale": "base=7.9% (composite 79/80) × multiplier=0.64 (trigger +3.2/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -1257,14 +1421,14 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (1115.30)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 41.7 億) 且收跌，視為主力出貨訊號。"
+          "若收盤跌破 **月線 (1133.05)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 41.2 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
           "若帶量突破 **波段前高 (1455.00)**，趨勢續攻，可嘗試加碼。"
         ],
         "future": [
-          "目前正乖離過大 (23.7%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "目前正乖離過大 (20.5%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
           "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
         ]
       },
@@ -1274,224 +1438,49 @@
       "qm_quality_details": [
         "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
         "流動比率=5.4 安全 (+5)",
-        "Z-Score=18.3 [資訊]",
+        "Z-Score=18.1 [資訊]",
         "連續 4 季獲利 (+5)",
         "毛利率=44.5% 高 (+5) [TV]",
         "營益率=30.0% 優 (+5) [TV]",
         "營收正驚喜 +39.5% (+12)"
       ],
       "qm_f_score": 8,
-      "composite_score": 79.9,
+      "composite_score": 79.0,
       "qm_position_size": {
-        "recommended_pct": 8.5,
-        "base_pct": 8.0,
-        "multiplier": 1.07,
-        "rationale": "base=8.0% (composite 80/80) × multiplier=1.07 (trigger +5.3/5)"
-      }
-    },
-    {
-      "stock_id": "4583",
-      "name": "台灣精銳",
-      "market": "twse",
-      "price": 740.0,
-      "change_pct": 3.21,
-      "trading_value": 267033586,
-      "avg_trading_value_5d": 217301789,
-      "trigger_score": 2.66,
-      "trend_score": 5,
-      "score_percentile": 72.6,
-      "regime": "volatile",
-      "etf_buy_count": 0,
-      "rvol_lowatr": 0.7279,
-      "signals": [],
-      "trigger_details": [
-        "📈 MeanRev=+0.88 (tanh=+0.71)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔻 KD 死亡交叉/空方排列 (-1)",
-        "📊 RVOL=1.6x (z=0.7) (+0.49)",
-        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+84張) (+0.3)"
-      ],
-      "scenario": {
-        "code": "A",
-        "title": "🔥 劇本 A：強力進攻",
-        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
-      },
-      "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.7）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. 週 MA20 趨勢停損** → 684.10\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 743.8,
-        "rec_entry_high": 740.0,
-        "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 684.1,
-        "rec_sl_method": "QM. 週 MA20 趨勢停損",
-        "rec_tp_price": 919.96,
-        "rr_ratio": 3.08,
-        "tp_list": [
-          {
-            "method": "QM1. +24% 減碼 1/3",
-            "price": 919.96,
-            "desc": "落袋第一段",
-            "is_rec": true
-          },
-          {
-            "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 1038.66,
-            "desc": "鎖住超額",
-            "is_rec": false
-          },
-          {
-            "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 1216.72,
-            "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 770.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 776.0298998459494,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
-            "method": "N 字測量 (1.0)",
-            "price": 901.0,
-            "desc": "等幅測距",
-            "is_rec": false
-          },
-          {
-            "method": "費波南希 (1.618)",
-            "price": 1000.498,
-            "desc": "強勢目標",
-            "is_rec": false
-          }
-        ],
-        "sl_list": [
-          {
-            "method": "QM-A. 硬停損 -12.2%",
-            "price": 651.67,
-            "desc": "期望值保護 (atr_dynamic)",
-            "loss": -12.2
-          },
-          {
-            "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 684.1,
-            "desc": "趨勢結構破壞",
-            "loss": -7.79
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 690.0,
-            "desc": "大量低點",
-            "loss": -6.76
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 687.85,
-            "desc": "MA20/60",
-            "loss": -7.05
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 680.0,
-            "desc": "2倍 ATR",
-            "loss": -8.11
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 609.0,
-            "desc": "前波低點",
-            "loss": -17.7
-          }
-        ],
-        "qm_horizon": "40-60d",
-        "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.7）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
-        "qm_entry_gate": {
-          "level": "yellow",
-          "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.7）"
-        },
-        "qm_position_size": {
-          "recommended_pct": 4.3,
-          "base_pct": 8.0,
-          "multiplier": 0.53,
-          "rationale": "base=8.0% (composite 80/80) × multiplier=0.53 (trigger +2.7/5)"
-        },
-        "qm_exit_signals": [
-          "週線 Supertrend 翻空",
-          "週 MA20 跌破 3% 以上 (非插針)",
-          "月營收 YoY 連續 2 個月轉負",
-          "F-Score 季更新後下降 2 分以上"
-        ]
-      },
-      "checklist": {
-        "risk": [
-          "若收盤跌破 **月線 (687.85)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 4.3 億) 且收跌，視為主力出貨訊號。",
-          "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
-        ],
-        "active": [
-          "若帶量突破 **波段前高 (770.00)**，趨勢續攻，可嘗試加碼。"
-        ],
-        "future": [
-          "目前正乖離過大 (7.6%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
-          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
-        ]
-      },
-      "qm_quality_score": 82,
-      "qm_body_score": 95,
-      "qm_revenue_score": 62,
-      "qm_quality_details": [
-        "F-Score=8/9 強 (獲利4/槓桿3/效率1) (+25)",
-        "流動比率=17.4 安全 (+5)",
-        "Z-Score=43.7 [資訊]",
-        "連續 4 季獲利 (+5)",
-        "毛利率=48.7% 高 (+5) [TV]",
-        "營益率=31.4% 優 (+5) [TV]",
-        "營收正驚喜 +23.6% (+12)"
-      ],
-      "qm_f_score": 8,
-      "composite_score": 79.9,
-      "qm_position_size": {
-        "recommended_pct": 4.3,
-        "base_pct": 8.0,
-        "multiplier": 0.53,
-        "rationale": "base=8.0% (composite 80/80) × multiplier=0.53 (trigger +2.7/5)"
+        "recommended_pct": 5.1,
+        "base_pct": 7.9,
+        "multiplier": 0.64,
+        "rationale": "base=7.9% (composite 79/80) × multiplier=0.64 (trigger +3.2/5)"
       }
     },
     {
       "stock_id": "2345",
       "name": "智邦",
       "market": "twse",
-      "price": 2080.0,
-      "change_pct": 6.12,
-      "trading_value": 13900285926,
-      "avg_trading_value_5d": 9811189193,
-      "trigger_score": 2.72,
-      "trend_score": 4.5,
-      "score_percentile": 73.1,
+      "price": 2140.0,
+      "change_pct": 2.88,
+      "trading_value": 10883355076,
+      "avg_trading_value_5d": 8791546679,
+      "trigger_score": -2.86,
+      "trend_score": 5,
+      "score_percentile": 24.9,
       "regime": "volatile",
       "etf_buy_count": 3,
-      "rvol_lowatr": -0.3287,
+      "rvol_lowatr": -3.2163,
       "signals": [
+        "rvol_low",
         "etf_sync_buy"
       ],
       "trigger_details": [
-        "📈 MeanRev=+0.80 (tanh=+0.66)",
+        "📈 MeanRev=+0.84 (tanh=+0.68)",
         "📈 Supertrend 多頭趨勢 (+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔻 KD 死亡交叉/空方排列 (-1)",
-        "📊 RVOL=1.4x (z=1.0) (+0.68)",
+        "🔇 量能萎縮 RVOL=0.2x (z=-2.0) (-1.0)",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💸 外資近5日賣超 (-753張) (-0.3)",
-        "🔥 投信近5日買超 (+671張) → 過熱警報 (-0.5)",
-        "🏦 ETF 同步買超 5 檔 (淨 +1222 張) (+0.6)"
+        "💸 外資近5日賣超 (-53張) (-0.3)",
+        "🔥 投信近5日買超 (+396張) → 過熱警報 (-0.5)",
+        "🏦 ETF 同步買超 4 檔 (淨 +1104 張) (+0.6)"
       ],
       "scenario": {
         "code": "A",
@@ -1499,30 +1488,30 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.7）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 1805.14\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 2118.0,
-        "rec_entry_high": 2080.0,
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.9 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 1816.32\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 2124.0,
+        "rec_entry_high": 2100.0,
         "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 1805.14,
+        "rec_sl_price": 1816.32,
         "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 2602.76,
+        "rec_tp_price": 2618.88,
         "rr_ratio": 1.71,
         "tp_list": [
           {
             "method": "QM1. +24% 減碼 1/3",
-            "price": 2602.76,
+            "price": 2618.88,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 2938.6,
+            "price": 2956.8,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
             "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 3442.36,
+            "price": 3463.68,
             "desc": "換股輪動",
             "is_rec": false
           },
@@ -1534,19 +1523,19 @@
           },
           {
             "method": "布林上緣",
-            "price": 2263.696232102923,
+            "price": 2295.124835019363,
             "desc": "通道壓力",
             "is_rec": false
           },
           {
             "method": "N 字測量 (1.0)",
-            "price": 2835.0,
+            "price": 2855.0,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 3301.59,
+            "price": 3321.59,
             "desc": "強勢目標",
             "is_rec": false
           }
@@ -1554,54 +1543,54 @@
         "sl_list": [
           {
             "method": "QM-A. 硬停損 -14.0%",
-            "price": 1805.14,
+            "price": 1816.32,
             "desc": "期望值保護 (atr_dynamic)",
             "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 1409.0,
+            "price": 1410.0,
             "desc": "趨勢結構破壞",
-            "loss": -32.87
+            "loss": -33.24
           },
           {
             "method": "C. 關鍵紅K (籌碼)",
             "price": 1870.0,
             "desc": "大量低點",
-            "loss": -10.1
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 1828.25,
-            "desc": "MA20/60",
-            "loss": -12.1
+            "loss": -10.95
           },
           {
             "method": "A. ATR 波動停損 (科學)",
-            "price": 1827.142857142857,
+            "price": 1850.7142857142858,
             "desc": "2倍 ATR",
-            "loss": -12.16
+            "loss": -11.87
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 1849.0,
+            "desc": "MA20/60",
+            "loss": -11.95
           },
           {
             "method": "D. 波段低點停損 (形態)",
             "price": 1495.0,
             "desc": "前波低點",
-            "loss": -28.12
+            "loss": -28.81
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.7）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.9 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
-          "level": "yellow",
+          "level": "red",
           "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.7）"
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.9 < 0，訊號矛盾"
         },
         "qm_position_size": {
-          "recommended_pct": 4.1,
-          "base_pct": 7.6,
-          "multiplier": 0.54,
-          "rationale": "base=7.6% (composite 76/80) × multiplier=0.54 (trigger +2.7/5)"
+          "recommended_pct": 3.9,
+          "base_pct": 7.8,
+          "multiplier": 0.5,
+          "rationale": "base=7.8% (composite 78/80) × multiplier=0.50 (trigger -2.9/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -1612,15 +1601,14 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (1828.25)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 196.2 億) 且收跌，視為主力出貨訊號。",
-          "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
+          "若收盤跌破 **月線 (1849.00)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 175.8 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
           "若帶量突破 **波段前高 (2250.00)**，趨勢續攻，可嘗試加碼。"
         ],
         "future": [
-          "目前正乖離過大 (13.8%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "目前正乖離過大 (13.6%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
           "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
         ]
       },
@@ -1630,223 +1618,42 @@
       "qm_quality_details": [
         "F-Score=8/9 強 (獲利4/槓桿3/效率1) (+25)",
         "Z-Score=3.0 [資訊]",
-        "FCF Yield=16.8% 高 (+8)",
+        "FCF Yield=16.3% 高 (+8)",
         "連續 4 季獲利 (+5)",
         "ROE=56.1% 高 (+5) [TV]"
       ],
       "qm_f_score": 8,
-      "composite_score": 76.0,
+      "composite_score": 77.8,
       "qm_position_size": {
-        "recommended_pct": 4.1,
-        "base_pct": 7.6,
-        "multiplier": 0.54,
-        "rationale": "base=7.6% (composite 76/80) × multiplier=0.54 (trigger +2.7/5)"
+        "recommended_pct": 3.9,
+        "base_pct": 7.8,
+        "multiplier": 0.5,
+        "rationale": "base=7.8% (composite 78/80) × multiplier=0.50 (trigger -2.9/5)"
       }
     },
     {
-      "stock_id": "3533",
-      "name": "嘉澤",
+      "stock_id": "7822",
+      "name": "倍利科",
       "market": "twse",
-      "price": 2460.0,
-      "change_pct": 8.37,
-      "trading_value": 6923806540,
-      "avg_trading_value_5d": 3825547112,
-      "trigger_score": 1.31,
-      "trend_score": 3.5,
-      "score_percentile": 61.3,
+      "price": 1305.0,
+      "change_pct": 2.76,
+      "trading_value": 629684460,
+      "avg_trading_value_5d": 591667950,
+      "trigger_score": -7.27,
+      "trend_score": 4.5,
+      "score_percentile": 4.5,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -0.467,
+      "rvol_lowatr": -2.0267,
       "signals": [],
       "trigger_details": [
-        "📈 MeanRev=+0.34 (tanh=+0.33)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
+        "📉 MeanRev=-2.15 (tanh=-0.97)",
+        "📉 Supertrend 空頭趨勢 (-1)",
+        "🔄 Supertrend 多轉空翻轉！(-1)",
+        "🔻 MACD 柱狀體翻綠 (-1)",
         "🔻 KD 死亡交叉/空方排列 (-1)",
-        "📊 RVOL=1.7x (z=1.0) (+0.70)",
-        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💸 外資近5日賣超 (-474張) (-0.3)",
-        "🔥 投信近5日買超 (+364張) → 過熱警報 (-0.5)",
-        "🏦 ETF 賣超 2 檔 (淨 +74 張) (-0.3)"
-      ],
-      "scenario": {
-        "code": "A",
-        "title": "🔥 劇本 A：強力進攻",
-        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
-      },
-      "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【黑三兵 (3 Crows)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 2162.04\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 2568.0,
-        "rec_entry_high": 2460.0,
-        "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 2162.04,
-        "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 3117.36,
-        "rr_ratio": 1.71,
-        "tp_list": [
-          {
-            "method": "QM1. +24% 減碼 1/3",
-            "price": 3117.36,
-            "desc": "落袋第一段",
-            "is_rec": true
-          },
-          {
-            "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 3519.6,
-            "desc": "鎖住超額",
-            "is_rec": false
-          },
-          {
-            "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 4122.96,
-            "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 2681.5080119006566,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 2730.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
-            "method": "N 字測量 (1.0)",
-            "price": 3180.0,
-            "desc": "等幅測距",
-            "is_rec": false
-          },
-          {
-            "method": "費波南希 (1.618)",
-            "price": 3624.96,
-            "desc": "強勢目標",
-            "is_rec": false
-          }
-        ],
-        "sl_list": [
-          {
-            "method": "QM-A. 硬停損 -14.0%",
-            "price": 2162.04,
-            "desc": "期望值保護 (atr_dynamic)",
-            "loss": -14.0
-          },
-          {
-            "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 1702.0,
-            "desc": "趨勢結構破壞",
-            "loss": -32.3
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 2302.75,
-            "desc": "MA20/60",
-            "loss": -6.39
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 2150.714285714286,
-            "desc": "2倍 ATR",
-            "loss": -12.57
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 2010.0,
-            "desc": "大量低點",
-            "loss": -18.29
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 2010.0,
-            "desc": "前波低點",
-            "loss": -18.29
-          }
-        ],
-        "qm_horizon": "40-60d",
-        "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
-        "qm_entry_gate": {
-          "level": "yellow",
-          "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.3）"
-        },
-        "qm_position_size": {
-          "recommended_pct": 3.7,
-          "base_pct": 7.5,
-          "multiplier": 0.5,
-          "rationale": "base=7.5% (composite 75/80) × multiplier=0.50 (trigger +1.3/5)"
-        },
-        "qm_exit_signals": [
-          "週線 Supertrend 翻空",
-          "週 MA20 跌破 3% 以上 (非插針)",
-          "月營收 YoY 連續 2 個月轉負",
-          "F-Score 季更新後下降 2 分以上"
-        ]
-      },
-      "checklist": {
-        "risk": [
-          "若收盤跌破 **月線 (2302.75)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 76.5 億) 且收跌，視為主力出貨訊號。"
-        ],
-        "active": [
-          "若帶量突破 **波段前高 (2730.00)**，趨勢續攻，可嘗試加碼。"
-        ],
-        "future": [
-          "目前正乖離過大 (6.8%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
-          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
-        ]
-      },
-      "qm_quality_score": 85,
-      "qm_body_score": 100,
-      "qm_revenue_score": 62,
-      "qm_quality_details": [
-        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
-        "流動比率=3.7 安全 (+5)",
-        "Z-Score=16.5 [資訊]",
-        "連續 4 季獲利 (+5)",
-        "毛利率=48.6% 高 (+5) [TV]",
-        "營益率=30.6% 優 (+5) [TV]",
-        "ROE=21.1% 高 (+5) [TV]",
-        "營收正驚喜 +22.2% (+12)"
-      ],
-      "qm_f_score": 8,
-      "composite_score": 74.9,
-      "qm_position_size": {
-        "recommended_pct": 3.7,
-        "base_pct": 7.5,
-        "multiplier": 0.5,
-        "rationale": "base=7.5% (composite 75/80) × multiplier=0.50 (trigger +1.3/5)"
-      }
-    },
-    {
-      "stock_id": "4931",
-      "name": "新盛力",
-      "market": "tpex",
-      "price": 165.5,
-      "change_pct": 3.76,
-      "trading_value": 9255621536,
-      "avg_trading_value_5d": 2329804651,
-      "trigger_score": 7.97,
-      "trend_score": 5,
-      "score_percentile": 96.6,
-      "regime": "volatile",
-      "etf_buy_count": 0,
-      "rvol_lowatr": 7.3444,
-      "signals": [
-        "rvol_high"
-      ],
-      "trigger_details": [
-        "📈 MeanRev=+1.89 (tanh=+0.96)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔥 MACD 動能持續增強 (+0.5)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "🔊 爆量確認 RVOL=7.2x (z=6.1) (+1.0)",
-        "🔥 EFI 資金異常流入 (z=3.0) [異常]",
-        "🚨 異常爆量 RVOL=7.2x (z=6.1)，留意消息面 [異常]",
+        "📊 RVOL=0.3x (z=-0.9) (-0.59)",
+        "💀 EFI 資金異常流出 (z=-2.4) [異常]",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0"
       ],
       "scenario": {
@@ -1855,54 +1662,60 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+8.0 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 126.14\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 144.05,
-        "rec_entry_high": 149.3,
-        "rec_entry_desc": "等待拉回 (5MA-10MA)",
-        "rec_sl_price": 126.14,
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【黑三兵 (3 Crows)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-7.3 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 1184.65\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 1460.0,
+        "rec_entry_high": 1295.0,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 1184.65,
         "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 181.88,
+        "rec_tp_price": 1708.1,
         "rr_ratio": 1.71,
         "tp_list": [
           {
             "method": "QM1. +24% 減碼 1/3",
-            "price": 181.88,
+            "price": 1708.1,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 205.34,
+            "price": 1928.5,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
             "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 240.55,
+            "price": 2259.1,
             "desc": "換股輪動",
             "is_rec": false
           },
           {
+            "method": "MA60 季線反壓",
+            "price": 1405.0666666666666,
+            "desc": "生命線",
+            "is_rec": false
+          },
+          {
             "method": "布林上緣",
-            "price": 157.92244608544547,
+            "price": 1848.3215114993257,
             "desc": "通道壓力",
             "is_rec": false
           },
           {
-            "method": "前波高點",
-            "price": 174.5,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
             "method": "N 字測量 (1.0)",
-            "price": 193.8,
+            "price": 1875.0,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
+            "method": "前波高點",
+            "price": 1875.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
             "method": "費波南希 (1.618)",
-            "price": 221.30100000000002,
+            "price": 2233.44,
             "desc": "強勢目標",
             "is_rec": false
           }
@@ -1910,54 +1723,54 @@
         "sl_list": [
           {
             "method": "QM-A. 硬停損 -14.0%",
-            "price": 126.14,
+            "price": 1184.65,
             "desc": "期望值保護 (atr_dynamic)",
             "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 154.55,
+            "price": 1176.6,
             "desc": "趨勢結構破壞",
-            "loss": 5.37
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 152.5,
-            "desc": "大量低點 (壓力/已破)",
-            "loss": 2.14
+            "loss": -14.58
           },
           {
             "method": "B. 均線停損 (趨勢)",
-            "price": 141.025,
-            "desc": "MA20/60",
-            "loss": -5.54
+            "price": 1595.75,
+            "desc": "MA20/60 (壓力/已破)",
+            "loss": 23.22
           },
           {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 133.8,
-            "desc": "2倍 ATR",
-            "loss": -10.38
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 1475.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 13.9
           },
           {
             "method": "D. 波段低點停損 (形態)",
-            "price": 130.0,
+            "price": 1295.0,
             "desc": "前波低點",
-            "loss": -12.93
+            "loss": 0.0
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 1043.5714285714287,
+            "desc": "2倍 ATR",
+            "loss": -19.42
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+8.0 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-7.3 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
-          "level": "green",
-          "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+8.0 ≥ 3）"
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-7.3 < 0，訊號矛盾"
         },
         "qm_position_size": {
-          "recommended_pct": 11.1,
-          "base_pct": 7.4,
-          "multiplier": 1.5,
-          "rationale": "base=7.4% (composite 74/80) × multiplier=1.50 (trigger +8.0/5)"
+          "recommended_pct": 3.9,
+          "base_pct": 7.8,
+          "multiplier": 0.5,
+          "rationale": "base=7.8% (composite 78/80) × multiplier=0.50 (trigger -7.3/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -1968,59 +1781,61 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (141.03)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 46.6 億) 且收跌，視為主力出貨訊號。"
+          "若出現 **爆量長黑** (成交值 > 11.8 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
-          "若帶量突破 **波段前高 (174.50)**，趨勢續攻，可嘗試加碼。"
+          "若帶量突破 **波段前高 (1875.00)**，趨勢續攻，可嘗試加碼。",
+          "若帶量站上 **月線 (1595.75)**，短線翻多，可試單進場。"
         ],
         "future": [
-          "目前正乖離過大 (17.4%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "目前處於空頭趨勢。需等待 **底部形態 (如W底)** 出現，或 **站上月線** 後再考慮進場。",
           "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
         ]
       },
-      "qm_quality_score": 73,
-      "qm_body_score": 80,
-      "qm_revenue_score": 62,
+      "qm_quality_score": 79,
+      "qm_body_score": 98,
+      "qm_revenue_score": 50,
       "qm_quality_details": [
-        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
-        "流動比率=2.1 安全 (+5)",
-        "Z-Score=12.9 [資訊]",
-        "營收正驚喜 +35.3% (+12)"
+        "F-Score=8/9 強 (獲利4/槓桿3/效率1) (+25)",
+        "Z-Score=49.9 [資訊]",
+        "ROIC=19.6% 優 (+8)",
+        "ROE=20.8% (+5)",
+        "連續 4 季獲利 (+5)",
+        "ROE=81.7% 高 (+5) [TV]"
       ],
       "qm_f_score": 8,
-      "composite_score": 74.2,
+      "composite_score": 77.7,
       "qm_position_size": {
-        "recommended_pct": 11.1,
-        "base_pct": 7.4,
-        "multiplier": 1.5,
-        "rationale": "base=7.4% (composite 74/80) × multiplier=1.50 (trigger +8.0/5)"
+        "recommended_pct": 3.9,
+        "base_pct": 7.8,
+        "multiplier": 0.5,
+        "rationale": "base=7.8% (composite 78/80) × multiplier=0.50 (trigger -7.3/5)"
       }
     },
     {
       "stock_id": "2548",
       "name": "華固",
       "market": "twse",
-      "price": 131.0,
+      "price": 130.5,
       "change_pct": 0.38,
-      "trading_value": 164132764,
-      "avg_trading_value_5d": 116307409,
-      "trigger_score": 1.9,
-      "trend_score": 4.5,
-      "score_percentile": 66.4,
+      "trading_value": 97275931,
+      "avg_trading_value_5d": 106614662,
+      "trigger_score": -2.73,
+      "trend_score": 5,
+      "score_percentile": 25.8,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -0.2527,
+      "rvol_lowatr": -0.7565,
       "signals": [],
       "trigger_details": [
-        "📈 MeanRev=+0.72 (tanh=+0.62)",
+        "📈 MeanRev=+0.48 (tanh=+0.44)",
         "📈 Supertrend 多頭趨勢 (+1)",
         "🔻 MACD 柱狀體翻綠 (-1)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=0.6x (z=-0.5) (-0.32)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "📊 RVOL=0.2x (z=-0.9) (-0.62)",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+976張) (+0.3)",
-        "🔥 投信近5日買超 (+95張) → 過熱警報 (-0.5)"
+        "💰 外資近5日買超 (+704張) (+0.3)",
+        "🔥 投信近5日買超 (+94張) → 過熱警報 (-0.5)"
       ],
       "scenario": {
         "code": "A",
@@ -2028,97 +1843,109 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.9）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -7.2% 硬停損** → 120.92\n- 停利: +14% / +24% / +38% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 129.6,
-        "rec_entry_high": 131.0,
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【空頭吞噬 (Engulfing)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.7 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -7.3% 硬停損** → 120.07\n- 停利: +15% / +24% / +39% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 129.5,
+        "rec_entry_high": 129.5,
         "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 120.92,
-        "rec_sl_method": "QM. -7.2% 硬停損",
-        "rec_tp_price": 149.06,
+        "rec_sl_price": 120.07,
+        "rec_sl_method": "QM. -7.3% 硬停損",
+        "rec_tp_price": 148.36,
         "rr_ratio": 2.0,
         "tp_list": [
           {
-            "method": "QM1. +14% 減碼 1/3",
-            "price": 149.06,
+            "method": "QM1. +15% 減碼 1/3",
+            "price": 148.36,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +24% 移動停損至 MA10W",
-            "price": 161.56,
+            "price": 160.93,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
-            "method": "QM3. +38% 清倉 (或 60 日到期)",
-            "price": 180.32,
+            "method": "QM3. +39% 清倉 (或 60 日到期)",
+            "price": 179.79,
             "desc": "換股輪動",
             "is_rec": false
           },
           {
+            "method": "前波高點",
+            "price": 132.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 133.4082506380343,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
             "method": "N 字測量 (1.0)",
-            "price": 144.5,
+            "price": 143.5,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 152.843,
+            "price": 152.152,
             "desc": "強勢目標",
             "is_rec": false
           }
         ],
         "sl_list": [
           {
-            "method": "QM-A. 硬停損 -7.2%",
-            "price": 120.92,
+            "method": "QM-A. 硬停損 -7.3%",
+            "price": 120.07,
             "desc": "期望值保護 (atr_dynamic)",
-            "loss": -7.2
+            "loss": -7.3
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 115.175,
+            "price": 115.1,
             "desc": "趨勢結構破壞",
-            "loss": -11.61
+            "loss": -11.12
           },
           {
             "method": "B. 均線停損 (趨勢)",
-            "price": 126.125,
+            "price": 126.425,
             "desc": "MA20/60",
-            "loss": -3.72
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 124.71428571428571,
-            "desc": "2倍 ATR",
-            "loss": -4.8
+            "loss": -2.37
           },
           {
             "method": "C. 關鍵紅K (籌碼)",
-            "price": 120.0,
+            "price": 126.0,
             "desc": "大量低點",
-            "loss": -8.4
+            "loss": -2.7
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 123.21428571428571,
+            "desc": "2倍 ATR",
+            "loss": -4.85
           },
           {
             "method": "D. 波段低點停損 (形態)",
             "price": 118.5,
             "desc": "前波低點",
-            "loss": -9.54
+            "loss": -8.49
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.9）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.7 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
-          "level": "yellow",
+          "level": "red",
           "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.9）"
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.7 < 0，訊號矛盾"
         },
         "qm_position_size": {
-          "recommended_pct": 3.7,
-          "base_pct": 7.4,
+          "recommended_pct": 3.8,
+          "base_pct": 7.6,
           "multiplier": 0.5,
-          "rationale": "base=7.4% (composite 74/80) × multiplier=0.50 (trigger +1.9/5)"
+          "rationale": "base=7.6% (composite 76/80) × multiplier=0.50 (trigger -2.7/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -2129,11 +1956,11 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (126.12)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 2.3 億) 且收跌，視為主力出貨訊號。"
+          "若收盤跌破 **月線 (126.42)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 2.1 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
-          "若帶量突破 **波段前高 (132.00)**，趨勢續攻，可嘗試加碼。"
+          "若帶量突破 **波段前高 (132.50)**，趨勢續攻，可嘗試加碼。"
         ],
         "future": [
           "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
@@ -2146,42 +1973,43 @@
         "F-Score=9/9 強 (獲利4/槓桿3/效率2) (+25)",
         "流動比率=2.2 安全 (+5)",
         "Z-Score=1.8 危險區 (破產風險) (-20)",
-        "FCF Yield=80.5% 高 (+8)",
+        "FCF Yield=80.8% 高 (+8)",
         "營益率=21.8% 優 (+5) [TV]"
       ],
       "qm_f_score": 9,
-      "composite_score": 74.1,
+      "composite_score": 75.9,
       "qm_position_size": {
-        "recommended_pct": 3.7,
-        "base_pct": 7.4,
+        "recommended_pct": 3.8,
+        "base_pct": 7.6,
         "multiplier": 0.5,
-        "rationale": "base=7.4% (composite 74/80) × multiplier=0.50 (trigger +1.9/5)"
+        "rationale": "base=7.6% (composite 76/80) × multiplier=0.50 (trigger -2.7/5)"
       }
     },
     {
-      "stock_id": "6691",
-      "name": "洋基工程",
-      "market": "twse",
-      "price": 676.0,
-      "change_pct": 1.2,
-      "trading_value": 675950812,
-      "avg_trading_value_5d": 569718806,
-      "trigger_score": 6.15,
-      "trend_score": 4.5,
-      "score_percentile": 92.0,
+      "stock_id": "6584",
+      "name": "南俊國際",
+      "market": "tpex",
+      "price": 737.0,
+      "change_pct": -0.14,
+      "trading_value": 779367784,
+      "avg_trading_value_5d": 1257971523,
+      "trigger_score": 0.04,
+      "trend_score": 5,
+      "score_percentile": 49.8,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": 0.7383,
+      "rvol_lowatr": -2.3909,
       "signals": [],
       "trigger_details": [
-        "📈 MeanRev=+1.21 (tanh=+0.84)",
+        "📈 MeanRev=+0.20 (tanh=+0.20)",
         "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=53.2) (+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=1.4x (z=0.6) (+0.39)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+1,083張) (+0.3)",
-        "❄️ 投信近5日賣超 (-492張) → 籌碼沉澱 (+0.3)"
+        "💸 外資近5日賣超 (-386張) (-0.3)",
+        "🔥 投信近5日買超 (+804張) → 過熱警報 (-0.5)",
+        "🏦 ETF 活動: 買 1 / 賣 0 檔 (淨 +676 張) [資訊]"
       ],
       "scenario": {
         "code": "A",
@@ -2189,109 +2017,109 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【吊人線 (Hanging Man)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+6.2 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -10.5% 硬停損** → 603.55\n- 停利: +21% / +35% / +56% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 672.6,
-        "rec_entry_high": 676.0,
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +0.0）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 645.26\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 763.6,
+        "rec_entry_high": 737.0,
         "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 603.55,
-        "rec_sl_method": "QM. -10.5% 硬停損",
-        "rec_tp_price": 815.8,
-        "rr_ratio": 2.0,
+        "rec_sl_price": 645.26,
+        "rec_sl_method": "QM. -14.0% 硬停損",
+        "rec_tp_price": 930.37,
+        "rr_ratio": 1.71,
         "tp_list": [
           {
-            "method": "QM1. +21% 減碼 1/3",
-            "price": 815.8,
+            "method": "QM1. +24% 減碼 1/3",
+            "price": 930.37,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
-            "method": "QM2. +35% 移動停損至 MA10W",
-            "price": 910.13,
+            "method": "QM2. +40% 移動停損至 MA10W",
+            "price": 1050.42,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
-            "method": "QM3. +56% 清倉 (或 60 日到期)",
-            "price": 1051.63,
+            "method": "QM3. +64% 清倉 (或 60 日到期)",
+            "price": 1230.49,
             "desc": "換股輪動",
             "is_rec": false
           },
           {
-            "method": "前波高點",
-            "price": 694.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
             "method": "布林上緣",
-            "price": 701.1102033988108,
+            "price": 808.2106245640367,
             "desc": "通道壓力",
             "is_rec": false
           },
           {
+            "method": "前波高點",
+            "price": 855.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
             "method": "N 字測量 (1.0)",
-            "price": 815.0,
+            "price": 1054.0,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 900.902,
+            "price": 1249.906,
             "desc": "強勢目標",
             "is_rec": false
           }
         ],
         "sl_list": [
           {
-            "method": "QM-A. 硬停損 -10.5%",
-            "price": 603.55,
+            "method": "QM-A. 硬停損 -14.0%",
+            "price": 645.26,
             "desc": "期望值保護 (atr_dynamic)",
-            "loss": -10.5
+            "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 602.775,
+            "price": 429.125,
             "desc": "趨勢結構破壞",
-            "loss": -10.61
+            "loss": -42.81
           },
           {
             "method": "C. 關鍵紅K (籌碼)",
-            "price": 634.0,
-            "desc": "大量低點",
-            "loss": -6.21
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 628.7142857142857,
-            "desc": "2倍 ATR",
-            "loss": -6.99
+            "price": 755.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 2.44
           },
           {
             "method": "B. 均線停損 (趨勢)",
-            "price": 617.0,
+            "price": 656.1,
             "desc": "MA20/60",
-            "loss": -8.73
+            "loss": -10.98
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 608.1428571428571,
+            "desc": "2倍 ATR",
+            "loss": -17.48
           },
           {
             "method": "D. 波段低點停損 (形態)",
-            "price": 555.0,
+            "price": 538.0,
             "desc": "前波低點",
-            "loss": -17.9
+            "loss": -27.0
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+6.2 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +0.0）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
-          "level": "green",
-          "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+6.2 ≥ 3）"
+          "level": "yellow",
+          "ready": false,
+          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +0.0）"
         },
         "qm_position_size": {
-          "recommended_pct": 9.0,
-          "base_pct": 7.3,
-          "multiplier": 1.23,
-          "rationale": "base=7.3% (composite 73/80) × multiplier=1.23 (trigger +6.2/5)"
+          "recommended_pct": 3.7,
+          "base_pct": 7.5,
+          "multiplier": 0.5,
+          "rationale": "base=7.5% (composite 74/80) × multiplier=0.50 (trigger +0.0/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -2302,15 +2130,183 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (617.00)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 11.4 億) 且收跌，視為主力出貨訊號。",
+          "若收盤跌破 **月線 (656.10)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 25.2 億) 且收跌，視為主力出貨訊號。"
+        ],
+        "active": [
+          "若帶量突破 **波段前高 (855.00)**，趨勢續攻，可嘗試加碼。"
+        ],
+        "future": [
+          "目前正乖離過大 (12.3%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+        ]
+      },
+      "qm_quality_score": 76,
+      "qm_body_score": 85,
+      "qm_revenue_score": 62,
+      "qm_quality_details": [
+        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
+        "流動比率=2.4 安全 (+5)",
+        "Z-Score=36.5 [資訊]",
+        "連續 4 季獲利 (+5)",
+        "營收正驚喜 +39.1% (+12)"
+      ],
+      "qm_f_score": 8,
+      "composite_score": 74.5,
+      "qm_position_size": {
+        "recommended_pct": 3.7,
+        "base_pct": 7.5,
+        "multiplier": 0.5,
+        "rationale": "base=7.5% (composite 74/80) × multiplier=0.50 (trigger +0.0/5)"
+      }
+    },
+    {
+      "stock_id": "6691",
+      "name": "洋基工程",
+      "market": "twse",
+      "price": 675.0,
+      "change_pct": 0.15,
+      "trading_value": 697801788,
+      "avg_trading_value_5d": 432632710,
+      "trigger_score": -0.02,
+      "trend_score": 5,
+      "score_percentile": 49.1,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "rvol_lowatr": -0.5437,
+      "signals": [],
+      "trigger_details": [
+        "📈 MeanRev=+1.35 (tanh=+0.87)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "📊 RVOL=0.5x (z=-0.7) (-0.49)",
+        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
+        "💰 外資近5日買超 (+1,477張) (+0.3)",
+        "❄️ 投信近5日賣超 (-624張) → 籌碼沉澱 (+0.3)"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【流星線 (Shooting Star)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-0.0 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -10.4% 硬停損** → 609.35\n- 停利: +21% / +35% / +56% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 677.4,
+        "rec_entry_high": 683.0,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 609.35,
+        "rec_sl_method": "QM. -10.4% 硬停損",
+        "rec_tp_price": 821.9,
+        "rr_ratio": 2.0,
+        "tp_list": [
+          {
+            "method": "QM1. +21% 減碼 1/3",
+            "price": 821.9,
+            "desc": "落袋第一段",
+            "is_rec": true
+          },
+          {
+            "method": "QM2. +35% 移動停損至 MA10W",
+            "price": 916.37,
+            "desc": "鎖住超額",
+            "is_rec": false
+          },
+          {
+            "method": "QM3. +56% 清倉 (或 60 日到期)",
+            "price": 1058.07,
+            "desc": "換股輪動",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 709.5182537861608,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 824.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 911.138,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "QM-A. 硬停損 -10.4%",
+            "price": 609.35,
+            "desc": "期望值保護 (atr_dynamic)",
+            "loss": -10.4
+          },
+          {
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": 603.125,
+            "desc": "趨勢結構破壞",
+            "loss": -11.33
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 635.5714285714286,
+            "desc": "2倍 ATR",
+            "loss": -6.94
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 634.0,
+            "desc": "大量低點",
+            "loss": -7.17
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 620.4,
+            "desc": "MA20/60",
+            "loss": -9.17
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 555.0,
+            "desc": "前波低點",
+            "loss": -18.74
+          }
+        ],
+        "qm_horizon": "40-60d",
+        "qm_hold_days_target": 60,
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-0.0 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_gate": {
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-0.0 < 0，訊號矛盾"
+        },
+        "qm_position_size": {
+          "recommended_pct": 3.7,
+          "base_pct": 7.5,
+          "multiplier": 0.5,
+          "rationale": "base=7.5% (composite 74/80) × multiplier=0.50 (trigger -0.0/5)"
+        },
+        "qm_exit_signals": [
+          "週線 Supertrend 翻空",
+          "週 MA20 跌破 3% 以上 (非插針)",
+          "月營收 YoY 連續 2 個月轉負",
+          "F-Score 季更新後下降 2 分以上"
+        ]
+      },
+      "checklist": {
+        "risk": [
+          "若收盤跌破 **月線 (620.40)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 8.7 億) 且收跌，視為主力出貨訊號。",
           "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
         ],
         "active": [
-          "若帶量突破 **波段前高 (694.00)**，趨勢續攻，可嘗試加碼。"
+          "若帶量突破 **波段前高 (696.00)**，趨勢續攻，可嘗試加碼。"
         ],
         "future": [
-          "目前正乖離過大 (9.6%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "目前正乖離過大 (10.1%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
           "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
         ]
       },
@@ -2325,41 +2321,40 @@
         "營收正驚喜 +41.0% (+12)"
       ],
       "qm_f_score": 8,
-      "composite_score": 73.2,
+      "composite_score": 74.5,
       "qm_position_size": {
-        "recommended_pct": 9.0,
-        "base_pct": 7.3,
-        "multiplier": 1.23,
-        "rationale": "base=7.3% (composite 73/80) × multiplier=1.23 (trigger +6.2/5)"
+        "recommended_pct": 3.7,
+        "base_pct": 7.5,
+        "multiplier": 0.5,
+        "rationale": "base=7.5% (composite 74/80) × multiplier=0.50 (trigger -0.0/5)"
       }
     },
     {
-      "stock_id": "6515",
-      "name": "穎崴",
-      "market": "twse",
-      "price": 10730.0,
-      "change_pct": 0.0,
-      "trading_value": 4323843670,
-      "avg_trading_value_5d": 4442707048,
-      "trigger_score": 1.87,
-      "trend_score": 5,
-      "score_percentile": 66.1,
+      "stock_id": "3131",
+      "name": "弘塑",
+      "market": "tpex",
+      "price": 3130.0,
+      "change_pct": -0.63,
+      "trading_value": 5065020550,
+      "avg_trading_value_5d": 3808782952,
+      "trigger_score": -0.22,
+      "trend_score": 4,
+      "score_percentile": 47.3,
       "regime": "volatile",
-      "etf_buy_count": 3,
-      "rvol_lowatr": -0.5614,
+      "etf_buy_count": 2,
+      "rvol_lowatr": -2.1112,
       "signals": [
-        "etf_sync_buy"
+        "etf_buy"
       ],
       "trigger_details": [
-        "📈 MeanRev=+1.05 (tanh=+0.78)",
+        "📉 MeanRev=-0.70 (tanh=-0.60)",
         "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔻 MACD 柱狀體翻綠 (-1)",
         "🔻 KD 死亡交叉/空方排列 (-1)",
-        "📊 RVOL=1.2x (z=0.6) (+0.37)",
+        "📊 RVOL=1.5x (z=0.8) (+0.50)",
+        "💀 EFI 資金異常流出 (z=-2.0) [異常]",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💸 外資近5日賣超 (-16張) (-0.3)",
-        "🔥 投信近5日買超 (+300張) → 過熱警報 (-0.5)",
-        "🏦 ETF 同步買超 3 檔 (淨 +95 張) (+0.6)"
+        "🏦 ETF 買超 2 檔 (淨 +29 張) (+0.3)"
       ],
       "scenario": {
         "code": "A",
@@ -2367,37 +2362,562 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.9）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 9195.55\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 10655.0,
-        "rec_entry_high": 10730.0,
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-0.2 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 2745.55\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 3255.0,
+        "rec_entry_high": 3130.0,
         "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 9195.55,
+        "rec_sl_price": 2745.55,
         "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 13258.7,
+        "rec_tp_price": 3958.7,
         "rr_ratio": 1.71,
         "tp_list": [
           {
             "method": "QM1. +24% 減碼 1/3",
-            "price": 13258.7,
+            "price": 3958.7,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 14969.5,
+            "price": 4469.5,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
             "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 17535.7,
+            "price": 5235.7,
             "desc": "換股輪動",
             "is_rec": false
           },
           {
             "method": "布林上緣",
-            "price": 11414.150552446003,
+            "price": 3586.479994784285,
             "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 3625.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 4105.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 4707.55,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "QM-A. 硬停損 -14.0%",
+            "price": 2745.55,
+            "desc": "期望值保護 (atr_dynamic)",
+            "loss": -14.0
+          },
+          {
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": 2050.5,
+            "desc": "趨勢結構破壞",
+            "loss": -35.77
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 3144.5,
+            "desc": "MA20/60 (壓力/已破)",
+            "loss": 0.46
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 2700.0,
+            "desc": "大量低點",
+            "loss": -13.74
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 2652.8571428571427,
+            "desc": "2倍 ATR",
+            "loss": -15.24
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 2650.0,
+            "desc": "前波低點",
+            "loss": -15.34
+          }
+        ],
+        "qm_horizon": "40-60d",
+        "qm_hold_days_target": 60,
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-0.2 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_gate": {
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-0.2 < 0，訊號矛盾"
+        },
+        "qm_position_size": {
+          "recommended_pct": 3.7,
+          "base_pct": 7.3,
+          "multiplier": 0.5,
+          "rationale": "base=7.3% (composite 74/80) × multiplier=0.50 (trigger -0.2/5)"
+        },
+        "qm_exit_signals": [
+          "週線 Supertrend 翻空",
+          "週 MA20 跌破 3% 以上 (非插針)",
+          "月營收 YoY 連續 2 個月轉負",
+          "F-Score 季更新後下降 2 分以上"
+        ]
+      },
+      "checklist": {
+        "risk": [
+          "若收盤跌破 **季線 (2280.42)**，波段轉弱，建議清倉觀望。",
+          "若出現 **爆量長黑** (成交值 > 76.2 億) 且收跌，視為主力出貨訊號。"
+        ],
+        "active": [
+          "若帶量突破 **波段前高 (3625.00)**，趨勢續攻，可嘗試加碼。",
+          "若帶量站上 **月線 (3144.50)**，短線翻多，可試單進場。"
+        ],
+        "future": [
+          "股價處於整理階段。若 **量縮回測季線 (2280.42)** 獲支撐收紅 K，為絕佳波段買點。",
+          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+        ]
+      },
+      "qm_quality_score": 77,
+      "qm_body_score": 95,
+      "qm_revenue_score": 50,
+      "qm_quality_details": [
+        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
+        "Z-Score=24.1 [資訊]",
+        "連續 4 季獲利 (+5)",
+        "毛利率=40.9% 高 (+5) [TV]",
+        "營益率=25.1% 優 (+5) [TV]",
+        "ROE=28.6% 高 (+5) [TV]"
+      ],
+      "qm_f_score": 8,
+      "composite_score": 73.5,
+      "qm_position_size": {
+        "recommended_pct": 3.7,
+        "base_pct": 7.3,
+        "multiplier": 0.5,
+        "rationale": "base=7.3% (composite 74/80) × multiplier=0.50 (trigger -0.2/5)"
+      }
+    },
+    {
+      "stock_id": "3265",
+      "name": "台星科",
+      "market": "tpex",
+      "price": 173.5,
+      "change_pct": 4.2,
+      "trading_value": 541175161,
+      "avg_trading_value_5d": 584168618,
+      "trigger_score": -0.1,
+      "trend_score": 4.5,
+      "score_percentile": 48.4,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "rvol_lowatr": -1.5834,
+      "signals": [],
+      "trigger_details": [
+        "📈 MeanRev=+0.86 (tanh=+0.70)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=52.3) (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
+        "💰 外資近5日買超 (+1,330張) (+0.3)",
+        "🔥 投信近5日買超 (+19張) → 過熱警報 (-0.5)"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 高** — K線型態【多頭母子 (Harami)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-0.1 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 148.95\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 172.9,
+        "rec_entry_high": 173.5,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 148.95,
+        "rec_sl_method": "QM. -14.0% 硬停損",
+        "rec_tp_price": 214.77,
+        "rr_ratio": 1.71,
+        "tp_list": [
+          {
+            "method": "QM1. +24% 減碼 1/3",
+            "price": 214.77,
+            "desc": "落袋第一段",
+            "is_rec": true
+          },
+          {
+            "method": "QM2. +40% 移動停損至 MA10W",
+            "price": 242.48,
+            "desc": "鎖住超額",
+            "is_rec": false
+          },
+          {
+            "method": "QM3. +64% 清倉 (或 60 日到期)",
+            "price": 284.05,
+            "desc": "換股輪動",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 184.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 187.3126122752162,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 223.5,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 254.4,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "QM-A. 硬停損 -14.0%",
+            "price": 148.95,
+            "desc": "期望值保護 (atr_dynamic)",
+            "loss": -14.0
+          },
+          {
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": 136.21499999999997,
+            "desc": "趨勢結構破壞",
+            "loss": -21.35
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 173.5,
+            "desc": "大量低點",
+            "loss": 0.0
+          },
+          {
+            "method": "E. 型態停損 (K線)",
+            "price": 167.31,
+            "desc": "型態低點",
+            "loss": -3.57
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 160.175,
+            "desc": "MA20/60",
+            "loss": -7.68
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 154.71428571428572,
+            "desc": "2倍 ATR",
+            "loss": -10.83
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 134.0,
+            "desc": "前波低點",
+            "loss": -22.77
+          }
+        ],
+        "qm_horizon": "40-60d",
+        "qm_hold_days_target": 60,
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-0.1 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_gate": {
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-0.1 < 0，訊號矛盾"
+        },
+        "qm_position_size": {
+          "recommended_pct": 3.6,
+          "base_pct": 7.2,
+          "multiplier": 0.5,
+          "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger -0.1/5)"
+        },
+        "qm_exit_signals": [
+          "週線 Supertrend 翻空",
+          "週 MA20 跌破 3% 以上 (非插針)",
+          "月營收 YoY 連續 2 個月轉負",
+          "F-Score 季更新後下降 2 分以上"
+        ]
+      },
+      "checklist": {
+        "risk": [
+          "若收盤跌破 **月線 (160.18)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 11.7 億) 且收跌，視為主力出貨訊號。"
+        ],
+        "active": [
+          "若帶量突破 **波段前高 (184.00)**，趨勢續攻，可嘗試加碼。"
+        ],
+        "future": [
+          "目前正乖離過大 (8.3%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+        ]
+      },
+      "qm_quality_score": 71,
+      "qm_body_score": 85,
+      "qm_revenue_score": 50,
+      "qm_quality_details": [
+        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
+        "流動比率=3.4 安全 (+5)",
+        "Z-Score=5.0 [資訊]",
+        "連續 4 季獲利 (+5)"
+      ],
+      "qm_f_score": 8,
+      "composite_score": 72.5,
+      "qm_position_size": {
+        "recommended_pct": 3.6,
+        "base_pct": 7.2,
+        "multiplier": 0.5,
+        "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger -0.1/5)"
+      }
+    },
+    {
+      "stock_id": "8086",
+      "name": "宏捷科",
+      "market": "tpex",
+      "price": 138.0,
+      "change_pct": 1.85,
+      "trading_value": 1114212758,
+      "avg_trading_value_5d": 1566461404,
+      "trigger_score": -3.41,
+      "trend_score": 4,
+      "score_percentile": 21.0,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "rvol_lowatr": -2.1467,
+      "signals": [],
+      "trigger_details": [
+        "📈 MeanRev=+0.02 (tanh=+0.02)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "🔻 MACD 柱狀體翻綠 (-1)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "📊 RVOL=0.5x (z=-0.6) (-0.43)",
+        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
+        "💸 外資近5日賣超 (-1,790張) (-0.3)",
+        "🔥 投信近5日買超 (+4張) → 過熱警報 (-0.5)"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-3.4 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 121.60\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 145.3,
+        "rec_entry_high": 137.5,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 121.6,
+        "rec_sl_method": "QM. -14.0% 硬停損",
+        "rec_tp_price": 175.34,
+        "rr_ratio": 1.71,
+        "tp_list": [
+          {
+            "method": "QM1. +24% 減碼 1/3",
+            "price": 175.34,
+            "desc": "落袋第一段",
+            "is_rec": true
+          },
+          {
+            "method": "QM2. +40% 移動停損至 MA10W",
+            "price": 197.96,
+            "desc": "鎖住超額",
+            "is_rec": false
+          },
+          {
+            "method": "QM3. +64% 清倉 (或 60 日到期)",
+            "price": 231.9,
+            "desc": "換股輪動",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 156.49087792992378,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 159.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 179.5,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 205.45600000000002,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "QM-A. 硬停損 -14.0%",
+            "price": 121.6,
+            "desc": "期望值保護 (atr_dynamic)",
+            "loss": -14.0
+          },
+          {
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": 120.875,
+            "desc": "趨勢結構破壞",
+            "loss": -14.52
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 141.0,
+            "desc": "大量低點 (壓力/已破)",
+            "loss": 2.55
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 137.075,
+            "desc": "MA20/60",
+            "loss": -0.31
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 119.35714285714286,
+            "desc": "2倍 ATR",
+            "loss": -13.19
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 117.0,
+            "desc": "前波低點",
+            "loss": -14.91
+          }
+        ],
+        "qm_horizon": "40-60d",
+        "qm_hold_days_target": 60,
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-3.4 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_gate": {
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-3.4 < 0，訊號矛盾"
+        },
+        "qm_position_size": {
+          "recommended_pct": 3.6,
+          "base_pct": 7.2,
+          "multiplier": 0.5,
+          "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger -3.4/5)"
+        },
+        "qm_exit_signals": [
+          "週線 Supertrend 翻空",
+          "週 MA20 跌破 3% 以上 (非插針)",
+          "月營收 YoY 連續 2 個月轉負",
+          "F-Score 季更新後下降 2 分以上"
+        ]
+      },
+      "checklist": {
+        "risk": [
+          "若收盤跌破 **月線 (137.07)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 31.3 億) 且收跌，視為主力出貨訊號。"
+        ],
+        "active": [
+          "若帶量突破 **波段前高 (159.00)**，趨勢續攻，可嘗試加碼。"
+        ],
+        "future": [
+          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+        ]
+      },
+      "qm_quality_score": 76,
+      "qm_body_score": 93,
+      "qm_revenue_score": 50,
+      "qm_quality_details": [
+        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
+        "流動比率=3.7 安全 (+5)",
+        "Z-Score=4.6 [資訊]",
+        "FCF Yield=9.5% 高 (+8)",
+        "連續 4 季獲利 (+5)"
+      ],
+      "qm_f_score": 8,
+      "composite_score": 72.2,
+      "qm_position_size": {
+        "recommended_pct": 3.6,
+        "base_pct": 7.2,
+        "multiplier": 0.5,
+        "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger -3.4/5)"
+      }
+    },
+    {
+      "stock_id": "6515",
+      "name": "穎崴",
+      "market": "twse",
+      "price": 10060.0,
+      "change_pct": 7.14,
+      "trading_value": 5706588710,
+      "avg_trading_value_5d": 3688991085,
+      "trigger_score": -1.02,
+      "trend_score": 5,
+      "score_percentile": 40.0,
+      "regime": "volatile",
+      "etf_buy_count": 3,
+      "rvol_lowatr": -1.9738,
+      "signals": [
+        "etf_sync_buy"
+      ],
+      "trigger_details": [
+        "📈 MeanRev=+0.95 (tanh=+0.74)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "📊 RVOL=0.5x (z=-1.0) (-0.66)",
+        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
+        "💰 外資近5日買超 (+20張) (+0.3)",
+        "🔥 投信近5日買超 (+148張) → 過熱警報 (-0.5)",
+        "🏦 ETF 同步買超 4 檔 (淨 +70 張) (+0.6)"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-1.0 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 9170.18\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 10716.0,
+        "rec_entry_high": 10610.0,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 9170.18,
+        "rec_sl_method": "QM. -14.0% 硬停損",
+        "rec_tp_price": 13222.12,
+        "rr_ratio": 1.71,
+        "tp_list": [
+          {
+            "method": "QM1. +24% 減碼 1/3",
+            "price": 13222.12,
+            "desc": "落袋第一段",
+            "is_rec": true
+          },
+          {
+            "method": "QM2. +40% 移動停損至 MA10W",
+            "price": 14928.2,
+            "desc": "鎖住超額",
+            "is_rec": false
+          },
+          {
+            "method": "QM3. +64% 清倉 (或 60 日到期)",
+            "price": 17487.32,
+            "desc": "換股輪動",
             "is_rec": false
           },
           {
@@ -2407,14 +2927,20 @@
             "is_rec": false
           },
           {
+            "method": "布林上緣",
+            "price": 11653.428350715596,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
             "method": "N 字測量 (1.0)",
-            "price": 15655.0,
+            "price": 15535.0,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 18698.65,
+            "price": 18578.65,
             "desc": "強勢目標",
             "is_rec": false
           }
@@ -2422,54 +2948,54 @@
         "sl_list": [
           {
             "method": "QM-A. 硬停損 -14.0%",
-            "price": 9195.55,
+            "price": 9170.18,
             "desc": "期望值保護 (atr_dynamic)",
             "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 5309.5,
+            "price": 5303.5,
             "desc": "趨勢結構破壞",
-            "loss": -50.34
+            "loss": -50.26
           },
           {
             "method": "A. ATR 波動停損 (科學)",
-            "price": 9259.285714285714,
+            "price": 9190.714285714286,
             "desc": "2倍 ATR",
-            "loss": -13.71
+            "loss": -13.38
           },
           {
             "method": "B. 均線停損 (趨勢)",
-            "price": 8662.75,
+            "price": 8770.75,
             "desc": "MA20/60",
-            "loss": -19.27
+            "loss": -17.34
           },
           {
             "method": "C. 關鍵紅K (籌碼)",
-            "price": 8010.0,
+            "price": 7890.0,
             "desc": "大量低點",
-            "loss": -25.35
+            "loss": -25.64
           },
           {
             "method": "D. 波段低點停損 (形態)",
             "price": 6565.0,
             "desc": "前波低點",
-            "loss": -38.82
+            "loss": -38.12
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.9）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-1.0 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
-          "level": "yellow",
+          "level": "red",
           "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.9）"
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-1.0 < 0，訊號矛盾"
         },
         "qm_position_size": {
-          "recommended_pct": 3.6,
-          "base_pct": 7.2,
+          "recommended_pct": 3.5,
+          "base_pct": 7.1,
           "multiplier": 0.5,
-          "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger +1.9/5)"
+          "rationale": "base=7.1% (composite 71/80) × multiplier=0.50 (trigger -1.0/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -2480,15 +3006,15 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (8662.75)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 88.9 億) 且收跌，視為主力出貨訊號。",
+          "若收盤跌破 **月線 (8770.75)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 73.8 億) 且收跌，視為主力出貨訊號。",
           "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
         ],
         "active": [
           "若帶量突破 **波段前高 (11490.00)**，趨勢續攻，可嘗試加碼。"
         ],
         "future": [
-          "目前正乖離過大 (23.9%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "目前正乖離過大 (21.0%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
           "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
         ]
       },
@@ -2498,7 +3024,7 @@
       "qm_quality_details": [
         "F-Score=7/9 強 (獲利4/槓桿2/效率1) (+25)",
         "流動比率=2.5 安全 (+5)",
-        "Z-Score=249.1 [資訊]",
+        "Z-Score=233.6 [資訊]",
         "連續 4 季獲利 (+5)",
         "毛利率=44.4% 高 (+5) [TV]",
         "營益率=26.3% 優 (+5) [TV]",
@@ -2506,37 +3032,38 @@
         "營收正驚喜 +82.3% (+12)"
       ],
       "qm_f_score": 7,
-      "composite_score": 72.5,
+      "composite_score": 71.0,
       "qm_position_size": {
-        "recommended_pct": 3.6,
-        "base_pct": 7.2,
+        "recommended_pct": 3.5,
+        "base_pct": 7.1,
         "multiplier": 0.5,
-        "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger +1.9/5)"
+        "rationale": "base=7.1% (composite 71/80) × multiplier=0.50 (trigger -1.0/5)"
       }
     },
     {
-      "stock_id": "6139",
-      "name": "亞翔",
-      "market": "twse",
-      "price": 712.0,
-      "change_pct": 1.28,
-      "trading_value": 4530495793,
-      "avg_trading_value_5d": 4344662864,
-      "trigger_score": 1.52,
+      "stock_id": "6664",
+      "name": "群翊",
+      "market": "tpex",
+      "price": 415.0,
+      "change_pct": 3.23,
+      "trading_value": 802502656,
+      "avg_trading_value_5d": 671314226,
+      "trigger_score": 0.58,
       "trend_score": 5,
-      "score_percentile": 63.1,
+      "score_percentile": 54.7,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -1.5496,
+      "rvol_lowatr": -3.237,
       "signals": [],
       "trigger_details": [
-        "📈 MeanRev=+1.10 (tanh=+0.80)",
+        "📈 MeanRev=+0.76 (tanh=+0.64)",
         "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ 日線 DMI 多方攻擊 (ADX=75.0) (+1)",
         "✅ MACD 柱狀體翻紅 (+1)",
         "🔻 KD 死亡交叉/空方排列 (-1)",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+4,741張) (+0.3)",
-        "❄️ 投信近5日賣超 (-1,427張) → 籌碼沉澱 (+0.3)"
+        "💰 外資近5日買超 (+881張) (+0.3)",
+        "❄️ 投信近5日賣超 (-7張) → 籌碼沉澱 (+0.3)"
       ],
       "scenario": {
         "code": "A",
@@ -2544,54 +3071,54 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【空頭吞噬 (Engulfing)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.5）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 619.46\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 728.6,
-        "rec_entry_high": 712.0,
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +0.6）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 359.01\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 419.9,
+        "rec_entry_high": 415.0,
         "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 619.46,
+        "rec_sl_price": 359.01,
         "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 893.17,
+        "rec_tp_price": 517.64,
         "rr_ratio": 1.71,
         "tp_list": [
           {
             "method": "QM1. +24% 減碼 1/3",
-            "price": 893.17,
+            "price": 517.64,
             "desc": "落袋第一段",
             "is_rec": true
           },
           {
             "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 1008.42,
+            "price": 584.43,
             "desc": "鎖住超額",
             "is_rec": false
           },
           {
             "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 1181.29,
+            "price": 684.62,
             "desc": "換股輪動",
             "is_rec": false
           },
           {
             "method": "前波高點",
-            "price": 772.0,
+            "price": 457.5,
             "desc": "解套賣壓",
             "is_rec": false
           },
           {
             "method": "布林上緣",
-            "price": 777.7124060037361,
+            "price": 483.2822987878494,
             "desc": "通道壓力",
             "is_rec": false
           },
           {
             "method": "N 字測量 (1.0)",
-            "price": 971.0,
+            "price": 592.5,
             "desc": "等幅測距",
             "is_rec": false
           },
           {
             "method": "費波南希 (1.618)",
-            "price": 1131.062,
+            "price": 702.1949999999999,
             "desc": "強勢目標",
             "is_rec": false
           }
@@ -2599,54 +3126,54 @@
         "sl_list": [
           {
             "method": "QM-A. 硬停損 -14.0%",
-            "price": 619.46,
+            "price": 359.01,
             "desc": "期望值保護 (atr_dynamic)",
             "loss": -14.0
           },
           {
             "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 576.85,
+            "price": 309.325,
             "desc": "趨勢結構破壞",
-            "loss": -19.92
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 626.5714285714286,
-            "desc": "2倍 ATR",
-            "loss": -12.0
+            "loss": -25.9
           },
           {
             "method": "B. 均線停損 (趨勢)",
-            "price": 621.5,
+            "price": 377.5,
             "desc": "MA20/60",
-            "loss": -12.71
+            "loss": -9.04
           },
           {
             "method": "C. 關鍵紅K (籌碼)",
-            "price": 589.0,
+            "price": 362.0,
             "desc": "大量低點",
-            "loss": -17.28
+            "loss": -12.77
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 352.7857142857143,
+            "desc": "2倍 ATR",
+            "loss": -14.99
           },
           {
             "method": "D. 波段低點停損 (形態)",
-            "price": 513.0,
+            "price": 280.0,
             "desc": "前波低點",
-            "loss": -27.95
+            "loss": -32.53
           }
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.5）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +0.6）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
           "level": "yellow",
           "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.5）"
+          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +0.6）"
         },
         "qm_position_size": {
-          "recommended_pct": 3.6,
-          "base_pct": 7.2,
+          "recommended_pct": 3.5,
+          "base_pct": 7.1,
           "multiplier": 0.5,
-          "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger +1.5/5)"
+          "rationale": "base=7.1% (composite 71/80) × multiplier=0.50 (trigger +0.6/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -2657,911 +3184,385 @@
       },
       "checklist": {
         "risk": [
-          "若收盤跌破 **月線 (621.50)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 86.9 億) 且收跌，視為主力出貨訊號。"
+          "若收盤跌破 **月線 (377.50)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 13.4 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
-          "若帶量突破 **波段前高 (772.00)**，趨勢續攻，可嘗試加碼。"
+          "若帶量突破 **波段前高 (457.50)**，趨勢續攻，可嘗試加碼。"
         ],
         "future": [
-          "目前正乖離過大 (14.6%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "目前正乖離過大 (9.9%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
           "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
         ]
       },
-      "qm_quality_score": 72,
-      "qm_body_score": 78,
+      "qm_quality_score": 80,
+      "qm_body_score": 100,
+      "qm_revenue_score": 50,
+      "qm_quality_details": [
+        "F-Score=7/9 強 (獲利3/槓桿3/效率1) (+25)",
+        "流動比率=2.2 安全 (+5)",
+        "Z-Score=6.5 [資訊]",
+        "連續 4 季獲利 (+5)",
+        "毛利率=58.0% 高 (+5) [TV]",
+        "營益率=39.6% 優 (+5) [TV]",
+        "ROE=22.5% 高 (+5) [TV]"
+      ],
+      "qm_f_score": 7,
+      "composite_score": 71.0,
+      "qm_position_size": {
+        "recommended_pct": 3.5,
+        "base_pct": 7.1,
+        "multiplier": 0.5,
+        "rationale": "base=7.1% (composite 71/80) × multiplier=0.50 (trigger +0.6/5)"
+      }
+    },
+    {
+      "stock_id": "3374",
+      "name": "精材",
+      "market": "tpex",
+      "price": 198.5,
+      "change_pct": 8.17,
+      "trading_value": 3519692625,
+      "avg_trading_value_5d": 3176935024,
+      "trigger_score": 4.48,
+      "trend_score": 5,
+      "score_percentile": 84.6,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "rvol_lowatr": 0.343,
+      "signals": [],
+      "trigger_details": [
+        "📈 MeanRev=+1.67 (tanh=+0.93)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔥 MACD 動能持續增強 (+0.5)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "📊 RVOL=2.6x (z=1.4) (+0.96)",
+        "⚠️ 量價背離：股價近高但 OBV 下降 (假突破風險) [異常]",
+        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0"
+      ],
+      "scenario": {
+        "code": "A",
+        "title": "🔥 劇本 A：強力進攻",
+        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
+      },
+      "action_plan": {
+        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【空頭吞噬 (Engulfing)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+4.5 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 168.95\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 194.4,
+        "rec_entry_high": 198.5,
+        "rec_entry_desc": "積極操作 (5MA-現價)",
+        "rec_sl_price": 168.95,
+        "rec_sl_method": "QM. -14.0% 硬停損",
+        "rec_tp_price": 243.6,
+        "rr_ratio": 1.71,
+        "tp_list": [
+          {
+            "method": "QM1. +24% 減碼 1/3",
+            "price": 243.6,
+            "desc": "落袋第一段",
+            "is_rec": true
+          },
+          {
+            "method": "QM2. +40% 移動停損至 MA10W",
+            "price": 275.03,
+            "desc": "鎖住超額",
+            "is_rec": false
+          },
+          {
+            "method": "QM3. +64% 清倉 (或 60 日到期)",
+            "price": 322.18,
+            "desc": "換股輪動",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 203.5,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 203.88834640196674,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 249.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 280.209,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "QM-A. 硬停損 -14.0%",
+            "price": 168.95,
+            "desc": "期望值保護 (atr_dynamic)",
+            "loss": -14.0
+          },
+          {
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": 164.275,
+            "desc": "趨勢結構破壞",
+            "loss": -16.38
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 184.0,
+            "desc": "大量低點",
+            "loss": -7.3
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 177.42857142857142,
+            "desc": "2倍 ATR",
+            "loss": -10.62
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 172.85,
+            "desc": "MA20/60",
+            "loss": -12.92
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 153.0,
+            "desc": "前波低點",
+            "loss": -22.92
+          }
+        ],
+        "qm_horizon": "40-60d",
+        "qm_hold_days_target": 60,
+        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+4.5 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_gate": {
+          "level": "green",
+          "ready": true,
+          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+4.5 ≥ 3）"
+        },
+        "qm_position_size": {
+          "recommended_pct": 6.3,
+          "base_pct": 7.1,
+          "multiplier": 0.9,
+          "rationale": "base=7.1% (composite 71/80) × multiplier=0.90 (trigger +4.5/5)"
+        },
+        "qm_exit_signals": [
+          "週線 Supertrend 翻空",
+          "週 MA20 跌破 3% 以上 (非插針)",
+          "月營收 YoY 連續 2 個月轉負",
+          "F-Score 季更新後下降 2 分以上"
+        ]
+      },
+      "checklist": {
+        "risk": [
+          "若收盤跌破 **月線 (172.85)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 63.5 億) 且收跌，視為主力出貨訊號。"
+        ],
+        "active": [
+          "若帶量突破 **波段前高 (203.50)**，趨勢續攻，可嘗試加碼。"
+        ],
+        "future": [
+          "目前正乖離過大 (14.8%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+        ]
+      },
+      "qm_quality_score": 79,
+      "qm_body_score": 98,
+      "qm_revenue_score": 50,
+      "qm_quality_details": [
+        "F-Score=7/9 強 (獲利4/槓桿2/效率1) (+25)",
+        "流動比率=2.5 安全 (+5)",
+        "Z-Score=3.4 [資訊]",
+        "FCF Yield=9.4% 高 (+8)",
+        "連續 4 季獲利 (+5)",
+        "營益率=20.4% 優 (+5) [TV]"
+      ],
+      "qm_f_score": 7,
+      "composite_score": 70.6,
+      "qm_position_size": {
+        "recommended_pct": 6.3,
+        "base_pct": 7.1,
+        "multiplier": 0.9,
+        "rationale": "base=7.1% (composite 71/80) × multiplier=0.90 (trigger +4.5/5)"
+      }
+    },
+    {
+      "stock_id": "4583",
+      "name": "台灣精銳",
+      "market": "twse",
+      "price": 723.0,
+      "change_pct": 2.41,
+      "trading_value": 165726819,
+      "avg_trading_value_5d": 171637822,
+      "trigger_score": -1.1,
+      "trend_score": 2,
+      "score_percentile": 39.4,
+      "regime": "volatile",
+      "etf_buy_count": 0,
+      "rvol_lowatr": -0.7856,
+      "signals": [],
+      "trigger_details": [
+        "📈 MeanRev=+0.76 (tanh=+0.64)",
+        "📈 Supertrend 多頭趨勢 (+1)",
+        "✅ MACD 柱狀體翻紅 (+1)",
+        "🔻 KD 死亡交叉/空方排列 (-1)",
+        "📊 RVOL=0.4x (z=-0.8) (-0.51)",
+        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0"
+      ],
+      "scenario": {
+        "code": "B",
+        "title": "⏳ 劇本 B：拉回關注",
+        "desc": "長線多頭，短線震盪。等待止穩。"
+      },
+      "action_plan": {
+        "strategy": "🎯 **中等趨勢 (右側進場)**：VF-6 驗證純右側勝混合版 (CAGR +22.8pp)。\n\n**進場信心: 等待確認** — K線型態【黑三兵 (3 Crows)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-1.1 < 0，訊號矛盾\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. 週 MA20 趨勢停損** → 683.75\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "rec_entry_low": 743.6,
+        "rec_entry_high": 733.0,
+        "rec_entry_desc": "右側進場 (5MA-現價)",
+        "rec_sl_price": 683.75,
+        "rec_sl_method": "QM. 週 MA20 趨勢停損",
+        "rec_tp_price": 915.49,
+        "rr_ratio": 3.25,
+        "tp_list": [
+          {
+            "method": "QM1. +24% 減碼 1/3",
+            "price": 915.49,
+            "desc": "落袋第一段",
+            "is_rec": true
+          },
+          {
+            "method": "QM2. +40% 移動停損至 MA10W",
+            "price": 1033.62,
+            "desc": "鎖住超額",
+            "is_rec": false
+          },
+          {
+            "method": "QM3. +64% 清倉 (或 60 日到期)",
+            "price": 1210.81,
+            "desc": "換股輪動",
+            "is_rec": false
+          },
+          {
+            "method": "前波高點",
+            "price": 770.0,
+            "desc": "解套賣壓",
+            "is_rec": false
+          },
+          {
+            "method": "布林上緣",
+            "price": 780.8359981950347,
+            "desc": "通道壓力",
+            "is_rec": false
+          },
+          {
+            "method": "N 字測量 (1.0)",
+            "price": 894.0,
+            "desc": "等幅測距",
+            "is_rec": false
+          },
+          {
+            "method": "費波南希 (1.618)",
+            "price": 993.498,
+            "desc": "強勢目標",
+            "is_rec": false
+          }
+        ],
+        "sl_list": [
+          {
+            "method": "QM-A. 硬停損 -12.1%",
+            "price": 648.73,
+            "desc": "期望值保護 (atr_dynamic)",
+            "loss": -12.1
+          },
+          {
+            "method": "QM-B. 週 MA20 趨勢停損",
+            "price": 683.75,
+            "desc": "趨勢結構破壞",
+            "loss": -7.39
+          },
+          {
+            "method": "B. 均線停損 (趨勢)",
+            "price": 691.55,
+            "desc": "MA20/60",
+            "loss": -5.65
+          },
+          {
+            "method": "C. 關鍵紅K (籌碼)",
+            "price": 690.0,
+            "desc": "大量低點",
+            "loss": -5.87
+          },
+          {
+            "method": "A. ATR 波動停損 (科學)",
+            "price": 673.7142857142857,
+            "desc": "2倍 ATR",
+            "loss": -8.09
+          },
+          {
+            "method": "D. 波段低點停損 (形態)",
+            "price": 609.0,
+            "desc": "前波低點",
+            "loss": -16.92
+          }
+        ],
+        "qm_horizon": "40-60d",
+        "qm_hold_days_target": 60,
+        "qm_entry_batches": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-1.1 < 0，訊號矛盾；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_gate": {
+          "level": "red",
+          "ready": false,
+          "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-1.1 < 0，訊號矛盾"
+        },
+        "qm_position_size": {
+          "recommended_pct": 3.5,
+          "base_pct": 7.0,
+          "multiplier": 0.5,
+          "rationale": "base=7.0% (composite 70/80) × multiplier=0.50 (trigger -1.1/5)"
+        },
+        "qm_exit_signals": [
+          "週線 Supertrend 翻空",
+          "週 MA20 跌破 3% 以上 (非插針)",
+          "月營收 YoY 連續 2 個月轉負",
+          "F-Score 季更新後下降 2 分以上"
+        ]
+      },
+      "checklist": {
+        "risk": [
+          "若收盤跌破 **月線 (691.55)**，短期轉弱，建議減碼或停損。",
+          "若出現 **爆量長黑** (成交值 > 3.4 億) 且收跌，視為主力出貨訊號。"
+        ],
+        "active": [
+          "若帶量突破 **波段前高 (770.00)**，趨勢續攻，可嘗試加碼。"
+        ],
+        "future": [
+          "目前正乖離過大 (6.0%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
+          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
+        ]
+      },
+      "qm_quality_score": 82,
+      "qm_body_score": 95,
       "qm_revenue_score": 62,
       "qm_quality_details": [
-        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
-        "Z-Score=1.7 危險區 (破產風險) (-20)",
-        "FCF Yield=32.5% 高 (+8)",
-        "ROE=15.6% (+5)",
-        "連續 4 季獲利 (+5)",
-        "ROE=42.0% 高 (+5) [TV]",
-        "營收正驚喜 +21.7% (+12)"
-      ],
-      "qm_f_score": 8,
-      "composite_score": 72.4,
-      "qm_position_size": {
-        "recommended_pct": 3.6,
-        "base_pct": 7.2,
-        "multiplier": 0.5,
-        "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger +1.5/5)"
-      }
-    },
-    {
-      "stock_id": "6197",
-      "name": "佳必琪",
-      "market": "twse",
-      "price": 187.5,
-      "change_pct": 0.0,
-      "trading_value": 1631440690,
-      "avg_trading_value_5d": 922618030,
-      "trigger_score": 2.27,
-      "trend_score": 5,
-      "score_percentile": 69.5,
-      "regime": "volatile",
-      "etf_buy_count": 0,
-      "rvol_lowatr": 0.7018,
-      "signals": [],
-      "trigger_details": [
-        "📈 MeanRev=+0.83 (tanh=+0.68)",
-        "📉 Supertrend 空頭趨勢 (-1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔻 KD 死亡交叉/空方排列 (-1)",
-        "📊 RVOL=2.5x (z=1.3) (+0.89)",
-        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+914張) (+0.3)"
-      ],
-      "scenario": {
-        "code": "A",
-        "title": "🔥 劇本 A：強力進攻",
-        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
-      },
-      "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -13.9% 硬停損** → 161.01\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 186.7,
-        "rec_entry_high": 187.5,
-        "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 161.01,
-        "rec_sl_method": "QM. -13.9% 硬停損",
-        "rec_tp_price": 232.0,
-        "rr_ratio": 1.72,
-        "tp_list": [
-          {
-            "method": "QM1. +24% 減碼 1/3",
-            "price": 232.0,
-            "desc": "落袋第一段",
-            "is_rec": true
-          },
-          {
-            "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 261.94,
-            "desc": "鎖住超額",
-            "is_rec": false
-          },
-          {
-            "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 306.84,
-            "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 195.4638193731671,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 199.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
-            "method": "N 字測量 (1.0)",
-            "price": 230.0,
-            "desc": "等幅測距",
-            "is_rec": false
-          },
-          {
-            "method": "費波南希 (1.618)",
-            "price": 256.265,
-            "desc": "強勢目標",
-            "is_rec": false
-          }
-        ],
-        "sl_list": [
-          {
-            "method": "QM-A. 硬停損 -13.9%",
-            "price": 161.01,
-            "desc": "期望值保護 (atr_dynamic)",
-            "loss": -13.9
-          },
-          {
-            "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 156.35,
-            "desc": "趨勢結構破壞",
-            "loss": -16.44
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 180.5,
-            "desc": "大量低點",
-            "loss": -3.73
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 176.2,
-            "desc": "MA20/60",
-            "loss": -6.03
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 170.07142857142858,
-            "desc": "2倍 ATR",
-            "loss": -9.3
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 156.5,
-            "desc": "前波低點",
-            "loss": -16.53
-          }
-        ],
-        "qm_horizon": "40-60d",
-        "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
-        "qm_entry_gate": {
-          "level": "yellow",
-          "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.3）"
-        },
-        "qm_position_size": {
-          "recommended_pct": 3.6,
-          "base_pct": 7.1,
-          "multiplier": 0.5,
-          "rationale": "base=7.1% (composite 71/80) × multiplier=0.50 (trigger +2.3/5)"
-        },
-        "qm_exit_signals": [
-          "週線 Supertrend 翻空",
-          "週 MA20 跌破 3% 以上 (非插針)",
-          "月營收 YoY 連續 2 個月轉負",
-          "F-Score 季更新後下降 2 分以上"
-        ]
-      },
-      "checklist": {
-        "risk": [
-          "若收盤跌破 **月線 (176.20)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 18.5 億) 且收跌，視為主力出貨訊號。"
-        ],
-        "active": [
-          "若帶量突破 **波段前高 (199.00)**，趨勢續攻，可嘗試加碼。"
-        ],
-        "future": [
-          "目前正乖離過大 (6.4%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
-          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
-        ]
-      },
-      "qm_quality_score": 77,
-      "qm_body_score": 95,
-      "qm_revenue_score": 50,
-      "qm_quality_details": [
-        "F-Score=7/9 強 (獲利3/槓桿3/效率1) (+25)",
-        "流動比率=2.8 安全 (+5)",
-        "Z-Score=4.7 [資訊]",
-        "連續 4 季獲利 (+5)",
-        "營益率=20.0% 優 (+5) [TV]",
-        "ROE=22.4% 高 (+5) [TV]"
-      ],
-      "qm_f_score": 7,
-      "composite_score": 71.3,
-      "qm_position_size": {
-        "recommended_pct": 3.6,
-        "base_pct": 7.1,
-        "multiplier": 0.5,
-        "rationale": "base=7.1% (composite 71/80) × multiplier=0.50 (trigger +2.3/5)"
-      }
-    },
-    {
-      "stock_id": "3645",
-      "name": "達邁",
-      "market": "twse",
-      "price": 106.5,
-      "change_pct": 7.04,
-      "trading_value": 2402386931,
-      "avg_trading_value_5d": 2673593715,
-      "trigger_score": 1.27,
-      "trend_score": 4,
-      "score_percentile": 61.0,
-      "regime": "volatile",
-      "etf_buy_count": 0,
-      "rvol_lowatr": -2.445,
-      "signals": [],
-      "trigger_details": [
-        "📈 MeanRev=+1.20 (tanh=+0.83)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔻 KD 死亡交叉/空方排列 (-1)",
-        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+1,842張) (+0.3)",
-        "🔥 投信近5日買超 (+194張) → 過熱警報 (-0.5)"
-      ],
-      "scenario": {
-        "code": "A",
-        "title": "🔥 劇本 A：強力進攻",
-        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
-      },
-      "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 高** — K線型態【大陽線 (Marubozu)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 93.52\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 111.0,
-        "rec_entry_high": 106.5,
-        "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 93.52,
-        "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 134.85,
-        "rr_ratio": 1.71,
-        "tp_list": [
-          {
-            "method": "QM1. +24% 減碼 1/3",
-            "price": 134.85,
-            "desc": "落袋第一段",
-            "is_rec": true
-          },
-          {
-            "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 152.25,
-            "desc": "鎖住超額",
-            "is_rec": false
-          },
-          {
-            "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 178.35,
-            "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 119.97514069049782,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 120.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
-            "method": "N 字測量 (1.0)",
-            "price": 158.3000030517578,
-            "desc": "等幅測距",
-            "is_rec": false
-          },
-          {
-            "method": "費波南希 (1.618)",
-            "price": 190.31240493774413,
-            "desc": "強勢目標",
-            "is_rec": false
-          }
-        ],
-        "sl_list": [
-          {
-            "method": "QM-A. 硬停損 -14.0%",
-            "price": 93.52,
-            "desc": "期望值保護 (atr_dynamic)",
-            "loss": -14.0
-          },
-          {
-            "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 67.71999969482422,
-            "desc": "趨勢結構破壞",
-            "loss": -37.73
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 98.5,
-            "desc": "大量低點",
-            "loss": -7.51
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 87.72857142857143,
-            "desc": "2倍 ATR",
-            "loss": -17.63
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 87.65499969482421,
-            "desc": "MA20/60",
-            "loss": -17.69
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 68.19999694824219,
-            "desc": "前波低點",
-            "loss": -35.96
-          }
-        ],
-        "qm_horizon": "40-60d",
-        "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
-        "qm_entry_gate": {
-          "level": "yellow",
-          "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.3）"
-        },
-        "qm_position_size": {
-          "recommended_pct": 3.5,
-          "base_pct": 7.1,
-          "multiplier": 0.5,
-          "rationale": "base=7.1% (composite 71/80) × multiplier=0.50 (trigger +1.3/5)"
-        },
-        "qm_exit_signals": [
-          "週線 Supertrend 翻空",
-          "週 MA20 跌破 3% 以上 (非插針)",
-          "月營收 YoY 連續 2 個月轉負",
-          "F-Score 季更新後下降 2 分以上"
-        ]
-      },
-      "checklist": {
-        "risk": [
-          "若收盤跌破 **月線 (87.65)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 53.5 億) 且收跌，視為主力出貨訊號。",
-          "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
-        ],
-        "active": [
-          "若帶量突破 **波段前高 (120.00)**，趨勢續攻，可嘗試加碼。"
-        ],
-        "future": [
-          "目前正乖離過大 (21.5%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
-          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
-        ]
-      },
-      "qm_quality_score": 71,
-      "qm_body_score": 85,
-      "qm_revenue_score": 50,
-      "qm_quality_details": [
         "F-Score=8/9 強 (獲利4/槓桿3/效率1) (+25)",
-        "流動比率=2.1 安全 (+5)",
-        "Z-Score=4.6 [資訊]",
-        "連續 4 季獲利 (+5)"
-      ],
-      "qm_f_score": 8,
-      "composite_score": 70.9,
-      "qm_position_size": {
-        "recommended_pct": 3.5,
-        "base_pct": 7.1,
-        "multiplier": 0.5,
-        "rationale": "base=7.1% (composite 71/80) × multiplier=0.50 (trigger +1.3/5)"
-      }
-    },
-    {
-      "stock_id": "2049",
-      "name": "上銀",
-      "market": "twse",
-      "price": 302.0,
-      "change_pct": 3.6,
-      "trading_value": 4498003885,
-      "avg_trading_value_5d": 3252945400,
-      "trigger_score": 6.22,
-      "trend_score": 5,
-      "score_percentile": 92.3,
-      "regime": "volatile",
-      "etf_buy_count": 0,
-      "rvol_lowatr": -0.1629,
-      "signals": [],
-      "trigger_details": [
-        "📈 MeanRev=+1.74 (tanh=+0.94)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=55.1) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "💀💀 MACD 出現【強烈頂背離】訊號 (高風險反轉) (-3)",
-        "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=1.6x (z=0.7) (+0.47)",
-        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+8,270張) (+0.3)",
-        "❄️ 投信近5日賣超 (-4張) → 籌碼沉澱 (+0.3)"
-      ],
-      "scenario": {
-        "code": "A",
-        "title": "🔥 劇本 A：強力進攻",
-        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
-      },
-      "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【空頭吞噬 (Engulfing)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+6.2 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 259.03\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 300.4,
-        "rec_entry_high": 302.0,
-        "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 259.03,
-        "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 373.49,
-        "rr_ratio": 1.71,
-        "tp_list": [
-          {
-            "method": "QM1. +24% 減碼 1/3",
-            "price": 373.49,
-            "desc": "落袋第一段",
-            "is_rec": true
-          },
-          {
-            "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 421.68,
-            "desc": "鎖住超額",
-            "is_rec": false
-          },
-          {
-            "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 493.97,
-            "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 317.61986944274577,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 322.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
-            "method": "N 字測量 (1.0)",
-            "price": 398.5,
-            "desc": "等幅測距",
-            "is_rec": false
-          },
-          {
-            "method": "費波南希 (1.618)",
-            "price": 458.137,
-            "desc": "強勢目標",
-            "is_rec": false
-          }
-        ],
-        "sl_list": [
-          {
-            "method": "QM-A. 硬停損 -14.0%",
-            "price": 259.03,
-            "desc": "期望值保護 (atr_dynamic)",
-            "loss": -14.0
-          },
-          {
-            "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 227.875,
-            "desc": "趨勢結構破壞",
-            "loss": -24.34
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 270.7857142857143,
-            "desc": "2倍 ATR",
-            "loss": -10.34
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 267.0,
-            "desc": "大量低點",
-            "loss": -11.59
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 259.675,
-            "desc": "MA20/60",
-            "loss": -14.01
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 225.5,
-            "desc": "前波低點",
-            "loss": -25.33
-          }
-        ],
-        "qm_horizon": "40-60d",
-        "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+6.2 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
-        "qm_entry_gate": {
-          "level": "green",
-          "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+6.2 ≥ 3）"
-        },
-        "qm_position_size": {
-          "recommended_pct": 8.7,
-          "base_pct": 7.0,
-          "multiplier": 1.24,
-          "rationale": "base=7.0% (composite 70/80) × multiplier=1.24 (trigger +6.2/5)"
-        },
-        "qm_exit_signals": [
-          "週線 Supertrend 翻空",
-          "週 MA20 跌破 3% 以上 (非插針)",
-          "月營收 YoY 連續 2 個月轉負",
-          "F-Score 季更新後下降 2 分以上"
-        ]
-      },
-      "checklist": {
-        "risk": [
-          "若收盤跌破 **月線 (259.68)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 65.1 億) 且收跌，視為主力出貨訊號。",
-          "指標位於高檔，若 KD 出現 **死亡交叉 (K<D)**，請獲利了結。"
-        ],
-        "active": [
-          "若帶量突破 **波段前高 (322.00)**，趨勢續攻，可嘗試加碼。"
-        ],
-        "future": [
-          "目前正乖離過大 (16.3%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
-          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
-        ]
-      },
-      "qm_quality_score": 76,
-      "qm_body_score": 93,
-      "qm_revenue_score": 50,
-      "qm_quality_details": [
-        "F-Score=7/9 強 (獲利3/槓桿3/效率1) (+25)",
-        "流動比率=2.3 安全 (+5)",
-        "Z-Score=2.1 [資訊]",
-        "FCF Yield=14.2% 高 (+8)",
-        "連續 4 季獲利 (+5)"
-      ],
-      "qm_f_score": 7,
-      "composite_score": 70.1,
-      "qm_position_size": {
-        "recommended_pct": 8.7,
-        "base_pct": 7.0,
-        "multiplier": 1.24,
-        "rationale": "base=7.0% (composite 70/80) × multiplier=1.24 (trigger +6.2/5)"
-      }
-    },
-    {
-      "stock_id": "3406",
-      "name": "玉晶光",
-      "market": "twse",
-      "price": 510.0,
-      "change_pct": 4.51,
-      "trading_value": 1350758333,
-      "avg_trading_value_5d": 1234980436,
-      "trigger_score": 3.37,
-      "trend_score": 5,
-      "score_percentile": 77.8,
-      "regime": "volatile",
-      "etf_buy_count": 0,
-      "rvol_lowatr": -1.7229,
-      "signals": [],
-      "trigger_details": [
-        "📈 MeanRev=+0.65 (tanh=+0.57)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "🔻 KD 死亡交叉/空方排列 (-1)",
-        "📊 RVOL=1.8x (z=1.0) (+0.68)",
-        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+3,603張) (+0.3)",
-        "❄️ 投信近5日賣超 (-2,175張) → 籌碼沉澱 (+0.3)"
-      ],
-      "scenario": {
-        "code": "A",
-        "title": "🔥 劇本 A：強力進攻",
-        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
-      },
-      "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【空頭母子 (Harami)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.4 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. 週 MA20 趨勢停損** → 447.30\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 527.4,
-        "rec_entry_high": 510.0,
-        "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 447.3,
-        "rec_sl_method": "QM. 週 MA20 趨勢停損",
-        "rec_tp_price": 643.19,
-        "rr_ratio": 1.74,
-        "tp_list": [
-          {
-            "method": "QM1. +24% 減碼 1/3",
-            "price": 643.19,
-            "desc": "落袋第一段",
-            "is_rec": true
-          },
-          {
-            "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 726.18,
-            "desc": "鎖住超額",
-            "is_rec": false
-          },
-          {
-            "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 850.67,
-            "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 556.6732114612673,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 559.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
-            "method": "N 字測量 (1.0)",
-            "price": 635.0,
-            "desc": "等幅測距",
-            "is_rec": false
-          },
-          {
-            "method": "費波南希 (1.618)",
-            "price": 712.25,
-            "desc": "強勢目標",
-            "is_rec": false
-          }
-        ],
-        "sl_list": [
-          {
-            "method": "QM-A. 硬停損 -14.0%",
-            "price": 446.08,
-            "desc": "期望值保護 (atr_dynamic)",
-            "loss": -14.0
-          },
-          {
-            "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 447.3,
-            "desc": "趨勢結構破壞",
-            "loss": -13.77
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 490.0,
-            "desc": "大量低點",
-            "loss": -3.92
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 479.575,
-            "desc": "MA20/60",
-            "loss": -5.97
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 456.14285714285717,
-            "desc": "2倍 ATR",
-            "loss": -10.56
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 434.0,
-            "desc": "前波低點",
-            "loss": -14.9
-          }
-        ],
-        "qm_horizon": "40-60d",
-        "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.4 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
-        "qm_entry_gate": {
-          "level": "green",
-          "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.4 ≥ 3）"
-        },
-        "qm_position_size": {
-          "recommended_pct": 4.7,
-          "base_pct": 7.0,
-          "multiplier": 0.67,
-          "rationale": "base=7.0% (composite 70/80) × multiplier=0.67 (trigger +3.4/5)"
-        },
-        "qm_exit_signals": [
-          "週線 Supertrend 翻空",
-          "週 MA20 跌破 3% 以上 (非插針)",
-          "月營收 YoY 連續 2 個月轉負",
-          "F-Score 季更新後下降 2 分以上"
-        ]
-      },
-      "checklist": {
-        "risk": [
-          "若收盤跌破 **月線 (479.57)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 24.7 億) 且收跌，視為主力出貨訊號。"
-        ],
-        "active": [
-          "若帶量突破 **波段前高 (559.00)**，趨勢續攻，可嘗試加碼。"
-        ],
-        "future": [
-          "目前正乖離過大 (6.3%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
-          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
-        ]
-      },
-      "qm_quality_score": 76,
-      "qm_body_score": 93,
-      "qm_revenue_score": 50,
-      "qm_quality_details": [
-        "F-Score=7/9 強 (獲利3/槓桿3/效率1) (+25)",
-        "流動比率=2.5 安全 (+5)",
-        "Z-Score=2.9 [資訊]",
-        "FCF Yield=14.3% 高 (+8)",
-        "連續 4 季獲利 (+5)"
-      ],
-      "qm_f_score": 7,
-      "composite_score": 70.1,
-      "qm_position_size": {
-        "recommended_pct": 4.7,
-        "base_pct": 7.0,
-        "multiplier": 0.67,
-        "rationale": "base=7.0% (composite 70/80) × multiplier=0.67 (trigger +3.4/5)"
-      }
-    },
-    {
-      "stock_id": "6257",
-      "name": "矽格",
-      "market": "twse",
-      "price": 181.0,
-      "change_pct": 3.13,
-      "trading_value": 4607515223,
-      "avg_trading_value_5d": 3067183498,
-      "trigger_score": 1.89,
-      "trend_score": 4.5,
-      "score_percentile": 66.3,
-      "regime": "volatile",
-      "etf_buy_count": 0,
-      "rvol_lowatr": -1.0292,
-      "signals": [],
-      "trigger_details": [
-        "📈 MeanRev=+0.59 (tanh=+0.53)",
-        "📈 Supertrend 多頭趨勢 (+1)",
-        "✅ 日線 DMI 多方攻擊 (ADX=69.3) (+1)",
-        "✅ MACD 柱狀體翻紅 (+1)",
-        "📈 MACD 出現【隱藏底背離】(多頭趨勢延續) (+1)",
-        "🔻 KD 死亡交叉/空方排列 (-1)",
-        "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
-        "💰 外資近5日買超 (+4,340張) (+0.3)",
-        "❄️ 投信近5日賣超 (-5,631張) → 籌碼沉澱 (+0.3)",
-        "🏦 ETF 活動: 買 1 / 賣 1 檔 (淨 -54 張) [資訊]"
-      ],
-      "scenario": {
-        "code": "A",
-        "title": "🔥 劇本 A：強力進攻",
-        "desc": "週線強多 + 日線訊號佳，順勢重倉。"
-      },
-      "action_plan": {
-        "strategy": "🚀 **積極進場**：趨勢強勁，目標看向波段滿足點。\n\n**進場信心: 等待確認** — K線型態【夜星 (Evening Star)】與買進方向矛盾，建議等待確認\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.9）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 156.43\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
-        "rec_entry_low": 182.8,
-        "rec_entry_high": 181.0,
-        "rec_entry_desc": "積極操作 (5MA-現價)",
-        "rec_sl_price": 156.43,
-        "rec_sl_method": "QM. -14.0% 硬停損",
-        "rec_tp_price": 225.56,
-        "rr_ratio": 1.71,
-        "tp_list": [
-          {
-            "method": "QM1. +24% 減碼 1/3",
-            "price": 225.56,
-            "desc": "落袋第一段",
-            "is_rec": true
-          },
-          {
-            "method": "QM2. +40% 移動停損至 MA10W",
-            "price": 254.66,
-            "desc": "鎖住超額",
-            "is_rec": false
-          },
-          {
-            "method": "QM3. +64% 清倉 (或 60 日到期)",
-            "price": 298.32,
-            "desc": "換股輪動",
-            "is_rec": false
-          },
-          {
-            "method": "前波高點",
-            "price": 194.0,
-            "desc": "解套賣壓",
-            "is_rec": false
-          },
-          {
-            "method": "布林上緣",
-            "price": 199.85706872620017,
-            "desc": "通道壓力",
-            "is_rec": false
-          },
-          {
-            "method": "N 字測量 (1.0)",
-            "price": 244.5,
-            "desc": "等幅測距",
-            "is_rec": false
-          },
-          {
-            "method": "費波南希 (1.618)",
-            "price": 283.743,
-            "desc": "強勢目標",
-            "is_rec": false
-          }
-        ],
-        "sl_list": [
-          {
-            "method": "QM-A. 硬停損 -14.0%",
-            "price": 156.43,
-            "desc": "期望值保護 (atr_dynamic)",
-            "loss": -14.0
-          },
-          {
-            "method": "QM-B. 週 MA20 趨勢停損",
-            "price": 133.025,
-            "desc": "趨勢結構破壞",
-            "loss": -26.87
-          },
-          {
-            "method": "B. 均線停損 (趨勢)",
-            "price": 167.025,
-            "desc": "MA20/60",
-            "loss": -7.72
-          },
-          {
-            "method": "A. ATR 波動停損 (科學)",
-            "price": 161.42857142857142,
-            "desc": "2倍 ATR",
-            "loss": -10.81
-          },
-          {
-            "method": "C. 關鍵紅K (籌碼)",
-            "price": 146.5,
-            "desc": "大量低點",
-            "loss": -19.06
-          },
-          {
-            "method": "D. 波段低點停損 (形態)",
-            "price": 130.5,
-            "desc": "前波低點",
-            "loss": -27.9
-          }
-        ],
-        "qm_horizon": "40-60d",
-        "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.9）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
-        "qm_entry_gate": {
-          "level": "yellow",
-          "ready": false,
-          "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +1.9）"
-        },
-        "qm_position_size": {
-          "recommended_pct": 3.5,
-          "base_pct": 7.0,
-          "multiplier": 0.5,
-          "rationale": "base=7.0% (composite 70/80) × multiplier=0.50 (trigger +1.9/5)"
-        },
-        "qm_exit_signals": [
-          "週線 Supertrend 翻空",
-          "週 MA20 跌破 3% 以上 (非插針)",
-          "月營收 YoY 連續 2 個月轉負",
-          "F-Score 季更新後下降 2 分以上"
-        ]
-      },
-      "checklist": {
-        "risk": [
-          "若收盤跌破 **月線 (167.03)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 61.3 億) 且收跌，視為主力出貨訊號。"
-        ],
-        "active": [
-          "若帶量突破 **波段前高 (194.00)**，趨勢續攻，可嘗試加碼。"
-        ],
-        "future": [
-          "目前正乖離過大 (8.4%)，不宜追高。等待 **拉回測 10日線** 不破時再佈局。",
-          "持續關注 K 線形態，若出現 **晨星** 或 **多頭吞噬**，視為止跌訊號。"
-        ]
-      },
-      "qm_quality_score": 67,
-      "qm_body_score": 78,
-      "qm_revenue_score": 50,
-      "qm_quality_details": [
-        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
-        "流動比率=2.1 安全 (+5)",
-        "Z-Score=1.6 危險區 (破產風險) (-20)",
-        "FCF Yield=35.5% 高 (+8)",
+        "流動比率=17.4 安全 (+5)",
+        "Z-Score=42.7 [資訊]",
         "連續 4 季獲利 (+5)",
-        "營益率=20.3% 優 (+5) [TV]"
+        "毛利率=48.7% 高 (+5) [TV]",
+        "營益率=31.4% 優 (+5) [TV]",
+        "營收正驚喜 +23.6% (+12)"
       ],
       "qm_f_score": 8,
-      "composite_score": 69.7,
+      "composite_score": 70.0,
       "qm_position_size": {
         "recommended_pct": 3.5,
         "base_pct": 7.0,
         "multiplier": 0.5,
-        "rationale": "base=7.0% (composite 70/80) × multiplier=0.50 (trigger +1.9/5)"
+        "rationale": "base=7.0% (composite 70/80) × multiplier=0.50 (trigger -1.1/5)"
       }
     }
   ]
