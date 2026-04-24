@@ -99,6 +99,11 @@ def _compute_composite_score(top_n):
                      + trend_pct[i] * 0.20)
         s['composite_score'] = round(composite, 1)
 
+    # Mode D Layer 2 C1 tilt: regime-conditional 月營收 YoY 拐點加分 ×1.2
+    # V3 verdict C 級 (alpha +0.9~2.0pp 兩段顯著, hit rate 52-55%)
+    # AI era ON / Pre-AI OFF (Pre-AI C1 tilt 反效果 -4.2pp, 見 V4' S3 vs S1 對比)
+    _apply_c1_tilt(top_n)
+
     # 部位調整器 (A#3)：composite × trigger 動態倉位
     for s in top_n:
         sz = _qm_position_size(s.get('composite_score'), s.get('trigger_score'))
@@ -110,6 +115,46 @@ def _compute_composite_score(top_n):
 
     # 依綜合評分重新排序
     top_n.sort(key=lambda x: x.get('composite_score', 0), reverse=True)
+
+
+def _load_c1_tilt_flags():
+    """Load C1 tilt flags panel. Returns None if unavailable."""
+    try:
+        import pandas as pd
+        p = Path('data/c1_tilt_flags.parquet')
+        if not p.exists():
+            return None
+        return pd.read_parquet(p)
+    except Exception as e:
+        logger.debug("C1 tilt load skipped: %s", e)
+        return None
+
+
+def _apply_c1_tilt(top_n, boost: float = 1.2):
+    """
+    Mode D Layer 2: 若當前 AI era + ticker 有月營收 YoY 拐點 → composite_score ×1.2.
+    Pre-AI OFF (no boost), avoiding V4' S3 Pre-AI -4.2pp 反效果.
+    """
+    panel = _load_c1_tilt_flags()
+    if panel is None or panel.empty:
+        return
+    is_ai_era = bool(panel['is_ai_era'].iloc[0]) if 'is_ai_era' in panel.columns else False
+    if not is_ai_era:
+        logger.info("C1 tilt: Pre-AI era, skip boost")
+        return
+
+    tilt_on_set = set(panel[panel['c1_tilt_on'] == True]['stock_id'].astype(str).tolist())
+    if not tilt_on_set:
+        return
+
+    boosted = 0
+    for s in top_n:
+        if str(s.get('stock_id', '')) in tilt_on_set:
+            old_score = s.get('composite_score', 0)
+            s['composite_score'] = round(old_score * boost, 1)
+            s['c1_tilt_applied'] = True
+            boosted += 1
+    logger.info(f"C1 tilt applied to {boosted}/{len(top_n)} QM picks (AI era, boost ×{boost})")
 
 
 def _qm_position_size(composite_score, trigger_score, base_pct=8.0):
