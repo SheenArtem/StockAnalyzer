@@ -36,7 +36,7 @@ SECTOR_TAGS_FILE = REPO / "data" / "sector_tags_manual.json"
 
 GEMINI_MODEL = "gemini-3-pro-preview"  # pro-preview 最會遵守 JSON 格式指令 (2026-04-24 實測)
 GEMINI_FALLBACK_MODEL = None  # None = default model
-CLAUDE_MODEL_FLAG = "--model=claude-sonnet-4-6-20250929"
+CLAUDE_MODEL_FLAG = "--model=sonnet"  # alias 自動指向最新 Sonnet,2026-04-25 從錯誤的 claude-sonnet-4-6-20250929 修正
 
 PROMPT_TEMPLATE = """你是台股財經節目內容分析員。stdin 會給你一集節目的自動字幕 (VTT 含時間碼,可忽略),請萃取結構化資訊。
 
@@ -165,12 +165,15 @@ def call_gemini(prompt: str, vtt_text: str, model: str | None, timeout: int = 30
 
 
 def call_claude(prompt: str, vtt_text: str, timeout: int = 300) -> tuple[str, str | None]:
-    """VTT + prompt 合併傳 stdin 避開 Windows argv 限制。"""
+    """VTT + prompt 合併傳 stdin 避開 Windows argv 限制。
+
+    BUG FIX 2026-04-25: 之前漏帶 --model flag 導致 Claude CLI 走 user default
+    model (可能 Opus 4.7),token 消耗 ~5x Sonnet。現強制帶 CLAUDE_MODEL_FLAG。
+    """
     combined = f"{prompt}\n\n--- 以下為 VTT 字幕 ---\n{vtt_text}"
     try:
-        # shell=True 幫 Windows 解 PATH 中的 claude.cmd
         result = subprocess.run(
-            'claude -p',
+            f'claude -p {CLAUDE_MODEL_FLAG}',
             input=combined,
             capture_output=True, text=True, timeout=timeout,
             encoding="utf-8", errors="replace",
@@ -309,7 +312,12 @@ def extract(vtt_path: Path, prefer: str = "gemini", known_tickers: dict | None =
 
 
 def list_pending(show_key: str | None = None) -> list[Path]:
-    """列出未處理 (無對應 .json) 的 VTT 檔."""
+    """列出未處理 (無對應 .json) 的 VTT 檔.
+
+    2026-04-25 修改: 同 video 多 subtitle variant 只取 zh-Hant,避免雙語重複跑 LLM。
+    優先序: .zh-Hant.vtt > .zh-Hant-zh-Hant.vtt > .zh-Hant-zh-TW.vtt > 其他
+    完全跳過 .zh-Hans-*.vtt (簡體版,內容跟繁體一樣只是字符不同)
+    """
     shows = [show_key] if show_key else ["money100", "money_deploy"]
     pending = []
     for sk in shows:
@@ -318,11 +326,36 @@ def list_pending(show_key: str | None = None) -> list[Path]:
             continue
         out_dir = OUT_ROOT / sk
         out_dir.mkdir(parents=True, exist_ok=True)
+
+        # Group by video_id, pick preferred variant
+        by_video: dict[str, list[Path]] = {}
         for vtt in sorted(vtt_dir.glob("*.vtt")):
-            meta = parse_vtt_filename(vtt)
+            name = vtt.name
+            # Skip 簡體 variants entirely
+            if ".zh-Hans" in name:
+                continue
+            try:
+                meta = parse_vtt_filename(vtt)
+            except Exception:
+                continue
+            by_video.setdefault(meta['video_id'], []).append(vtt)
+
+        for vid, vtts in by_video.items():
+            # Prefer .zh-Hant.vtt (simplest), then zh-Hant-zh-Hant, then others
+            def _pref_key(p: Path) -> int:
+                n = p.name
+                if n.endswith(".zh-Hant.vtt"):
+                    return 0
+                if ".zh-Hant-zh-Hant" in n:
+                    return 1
+                if ".zh-Hant-zh-TW" in n:
+                    return 2
+                return 3
+            chosen = sorted(vtts, key=_pref_key)[0]
+            meta = parse_vtt_filename(chosen)
             out_file = out_dir / f"{meta['date']}_{meta['video_id']}.json"
             if not out_file.exists():
-                pending.append(vtt)
+                pending.append(chosen)
     return pending
 
 
@@ -335,6 +368,7 @@ def main():
     ap.add_argument("--llm", choices=["gemini", "claude"], default="claude",
                     help="優先 LLM (default claude,失敗自動 fallback Gemini). 2026-04-24 實測 Gemini (含 pro-preview) 不穩定遵守 JSON 指令傾向輸 markdown")
     ap.add_argument("--stdout", action="store_true", help="輸出到 stdout 不存檔 (debug)")
+    ap.add_argument("--limit", type=int, default=None, help="限制處理 N 個 (test 用)")
     args = ap.parse_args()
 
     known_tickers = load_known_tickers()
@@ -346,6 +380,9 @@ def main():
     elif args.all or args.show:
         targets = list_pending(args.show)
         print(f"Pending VTTs: {len(targets)}", file=sys.stderr)
+        if args.limit:
+            targets = targets[:args.limit]
+            print(f"Limited to first {args.limit}", file=sys.stderr)
     else:
         ap.print_help()
         sys.exit(1)
