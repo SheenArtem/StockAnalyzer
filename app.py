@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.25.1")
+    st.caption("Version: v2026.04.25.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -1958,8 +1958,8 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
         st.markdown("### 🎯 Mode D — Hybrid Thesis-Driven Discretionary")
         st.caption("QM 機械選股 + C1 月營收拐點 tilt + YT 節目 mention + scenario 進場計畫 → 人工拍板下單（無 API 自動交易）")
 
-        _mode_d_sub1, _mode_d_sub2, _mode_d_sub3 = st.tabs([
-            "📋 今日 Pick", "📺 YT 熱度榜", "📈 C1 拐點清單"
+        _mode_d_sub1, _mode_d_sub2, _mode_d_sub3, _mode_d_sub4 = st.tabs([
+            "📋 今日 Pick", "📺 YT 熱度榜", "📈 C1 拐點清單", "🎯 Thesis Panel"
         ])
 
         # Lazy-load panels shared by subtabs
@@ -2097,6 +2097,22 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                     )
                 st.dataframe(_c1_display.head(50), use_container_width=True, hide_index=True)
                 st.caption("近 3 月月營收 YoY 從負轉正 (T-2<-2% AND T>+2% or T-1>+2%)。QM 選股在 AI era 自動 ×1.2 加分。")
+
+        # ---- Sub 4: Thesis Panel (Wave 0 skeleton, Wave 1 填實) ----
+        with _mode_d_sub4:
+            st.caption("Thesis 層輔助資訊整合（Wave 1 填實，目前為 skeleton）")
+
+            # Section 1: 劇本進行式 (Pair Divergence info display, Wave 1 #1)
+            st.markdown("#### 📜 劇本進行式")
+            st.info("同業 Pair Divergence 資訊卡（待 Wave 1 #1 實作）\n\n顯示持股所屬題材的配對股價差狀態，純資訊不進 Pick 也不發 Discord。")
+
+            # Section 2: 題材熱度展開 (themes → ticker, Wave 1 #8)
+            st.markdown("#### 🔥 題材熱度展開")
+            st.info("YT 節目討論題材反查同題材股（待 Wave 1 #8 實作）\n\n彌補「整集聊 AI 散熱沒點名個股」情境，對同題材股給 weak boost。")
+
+            # Section 3: 大盤 Macro Views (Wave 1 #9)
+            st.markdown("#### 🌏 大盤 Macro Views")
+            st.info("YT 節目 Fed / 利率 / 大盤看法彙整（待 Wave 1 #9 實作）\n\n非個股訊號，獨立顯示當前 macro regime context。")
 
     st.markdown("---")
     st.caption("💡 品質選股掃描: `python scanner_job.py --mode qm` | 價值掃描: `python scanner_job.py --mode value`")
