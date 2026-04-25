@@ -38,6 +38,9 @@ REQUIRED_STAGES = [
     ('MOPS probe done',        r'\] MOPS probe done'),
     ('RF-1 consistency done',  r'\] RF-1 consistency check done'),
     ('Market regime done',     r'\] Market regime logger done'),
+    ('Step-A engine done',     r'\] Step-A engine done'),
+    ('Paper trade engine done', r'\] Paper trade engine done'),
+    ('Discord daily summary done', r'\] Discord daily summary done'),
     ('Substack sync done',     r'\] Substack sync done'),
     ('Scanner finished (exit=0)', r'\] Scanner finished \(exit=0\)'),
 ]
