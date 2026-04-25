@@ -104,6 +104,25 @@ set PY_EXIT=%PY_EXIT_QM%
 if not "%PY_EXIT_VAL%"=="0" set PY_EXIT=%PY_EXIT_VAL%
 
 REM ------------------------------------------------------------
+REM Mode D Phase 2 Wave 2/3 pipeline (2026-04-25):
+REM   1. Step-A engine -> daily_alerts.json (forced/suggested/info)
+REM   2. Paper trade engine -> open_trades.json + trade_log.jsonl
+REM   3. Discord daily summary -> single code block 1 push/day
+REM Best-effort: failures do not affect scanner exit code.
+REM ------------------------------------------------------------
+echo [%date% %time%] Step-A engine starting >> scanner.log
+python tools\step_a_engine.py >> scanner.log 2>&1
+echo [%date% %time%] Step-A engine done >> scanner.log
+
+echo [%date% %time%] Paper trade engine starting >> scanner.log
+python tools\paper_trade_engine.py >> scanner.log 2>&1
+echo [%date% %time%] Paper trade engine done >> scanner.log
+
+echo [%date% %time%] Discord daily summary starting >> scanner.log
+python tools\discord_daily_summary.py >> scanner.log 2>&1
+echo [%date% %time%] Discord daily summary done >> scanner.log
+
+REM ------------------------------------------------------------
 REM Substack sync: download new songfen articles + detect pending INDEX updates.
 REM Added 2026-04-23. Best-effort: failures do not affect scanner exit code.
 REM ------------------------------------------------------------
