@@ -60,7 +60,11 @@ import requests
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-TDCC_URL = "https://openapi.tdcc.com.tw/v1/opendata/1-5"
+# 2026-04-25: 切換 OpenAPI(JSON) -> CSV endpoint
+#   舊端點 openapi.tdcc.com.tw/v1/opendata/1-5 (JSON 9.5MB) 更新比 CSV 慢約一週,
+#   常卡在上週日期。CSV 端點 (網站 form 後端) 即時度高且檔案小 (~2.3MB)。
+#   schema 一致 (5 欄位 + 資料日期),只是格式不同。
+TDCC_URL = "https://opendata.tdcc.com.tw/getOD.ashx?id=1-5"
 OUT_DIR = Path("data_cache/tdcc/1-5")
 
 # 原始中文欄位 → 正規化英文欄位
@@ -81,11 +85,18 @@ def download_tdcc_1_5(
     backoff_seconds: int = 30,
     timeout: int = 180,
 ) -> tuple[list[dict], str | None]:
-    """下載 TDCC OpenData 1-5，回傳 (records, data_date)。"""
+    """下載 TDCC OpenData 1-5 CSV,回傳 (records, data_date).
+
+    2026-04-25 改 getOD.ashx CSV (即時度比 OpenAPI 快約一週)。
+    CSV utf-8-sig BOM,header 5 欄,從第一筆 row 取 data_date。
+    """
+    import csv
+    from io import StringIO
+
     session = requests.Session()
     session.headers.update({
         "User-Agent": "Mozilla/5.0 (compatible; StockAnalyzer/1.0)",
-        "Accept": "application/json",
+        "Accept": "text/csv,*/*",
     })
 
     last_err: Exception | None = None
@@ -96,20 +107,22 @@ def download_tdcc_1_5(
             resp = session.get(url, verify=False, timeout=timeout)
             resp.raise_for_status()
 
-            cd = resp.headers.get("Content-Disposition", "")
-            m = re.search(r"TDCC_OD_1-5_(\d{8})_\d+\.json", cd)
-            data_date = m.group(1) if m else None
-
             size_mb = len(resp.content) / (1024 * 1024)
             elapsed = time.time() - t0
+
+            text = resp.content.decode("utf-8-sig", errors="replace")
+            reader = csv.DictReader(StringIO(text))
+            records = list(reader)
+            if not records:
+                raise ValueError("CSV 解析後 records 為空")
+
+            data_date = str(records[0].get("資料日期", "")).strip() or None
+
             print(
-                f"[tdcc-1-5] 下載成功 {size_mb:.2f} MB / {elapsed:.1f}s / data_date={data_date}",
+                f"[tdcc-1-5] 下載成功 {size_mb:.2f} MB / {elapsed:.1f}s / "
+                f"data_date={data_date} / rows={len(records)}",
                 flush=True,
             )
-
-            records = resp.json()
-            if not isinstance(records, list):
-                raise ValueError(f"預期 JSON array，實際型別 {type(records).__name__}")
             return records, data_date
 
         except Exception as exc:  # noqa: BLE001
