@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "scan_date": "2026-04-25",
+  "scan_time": "11:43",
+  "regime": "volatile",
+  "is_rebalance_day": false,
+  "position_count": 3,
+  "alert_count": 2,
+  "forced_count": 2,
+  "suggested_count": 0,
+  "info_count": 0,
+  "alerts": [
+    {
+      "ticker": "3324",
+      "name": "雙鴻",
+      "side": "QM",
+      "days_held": 9,
+      "buy_price": 990.0,
+      "current_price": 1195.0,
+      "pnl_pct": 20.71,
+      "action_type": "forced",
+      "category": "fscore_drop",
+      "rule": "Rule 1 - Hard exit",
+      "severity": "critical",
+      "reason": "F-Score 季掉 3 分（低分區）",
+      "recommendation": "當日收盤前出場 (不等 rebalance)",
+      "min_hold_warning": true,
+      "whipsaw_banned": false
+    },
+    {
+      "ticker": "2344",
+      "name": "華邦電",
+      "side": "QM",
+      "days_held": 8,
+      "buy_price": 89.5,
+      "current_price": 86.4,
+      "pnl_pct": -3.46,
+      "action_type": "forced",
+      "category": "ma20_break",
+      "rule": "Rule 1 - Hard exit",
+      "severity": "critical",
+      "reason": "週 MA20 跌破 9.4%",
+      "recommendation": "當日收盤前出場 (不等 rebalance)",
+      "min_hold_warning": true,
+      "whipsaw_banned": false
+    }
+  ],
+  "ban_list": [],
+  "notes": {
+    "rule_5_whipsaw_ban": "Wave 3 #6 paper engine 落地後從 trade history 算 30d ban",
+    "rule_6_dual_side": "Value side 持股實際出現後啟用 (目前無)",
+    "rule_7_regime_switch": "Phase 3 補 (regime 切換 lag 1 月清倉)"
+  }
+}
