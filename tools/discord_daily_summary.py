@@ -166,12 +166,18 @@ def build_summary() -> str:
                 lines.append(f"  ! {tk} {nm} | {rsn} | 立即出場")
             lines.append("")
         if suggested:
-            lines.append(f"SUGGESTED (Step-A Rebalance) [{len(suggested)}]:")
+            lines.append(f"SUGGESTED [{len(suggested)}]:")
             for a in suggested:
                 tk = a.get("ticker", "")
                 nm = str(a.get("name", ""))[:6]
                 rsn = str(a.get("reason", ""))[:30]
-                lines.append(f"  ? {tk} {nm} | {rsn}")
+                # Hard 軟化過的 (downgrade_reason 非空) 標記出來區分
+                downgrade = a.get("downgrade_reason")
+                if downgrade:
+                    rule_short = str(a.get("rule", ""))[:24]
+                    lines.append(f"  ? {tk} {nm} | {rsn} | <-{rule_short}")
+                else:
+                    lines.append(f"  ? {tk} {nm} | {rsn}")
             lines.append("")
     else:
         lines.append("Step-A: (no daily_alerts.json)")

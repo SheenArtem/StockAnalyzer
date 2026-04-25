@@ -7,9 +7,13 @@ Step-A Daily Engine (Mode D Phase 2 Wave 2 #4, 2026-04-25)
 
 Council R2 (2026-04-25) 共識實作要點:
 - Hard alerts (Rule 1)            → action_type=forced  (立即出場,不等 rebalance)
+- Hard alert 軟化 (Rule 1b/c/d, 2026-04-25 使用者實戰回饋):
+  - 1b: fscore_drop 持股 <30 日 → info (財報已 priced in,滯後 echo)
+  - 1c: 其他 Hard 持股 <MIN_HOLD → suggested (短 hold 砍多半噪訊)
+  - 1d: 其他 Hard pnl >+15% → suggested (保護獲利,改三段減碼)
 - Rebalance drop top_20 (Rule 2)  → action_type=suggested (不強制,人工拍板)
 - Soft alerts (Rule 3)            → action_type=info (純通知,累積到 rebalance)
-- MIN_HOLD_DAYS=20 (Rule 4)       → 軟 badge 不擋出場 (Hard exit 永遠豁免)
+- MIN_HOLD_DAYS=20 (Rule 4)       → 軟 badge 不擋出場
 - Whipsaw ban 30d (Rule 5)        → ban_list (Wave 3 paper engine 補完整)
 - Rule 6/7                         → Wave 3 / Phase 3 補
 
@@ -87,21 +91,58 @@ def days_between(d1_str: str, d2: date) -> int:
 
 
 def categorize_existing_alerts(alerts: list[dict]) -> list[dict]:
-    """把 position_alerts.json 的 alerts 分類成 daily_alerts schema."""
+    """把 position_alerts.json 的 alerts 分類成 daily_alerts schema.
+
+    Hard alert downgrade rules (2026-04-25, 使用者實戰回饋):
+    - Rule 1b: fscore_drop 持股 <30 日 → info (財報已 priced in,滯後 echo)
+    - Rule 1c: 其他 Hard 持股 <MIN_HOLD → suggested (短 hold 砍多半噪訊)
+    - Rule 1d: 其他 Hard pnl >+15% → suggested (保護獲利,改三段減碼)
+    """
     out = []
     for a in alerts:
         sev = a.get("severity", "soft")
         triggers = a.get("triggers", []) or []
-        # take first trigger for primary categorization
         primary = triggers[0] if triggers else {}
         category = primary.get("type", "unknown")
         desc = primary.get("desc", "")
+
+        days_held = int(a.get("hold_days", 0))
+        pnl_pct = float(a.get("pnl_pct") or 0)
+        downgrade_reason = None
 
         if sev == "hard":
             action_type = "forced"
             rule = "Rule 1 - Hard exit"
             severity = "critical"
             recommendation = "當日收盤前出場 (不等 rebalance)"
+
+            # Rule 1b: F-Score drop 滯後 echo 過濾
+            if category == "fscore_drop" and days_held < 30:
+                action_type = "info"
+                rule = "Rule 1b - F-Score 滯後 echo (持股 <30 日)"
+                severity = "warning"
+                recommendation = (
+                    f"F-Score 已壞但買進前已 priced in,持股 {days_held} 日 < 30 視為 noise"
+                )
+                downgrade_reason = f"fscore_drop + days_held={days_held} < 30"
+            # Rule 1c: MIN_HOLD 保護其他 Hard
+            elif days_held < MIN_HOLD_DAYS:
+                action_type = "suggested"
+                rule = f"Rule 1c - MIN_HOLD 保護 (持股 <{MIN_HOLD_DAYS} 日)"
+                severity = "warning"
+                recommendation = (
+                    f"硬警報但持股 {days_held} 日 < {MIN_HOLD_DAYS},人工拍板優先 thesis"
+                )
+                downgrade_reason = f"days_held={days_held} < MIN_HOLD={MIN_HOLD_DAYS}"
+            # Rule 1d: 獲利保護
+            elif pnl_pct > 15:
+                action_type = "suggested"
+                rule = "Rule 1d - 獲利保護 (pnl >+15%)"
+                severity = "warning"
+                recommendation = (
+                    f"硬警報但持股 +{pnl_pct:.1f}%,建議三段式減碼非全砍"
+                )
+                downgrade_reason = f"pnl_pct=+{pnl_pct:.1f}% > 15%"
         else:  # soft
             action_type = "info"
             rule = "Rule 3 - Soft alert (累積到 rebalance)"
@@ -117,8 +158,8 @@ def categorize_existing_alerts(alerts: list[dict]) -> list[dict]:
         out.append({
             "ticker": str(a.get("stock_id", "")),
             "name": a.get("name", ""),
-            "side": "QM",  # 目前 positions 都是 QM,Value side Wave 3 補
-            "days_held": int(a.get("hold_days", 0)),
+            "side": "QM",
+            "days_held": days_held,
             "buy_price": a.get("buy_price"),
             "current_price": a.get("current_price"),
             "pnl_pct": a.get("pnl_pct"),
@@ -128,8 +169,9 @@ def categorize_existing_alerts(alerts: list[dict]) -> list[dict]:
             "severity": severity,
             "reason": desc,
             "recommendation": recommendation,
-            "min_hold_warning": int(a.get("hold_days", 0)) < MIN_HOLD_DAYS,
-            "whipsaw_banned": False,  # Wave 3 paper engine 補
+            "downgrade_reason": downgrade_reason,
+            "min_hold_warning": days_held < MIN_HOLD_DAYS,
+            "whipsaw_banned": False,
         })
     return out
 
