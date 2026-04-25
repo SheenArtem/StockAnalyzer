@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "as_of": "2026-04-25",
+  "regime": "volatile",
+  "open_trades": [
+    {
+      "trade_id": "PT-20260413-3006",
+      "ticker": "3006",
+      "name": "晶豪科",
+      "entry_date": "2026-04-13",
+      "entry_price": 159.5,
+      "target_tp": 194.0,
+      "target_sl": 134.55,
+      "exit_date": null,
+      "exit_price": null,
+      "exit_reason": null,
+      "pnl_pct": null,
+      "trigger_score_entry": -5.17,
+      "qm_composite_entry": 83.4,
+      "scenario_entry": "-",
+      "qm_rank_entry": 2,
+      "yt_tag_entry": {
+        "count": 1,
+        "sentiment": 1.0,
+        "shows": [
+          "money100"
+        ]
+      },
+      "c1_tilt_entry": false,
+      "regime_entry": "volatile"
+    },
+    {
+      "trade_id": "PT-20260413-8064",
+      "ticker": "8064",
+      "name": "東捷",
+      "entry_date": "2026-04-13",
+      "entry_price": 83.0,
+      "target_tp": 103.12,
+      "target_sl": 71.52,
+      "exit_date": null,
+      "exit_price": null,
+      "exit_reason": null,
+      "pnl_pct": null,
+      "trigger_score_entry": 6.43,
+      "qm_composite_entry": 80.3,
+      "scenario_entry": "-",
+      "qm_rank_entry": 4,
+      "yt_tag_entry": {
+        "count": 0,
+        "sentiment": 0.0,
+        "shows": []
+      },
+      "c1_tilt_entry": false,
+      "regime_entry": "volatile"
+    },
+    {
+      "trade_id": "PT-20260413-3533",
+      "ticker": "3533",
+      "name": "嘉澤",
+      "entry_date": "2026-04-13",
+      "entry_price": 2250.0,
+      "target_tp": 3202.92,
+      "target_sl": 2221.38,
+      "exit_date": null,
+      "exit_price": null,
+      "exit_reason": null,
+      "pnl_pct": null,
+      "trigger_score_entry": -1.11,
+      "qm_composite_entry": 80.2,
+      "scenario_entry": "-",
+      "qm_rank_entry": 5,
+      "yt_tag_entry": {
+        "count": 0,
+        "sentiment": 0.0,
+        "shows": []
+      },
+      "c1_tilt_entry": false,
+      "regime_entry": "volatile"
+    }
+  ]
+}
