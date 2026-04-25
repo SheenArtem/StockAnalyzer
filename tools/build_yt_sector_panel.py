@@ -31,6 +31,8 @@ import pandas as pd
 REPO = Path(__file__).resolve().parent.parent
 YT_EXTRACTS_DIR = REPO / "data_cache" / "yt_extracts"
 OUT_PATH = REPO / "data" / "sector_tags_dynamic.parquet"
+# Video-level panel (2026-04-25, Wave 1 #8 + #9): themes_discussed / macro_views / guests
+OUT_VIDEOS_PATH = REPO / "data" / "yt_videos_panel.parquet"
 
 
 def load_all_extracts(since_days: int | None = None) -> list[dict]:
@@ -102,6 +104,51 @@ def flatten_to_rows(records: list[dict]) -> list[dict]:
     return rows
 
 
+def flatten_videos(records: list[dict]) -> list[dict]:
+    """每 record 一行，保留 video-level 欄位 (themes / macro / guests)。
+
+    Wave 1 #8 (themes->ticker 展開) + #9 (macro_views dashboard) 共用此 panel。
+    """
+    rows = []
+    for rec in records:
+        themes = rec.get("themes_discussed", []) or []
+        if not isinstance(themes, list):
+            themes = [str(themes)]
+        guests = rec.get("guests", []) or []
+        if not isinstance(guests, list):
+            guests = [str(guests)]
+
+        rows.append({
+            "date": rec.get("date", ""),
+            "show_key": rec.get("show_key", ""),
+            "show_name": rec.get("show_name", ""),
+            "video_id": rec.get("video_id", ""),
+            "video_title": rec.get("title", ""),
+            "guests": guests,
+            "themes_discussed": themes,
+            "macro_views": (rec.get("macro_views") or "").strip(),
+            "mention_count": len(rec.get("mentions", []) or []),
+            "extracted_by_model": rec.get("extracted_by_model", ""),
+            "extracted_at": rec.get("extracted_at", ""),
+        })
+    return rows
+
+
+def build_videos_panel(rows: list[dict]) -> pd.DataFrame:
+    if not rows:
+        return pd.DataFrame(columns=[
+            "date", "show_key", "show_name", "video_id", "video_title",
+            "guests", "themes_discussed", "macro_views", "mention_count",
+            "extracted_by_model", "extracted_at",
+        ])
+
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
+    df = df.dropna(subset=["date"])
+    df = df.sort_values(["date", "show_key", "video_id"]).reset_index(drop=True)
+    return df
+
+
 def build_panel(rows: list[dict]) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame(columns=[
@@ -169,11 +216,19 @@ def main():
 
     df = build_panel(rows)
 
+    video_rows = flatten_videos(records)
+    df_videos = build_videos_panel(video_rows)
+    print(f"Built {len(df_videos)} video-level rows", file=sys.stderr)
+
     if not args.top:
         OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(OUT_PATH, index=False)
         size_kb = OUT_PATH.stat().st_size / 1024
         print(f"Written: {OUT_PATH} ({size_kb:.1f} KB, {len(df)} rows)", file=sys.stderr)
+
+        df_videos.to_parquet(OUT_VIDEOS_PATH, index=False)
+        v_size_kb = OUT_VIDEOS_PATH.stat().st_size / 1024
+        print(f"Written: {OUT_VIDEOS_PATH} ({v_size_kb:.1f} KB, {len(df_videos)} rows)", file=sys.stderr)
 
     summarize(df, top_n=20, days=args.days)
 
