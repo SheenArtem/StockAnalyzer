@@ -34,6 +34,7 @@ LOG_PATH = ROOT / 'scanner.log'
 # to survive leading date/time prefixes that cmd.exe garbles under CP950.
 REQUIRED_STAGES = [
     ('Scanner started',        r'\] Scanner started'),
+    ('YT sync done',           r'\] YT sync done'),
     ('MOPS probe done',        r'\] MOPS probe done'),
     ('RF-1 consistency done',  r'\] RF-1 consistency check done'),
     ('Market regime done',     r'\] Market regime logger done'),

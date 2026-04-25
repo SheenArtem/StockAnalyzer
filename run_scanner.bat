@@ -2,12 +2,15 @@
 REM ============================================================
 REM  StockAnalyzer Auto Scanner - Windows Task Scheduler
 REM
-REM  Schedule: Daily 22:00 (after chip data fully updated ~21:30)
+REM  Schedule: TUE-SAT 00:00 (midnight after each market day, so late-upload
+REM            YT shows from previous evening are captured; chip data is fully
+REM            settled by ~21:30 same day). Changed from MON-FRI 22:00 on
+REM            2026-04-25 when YT sync was folded into scanner.
 REM
 REM  Setup:
 REM    1. Win+R -> taskschd.msc
 REM    2. Create Basic Task -> "StockAnalyzer Scanner"
-REM    3. Trigger: Daily, 22:00
+REM    3. Trigger: Weekly TUE-SAT, 00:00
 REM    4. Action: Start a program
 REM       Program: C:\GIT\StockAnalyzer\run_scanner.bat
 REM       Start in: C:\GIT\StockAnalyzer
@@ -33,6 +36,28 @@ if exist scanner.log ren scanner.log scanner_prev.log
 
 REM Log start time
 echo [%date% %time%] Scanner started >> scanner.log
+
+REM ------------------------------------------------------------
+REM E1 YT sync: fetch transcripts + LLM extract + build panel.
+REM Runs FIRST so downstream scanner stages (QM push) can consume fresh
+REM sector_tags_dynamic.parquet. Best-effort: failures do not affect PY_EXIT.
+REM Late-upload shows (after 00:00 cutoff) will be captured on next day's run.
+REM Added 2026-04-25, replaces standalone run_yt_sync.bat scheduled task.
+REM ------------------------------------------------------------
+echo [%date% %time%] YT sync Stage 1 fetch starting >> scanner.log
+python tools\fetch_yt_transcripts.py --end 3 >> scanner.log 2>&1
+set YT_EC1=%ERRORLEVEL%
+echo [%date% %time%] YT sync Stage 1 done (exit=%YT_EC1%) >> scanner.log
+
+echo [%date% %time%] YT sync Stage 2 extract starting >> scanner.log
+python tools\extract_yt_sector_tags.py --all >> scanner.log 2>&1
+set YT_EC2=%ERRORLEVEL%
+echo [%date% %time%] YT sync Stage 2 done (exit=%YT_EC2%) >> scanner.log
+
+echo [%date% %time%] YT sync Stage 3 panel starting >> scanner.log
+python tools\build_yt_sector_panel.py >> scanner.log 2>&1
+set YT_EC3=%ERRORLEVEL%
+echo [%date% %time%] YT sync done (EC1=%YT_EC1% EC2=%YT_EC2% EC3=%YT_EC3%) >> scanner.log
 
 REM ------------------------------------------------------------
 REM MOPS WAF unblock probe (1 req/day). 3 consecutive successes -> Discord ping.
