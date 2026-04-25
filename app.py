@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.25.2")
+    st.caption("Version: v2026.04.25.3")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -2104,15 +2104,176 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
 
             # Section 1: 劇本進行式 (Pair Divergence info display, Wave 1 #1)
             st.markdown("#### 📜 劇本進行式")
-            st.info("同業 Pair Divergence 資訊卡（待 Wave 1 #1 實作）\n\n顯示持股所屬題材的配對股價差狀態，純資訊不進 Pick 也不發 Discord。")
+            st.caption("同業 pair 近 20 日表現差 — 純觀察，V12 已驗 C 級無 edge，不進 Pick 不發 Discord")
+
+            # V12 12 pairs (from tools/v12_pair_divergence_ic.py)
+            _PAIRS = [
+                ('ai_server_odm',       'AI 伺服器 ODM',  '2382', '廣達',    '3231', '緯創',     True),
+                ('ai_cooling',          'AI 散熱',        '3017', '奇鋐',    '3324', '雙鴻',     True),
+                ('abf_substrate',       'ABF 載板',       '3037', '欣興',    '3189', '景碩',     False),
+                ('abf_substrate',       'ABF 載板',       '3037', '欣興',    '8046', '南電',     False),
+                ('ccl',                 'CCL 銅箔基板',    '2383', '台光電',  '6274', '台燿',     True),
+                ('pcb_hard',            'PCB 硬板',       '2368', '金像電',  '3044', '健鼎',     True),
+                ('advanced_test',       '先進測試',       '3711', '日月光',  '2449', '京元電',   True),
+                ('semi_equipment',      '半導體設備',     '6515', '穎崴',    '6223', '旺矽',     True),
+                ('semi_equipment',      '半導體設備',     '6223', '旺矽',    '6510', '中華精測', True),
+                ('asic_design_service', 'ASIC 設計服務',  '3443', '創意',    '3661', '世芯',     True),
+                ('silicon_wafer',       '矽晶圓',         '6488', '環球晶',  '5483', '中美晶',   True),
+                ('optical_lens',        '光學元件',       '3008', '大立光',  '3406', '玉晶光',   True),
+            ]
+
+            @st.cache_data(ttl=3600)
+            def _load_pair_ohlcv():
+                _p = _Path('data_cache/backtest/ohlcv_tw.parquet')
+                if not _p.exists():
+                    return None
+                try:
+                    return _pd_d.read_parquet(_p, columns=['stock_id', 'date', 'Close'])
+                except Exception:
+                    return None
+
+            _ohlcv = _load_pair_ohlcv()
+            if _ohlcv is None or _ohlcv.empty:
+                st.info("尚無 `data_cache/backtest/ohlcv_tw.parquet` 歷史資料。")
+            else:
+                _lookback = 20
+                _pair_rows = []
+                for _tid, _tzh, _a, _a_name, _b, _b_name, _suit in _PAIRS:
+                    _da = _ohlcv[_ohlcv['stock_id'] == _a].sort_values('date').tail(_lookback + 1)
+                    _db = _ohlcv[_ohlcv['stock_id'] == _b].sort_values('date').tail(_lookback + 1)
+                    if len(_da) < _lookback + 1 or len(_db) < _lookback + 1:
+                        continue
+                    _ra = (_da['Close'].iloc[-1] / _da['Close'].iloc[0] - 1) * 100
+                    _rb = (_db['Close'].iloc[-1] / _db['Close'].iloc[0] - 1) * 100
+                    _diff = _rb - _ra
+                    if _diff > 3:
+                        _regime = "🟢 Convergence"
+                    elif _diff < -3:
+                        _regime = "🔴 Divergence"
+                    else:
+                        _regime = "⚪ Neutral"
+                    _pair_rows.append({
+                        '題材': _tzh,
+                        'A': f"{_a} {_a_name}",
+                        'B': f"{_b} {_b_name}",
+                        'A 20d': f"{_ra:+.1f}%",
+                        'B 20d': f"{_rb:+.1f}%",
+                        'B-A': f"{_diff:+.1f}%",
+                        'Regime': _regime,
+                        '適用': '✓' if _suit else '✗',
+                    })
+                if _pair_rows:
+                    st.dataframe(_pd_d.DataFrame(_pair_rows), use_container_width=True, hide_index=True)
+                    st.caption(
+                        "B-A > +3% = Convergence (B 追上 A) / < -3% = Divergence (B 落後) / 其他 = Neutral | "
+                        "**適用 ✗** = V12 驗過該題材無 pair signal alpha，僅觀察不當進場依據"
+                    )
+                else:
+                    st.info("無足夠歷史資料計算 pair divergence (需近 20 個交易日)")
 
             # Section 2: 題材熱度展開 (themes → ticker, Wave 1 #8)
             st.markdown("#### 🔥 題材熱度展開")
-            st.info("YT 節目討論題材反查同題材股（待 Wave 1 #8 實作）\n\n彌補「整集聊 AI 散熱沒點名個股」情境，對同題材股給 weak boost。")
+            st.caption("節目整集討論題材 + 反查同題材股 (weak signal，不進 Pick 不發 Discord)")
+            _videos_path = _Path('data/yt_videos_panel.parquet')
+            _sector_json = _Path('data/sector_tags_manual.json')
+            from datetime import date as _date_d3, timedelta as _td_d3
+            if not _videos_path.exists() or not _sector_json.exists():
+                st.info("需要 YT video panel + sector_tags_manual.json")
+            else:
+                _videos_t = _pd_d.read_parquet(_videos_path)
+                _themes_window = st.radio(
+                    "視窗 ", [7, 14, 30], index=0, horizontal=True, key='_mode_d_themes_window'
+                )
+                _cutoff_t = _date_d3.today() - _td_d3(days=_themes_window)
+                _recent_vt = _videos_t[_videos_t['date'] >= _cutoff_t]
+                # explode themes_discussed
+                _theme_rows = []
+                for _, _vr in _recent_vt.iterrows():
+                    _theme_list = _vr['themes_discussed'] if _vr['themes_discussed'] is not None else []
+                    for _tname in list(_theme_list):
+                        _theme_rows.append({
+                            'theme': str(_tname),
+                            'show_key': _vr['show_key'],
+                            'video_id': _vr['video_id'],
+                        })
+                if not _theme_rows:
+                    st.info(f"近 {_themes_window} 日無 themes_discussed 資料。")
+                else:
+                    _df_t = _pd_d.DataFrame(_theme_rows)
+                    _agg_t = _df_t.groupby('theme').agg(
+                        mention_count=('video_id', 'count'),
+                        show_count=('show_key', 'nunique'),
+                    ).sort_values('mention_count', ascending=False).head(15)
+                    # load manual themes
+                    with open(_sector_json, 'r', encoding='utf-8') as _fj:
+                        _manual = _json.load(_fj)
+                    _manual_themes = _manual.get('themes', [])
+
+                    def _norm(s):
+                        return str(s).lower().replace(' ', '').replace('-', '').replace('/', '').replace('、', '')
+
+                    def _match_theme(yt_str, themes):
+                        yt_n = _norm(yt_str)
+                        for _t in themes:
+                            tid_n = _norm(_t.get('theme_id', ''))
+                            zh_n = _norm(_t.get('theme_name_zh', ''))
+                            en_n = _norm(_t.get('theme_name_en', ''))
+                            if tid_n and (tid_n in yt_n or yt_n in tid_n):
+                                return _t
+                            if zh_n and (yt_n in zh_n or zh_n in yt_n):
+                                return _t
+                            if en_n and (yt_n in en_n or en_n in yt_n):
+                                return _t
+                        return None
+
+                    st.caption(f"近 {_themes_window} 日 top 15 熱議題材")
+                    for _theme, _trow in _agg_t.iterrows():
+                        _matched = _match_theme(_theme, _manual_themes)
+                        _mcnt = int(_trow['mention_count'])
+                        _scnt = int(_trow['show_count'])
+                        if _matched:
+                            _t1 = _matched.get('tier1', []) or []
+                            _tickers = [f"{_x.get('ticker', '')}({str(_x.get('name', ''))[:4]})" for _x in _t1[:5]]
+                            _tstr = '、'.join(_tickers) if _tickers else '(無 tier1)'
+                            st.markdown(
+                                f"**{_theme}** — {_mcnt} 次 / {_scnt} 節目 "
+                                f"→ `{_matched.get('theme_id', '')}` tier1: {_tstr}"
+                            )
+                        else:
+                            st.markdown(
+                                f"**{_theme}** — {_mcnt} 次 / {_scnt} 節目 "
+                                f"→ *(未匹配 manual sector tag)*"
+                            )
 
             # Section 3: 大盤 Macro Views (Wave 1 #9)
             st.markdown("#### 🌏 大盤 Macro Views")
-            st.info("YT 節目 Fed / 利率 / 大盤看法彙整（待 Wave 1 #9 實作）\n\n非個股訊號，獨立顯示當前 macro regime context。")
+            st.caption("近 N 日財經節目對 Fed / 利率 / 大盤 / 美中政策的整體看法（非個股訊號）")
+            _videos_path = _Path('data/yt_videos_panel.parquet')
+            if not _videos_path.exists():
+                st.info("尚無 YT video panel。跑 `run_yt_sync.bat` 或等 scanner 22:00 排程產資料。")
+            else:
+                _videos = _pd_d.read_parquet(_videos_path)
+                _macro_window = st.radio(
+                    "視窗", [7, 14, 30], index=0, horizontal=True, key='_mode_d_macro_window'
+                )
+                from datetime import date as _date_d3, timedelta as _td_d3
+                _cutoff3 = _date_d3.today() - _td_d3(days=_macro_window)
+                _recent_v = _videos[_videos['date'] >= _cutoff3].sort_values('date', ascending=False)
+                _has_macro = _recent_v[
+                    _recent_v['macro_views'].apply(lambda v: isinstance(v, str) and len(v.strip()) > 0)
+                ]
+                if _has_macro.empty:
+                    st.info(f"近 {_macro_window} 日無節目 macro 看法資料。")
+                else:
+                    st.caption(f"近 {_macro_window} 日 {len(_has_macro)} 集節目的 macro 看法")
+                    for _, _row in _has_macro.iterrows():
+                        _t_short = str(_row['video_title'])[:40]
+                        _label = f"{_row['date']} | {_row['show_name']} — {_t_short}"
+                        _guests_list = list(_row['guests']) if _row['guests'] is not None else []
+                        _guests_str = '、'.join(_guests_list) if _guests_list else '(無紀錄)'
+                        with st.expander(_label, expanded=False):
+                            st.markdown(f"**來賓**: {_guests_str}")
+                            st.markdown(f"**macro views**: {_row['macro_views']}")
 
     st.markdown("---")
     st.caption("💡 品質選股掃描: `python scanner_job.py --mode qm` | 價值掃描: `python scanner_job.py --mode value`")
