@@ -35,8 +35,10 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Claude Code local settings
-.claude/
+# Claude Code local settings (除了 SKILL 定義檔需版本化追蹤)
+# git 規則: 父目錄被排除後子目錄 negation 無效,必須用 .claude/* 方式
+.claude/*
+!.claude/skills/
 
 # Runtime artifacts
 *.stackdump
