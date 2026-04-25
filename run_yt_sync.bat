@@ -1,5 +1,5 @@
 @echo off
-REM E1 YT sync - daily at 21:30 (before 22:00 scanner)
+REM E1 YT sync - daily at 00:00 (late-upload shows captured; next-day 22:00 scanner consumes it)
 REM Stage 1: fetch YT transcripts (money100 + money_deploy)
 REM Stage 2: LLM extract to JSON
 REM Stage 3: build sector_tags_dynamic.parquet panel
