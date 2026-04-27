@@ -1,0 +1,9 @@
+n_rebal,cagr_pct,vol_pct,sharpe,mdd_pct,hit_rate,v_on_pct,label,mcap,regime,period
+125,17.4,17.74,0.925,-25.18,58.4,18.4,Dual-tv_top_25-only_volatile,tv_top_25,only_volatile,FULL_2016_2025
+125,17.8,28.6,0.587,-48.77,56.8,100.0,Dual-tv_top_25-none,tv_top_25,none,FULL_2016_2025
+129,16.1,18.93,0.798,-24.59,53.5,17.8,Dual-tv_top_50-only_volatile,tv_top_50,only_volatile,FULL_2016_2025
+129,14.76,27.64,0.498,-44.15,59.7,100.0,Dual-tv_top_50-none,tv_top_50,none,FULL_2016_2025
+129,15.51,18.46,0.786,-25.13,54.3,17.8,Dual-tv_top_75-only_volatile,tv_top_75,only_volatile,FULL_2016_2025
+129,16.02,26.34,0.57,-41.96,59.7,100.0,Dual-tv_top_75-none,tv_top_75,none,FULL_2016_2025
+129,16.99,16.56,0.966,-17.52,55.8,18.6,Dual-all-only_volatile,all,only_volatile,FULL_2016_2025
+129,20.81,23.83,0.831,-29.65,59.7,100.0,Dual-all-none,all,none,FULL_2016_2025
