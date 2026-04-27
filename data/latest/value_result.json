@@ -1,12 +1,12 @@
 {
-  "scan_date": "2026-04-24",
-  "scan_time": "22:21",
+  "scan_date": "2026-04-25",
+  "scan_time": "12:18",
   "scan_type": "value",
   "market": "tw",
-  "total_scanned": 1908,
+  "total_scanned": 1910,
   "passed_initial": 116,
   "scored_count": 20,
-  "elapsed_seconds": 573.8,
+  "elapsed_seconds": 207.4,
   "failures": [],
   "config": {
     "max_pe": 30,
