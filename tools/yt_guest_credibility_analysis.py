@@ -40,6 +40,62 @@ OHLCV_TW = REPO / "data_cache" / "backtest" / "ohlcv_tw.parquet"
 OUT_CSV = REPO / "reports" / "yt_guest_credibility.csv"
 OUT_MD = REPO / "reports" / "yt_guest_credibility.md"
 
+# Guest 名字 normalization: 短稱/暱稱/藝名/敬稱 → 統一全名
+#
+# 兩類 alias:
+#   (A) 後綴匹配 / 敬稱對應 — 程式即可推斷,但仍需手動維護 (避免誤觸不同人)
+#   (B) ⚠️ 藝名 / 暱稱 — 必須人工查證才能 merge (例: 連乾文=阿文師)
+#
+# 維護 SOP (新影片進來後):
+#   1. 跑 yt_guest_credibility_analysis.py 看 84+ guest 列表
+#   2. 找疑似同人 (後綴匹配 / 同 video_id 但分開 / n=videos 完全一致)
+#   3. (B) 類藝名上網確認 (Wiki / 節目官網) 後加進 map
+#   4. 不確定的寧可不 merge
+GUEST_ALIAS_MAP = {
+    # (A) 後綴匹配 / 敬稱對應
+    "志誠": "張志誠",
+    "明翰": "蔡明翰",
+    "奇芬": "林奇芬",
+    "冠嶔": "王冠嶔",
+    "建承": "陳建承",
+    "建承老師": "陳建承",
+    "昱衡": "劉昱衡",
+    "俊敏": "葉俊敏",
+    "俊敏老師": "葉俊敏",
+    "葉俊敏": "葉俊敏",  # identity (確保 case)
+    "慶龍": "孫慶龍",
+    "嘉明大哥": "孫嘉明",      # 2026-04-26 user 確認 = 孫嘉明 (非嘉偉老師)
+    "嘉明": "孫嘉明",
+    "蕙慈老師": "蕙慈",
+    "蜀芳老師": "蜀芳",
+    "林忠哥": "林忠",
+    "奎國老師": "奎國",
+    "博傑": "許博傑",
+    "明哲": "謝明哲",          # 2026-04-26 user 確認 (vs 許明哲/謝明志 不同人)
+    # (B) 藝名 / 暱稱 — 人工查證後加入 (2026-04-26 A audit confirmed 9+1)
+    "連乾文": "阿文師",        # 阿文師本名
+    "昆仁":   "陳昆仁",        # 中視財經早點名分析師
+    "庭皓":   "游庭皓",        # 財經皓角頻道主
+    "紫東":   "黃紫東",        # 運達投顧
+    "毓棠":   "許毓棠",        # 永誠國際投顧
+    "其展":   "李其展",        # 鈔錢部署常態,Yahoo 股市專欄
+    "聖傑":   "林聖傑",        # 2019 錢線百分百影片標題明確
+    "智霖":   "陳智霖",        # 亨達證券投顧
+    "正華":   "蔡正華",        # 大來國際投顧
+    "子昂":   "陳子昂",        # 資策會 MIC 資深總監
+}
+
+# Host 黑名單: 主持人不算 guest 評等 (沒在發布投資觀點)
+GUEST_HOST_BLACKLIST = {
+    "祝華",  # 主持人 (2026-04-26 user 確認)
+}
+
+
+def normalize_guest(name: str) -> str:
+    """正規化 guest 名字: alias map 統一短稱 → 全名;其他維持原樣。"""
+    n = (name or "").strip()
+    return GUEST_ALIAS_MAP.get(n, n)
+
 
 def load_inputs():
     if not MENTION_PANEL.exists() or not VIDEO_PANEL.exists():
@@ -107,7 +163,10 @@ def expand_by_guest(returns_df: pd.DataFrame, videos: pd.DataFrame) -> pd.DataFr
     vmap = {}
     for _, v in videos.iterrows():
         gs = list(v['guests']) if v['guests'] is not None else []
-        vmap[v['video_id']] = [str(g).strip() for g in gs if str(g).strip()]
+        # 正規化 + 過濾主持人 + 去重 (同影片同 alias 對應到同人時不雙計)
+        normed = [normalize_guest(str(g)) for g in gs if str(g).strip()]
+        normed = [g for g in normed if g not in GUEST_HOST_BLACKLIST]
+        vmap[v['video_id']] = list(dict.fromkeys(normed))  # preserve order, dedupe
 
     rows = []
     for _, r in returns_df.iterrows():
