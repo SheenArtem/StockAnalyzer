@@ -26,6 +26,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -37,6 +38,35 @@ SECTOR_TAGS_FILE = REPO / "data" / "sector_tags_manual.json"
 GEMINI_MODEL = "gemini-3-pro-preview"  # pro-preview 最會遵守 JSON 格式指令 (2026-04-24 實測)
 GEMINI_FALLBACK_MODEL = None  # None = default model
 CLAUDE_MODEL_FLAG = "--model=sonnet"  # alias 自動指向最新 Sonnet,2026-04-25 從錯誤的 claude-sonnet-4-6-20250929 修正
+
+
+class TokenExhaustedError(Exception):
+    """LLM token / quota / rate limit 用完。caller 應該 sleep 後重試同一集,不要寫 error JSON。"""
+
+
+class LLMTimeoutError(Exception):
+    """LLM CLI subprocess 超時。caller 應該短暫 sleep 後重試同一集,有上限 (避免無限 retry)。"""
+
+
+# 偵測 LLM CLI 在 stderr / stdout 報配額用完的訊號
+# 注意: 不要加純數字 pattern (如 "429"),會誤觸中文 JSON 內的股價/數字。
+# "too many requests" 已涵蓋 HTTP 429 的英文訊息,不需另外加 "429"。
+TOKEN_EXHAUSTED_PATTERNS = (
+    "credit balance is too low",
+    "usage limit reached",
+    "rate_limit",
+    "rate limit",
+    "quota exceeded",
+    "too many requests",
+    "resource_exhausted",
+)
+
+
+def is_token_exhausted(err_msg: str) -> bool:
+    if not err_msg:
+        return False
+    low = err_msg.lower()
+    return any(p in low for p in TOKEN_EXHAUSTED_PATTERNS)
 
 PROMPT_TEMPLATE = """你是台股財經節目內容分析員。stdin 會給你一集節目的自動字幕 (VTT 含時間碼,可忽略),請萃取結構化資訊。
 
@@ -133,7 +163,7 @@ def parse_vtt_filename(vtt_path: Path) -> dict:
     return {"date": date_iso, "video_id": video_id, "title": title}
 
 
-def call_gemini(prompt: str, vtt_text: str, model: str | None, timeout: int = 300) -> tuple[str, str | None]:
+def call_gemini(prompt: str, vtt_text: str, model: str | None, timeout: int = 900) -> tuple[str, str | None]:
     """
     VTT 透過 stdin 傳 (避開 CLI argv 長度上限)。
     shell=True 必須：Windows 上 gemini CLI 是 gemini.cmd (npm global)，shell=False 找不到。
@@ -153,18 +183,20 @@ def call_gemini(prompt: str, vtt_text: str, model: str | None, timeout: int = 30
             encoding="utf-8", errors="replace", shell=True, env=env,
         )
     except subprocess.TimeoutExpired:
-        return "", "gemini timeout"
+        raise LLMTimeoutError(f"gemini CLI timeout after {timeout}s")
 
     if result.returncode != 0:
-        return result.stdout or "", f"gemini exit {result.returncode}: {result.stderr[:300]}"
-    # 檢查 stderr 是否有 429 rate limit 警告（即使 exit=0）
-    if "429" in (result.stderr or "") and "failed" in result.stderr.lower():
-        # Still treat as soft error; caller may fallback
-        return result.stdout, f"gemini 429 rate limit (stderr warning)"
+        err_msg = f"gemini exit {result.returncode}: {result.stderr[:500]}"
+        if is_token_exhausted(result.stderr or ""):
+            raise TokenExhaustedError(err_msg)
+        return result.stdout or "", err_msg
+    # 檢查 stderr 是否有配額警告（即使 exit=0）
+    if is_token_exhausted(result.stderr or ""):
+        raise TokenExhaustedError(f"gemini stderr quota: {result.stderr[:500]}")
     return result.stdout, None
 
 
-def call_claude(prompt: str, vtt_text: str, timeout: int = 300) -> tuple[str, str | None]:
+def call_claude(prompt: str, vtt_text: str, timeout: int = 900) -> tuple[str, str | None]:
     """VTT + prompt 合併傳 stdin 避開 Windows argv 限制。
 
     BUG FIX 2026-04-25: 之前漏帶 --model flag 導致 Claude CLI 走 user default
@@ -180,10 +212,17 @@ def call_claude(prompt: str, vtt_text: str, timeout: int = 300) -> tuple[str, st
             shell=True,
         )
     except subprocess.TimeoutExpired:
-        return "", "claude timeout"
+        raise LLMTimeoutError(f"claude CLI timeout after {timeout}s")
 
     if result.returncode != 0:
-        return result.stdout or "", f"claude exit {result.returncode}: {result.stderr[:300]}"
+        err_msg = f"claude exit {result.returncode}: {result.stderr[:500]}"
+        if is_token_exhausted((result.stderr or "") + " " + (result.stdout or "")):
+            raise TokenExhaustedError(err_msg)
+        return result.stdout or "", err_msg
+    # 即使 exit=0,Claude CLI 偶爾會把 quota 警告塞 stderr / stdout
+    combined_stderr_stdout = (result.stderr or "") + " " + (result.stdout or "")
+    if is_token_exhausted(combined_stderr_stdout):
+        raise TokenExhaustedError(f"claude quota: {combined_stderr_stdout[:500]}")
     return result.stdout, None
 
 
@@ -251,36 +290,18 @@ def extract(vtt_path: Path, prefer: str = "gemini", known_tickers: dict | None =
         show_name=show_name, date=meta["date"], video_id=meta["video_id"], title=meta["title"],
     )
 
-    # 1. 主 LLM
+    # 1. 主 LLM (token 用完由 caller sleep retry,不在此自動 fallback Gemini)
     output, err = "", None
     model_used = ""
     if prefer == "gemini":
         output, err = call_gemini(prompt, vtt_text, GEMINI_MODEL)
         model_used = GEMINI_MODEL
-        if err:
-            # Fallback to Gemini old model
-            output2, err2 = call_gemini(prompt, vtt_text, GEMINI_FALLBACK_MODEL)
-            if err2 is None:
-                output, err = output2, None
-                model_used = GEMINI_FALLBACK_MODEL
     else:
         output, err = call_claude(prompt, vtt_text)
         model_used = "claude-sonnet"
 
     # 2. Parse JSON
     parsed = extract_json_from_output(output) if not err else None
-
-    # 3. Fallback to other LLM if failed
-    if parsed is None:
-        print(f"  [WARN] {model_used} failed/invalid JSON, trying fallback", file=sys.stderr)
-        other = "claude" if prefer == "gemini" else "gemini"
-        if other == "gemini":
-            output, err = call_gemini(prompt, vtt_text, GEMINI_MODEL)
-            model_used = GEMINI_MODEL
-        else:
-            output, err = call_claude(prompt, vtt_text)
-            model_used = "claude-sonnet (fallback)"
-        parsed = extract_json_from_output(output) if not err else None
 
     if parsed is None:
         return {
@@ -354,8 +375,15 @@ def list_pending(show_key: str | None = None) -> list[Path]:
             chosen = sorted(vtts, key=_pref_key)[0]
             meta = parse_vtt_filename(chosen)
             out_file = out_dir / f"{meta['date']}_{meta['video_id']}.json"
-            if not out_file.exists():
-                pending.append(chosen)
+            if out_file.exists():
+                # 之前 LLM 失敗留下的 error JSON 視為 pending,要重跑;讀不開的也重跑
+                try:
+                    existing = json.loads(out_file.read_text(encoding="utf-8"))
+                    if "error" not in existing:
+                        continue
+                except (json.JSONDecodeError, OSError):
+                    pass
+            pending.append(chosen)
     return pending
 
 
@@ -369,6 +397,8 @@ def main():
                     help="優先 LLM (default claude,失敗自動 fallback Gemini). 2026-04-24 實測 Gemini (含 pro-preview) 不穩定遵守 JSON 指令傾向輸 markdown")
     ap.add_argument("--stdout", action="store_true", help="輸出到 stdout 不存檔 (debug)")
     ap.add_argument("--limit", type=int, default=None, help="限制處理 N 個 (test 用)")
+    ap.add_argument("--token-retry-sleep-min", type=int, default=30,
+                    help="LLM token / quota 用完時 sleep 幾分鐘後重抓同一集 (default 30,保證該集不漏)")
     args = ap.parse_args()
 
     known_tickers = load_known_tickers()
@@ -387,13 +417,40 @@ def main():
         ap.print_help()
         sys.exit(1)
 
+    sleep_sec = max(args.token_retry_sleep_min, 1) * 60
+    timeout_max_retry = 3
     successes = 0
     for vtt in targets:
         print(f"\n>> {vtt.name}", file=sys.stderr)
-        try:
-            parsed = extract(vtt, prefer=args.llm, known_tickers=known_tickers)
-        except Exception as e:
-            print(f"  [ERROR] {type(e).__name__}: {e}", file=sys.stderr)
+        parsed = None
+        attempt = 0
+        timeout_count = 0
+        while True:
+            attempt += 1
+            try:
+                parsed = extract(vtt, prefer=args.llm, known_tickers=known_tickers)
+                break
+            except TokenExhaustedError as e:
+                wake_at = datetime.now().timestamp() + sleep_sec
+                wake_iso = datetime.fromtimestamp(wake_at).isoformat(timespec="seconds")
+                print(f"  [TOKEN EXHAUSTED attempt {attempt}] {e}", file=sys.stderr)
+                print(f"  Sleeping {args.token_retry_sleep_min} min, retry same VTT at {wake_iso}",
+                      file=sys.stderr)
+                time.sleep(sleep_sec)
+                continue
+            except LLMTimeoutError as e:
+                timeout_count += 1
+                if timeout_count >= timeout_max_retry:
+                    print(f"  [TIMEOUT GIVEUP after {timeout_count} attempts] {e}", file=sys.stderr)
+                    break
+                print(f"  [TIMEOUT attempt {timeout_count}/{timeout_max_retry}] {e}, sleep 60s and retry",
+                      file=sys.stderr)
+                time.sleep(60)
+                continue
+            except Exception as e:
+                print(f"  [ERROR] {type(e).__name__}: {e}", file=sys.stderr)
+                break
+        if parsed is None:
             continue
 
         if args.stdout:
