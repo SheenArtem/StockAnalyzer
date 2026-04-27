@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.27.5")
+    st.caption("Version: v2026.04.27.6")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -2294,6 +2294,92 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                         with st.expander(_label, expanded=False):
                             st.markdown(f"**來賓**: {_guests_str}")
                             st.markdown(f"**macro views**: {_row['macro_views']}")
+
+            # === Section 4: 市場主流 flow (BL-4 Phase F) ===
+            # 機構買賣共識 vs YT 提及對照
+            st.markdown("---")
+            st.subheader("📊 本週市場主流 flow")
+            try:
+                from weekly_chip_loader import (
+                    load_latest as _wc_load_md,
+                    get_metadata as _wc_md_md,
+                )
+                _wc_df_md = _wc_load_md()
+                _wc_md_md_obj = _wc_md_md()
+                if _wc_df_md is None or _wc_md_md_obj is None:
+                    st.info("尚無週榜資料，等週六 08:00 batch 跑完。")
+                else:
+                    _we_str_md = _wc_md_md_obj['week_end'].strftime('%Y-%m-%d')
+                    st.caption(f"週末 {_we_str_md} · 機構買賣 vs YT 節目提及對照（找共振 thesis）")
+
+                    # 機構買 (三大合計 連續買 Top 5 + 當週買 Top 5 取 union 去重)
+                    _buy_consec = _wc_df_md[(_wc_df_md['dim']=='total') & (_wc_df_md['rank_type']=='consec_buy')].head(5)
+                    _buy_week = _wc_df_md[(_wc_df_md['dim']=='total') & (_wc_df_md['rank_type']=='week_buy')].head(5)
+                    _sell_consec = _wc_df_md[(_wc_df_md['dim']=='total') & (_wc_df_md['rank_type']=='consec_sell')].head(5)
+                    _sell_week = _wc_df_md[(_wc_df_md['dim']=='total') & (_wc_df_md['rank_type']=='week_sell')].head(5)
+
+                    # 算 YT 7d mention（如果 _yt_panel 已 load 在 sub4 上方 scope）
+                    def _yt_7d_str(sid):
+                        if _yt_panel is None or _yt_panel.empty:
+                            return '—'
+                        from datetime import date as _dd, timedelta as _td_dd
+                        _co = _dd.today() - _td_dd(days=7)
+                        _s = _yt_panel[(_yt_panel['ticker']==str(sid)) & (_yt_panel['date']>=_co)]
+                        if _s.empty:
+                            return '—'
+                        _avg = _s['sentiment'].mean()
+                        _icon = '🟢' if _avg > 0.3 else ('🔴' if _avg < -0.3 else '⚪')
+                        return f"{_icon}×{len(_s)}"
+
+                    _col_md_buy, _col_md_sell = st.columns(2)
+                    with _col_md_buy:
+                        st.markdown("**🟢 機構在買**")
+                        _seen_buy = set()
+                        _buy_rows = []
+                        for _src_df, _tag in [(_buy_consec, '連買'), (_buy_week, '週買')]:
+                            for _, _r in _src_df.iterrows():
+                                _sid_md = str(_r['stock_id'])
+                                if _sid_md in _seen_buy:
+                                    continue
+                                _seen_buy.add(_sid_md)
+                                _amt_b = _r['weekly_amount_k'] / 1e5
+                                _yt_md = _yt_7d_str(_sid_md)
+                                _disp_tag = f"連{int(_r['consec_days'])}d" if _tag == '連買' else f"#{int(_r['rank'])}"
+                                _buy_rows.append({
+                                    '代號': _sid_md,
+                                    '名稱': _r['stock_name'],
+                                    '榜': f"{_tag}{_disp_tag}",
+                                    '金額': f"{_amt_b:+.1f}億",
+                                    'YT 7d': _yt_md,
+                                })
+                        if _buy_rows:
+                            st.dataframe(_pd_d.DataFrame(_buy_rows), hide_index=True, use_container_width=True)
+                    with _col_md_sell:
+                        st.markdown("**🔴 機構在賣**")
+                        _seen_sell = set()
+                        _sell_rows = []
+                        for _src_df, _tag in [(_sell_consec, '連賣'), (_sell_week, '週賣')]:
+                            for _, _r in _src_df.iterrows():
+                                _sid_md = str(_r['stock_id'])
+                                if _sid_md in _seen_sell:
+                                    continue
+                                _seen_sell.add(_sid_md)
+                                _amt_b = _r['weekly_amount_k'] / 1e5
+                                _yt_md = _yt_7d_str(_sid_md)
+                                _disp_tag = f"連{int(_r['consec_days'])}d" if _tag == '連賣' else f"#{int(_r['rank'])}"
+                                _sell_rows.append({
+                                    '代號': _sid_md,
+                                    '名稱': _r['stock_name'],
+                                    '榜': f"{_tag}{_disp_tag}",
+                                    '金額': f"{_amt_b:+.1f}億",
+                                    'YT 7d': _yt_md,
+                                })
+                        if _sell_rows:
+                            st.dataframe(_pd_d.DataFrame(_sell_rows), hide_index=True, use_container_width=True)
+
+                    st.caption("YT 7d ×N = 近 7 日節目提及次數（🟢正面 / 🔴負面 / ⚪中性）。機構買 + YT 高提及 = 強共振 thesis 候選。")
+            except Exception as _wc_md_err:
+                st.warning(f"市場主流 flow 載入失敗: {_wc_md_err}")
 
     st.markdown("---")
     st.caption("💡 品質選股掃描: `python scanner_job.py --mode qm` | 價值掃描: `python scanner_job.py --mode value`")
