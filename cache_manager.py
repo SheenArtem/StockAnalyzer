@@ -17,10 +17,25 @@ CACHE_DIR = "data_cache"
 # Module-level lock for cache write operations
 _cache_lock = threading.Lock()
 
-# USE_MOPS=true 時優先用 MOPS REST API
-# 2026-04-18 起 MOPS WAF ban 本機 IP，預設改 false（純 FinMind 路徑）
-# WAF 解禁後把預設改回 "true" 即可（或 set USE_MOPS=true）
-USE_MOPS = os.getenv("USE_MOPS", "false").lower() == "true"
+# Per-(cache_key, stock_id) fetch lock (鐵則 #6: 防 scanner + backfill 並行重抓)
+# Process-internal only (跨 process 用 file lock 但實際 race 機率低，留 backlog)
+_fetch_locks: dict[str, threading.Lock] = {}
+_fetch_locks_master = threading.Lock()
+
+
+def _get_fetch_lock(cache_key: str, stock_id: str) -> threading.Lock:
+    """取 (cache_key, stock_id) 的 fetch lock。同一 (key, sid) 同時只能一個 fetch."""
+    k = f"{cache_key}::{stock_id}"
+    with _fetch_locks_master:
+        if k not in _fetch_locks:
+            _fetch_locks[k] = threading.Lock()
+        return _fetch_locks[k]
+
+
+# USE_MOPS=true 時優先用 MOPS REST API (Cache Layer 3 last resort)
+# 2026-04-18 ~ 2026-04-21 MOPS WAF ban，後 6 連 probe success (4/21~4/27)
+# 2026-04-27 切回 USE_MOPS=true (env override 仍生效，可一鍵切回 false)
+USE_MOPS = os.getenv("USE_MOPS", "true").lower() == "true"
 
 
 def set_use_mops(enabled: bool) -> None:
@@ -282,58 +297,82 @@ def get_cached_fundamentals(
         return _apply_date_filter(merged_hit, start_date_filter)
 
     # MISS -> fetch (Layer 3 last resort)
-    new_df = None
-    if USE_MOPS and mops_fetcher is not None:
-        try:
-            new_df = mops_fetcher(stock_id)
-            if new_df is not None and not new_df.empty:
-                logger.debug("fundamental_cache MOPS HIT %s/%s (%d rows)",
-                             cache_key, stock_id, len(new_df))
-            else:
-                new_df = None
-        except Exception as e:
-            logger.warning("MOPS failed %s/%s: %s (fallback to FinMind)",
-                           cache_key, stock_id, e)
-            new_df = None
+    # 鐵則 #6: 同 (cache_key, stock_id) 並行 fetch lock — 防 scanner + backfill 撞同一 ticker
+    fetch_lock = _get_fetch_lock(cache_key, stock_id)
+    if not fetch_lock.acquire(blocking=False):
+        # 別人正在 fetch 同 ticker — 等他寫完再 re-read live cache
+        logger.debug("fetch_lock contention %s/%s, wait...", cache_key, stock_id)
+        with fetch_lock:
+            pass  # 等別人 fetch 完，下面 re-read
+        if cache_path.exists() and cache_path.stat().st_size > 0:
+            try:
+                df_cached2 = pd.read_parquet(cache_path)
+                if df_cached2 is not None and not df_cached2.empty:
+                    merged2 = _merge_frozen_and_live(frozen_df, df_cached2)
+                    return _apply_date_filter(merged2, start_date_filter)
+            except Exception:
+                pass
+        fetch_lock.acquire()  # 對方都 fetch 完仍空，自己重抓
 
-    if new_df is None or new_df.empty:
-        # FinMind fallback
-        try:
-            method = getattr(dl, finmind_method)
-            new_df = method(stock_id=stock_id, start_date=fixed_wide_start)
-            if new_df is not None and not new_df.empty:
-                logger.debug("fundamental_cache FinMind HIT %s/%s (%d rows)",
-                             cache_key, stock_id, len(new_df))
-        except Exception as e:
-            logger.warning("FinMind failed %s/%s: %s", cache_key, stock_id, e)
-            # 若 cache 有舊資料 OR frozen 有資料,降級使用 (總比沒有好)
-            if df_cached is not None and not df_cached.empty:
-                logger.info("fundamental_cache STALE FALLBACK %s/%s", cache_key, stock_id)
-                merged_stale = _merge_frozen_and_live(frozen_df, df_cached)
-                return _apply_date_filter(merged_stale, start_date_filter)
+    try:
+        new_df = None
+        if USE_MOPS and mops_fetcher is not None:
+            try:
+                new_df = mops_fetcher(stock_id)
+                if new_df is not None and not new_df.empty:
+                    logger.debug("fundamental_cache MOPS HIT %s/%s (%d rows)",
+                                 cache_key, stock_id, len(new_df))
+                else:
+                    new_df = None
+            except Exception as e:
+                logger.warning("MOPS failed %s/%s: %s (fallback to FinMind)",
+                               cache_key, stock_id, e)
+                new_df = None
+
+        if new_df is None or new_df.empty:
+            # FinMind fallback
+            try:
+                method = getattr(dl, finmind_method)
+                new_df = method(stock_id=stock_id, start_date=fixed_wide_start)
+                if new_df is not None and not new_df.empty:
+                    logger.debug("fundamental_cache FinMind HIT %s/%s (%d rows)",
+                                 cache_key, stock_id, len(new_df))
+            except Exception as e:
+                logger.warning("FinMind failed %s/%s: %s", cache_key, stock_id, e)
+                # 若 cache 有舊資料 OR frozen 有資料,降級使用 (總比沒有好)
+                if df_cached is not None and not df_cached.empty:
+                    logger.info("fundamental_cache STALE FALLBACK %s/%s", cache_key, stock_id)
+                    merged_stale = _merge_frozen_and_live(frozen_df, df_cached)
+                    return _apply_date_filter(merged_stale, start_date_filter)
+                if frozen_df is not None and not frozen_df.empty:
+                    logger.info("frozen-only FALLBACK %s/%s", cache_key, stock_id)
+                    return _apply_date_filter(frozen_df, start_date_filter)
+                return pd.DataFrame()
+
+        if new_df is not None and not new_df.empty:
+            # 鐵則 #2: backfill 只寫 live (frozen 必須手動 promote)
+            with _cache_lock:
+                try:
+                    new_df.to_parquet(cache_path)
+                    logger.debug("fundamental_cache WRITE %s/%s (%d rows)",
+                                 cache_key, stock_id, len(new_df))
+                except Exception as e:
+                    logger.warning("fundamental_cache write failed %s: %s", cache_path, e)
+
+        if new_df is None or new_df.empty:
+            # final fallback: 還是有 frozen 就用 frozen
             if frozen_df is not None and not frozen_df.empty:
-                logger.info("frozen-only FALLBACK %s/%s", cache_key, stock_id)
                 return _apply_date_filter(frozen_df, start_date_filter)
             return pd.DataFrame()
-
-    if new_df is not None and not new_df.empty:
-        # 鐵則 #2: backfill 只寫 live (frozen 必須手動 promote)
-        with _cache_lock:
-            try:
-                new_df.to_parquet(cache_path)
-                logger.debug("fundamental_cache WRITE %s/%s (%d rows)",
-                             cache_key, stock_id, len(new_df))
-            except Exception as e:
-                logger.warning("fundamental_cache write failed %s: %s", cache_path, e)
-
-    if new_df is None or new_df.empty:
-        # final fallback: 還是有 frozen 就用 frozen
-        if frozen_df is not None and not frozen_df.empty:
-            return _apply_date_filter(frozen_df, start_date_filter)
-        return pd.DataFrame()
-    # Merge frozen with newly fetched live
-    merged_new = _merge_frozen_and_live(frozen_df, new_df)
-    return _apply_date_filter(merged_new, start_date_filter)
+        # Merge frozen with newly fetched live
+        merged_new = _merge_frozen_and_live(frozen_df, new_df)
+        return _apply_date_filter(merged_new, start_date_filter)
+    finally:
+        # 鐵則 #6: 釋放 fetch lock
+        try:
+            fetch_lock.release()
+        except RuntimeError:
+            pass  # already released (recursive/nested case)
 
 
 # ================================================================
