@@ -282,15 +282,17 @@ DEFAULT_CONFIG = {
     'batch_delay': 0.3,         # 每檔間隔秒數
     'max_failures': 10,
 
-    # 評分權重 (VF-VC P3-b 落地 2026-04-20)
-    # revenue_score bug 修完後 (IR -1.075 → +0.465) revenue 是有效因子
-    # V_rev_heavy 30/25/30/15/0 walk-forward 24 季 15 贏 V_live (63%)，Sharpe 0.469 → 0.489
-    # 歷程: 30:25:15:15:15 (V1 原始) → 35:30:18:17:0 (VF-VE 砍 SM) → 30:25:30:15:0 (VF-VC 修 revenue)
-    'weight_valuation': 0.30,
+    # 評分權重 (VF-GM portfolio walk-forward 落地 2026-04-27)
+    # 加 GM QoQ Δ (F2 A 級, IC=+0.044 IR=+0.872 mono=+0.939, S2 ΔCAGR +2.49pp/ΔMDD +2.1pp)
+    # 歷程: 30:25:15:15:15 (V1 原始) → 35:30:18:17:0 (VF-VE 砍 SM) →
+    #       30:25:30:15:0 (VF-VC 修 revenue, 2026-04-20) →
+    #       25:25:25:15:0 + GM QoQ 10 (VF-GM, 2026-04-27)
+    'weight_valuation': 0.25,
     'weight_quality': 0.25,
-    'weight_revenue': 0.30,
+    'weight_revenue': 0.25,
     'weight_technical': 0.15,
     'weight_smart_money': 0.00,
+    'weight_gm_qoq': 0.10,
 
     # Value-#4 大型股 Graham 例外通道（2026-04-23）
     # 解決台積/台達 PE×PB > 22.5 被 Graham 排除問題：市值前 N + F-Score 及格 + 品質趨勢 → 放行 Graham filter
@@ -954,13 +956,17 @@ class ValueScreener:
         # --- 5. Smart Money Score (0-100) ---
         scores['smart_money'] = self._score_smart_money_us(stock_id, finviz, details) if is_us else self._score_smart_money(stock_id, details)
 
+        # --- 6. GM QoQ Δ (TW only; US 用 50 中性，US 資料源不同未驗證) ---
+        scores['gm_qoq'] = 50 if is_us else self._score_gm_qoq(stock_id, details)
+
         # Weighted total
         total = (
             scores['valuation'] * cfg['weight_valuation'] +
             scores['quality'] * cfg['weight_quality'] +
             scores['revenue'] * cfg['weight_revenue'] +
             scores['technical'] * cfg['weight_technical'] +
-            scores['smart_money'] * cfg['weight_smart_money']
+            scores['smart_money'] * cfg['weight_smart_money'] +
+            scores['gm_qoq'] * cfg['weight_gm_qoq']
         )
 
         # US: load price for avg trading value (TW already pre-loaded above)
@@ -1323,18 +1329,12 @@ class ValueScreener:
         # --- TradingView 三率/ROE 補充 (batch pre-fetched) ---
         tv = getattr(self, '_tv_batch', {}).get(stock_id, {})
         if tv:
-            gm = tv.get('gross_margin')
+            # GM level 邏輯已移除 2026-04-27 — VF-GM F3 univariate IC=-0.038 反向 monotonic
+            # (Q1 低 GM +10.45% > Q10 高 GM +6.96%)，高毛利已被 price-in 反而虧
+            # 改用 _score_gm_qoq 看「邊際改善」(F2 A 級 IR +0.872)
             om = tv.get('operating_margin')
             roe = tv.get('ROE')
             de = tv.get('debt_to_equity')
-
-            if gm is not None:
-                if gm > 40:
-                    score += 5
-                    details.append(f"毛利率={gm:.1f}% 高 (+5) [TV]")
-                elif gm < 10:
-                    score -= 5
-                    details.append(f"毛利率={gm:.1f}% 偏低 (-5) [TV]")
 
             if om is not None:
                 if om > 20:
@@ -1563,6 +1563,55 @@ class ValueScreener:
                     elif recent_net < -1000:
                         score -= 10
                         details.append(f"法人近 5 日淨賣 {recent_net:+,.0f} (-10)")
+
+        return max(0, min(100, score))
+
+    def _score_gm_qoq(self, stock_id, details):
+        """毛利率 QoQ Δ 分數 — 上一季毛利率 vs 再上一季毛利率（pp 差）
+
+        VF-GM A 級因子 (2026-04-27)：F2 univariate IC=+0.044 IR=+0.872 mono=+0.939
+        portfolio backtest S2 ΔCAGR +2.49pp / ΔMDD +2.1pp / 62% 季勝率
+        FinMind quarterly 已是公告後資料，毋需額外 announce delay
+        """
+        score = 50
+
+        try:
+            from piotroski import calculate_all
+            all_result = calculate_all(stock_id, market_cap=0)
+            if not all_result or not all_result.get('income'):
+                return score
+            income = all_result['income']
+            periods = sorted(income.keys())
+            if len(periods) < 2:
+                return score
+            curr, prev = periods[-1], periods[-2]
+            rev_c = income[curr].get('revenue', 0) or 0
+            rev_p = income[prev].get('revenue', 0) or 0
+            gp_c = income[curr].get('gross_profit', 0) or 0
+            gp_p = income[prev].get('gross_profit', 0) or 0
+            if rev_c <= 0 or rev_p <= 0:
+                return score
+            gm_c = gp_c / rev_c * 100
+            gm_p = gp_p / rev_p * 100
+            delta_pp = gm_c - gm_p
+
+            # 5 級 bucket: ±3pp / ±1pp 切（與 _score_revenue 同風格）
+            if delta_pp > 3:
+                pts = 20
+            elif delta_pp > 1:
+                pts = 10
+            elif delta_pp >= -1:
+                pts = 0
+            elif delta_pp >= -3:
+                pts = -10
+            else:
+                pts = -20
+            score += pts
+            sign = '+' if delta_pp >= 0 else ''
+            sign_pts = '+' if pts >= 0 else ''
+            details.append(f"GM QoQ Δ={sign}{delta_pp:.1f}pp ({gm_p:.1f}%→{gm_c:.1f}%) ({sign_pts}{pts}) [F2 A 級]")
+        except Exception as e:
+            logger.debug("GM QoQ scoring failed for %s: %s", stock_id, e)
 
         return max(0, min(100, score))
 
