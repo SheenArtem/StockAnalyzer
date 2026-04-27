@@ -8,6 +8,7 @@ import datetime
 import time
 from pathlib import Path
 from datetime import date, timedelta
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -173,8 +174,46 @@ def _apply_date_filter(df: pd.DataFrame, start_date_filter) -> pd.DataFrame:
 
 
 # ================================================================
-# Unified fundamental cache (MOPS primary + FinMind fallback)
+# Unified fundamental cache (Cache 三層架構 — frozen + live + MOPS/FinMind)
 # ================================================================
+# Layer 0 frozen: data_cache/fundamental_frozen/  唯讀、絕不覆寫、已驗證歷史
+# Layer 1 live:   data_cache/fundamental_cache/   calendar-aware 增量 (現役)
+# Layer 2 bulk:   mops_bulk_fetcher (mopsfin CSV) — 由 backfill tool 呼叫
+# Layer 3 指定:   MOPS / FinMind individual API — last resort
+# ================================================================
+
+FROZEN_DIR = Path(CACHE_DIR) / "fundamental_frozen"
+LIVE_DIR = Path(CACHE_DIR) / "fundamental_cache"
+
+
+def _load_frozen_layer(cache_key: str, stock_id: str) -> Optional["pd.DataFrame"]:
+    """Layer 0: 讀凍結層歷史 (唯讀, 永不覆寫). 不存在回 None."""
+    p = FROZEN_DIR / f"{cache_key}_{stock_id}.parquet"
+    if not p.exists() or p.stat().st_size == 0:
+        return None
+    try:
+        return pd.read_parquet(p)
+    except Exception as e:
+        logger.warning("frozen read failed %s: %s", p, e)
+        return None
+
+
+def _merge_frozen_and_live(frozen_df: Optional["pd.DataFrame"],
+                            live_df: Optional["pd.DataFrame"]) -> Optional["pd.DataFrame"]:
+    """Frozen + live 合併: 按 'date' (或 'revenue_year+month') 去重, live 優先 (newer)."""
+    parts = [df for df in (frozen_df, live_df) if df is not None and not df.empty]
+    if not parts:
+        return None
+    if len(parts) == 1:
+        return parts[0]
+    merged = pd.concat(parts, ignore_index=True)
+    if 'date' in merged.columns:
+        merged['date'] = pd.to_datetime(merged['date'])
+        # 同一 (stock_id, date) 重複時保留 last (live 在 concat 後段)
+        merged = merged.drop_duplicates(subset=['stock_id', 'date'], keep='last')
+        merged = merged.sort_values('date').reset_index(drop=True)
+    return merged
+
 
 def get_cached_fundamentals(
     dl,
@@ -187,21 +226,26 @@ def get_cached_fundamentals(
     mtime_max_age_days: int = 180,
     fixed_wide_start: str = "2015-01-01",
 ):
-    """三層快取：磁碟 -> MOPS primary -> FinMind fallback。
+    """三層快取讀取: frozen (Layer 0) + live (Layer 1) -> MOPS/FinMind (Layer 3) fallback。
 
-    磁碟快取目錄：data_cache/fundamental_cache/
-    檔案：{cache_key}_{stock_id}.parquet
+    Layer 0 (frozen): data_cache/fundamental_frozen/ 唯讀歷史
+    Layer 1 (live):   data_cache/fundamental_cache/ calendar-aware 增量
+    讀取時 frozen + live concat 後去重 (同 date 取 live);
+    寫入只寫 live (frozen 必須由 promote_to_frozen.py 手動推升)。
 
     freshness:
       'monthly'   -> calendar-aware: 每月 13 號後檢查是否缺上月
       'quarterly' -> calendar-aware: 按季度公告 deadline 檢查
       'annual'    -> mtime TTL 30 天
 
-    mtime_max_age_days: 超過此天數強制 refresh（兜底）
+    mtime_max_age_days: 超過此天數強制 refresh (兜底)
     """
-    cache_path = Path(CACHE_DIR) / "fundamental_cache" / f"{cache_key}_{stock_id}.parquet"
+    cache_path = LIVE_DIR / f"{cache_key}_{stock_id}.parquet"
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     today = date.today()
+
+    # Layer 0: frozen
+    frozen_df = _load_frozen_layer(cache_key, stock_id)
 
     df_cached = None
     cache_stale = True
@@ -234,9 +278,10 @@ def get_cached_fundamentals(
 
     if not cache_stale and df_cached is not None and not df_cached.empty:
         logger.debug("fundamental_cache HIT %s/%s", cache_key, stock_id)
-        return _apply_date_filter(df_cached, start_date_filter)
+        merged_hit = _merge_frozen_and_live(frozen_df, df_cached)
+        return _apply_date_filter(merged_hit, start_date_filter)
 
-    # MISS -> fetch
+    # MISS -> fetch (Layer 3 last resort)
     new_df = None
     if USE_MOPS and mops_fetcher is not None:
         try:
@@ -261,13 +306,18 @@ def get_cached_fundamentals(
                              cache_key, stock_id, len(new_df))
         except Exception as e:
             logger.warning("FinMind failed %s/%s: %s", cache_key, stock_id, e)
-            # 若 cache 有舊資料，降級使用（總比沒有好）
+            # 若 cache 有舊資料 OR frozen 有資料,降級使用 (總比沒有好)
             if df_cached is not None and not df_cached.empty:
                 logger.info("fundamental_cache STALE FALLBACK %s/%s", cache_key, stock_id)
-                return _apply_date_filter(df_cached, start_date_filter)
+                merged_stale = _merge_frozen_and_live(frozen_df, df_cached)
+                return _apply_date_filter(merged_stale, start_date_filter)
+            if frozen_df is not None and not frozen_df.empty:
+                logger.info("frozen-only FALLBACK %s/%s", cache_key, stock_id)
+                return _apply_date_filter(frozen_df, start_date_filter)
             return pd.DataFrame()
 
     if new_df is not None and not new_df.empty:
+        # 鐵則 #2: backfill 只寫 live (frozen 必須手動 promote)
         with _cache_lock:
             try:
                 new_df.to_parquet(cache_path)
@@ -277,8 +327,13 @@ def get_cached_fundamentals(
                 logger.warning("fundamental_cache write failed %s: %s", cache_path, e)
 
     if new_df is None or new_df.empty:
+        # final fallback: 還是有 frozen 就用 frozen
+        if frozen_df is not None and not frozen_df.empty:
+            return _apply_date_filter(frozen_df, start_date_filter)
         return pd.DataFrame()
-    return _apply_date_filter(new_df, start_date_filter)
+    # Merge frozen with newly fetched live
+    merged_new = _merge_frozen_and_live(frozen_df, new_df)
+    return _apply_date_filter(merged_new, start_date_filter)
 
 
 # ================================================================
