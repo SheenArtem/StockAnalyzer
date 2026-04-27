@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.27.4")
+    st.caption("Version: v2026.04.27.5")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -3022,7 +3022,48 @@ elif st.session_state.get('analysis_active', False):
         with tab3:
             # 籌碼資料更新時間提醒
             st.info("⏰ **籌碼資料更新時間**：每日晚上 21:30 之後更新（T+0 日資料）")
-            
+
+            # ==========================================
+            # [BL-4 Phase D] 本週法人動向 (從 weekly_chip_latest.parquet 載入)
+            # 顯示 target 在 4 維度本週榜上的位置（如未上榜不顯示 expander）
+            # ==========================================
+            try:
+                from weekly_chip_loader import (
+                    get_stock_summary as _wc_summ,
+                    get_metadata as _wc_md_,
+                )
+                _wc_target_id = source.replace('.TW', '').replace('.TWO', '').strip() if source else ''
+                _wc_summary = _wc_summ(_wc_target_id) if _wc_target_id else None
+                if _wc_summary:
+                    _wc_md_obj = _wc_md_()
+                    _wc_we_str = _wc_md_obj['week_end'].strftime('%Y-%m-%d') if _wc_md_obj else ''
+                    with st.expander(f"📊 本週法人動向 (週末 {_wc_we_str})", expanded=True):
+                        st.caption("該股本週是否在三大法人 4 維度榜上 (合計/外資/投信/自營商)")
+                        _dim_cols = st.columns(4)
+                        _dim_order = ['total', 'foreign', 'trust', 'dealer']
+                        for _i, _dk in enumerate(_dim_order):
+                            with _dim_cols[_i]:
+                                _info = _wc_summary.get(_dk)
+                                if not _info:
+                                    st.caption(f"**{['三大','外資','投信','自營'][_i]}**: —")
+                                    continue
+                                _lines = [f"**{['三大','外資','投信','自營'][_i]}**"]
+                                for _r in _info['ranks']:
+                                    _amt_b = _r['amount_k'] / 1e5
+                                    _rt = _r['rank_type']
+                                    if _rt == 'consec_buy':
+                                        _lines.append(f"🔥 連買 {_r['consec_days']} 日 ({_amt_b:+.1f}億)")
+                                    elif _rt == 'consec_sell':
+                                        _lines.append(f"🧊 連賣 {_r['consec_days']} 日 ({_amt_b:+.1f}億)")
+                                    elif _rt == 'week_buy':
+                                        _lines.append(f"💰 週買#{_r['rank']} ({_amt_b:+.1f}億)")
+                                    elif _rt == 'week_sell':
+                                        _lines.append(f"💸 週賣#{_r['rank']} ({_amt_b:+.1f}億)")
+                                st.markdown('  \n'.join(_lines))
+            except Exception as _wc_err:
+                # Don't break the tab if loader fails
+                pass
+
             # ==========================================
             # [NEW] 籌碼成交分佈 (Volume Profile)
             # ==========================================
