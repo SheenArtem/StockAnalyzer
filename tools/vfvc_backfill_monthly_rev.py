@@ -43,6 +43,45 @@ logger = logging.getLogger("vfvc_bf")
 LIVE_CACHE_DIR = ROOT / "data_cache" / "fundamental_cache"
 
 
+def run_bulk_update():
+    """Cache 三層 Layer 2: 用 mopsfin bulk CSV 一次更新全市場最新月營收。
+
+    特性:
+    - 2 個 HTTP request (上市 + 上櫃, ~1954 stocks)
+    - 僅補最新月 (公告月後 10-15 日更新可用), 歷史 backfill 仍走 FinMind
+    - 不消耗 FinMind 600 req/hr, 不打 MOPS 個股 API (避 WAF)
+    - merge_into_existing_cache 按期數比對, 已有不覆寫
+    """
+    from mops_bulk_fetcher import fetch_bulk_monthly_revenue, merge_into_existing_cache
+
+    logger.info("=== BULK UPDATE mode (Cache Layer 2) ===")
+    df = fetch_bulk_monthly_revenue(include_otc=True)
+    if df.empty:
+        logger.error("Bulk fetch returned empty, abort.")
+        return False
+    logger.info("Bulk fetched: %d rows / %d unique stocks", len(df), df['stock_id'].nunique())
+    logger.info("Date range: %s ~ %s", df['date'].min(), df['date'].max())
+
+    stats = merge_into_existing_cache(df, dry_run=False)
+    logger.info("Merge stats: %s", stats)
+
+    # 跑 aggregate 同步 backtest/financials_revenue.parquet
+    logger.info("Running aggregate_fundamental_cache.py --category revenue ...")
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "aggregate_fundamental_cache.py"),
+         "--category", "revenue"],
+        cwd=str(ROOT),
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        logger.error("Aggregate FAILED (rc=%d):\n%s", result.returncode, result.stderr)
+        return False
+    logger.info("Aggregate OK")
+    for line in result.stdout.splitlines()[-6:]:
+        logger.info("  %s", line)
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--universe", default="data_cache/vfvc_missing_monthly_rev.txt")
@@ -50,7 +89,14 @@ def main():
     ap.add_argument("--end", default="2026-04-30")
     ap.add_argument("--skip-aggregate", action="store_true",
                     help="不自動跑 aggregate（僅測試用）")
+    ap.add_argument("--bulk-update", action="store_true",
+                    help="走 Cache Layer 2 全市場 bulk 更新最新月（Cache 三層架構）；"
+                         "不需 universe 檔，跳過 per-stock FinMind 路徑")
     args = ap.parse_args()
+
+    if args.bulk_update:
+        ok = run_bulk_update()
+        sys.exit(0 if ok else 1)
 
     stocks = [l.strip() for l in open(args.universe) if l.strip()]
     logger.info("Universe: %d stocks", len(stocks))
