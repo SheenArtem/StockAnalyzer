@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-04-24",
+  "generated_at": "2026-04-27",
   "description": "台股 AI era 主流題材 sector tag 手動清單 (Q12-c answer)。peer_group 用於 Pair Divergence 驗證。multi_theme 由 merge_sector_tags.py 自動交叉索引。",
   "source": "3 x general-purpose agent web research (MoneyDJ, 鉅亨, 券商報告, 經濟日報) 2026-04-24",
   "themes": [
@@ -109,6 +109,12 @@
           "ticker": "2421",
           "name": "建準",
           "note": "風扇 + 水冷模組 / RPU / 風扇背牆 / 氣冷輔助液冷櫃",
+          "multi_theme": []
+        },
+        {
+          "ticker": "3653",
+          "name": "健策",
+          "note": "散熱模組 (VC/均熱板) + 高階導熱方案，AI server / GPU 主力客戶",
           "multi_theme": []
         }
       ],
@@ -995,7 +1001,9 @@
           "ticker": "2455",
           "name": "全新",
           "note": "砷化鎵/磷化銦磊晶，CPO 雷射源材料",
-          "multi_theme": []
+          "multi_theme": [
+            "gaas_compound_semi"
+          ]
         },
         {
           "ticker": "6715",
@@ -1623,6 +1631,43 @@
         "https://money.udn.com/money/story/5612/8627193"
       ],
       "confidence": 85
+    },
+    {
+      "theme_id": "gaas_compound_semi",
+      "theme_name_zh": "GaAs 化合物半導體",
+      "theme_name_en": "GaAs Compound Semiconductor",
+      "description": "GaAs (砷化鎵) 化合物半導體製程，主供 5G/WiFi PA、iPhone/Android 高頻射頻元件、LED 光源、雷射感測。台廠三雄壟斷代工市場。",
+      "tier1": [
+        {
+          "ticker": "3105",
+          "name": "穩懋",
+          "note": "GaAs 全球代工龍頭，PA / 射頻 / 5G WiFi 主供，營收 60%+ 來自手機",
+          "multi_theme": []
+        },
+        {
+          "ticker": "8086",
+          "name": "宏捷科",
+          "note": "GaAs 第二大代工，PA / 5G / WiFi 同主軸；中美晶集團",
+          "multi_theme": []
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "2455",
+          "name": "全新",
+          "note": "GaAs 磊晶片廠 (供穩懋 / 宏捷科)，光通訊 / 數據中心 EML 雷射",
+          "multi_theme": [
+            "cpo_optical"
+          ]
+        }
+      ],
+      "pair_divergence_suitable": true,
+      "pair_divergence_note": "三雄業務集中度高，pair trade 信號清晰；2455 上游磊晶可作為 lead indicator",
+      "liquidity_warnings": [],
+      "sources": [
+        "https://www.iek.org.tw/EXEC/E03_iek_view_post_html.cfm?actiontype=view&postid=37289"
+      ],
+      "confidence": 90
     }
   ]
 }
