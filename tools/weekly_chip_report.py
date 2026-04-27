@@ -32,6 +32,7 @@ INST_PARQUET = REPO / "data_cache" / "chip_history" / "institutional.parquet"
 OHLCV_PARQUET = REPO / "data_cache" / "backtest" / "ohlcv_tw.parquet"
 UNIVERSE_PARQUET = REPO / "data_cache" / "backtest" / "universe_tw_full.parquet"
 OUT_DIR = REPO / "reports"
+LATEST_PARQUET = REPO / "data" / "weekly_chip_latest.parquet"  # UI 載入用 long-format snapshot
 
 # 4 個維度 (順序決定報告 section 順序)
 NET_DIMENSIONS = [
@@ -152,6 +153,89 @@ def render_dimension_section(L: list, prefix: str, dim_name: str,
     L.append("")
 
 
+def compute_weekly_rankings(week_end_str: str | None = None) -> tuple[dict, dict]:
+    """純資料計算層 (UI 與 markdown 共用)。
+
+    Returns:
+      (metadata, dim_results) where:
+        metadata: {week_end, window_start, window_end, window_days, close_ref_date}
+        dim_results: {net_col: (cb, cs, ba, sa)}  # 4 DataFrames per dim
+    """
+    if not INST_PARQUET.exists():
+        raise FileNotFoundError(f"Need {INST_PARQUET}")
+    if not OHLCV_PARQUET.exists():
+        raise FileNotFoundError(f"Need {OHLCV_PARQUET}")
+
+    inst = pd.read_parquet(INST_PARQUET)
+    inst['date'] = pd.to_datetime(inst['date'])
+    available = sorted(inst['date'].unique())
+
+    target = pd.Timestamp(week_end_str) if week_end_str else available[-1]
+    candidates = [d for d in available if d <= target]
+    if not candidates:
+        raise ValueError(f"institutional 沒有 <= {target.date()} 的資料")
+    week_end = max(candidates)
+    window = sorted([d for d in available if d <= week_end])[-5:]
+
+    sub = inst[inst['date'].isin(window)][['date', 'stock_id', 'total_net',
+                                            'foreign_net', 'trust_net', 'dealer_net']]
+
+    ohlcv = pd.read_parquet(OHLCV_PARQUET, columns=['stock_id', 'date', 'Close'])
+    ohlcv['stock_id'] = ohlcv['stock_id'].astype(str)
+    ohlcv_dates = sorted(ohlcv['date'].unique())
+    close_target = max([d for d in ohlcv_dates if d <= week_end], default=None)
+    if close_target is None:
+        raise ValueError(f"ohlcv 沒有 <= {week_end.date()} 的資料")
+    closes = ohlcv[ohlcv['date'] == close_target][['stock_id', 'Close']].rename(
+        columns={'Close': 'close_ref'})
+
+    dim_results = {}
+    for net_col, dim_name, _prefix in NET_DIMENSIONS:
+        summary = compute_summary(sub, window, net_col, closes)
+        dim_results[net_col] = get_top10s(summary)
+
+    metadata = {
+        'week_end': week_end,
+        'window_start': window[0],
+        'window_end': window[-1],
+        'window_days': len(window),
+        'close_ref_date': close_target,
+    }
+    return metadata, dim_results
+
+
+def save_long_format_parquet(metadata: dict, dim_results: dict, name_map: dict,
+                              out_path: Path = LATEST_PARQUET) -> None:
+    """把 16 個 Top 10 攤成 long-format parquet 給 UI 載入。
+
+    Schema: week_end | dim | rank_type | rank | stock_id | stock_name |
+            consec_days | weekly_amount_k | weekly_shares
+    """
+    rank_type_keys = ['consec_buy', 'consec_sell', 'week_buy', 'week_sell']
+    rows = []
+    for net_col, dim_name, _prefix in NET_DIMENSIONS:
+        cb, cs, ba, sa = dim_results[net_col]
+        for rk_key, df in zip(rank_type_keys, [cb, cs, ba, sa]):
+            consec_col = 'consec_buy' if rk_key in ('consec_buy', 'week_buy') else 'consec_sell'
+            for rank_idx, (_, r) in enumerate(df.iterrows(), 1):
+                rows.append({
+                    'week_end': metadata['week_end'],
+                    'dim': net_col.replace('_net', ''),  # total / foreign / trust / dealer
+                    'dim_name_zh': dim_name,
+                    'rank_type': rk_key,
+                    'rank': rank_idx,
+                    'stock_id': str(r['stock_id']),
+                    'stock_name': name_map.get(str(r['stock_id']), ''),
+                    'consec_days': int(r.get(consec_col, 0)),
+                    'weekly_amount_k': float(r.get('weekly_net_amount_k', 0)) if pd.notna(r.get('weekly_net_amount_k')) else 0.0,
+                    'weekly_shares': int(r.get('weekly_net_shares', 0)),
+                })
+    df_long = pd.DataFrame(rows)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    df_long.to_parquet(out_path, index=False)
+    print(f"Saved long-format parquet: {out_path} ({len(df_long)} rows)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--week-end", type=str, default=None,
@@ -160,42 +244,14 @@ def main():
     ap.add_argument("--push-discord", action="store_true", help="完成後送 Discord 摘要")
     args = ap.parse_args()
 
-    if not INST_PARQUET.exists():
-        raise FileNotFoundError(f"Need {INST_PARQUET}")
-    if not OHLCV_PARQUET.exists():
-        raise FileNotFoundError(f"Need {OHLCV_PARQUET}")
-
     out_dir = Path(args.out_dir) if args.out_dir else OUT_DIR
 
-    print("Loading institutional...")
-    inst = pd.read_parquet(INST_PARQUET)
-    inst['date'] = pd.to_datetime(inst['date'])
-    available = sorted(inst['date'].unique())
-
-    target = pd.Timestamp(args.week_end) if args.week_end else available[-1]
-    candidates = [d for d in available if d <= target]
-    if not candidates:
-        raise ValueError(f"institutional 沒有 <= {target.date()} 的資料")
-    week_end = max(candidates)
-
-    window = sorted([d for d in available if d <= week_end])[-5:]
-    print(f"  week_end={week_end.date()}, window={[d.date().isoformat() for d in window]}")
-
-    sub = inst[inst['date'].isin(window)][['date', 'stock_id', 'total_net',
-                                            'foreign_net', 'trust_net', 'dealer_net']]
-    print(f"  rows in window: {len(sub):,}")
-
-    print("Loading ohlcv...")
-    ohlcv = pd.read_parquet(OHLCV_PARQUET, columns=['stock_id', 'date', 'Close'])
-    ohlcv['stock_id'] = ohlcv['stock_id'].astype(str)
-    ohlcv_dates = sorted(ohlcv['date'].unique())
-    close_target = max([d for d in ohlcv_dates if d <= week_end], default=None)
-    if close_target is None:
-        raise ValueError(f"ohlcv 沒有 <= {week_end.date()} 的資料")
-    if close_target != week_end:
-        print(f"  WARN: ohlcv 最新到 {close_target.date()},與 institutional week_end {week_end.date()} 不同步")
-    closes = ohlcv[ohlcv['date'] == close_target][['stock_id', 'Close']].rename(
-        columns={'Close': 'close_ref'})
+    print("Computing weekly rankings...")
+    metadata, dim_results = compute_weekly_rankings(args.week_end)
+    week_end = metadata['week_end']
+    window = pd.date_range(metadata['window_start'], metadata['window_end'])
+    close_target = metadata['close_ref_date']
+    print(f"  week_end={week_end.date()}, window_days={metadata['window_days']}")
 
     name_map = load_universe_names()
 
@@ -206,13 +262,14 @@ def main():
         n = name_map.get(str(sid), '')
         return f"{sid} {n}".strip()
 
-    # 對 4 個維度各算 summary + 4 個 top 10
-    print("Computing 4 dimensions...")
-    dim_results = {}  # net_col -> (cb, cs, ba, sa)
-    for net_col, dim_name, prefix in NET_DIMENSIONS:
-        summary = compute_summary(sub, window, net_col, closes)
-        dim_results[net_col] = get_top10s(summary)
-        print(f"  {dim_name}: stocks={len(summary):,}")
+    # 寫 long-format parquet 給 UI 載入
+    save_long_format_parquet(metadata, dim_results, name_map)
+
+    # 從 metadata 還原 window list (markdown 用實際窗口而非連續 date_range)
+    inst_dates = pd.read_parquet(INST_PARQUET, columns=['date'])
+    inst_dates['date'] = pd.to_datetime(inst_dates['date'])
+    avail = sorted(inst_dates['date'].unique())
+    window = sorted([d for d in avail if d <= week_end])[-metadata['window_days']:]
 
     # 寫 markdown
     L: list[str] = []
