@@ -333,6 +333,19 @@ def _build_chip_data(chip_data, us_chip_data, is_us, ticker=None):
             except Exception as e:
                 logger.debug("TDCC shareholding fetch failed for %s: %s: %s", ticker, type(e).__name__, e)
 
+        # BL-4 Phase E: 三大法人週榜上的位置 (4 維度買賣超統計)
+        if ticker:
+            try:
+                from weekly_chip_loader import format_summary_for_ai, get_metadata as _wc_md
+                stock_id = str(ticker).replace('.TW', '').replace('.TWO', '').strip()
+                wc_txt = format_summary_for_ai(stock_id)
+                if wc_txt:
+                    md = _wc_md()
+                    we = md['week_end'].strftime('%Y-%m-%d') if md else ''
+                    lines.append(f"\n本週三大法人週榜 (週末 {we}): {wc_txt}")
+            except Exception as e:
+                logger.debug("Weekly chip rank fetch failed for %s: %s: %s", ticker, type(e).__name__, e)
+
     return "\n".join(lines) if lines else "N/A"
 
 
