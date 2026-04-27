@@ -29,5 +29,20 @@ python tools/tdcc_shareholding.py >> tdcc_weekly.log 2>&1
 set PY_EXIT=%ERRORLEVEL%
 
 echo [%date% %time%] TDCC weekly download finished (exit=%PY_EXIT%) >> tdcc_weekly.log
+
+REM ============================================================
+REM  BL-4: weekly_chip_report (4 top-10 boards: consec buy/sell days + weekly amount)
+REM  Independent stage; runs even if TDCC failed (uses own data source)
+REM ============================================================
+echo [%date% %time%] Weekly chip report started >> tdcc_weekly.log
+python tools/weekly_chip_report.py --push-discord >> tdcc_weekly.log 2>&1
+set CHIP_EXIT=%ERRORLEVEL%
+echo [%date% %time%] Weekly chip report finished (exit=%CHIP_EXIT%) >> tdcc_weekly.log
+
+if not "%CHIP_EXIT%"=="0" (
+    python tools/report_batch_failure.py --stage weekly_chip --exit-code %CHIP_EXIT% --log-file tdcc_weekly.log >> tdcc_weekly.log 2>&1
+)
+
 echo. >> tdcc_weekly.log
+REM Use TDCC exit code as final to preserve original schedule failure semantics
 exit /b %PY_EXIT%
