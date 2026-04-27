@@ -2,15 +2,24 @@
 同業比較模組 — 找同產業公司，比較估值/獲利指標
 
 台股（2026-04-21 起）優先順序：
-  1. MANUAL_PEER_OVERRIDE — 手動白名單覆蓋 TV 已知誤分類
+  1. MANUAL_PEER_OVERRIDE — 手動白名單覆蓋 TV 已知誤分類（估值同業，PE 排名用）
   2. TradingView sector + industry — 112 細分類，精準度優於 FinMind 大類
   3. FinMind industry_category — fallback（~30 大類，粒度最粗）
+
+Multi-theme 增量（2026-04-27）：
+  - 從 data/sector_tags_manual.json 載入 23 個 AI era 題材分組（137 ticker，28 多 label）
+  - get_tw_peer_comparison() 結果加 'themes' 欄位（題材分組 metadata）
+  - 估值 peer (P1) 與題材 themes 解耦：估值同業看 business 同性，題材看共振 catalyst
+  - 用途：AI 報告同業比較標註目標屬於哪些題材；Pair Divergence 驗證
 
 美股: Finviz sector/industry
 """
 
+import json
 import logging
 import time
+from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -21,6 +30,11 @@ _CACHE = {}
 _CACHE_TTL = 3600  # 1 hour
 _TV_MAP_CACHE = {'data': None, 'ts': 0}
 _TV_MAP_TTL = 7 * 24 * 3600  # 7 days — industry classification rarely changes
+
+_THEME_PATH = Path(__file__).resolve().parent / 'data' / 'sector_tags_manual.json'
+_THEME_REVERSE = None   # ticker -> set[theme_id]
+_THEME_MEMBERS = None   # theme_id -> list[ticker]
+_THEME_NAMES = None     # theme_id -> {'zh': str, 'en': str}
 
 
 # ============================================================
@@ -73,6 +87,77 @@ _PEER_GROUPS = {
 }
 
 MANUAL_PEER_OVERRIDE = _expand_groups(_PEER_GROUPS)
+
+
+# ============================================================
+# Multi-theme index — 從 sector_tags_manual.json 載入 (lazy)
+# ============================================================
+def _load_theme_index():
+    """載入 sector_tags_manual.json 並建 ticker -> themes / theme -> members 索引。
+
+    一次載入，cache 在 module global，重啟前不會 reload。
+    Returns: True if loaded successfully, False otherwise.
+    """
+    global _THEME_REVERSE, _THEME_MEMBERS, _THEME_NAMES
+    if _THEME_REVERSE is not None:
+        return True
+    try:
+        with _THEME_PATH.open(encoding='utf-8') as f:
+            manual = json.load(f)
+        themes = manual.get('themes', [])
+        reverse = defaultdict(set)
+        members = {}
+        names = {}
+        for t in themes:
+            if not isinstance(t, dict):
+                continue
+            tid = t.get('theme_id')
+            if not tid:
+                continue
+            names[tid] = {
+                'zh': t.get('theme_name_zh', tid),
+                'en': t.get('theme_name_en', tid),
+            }
+            members[tid] = []
+            for tier_key in ('tier1', 'tier2'):
+                for s in t.get(tier_key, []):
+                    sid = str(s.get('ticker', '')).strip()
+                    if sid:
+                        reverse[sid].add(tid)
+                        members[tid].append(sid)
+        _THEME_REVERSE = dict(reverse)
+        _THEME_MEMBERS = members
+        _THEME_NAMES = names
+        logger.info("Loaded %d themes covering %d tickers from %s",
+                    len(themes), len(reverse), _THEME_PATH.name)
+        return True
+    except Exception as e:
+        logger.warning("Failed to load theme index from %s: %s", _THEME_PATH, e)
+        _THEME_REVERSE = {}
+        _THEME_MEMBERS = {}
+        _THEME_NAMES = {}
+        return False
+
+
+def get_ticker_themes(stock_id):
+    """Public API: 回傳 ticker 屬於的 themes list[{id,zh,en}]，不在任何 theme 回 []."""
+    _load_theme_index()
+    sid = str(stock_id).replace('.TW', '').replace('.TWO', '').strip()
+    tids = _THEME_REVERSE.get(sid, set())
+    return [
+        {'id': t, 'zh': _THEME_NAMES.get(t, {}).get('zh', t),
+         'en': _THEME_NAMES.get(t, {}).get('en', t)}
+        for t in sorted(tids)
+    ]
+
+
+def get_theme_peers(theme_id, exclude_ticker=None):
+    """Public API: 回傳 theme 內所有 ticker（排除 self）."""
+    _load_theme_index()
+    members = _THEME_MEMBERS.get(theme_id, [])
+    if exclude_ticker:
+        members = [t for t in members if t != exclude_ticker]
+    return members
 
 
 def _cache_get(key):
@@ -231,6 +316,9 @@ def get_tw_peer_comparison(stock_id, max_peers=10):
     # 7. Select representative peers: top/bottom PE + similar PE
     selected = _select_representative_peers(peer_per, stock_id, max_peers)
 
+    # 8. Multi-theme metadata（不影響 P1 估值 peer，僅作題材脈絡）
+    themes = get_ticker_themes(stock_id)
+
     result = {
         'industry': industry,
         'industry_source': source,
@@ -238,6 +326,7 @@ def get_tw_peer_comparison(stock_id, max_peers=10):
         'peers': selected,
         'rank': rank,
         'total_in_industry': len(peer_per),
+        'themes': themes,  # [{id,zh,en}, ...] — 該股屬於的 AI era 題材分組
     }
 
     _cache_set(cache_key, result)
@@ -501,6 +590,12 @@ def format_peer_comparison(result):
     src_tag = f" [{src}]" if src else ""
     lines.append(f"Industry: {result['industry']}{src_tag}")
     lines.append(f"Total peers: {result['total_in_industry']}")
+
+    # Multi-theme metadata（題材分組，AI era 23 themes）
+    themes = result.get('themes') or []
+    if themes:
+        theme_str = ', '.join(f"{t['zh']}({t['id']})" for t in themes)
+        lines.append(f"AI era 題材: {theme_str}")
 
     target = result.get('target')
     if target:
