@@ -246,6 +246,12 @@ IC 驗證報告在 `reports/chip_ic_matrix.csv`、組合驗證在 `reports/chip_
 - **FinMind 免費額度** — 600 req/hr，容易爆。法人已改 TWSE/TPEX 優先
 - **無 .env** — FinMind token 在 `local/.env`，其他設定以硬編碼 + session state + JSON 為主
 - **Windows 平台** — `.bat` 啟動腳本、路徑處理需注意 Windows 相容性
-- **Scanner 排程** — `run_scanner.bat` 每日 22:00 via Windows Task Scheduler
+- **Windows Task Scheduler 排程一覽**：
+  - `run_scanner.bat` — TUE-SAT 00:00 主鏈（YT sync 3-stage / MOPS probe / RF-1 / market regime / momentum+value scan / step_a / paper trade / Substack sync / auto AI reports / discord daily summary）
+  - `run_bulk_revenue_monthly.bat` — 每月 1 號 20:00（MOPS bulk fetch 1900+ 檔月營收 + aggregate，Cache 三層 Layer 2）
+  - `run_tdcc_weekly.bat` — 週六 08:00（TDCC 集保股權分散，3956 檔 × 17 級距）
+  - `run_c1_monthly.bat` — 每月初（C1 月營收拐點 tilt flag 重算）
+  - `run_mops_probe.bat` — 每日（MOPS WAF 解禁狀態探測）
+  - `run_yt_sync.bat` — 已整合進 scanner 前段，獨立排程可保留 backup
 - **AI 報告** — 使用 Claude CLI `claude -p --allowedTools "WebSearch,WebFetch"`，Team Plan 額度
 
