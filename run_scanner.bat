@@ -133,15 +133,11 @@ echo [%date% %time%] Substack sync done >> scanner.log
 REM ------------------------------------------------------------
 REM Auto-generate AI reports for QM office picks (top 3).
 REM Added 2026-04-22 per user request: set-and-forget briefing ready by morning.
-REM
-REM Robustness First (after 2026-04-23 incident):
-REM   1. Run --smoke pre-flight (under 10s) to verify all lazy imports resolve.
-REM   2. Capture exit code on the real run; call report_batch_failure.py to
-REM      ping Discord on failure.
-REM   3. Do NOT propagate AI report exit code to PY_EXIT (report failure is
-REM      non-fatal), but leave clear FAIL marker + best-effort notify to
-REM      avoid silent overnight failures.
+REM DISABLED 2026-04-29 per user request: cancel daily auto AI reports.
+REM   To re-enable: remove the "goto skip_ai_reports" line directly below.
+REM   All original logic preserved for easy revival.
 REM ------------------------------------------------------------
+goto skip_ai_reports
 echo [%date% %time%] Auto AI reports smoke check starting >> scanner.log
 python tools\auto_ai_reports.py --smoke >> scanner.log 2>&1
 set AI_SMOKE_EXIT=%ERRORLEVEL%
