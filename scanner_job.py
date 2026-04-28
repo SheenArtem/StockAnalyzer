@@ -96,11 +96,11 @@ _MIN_SCAN_SIZE = {      # 正常 total_scanned 下限，低於此代表資料源
     'us': 400,
     'tw': 1500,
 }
-_MIN_RESULTS = {        # 正常 results 數量下限
+_MIN_RESULTS = {        # 正常 results 數量下限（須 <= --top 預設 20，否則永遠誤報）
     ('momentum', 'us'): 10,
-    ('momentum', 'tw'): 30,
+    ('momentum', 'tw'): 15,
     ('value', 'us'): 10,
-    ('value', 'tw'): 30,
+    ('value', 'tw'): 15,
     ('swing', 'us'): 5,
     ('swing', 'tw'): 10,
     ('qm', 'us'): 5,
