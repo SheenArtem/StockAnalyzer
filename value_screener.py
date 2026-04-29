@@ -939,10 +939,13 @@ class ValueScreener:
         scores['valuation'] = self._score_valuation(stock_id, market_row, details)
 
         # --- 2. Quality Score (0-100) ---
+        # TW path returns (score, fscore) tuple so trap warning can read F-Score later.
+        # US path stays single-value (US trap signal not validated; F-Score US side D-rejected 2026-04-22).
+        _fscore_for_trap = None
         if is_us:
             scores['quality'] = self._score_quality_us(stock_id, finviz, details)
         else:
-            scores['quality'] = self._score_quality(stock_id, details, price=_latest_close)
+            scores['quality'], _fscore_for_trap = self._score_quality(stock_id, details, price=_latest_close)
 
         # --- 3. Revenue Trend Score (0-100) ---
         if is_us:
@@ -968,6 +971,17 @@ class ValueScreener:
             scores['smart_money'] * cfg['weight_smart_money'] +
             scores['gm_qoq'] * cfg['weight_gm_qoq']
         )
+
+        # Value-#3 trap warning (TW only, 2026-04-29):
+        # F-Score <= 4 + revenue_score < 60 → -5 conservative penalty.
+        # Validated on trade_journal_value_tw_snapshot (70,760 rows, 309 weeks, 2020-2025):
+        #   alpha @ 120d = -3.33%, snr=-23.6, 5/6 years robust negative
+        #   2022 bear-market reversal +4.79% (panic selling bounce); other 5 years -1.85%~-9.99%
+        # Penalty kept conservative (-5 not -10) due to 2022 reversal; existing F<=3 -20
+        # in _score_quality already covers the worst tail.
+        if (not is_us) and (_fscore_for_trap is not None) and (_fscore_for_trap <= 4) and (scores['revenue'] < 60):
+            total -= 5
+            details.append(f"價值陷阱警告 (F={_fscore_for_trap}/9 + 月營收弱 {scores['revenue']:.0f}/100) (-5)")
 
         # US: load price for avg trading value (TW already pre-loaded above)
         if is_us and avg_tv_5d == 0:
@@ -1190,8 +1204,13 @@ class ValueScreener:
         Uses calculate_all() for single-fetch optimization (3 API calls instead of 9).
         Args:
             price: latest close price (pre-loaded from _score_single to avoid extra API call)
+
+        Returns:
+            (score, fscore) — fscore is the Piotroski F-Score value (0-9) or None if unavailable.
+            Caller uses fscore for downstream trap warning logic; score is the 0-100 quality score.
         """
         score = 50
+        fscore_out = None  # captured F-Score for trap-warning post-check
         mcap = price * 1e8 if price > 0 else 0  # Rough market cap placeholder
 
         # --- Combined: F-Score + Z-Score + ROIC/FCF (single FinMind fetch) ---
@@ -1206,6 +1225,7 @@ class ValueScreener:
         if all_result and all_result.get('fscore'):
             fs_result = all_result['fscore']
             fscore = fs_result['fscore']
+            fscore_out = fscore
             comp = fs_result['components']
             if fscore >= 7:
                 score += 25
@@ -1352,7 +1372,7 @@ class ValueScreener:
                 score -= 5
                 details.append(f"負債/權益={de:.2f} 偏高 (-5) [TV]")
 
-        return max(0, min(100, score))
+        return max(0, min(100, score)), fscore_out
 
     def _score_revenue(self, stock_id, details):
         """
