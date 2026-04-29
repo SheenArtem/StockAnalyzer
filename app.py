@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.29.3")
+    st.caption("Version: v2026.04.29.4")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -476,7 +476,7 @@ if st.session_state.get('app_mode') == 'screener':
             return ''
 
     # Theme tag loader (VF-GM Phase 3 — picks 表 column, 2026-04-29)
-    # 從 sector_tags_manual.json 137 ticker / 28 multi-label 反向索引帶入
+    # 從 sector_tags_manual.json 140 ticker / 29 multi-label 反向索引帶入
     def _theme_tags_short(stock_id):
         """回傳 ticker 所屬題材中文名 short string；最多顯示 2 個 + 餘數。Empty → ''."""
         try:
@@ -1285,7 +1285,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 column_config={
                     '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
                     '週榜': st.column_config.TextColumn(width='medium', help="本週三大法人榜單上的標記（連買/連賣天數 + 4 維度排名）"),
-                    '題材': st.column_config.TextColumn(width='medium', help="所屬 AI era 主流題材（sector_tags_manual.json 137 ticker / 28 multi-label）"),
+                    '題材': st.column_config.TextColumn(width='medium', help="所屬 AI era 主流題材（sector_tags_manual.json 140 ticker / 29 multi-label）"),
                     '市值排名': st.column_config.NumberColumn(format="%d", help="1 = 台股市值最大"),
                     '綜合': st.column_config.NumberColumn(format="%.1f"),
                     'F-Score': st.column_config.NumberColumn(format="%d"),
@@ -1678,7 +1678,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
                     '大型股': st.column_config.TextColumn(width='small', help="🏛️ = 走大型股 Graham 例外通道（市值前 50 + F-Score>=5 + quality>=50），PE×PB>22.5 但被放行"),
                     '週榜': st.column_config.TextColumn(width='medium', help="本週三大法人榜單上的標記（連買/連賣天數 + 4 維度排名）"),
-                    '題材': st.column_config.TextColumn(width='medium', help="所屬 AI era 主流題材（sector_tags_manual.json 137 ticker / 28 multi-label）"),
+                    '題材': st.column_config.TextColumn(width='medium', help="所屬 AI era 主流題材（sector_tags_manual.json 140 ticker / 29 multi-label）"),
                     '綜合分數': st.column_config.NumberColumn(format="%.1f"),
                     'PE': st.column_config.NumberColumn(format="%.1f"),
                     'PB': st.column_config.NumberColumn(format="%.2f"),
