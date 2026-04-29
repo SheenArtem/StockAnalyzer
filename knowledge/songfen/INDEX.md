@@ -21,6 +21,22 @@
 
 ## Articles (by date, newest first)
 
+### 2026-04-27 《宋分分析師備忘錄 #8》市場創新高，卻是初期牛市的典型結構｜當市場邊漲邊懷疑，通常才剛開始
+- **Category:** memo
+- **Tags:** bull-market,ai-capex,nvda,earnings-season,re-rate
+- **Summary:** 機構視當前美股創高為初期牛市結構：私營部門接手成長、企業被迫投資 AI 形成實體投資週期、營運槓桿擴張，且情緒未過熱；資金回流 NVDA 等核心算力。
+- **Actionable:** 關注本週超級財報季三指標：營收成長加速度、Backlog 訂單增量、AI 收入是否被明確拆出量化；資金布局回到 GPU 核心 (NVDA) + 次核心 CPU 補漲；震盪回檔視為建立多頭共識，不是結構轉弱
+- **Permanence:** time-sensitive
+<!-- auto-generated 2026-04-28 -->
+
+### 2026-04-26 《財報後先跌再漲到底是不是利多出盡？要怎麼知道price in了沒有？近期資金行情散戶最容易犯的錯》
+- **Category:** psych,methodology
+- **Tags:** price-in,earnings-reaction,liquidity-driven,market-expectation,fomo
+- **Summary:** 解析財報後先跌再漲的本質是「預期 vs 驗證」流程，並提醒當前市場已切換為流動性主導，散戶易把資金行情誤認為基本面。
+- **Actionable:** 法說前用股價漲幅 + PE 擴張 + 同產業漲幅三指標逼近 price in 程度；判斷跌勢看成長/CAPEX/現金流三條敘事是否被推翻而非單日 K 棒；資金行情期提高估值門檻（如原 25x 改 20x），保留現金不追全面齊漲標的
+- **Permanence:** permanent
+<!-- auto-generated 2026-04-28 -->
+
 ### 2026-04-22 《市場解碼 #19｜分析師流程》ROIC × Organic Growth：市場真正 re-rate Amazon 的底層邏輯
 - **Category:** methodology
 - **Tags:** roic, organic-growth, re-rate, capital-efficiency
