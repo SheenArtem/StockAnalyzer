@@ -161,12 +161,11 @@ def compute_exit_plan(entry_price, weekly_ma20=None, atr_pct=None,
     tp_scale = np.clip(tp_scale * tp_mult, ATR_TP_SCALE_FLOOR, ATR_TP_SCALE_CEIL)
 
     tp_levels = []
-    # 2026-04-29 改：vf_dual_contract Step B2 驗證 TP 是 alpha 殺手
-    # No TP +19.55% > TP 1/3 +16.37% > TP 1/2 +14.78% (mean fwd_60d, n=2738)
-    # TP1/TP2 改純資訊不建議減碼；TP3 保留出場建議。
+    # 2026-04-29 revert：portfolio walk-forward 翻盤 cf1e2e0 TP→info 政策。
+    # tp_half FULL +1.29pp Sharpe +0.177 勝 no-TP (Step B2 proxy 反向)。還原 PRE_POLICY。
     actions = [
-        "[資訊] B2 驗證 hold 60d 不減碼 +19.55% > 減 1/3 +16.37%, 不建議主動減碼",
-        "移動停損至週 MA10 (保護獲利, 不主動減碼)",
+        "減碼 1/3，落袋第一段",
+        "移動停損至週 MA10",
         "清倉 (或持倉到期)",
     ]
     for i, base_pct in enumerate(DEFAULT_TP_PCTS):
