@@ -7,23 +7,19 @@ import threading
 import time
 from technical_analysis import plot_dual_timeframe, load_and_resample, calculate_all_indicators, plot_interactive_chart
 from fundamental_analysis import get_fundamentals, get_revenue_history, get_per_history, get_financial_statements
+from ui_helpers import (
+    get_chip_data_cached,
+    on_history_change,
+    run_analysis,
+    _ai_report_worker,
+    _ai_report_job_lock,
+    validate_ticker,
+    _wc_tags_short,
+    _theme_tags_short,
+    _convergence_label,
+)
 
 logger = logging.getLogger(__name__)
-
-@st.cache_data(ttl=3600)
-def get_chip_data_cached(ticker, force):
-    """取得籌碼快取。H5 (2026-04-23) 改用 fetch_chip 乾淨 API。
-
-    Returns:
-        dict | None: chip data dict on success, None on fetch failure.
-        Caller 直接 `if chip_data is not None: ...`，不需 unpack。
-    """
-    from chip_analysis import ChipAnalyzer, ChipFetchError
-    try:
-        return ChipAnalyzer().fetch_chip(ticker, force_update=force)
-    except ChipFetchError as e:
-        logger.warning("Chip fetch failed for %s: %s", ticker, e)
-        return None
 
 
 # 設定頁面配置
@@ -115,7 +111,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.29.4")
+    st.caption("Version: v2026.04.29.5")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -126,20 +122,6 @@ with st.sidebar:
     from cache_manager import CacheManager
     cm = CacheManager()
     cached_list = cm.list_cached_tickers()
-    
-    # Callback for history selection
-    def on_history_change():
-        import re
-        selected = st.session_state.get('history_selected', '')
-        if selected:
-            selected = selected.strip()
-            # Basic character check: only allow alphanumeric, dot, hyphen
-            if not re.match(r'^[A-Za-z0-9.\-]{1,20}$', selected):
-                logger.error(f"Invalid ticker from history dropdown: {selected!r}")
-                return  # Do not activate analysis for invalid ticker
-        st.session_state['ticker_input'] = selected
-        st.session_state['analysis_active'] = True
-        st.session_state['force_run'] = False
 
     # History Dropdown
     if cached_list:
@@ -297,113 +279,6 @@ with st.sidebar:
 
     st.markdown("---")
 
-# 封裝分析函數 (暫時移除 Cache 以確保代碼更新生效)
-# @st.cache_data(ttl=3600)
-def run_analysis(source_data, force_update=False):
-    # 這裡的邏輯與原本 main 當中的一樣，但搬進來做 cache
-    
-    # 1. 股票代號情況
-    if isinstance(source_data, str):
-        return plot_dual_timeframe(source_data, force_update=force_update)
-        
-    # 2. CSV 資料情況 (DataFrame 無法直接 hash，需注意 cache 機制，這裡簡化處理)
-    # Streamlit 對 DataFrame 有支援 hashing，所以通常可以直接傳
-    ticker_name, df_day, df_week, stock_meta = load_and_resample(source_data) # CSV no force update
-    
-    figures = {}
-    errors = {}
-    
-    # 手動計算
-    if not df_week.empty:
-        try:
-            df_week = calculate_all_indicators(df_week)
-            fig_week = plot_interactive_chart(ticker_name, df_week, "Trend (Long)", "Weekly")
-            figures['Weekly'] = fig_week
-        except Exception as e:
-            errors['Weekly'] = str(e)
-            
-    if not df_day.empty:
-        try:
-            df_day = calculate_all_indicators(df_day)
-            fig_day = plot_interactive_chart(ticker_name, df_day, "Action (Short)", "Daily")
-            figures['Daily'] = fig_day
-        except Exception as e:
-            errors['Daily'] = str(e)
-            
-    return figures, errors, df_week, df_day, stock_meta
-
-
-# ====================================================================
-#  AI 報告背景執行緒 Worker（使用 shared ai_report_pipeline 避免與 CLI drift）
-#
-#  H3 (2026-04-23): 原本 _ai_report_worker 是 tools/auto_ai_reports._run_one 的
-#  重複實作，任何一邊 refactor 另一邊就走樣 — 2026-04-22 三連 bug 根因。
-#  重構後兩者都呼叫 ai_report_pipeline.generate_one_report()。
-#
-#  H4 (2026-04-23): _ai_report_job_lock 保護 job dict 的多步 state transition
-#  (e.g. 'result' 與 'status' 同時設定)，避免 UI 讀到 status=done 但 result 尚未寫入。
-#  UI 端 iterate job['progress'] 時用 list() 快照避免 concurrent modification。
-# ====================================================================
-_ai_report_job_lock = threading.Lock()
-
-
-def _ai_report_worker(job, ticker, report_format='md', include_songfen=True):
-    """
-    在背景 thread 跑完整 AI 報告流程。
-    job 是一個 dict (session_state 裡的參照)，thread 透過 _ai_report_job_lock 安全 mutate。
-    禁止呼叫任何 st.* UI 函式（會觸發 ScriptRunContext 警告）。
-
-    Args:
-        report_format: 'md' = 傳統 Markdown 報告；'html' = 互動儀表板
-        include_songfen: bool，md 格式時在最末尾附加「宋分視角補充分析」區塊。html 忽略。
-    """
-    from ai_report_pipeline import generate_one_report
-
-    def _progress(msg):
-        with _ai_report_job_lock:
-            job['progress'].append(msg)
-
-    try:
-        result = generate_one_report(ticker, fmt=report_format,
-                                     progress_cb=_progress,
-                                     include_songfen=include_songfen)
-        with _ai_report_job_lock:
-            if result['ok']:
-                job['result'] = {
-                    'rid': result['rid'],
-                    'content': result['content'],
-                    'format': result['format'],
-                }
-                job['status'] = 'done'
-            else:
-                err = result.get('error') or 'unknown error'
-                if result.get('traceback'):
-                    err = f"{err}\n\n{result['traceback']}"
-                job['result'] = err
-                job['status'] = 'error'
-    except Exception as _e:
-        # Defensive: 通常 generate_one_report 自己會 catch，這層是 last-resort
-        import traceback
-        logger.error(f"[AI worker] uncaught exception: {_e}", exc_info=True)
-        with _ai_report_job_lock:
-            job['result'] = f"{type(_e).__name__}: {_e}\n\n{traceback.format_exc()}"
-            job['status'] = 'error'
-
-
-# 主程式邏輯
-
-
-def validate_ticker(ticker):
-    """驗證股票代號格式 (只允許英數字、點號、連字號)"""
-    import re
-    if not ticker:
-        return False, "請輸入股票代號"
-    # 只允許英數字、點號、連字號，長度 1-20
-    pattern = r'^[A-Za-z0-9.\-]{1,20}$'
-    if not re.match(pattern, ticker):
-        return False, "股票代號格式不正確 (只允許英數字、點號)"
-    return True, ""
-
 # ====================================================================
 #  大盤儀表板 Banner placeholder（所有模式共用）
 #  於頁面頂端保留位置，等主內容渲染完畢後才填入，避免 cache miss 卡住整頁
@@ -465,45 +340,7 @@ if st.session_state.get('app_mode') == 'screener':
     except Exception:
         pass
 
-    # Weekly chip tag loader (BL-4 Phase C — picks 表 column 用)
-    def _wc_tags_short(stock_id):
-        """取個股本週上榜 tags 並 join 成短字串給表格 column。Empty → ''."""
-        try:
-            from weekly_chip_loader import get_stock_tags as _wc_get
-            tags = _wc_get(stock_id)
-            return '; '.join(tags) if tags else ''
-        except Exception:
-            return ''
-
-    # Theme tag loader (VF-GM Phase 3 — picks 表 column, 2026-04-29)
-    # 從 sector_tags_manual.json 140 ticker / 29 multi-label 反向索引帶入
-    def _theme_tags_short(stock_id):
-        """回傳 ticker 所屬題材中文名 short string；最多顯示 2 個 + 餘數。Empty → ''."""
-        try:
-            from peer_comparison import get_ticker_themes as _gtt
-            themes = _gtt(stock_id)
-            if not themes:
-                return ''
-            zh_names = [t.get('zh', t.get('id', '')) for t in themes]
-            head = ' / '.join(zh_names[:2])
-            if len(zh_names) > 2:
-                head += f' +{len(zh_names) - 2}'
-            return head
-        except Exception:
-            return ''
-
-    def _convergence_label(stock_id, conv_map):
-        """產生共振標記文字"""
-        c = conv_map.get(stock_id)
-        if not c:
-            return ''
-        modes = c['modes']
-        tier = c['tier']
-        has_val = 'value' in modes
-        has_mom = bool(set(modes) & {'momentum', 'swing', 'qm'})
-        if has_val and has_mom:
-            return f'T{tier} 動能+價值'
-        return f'T{tier} {"+".join(modes)}'
+    # _wc_tags_short / _theme_tags_short / _convergence_label moved to ui_helpers.py
 
     # ====================================================================
     # Removed 2026-04-17: 右側動能選股 (TW+US) 隱藏 tab
