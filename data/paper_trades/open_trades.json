@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-04-25",
+  "as_of": "2026-04-29",
   "regime": "volatile",
   "open_trades": [
     {
@@ -67,6 +67,80 @@
       "pnl_pct": null,
       "trigger_score_entry": -1.11,
       "qm_composite_entry": 80.2,
+      "scenario_entry": "-",
+      "qm_rank_entry": 5,
+      "yt_tag_entry": {
+        "count": 0,
+        "sentiment": 0.0,
+        "shows": []
+      },
+      "c1_tilt_entry": false,
+      "regime_entry": "volatile"
+    },
+    {
+      "trade_id": "PT-20260413-3645",
+      "ticker": "3645",
+      "name": "達邁",
+      "entry_date": "2026-04-13",
+      "entry_price": 90.4000015258789,
+      "target_tp": 129.03,
+      "target_sl": 89.49,
+      "exit_date": null,
+      "exit_price": null,
+      "exit_reason": null,
+      "pnl_pct": null,
+      "trigger_score_entry": -1.11,
+      "qm_composite_entry": 94.9,
+      "scenario_entry": "-",
+      "qm_rank_entry": 1,
+      "yt_tag_entry": {
+        "count": 0,
+        "sentiment": 0.0,
+        "shows": []
+      },
+      "c1_tilt_entry": true,
+      "regime_entry": "volatile"
+    },
+    {
+      "trade_id": "PT-20260413-2455",
+      "ticker": "2455",
+      "name": "全新",
+      "entry_date": "2026-04-13",
+      "entry_price": 293.0,
+      "target_tp": 404.92,
+      "target_sl": 280.83,
+      "exit_date": null,
+      "exit_price": null,
+      "exit_reason": null,
+      "pnl_pct": null,
+      "trigger_score_entry": 1.09,
+      "qm_composite_entry": 86.6,
+      "scenario_entry": "-",
+      "qm_rank_entry": 3,
+      "yt_tag_entry": {
+        "count": 1,
+        "sentiment": 1.0,
+        "shows": [
+          "money100"
+        ]
+      },
+      "c1_tilt_entry": false,
+      "regime_entry": "volatile"
+    },
+    {
+      "trade_id": "PT-20260413-3265",
+      "ticker": "3265",
+      "name": "台星科",
+      "entry_date": "2026-04-13",
+      "entry_price": 172.5,
+      "target_tp": 209.13,
+      "target_sl": 145.04,
+      "exit_date": null,
+      "exit_price": null,
+      "exit_reason": null,
+      "pnl_pct": null,
+      "trigger_score_entry": -2.2,
+      "qm_composite_entry": 81.5,
       "scenario_entry": "-",
       "qm_rank_entry": 5,
       "yt_tag_entry": {
