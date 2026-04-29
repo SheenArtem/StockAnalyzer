@@ -276,7 +276,7 @@ def build_daily_alerts(today: date | None = None) -> dict:
         "notes": {
             "rule_5_whipsaw_ban": "Wave 3 #6 paper engine 落地後從 trade history 算 30d ban",
             "rule_6_dual_side": "Value side 持股實際出現後啟用 (目前無)",
-            "rule_7_regime_switch": "Phase 3 補 (regime 切換 lag 1 月清倉)",
+            "rule_7_regime_switch": "Phase 3 補 (regime 切換 lag 3 月清倉; vf_dual_contract Rule 7 驗證 defer 3mo +5.16% > 1mo +2.16% > immediate +0.90%)",
         },
     }
 

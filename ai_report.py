@@ -755,6 +755,59 @@ def _build_analyst_consensus(ticker):
         return f"N/A (fetch failed: {e})"
 
 
+def _build_theme_context(ticker):
+    """[THEME_CONTEXT] AI era 多題材 conditioning — 帶入 theme description + peer 成員清單.
+
+    與 PEER_COMPARISON 互補：peer 是估值同業，theme 是 AI era catalyst 共振。
+    一檔股票可同時跨多個 theme（如 2330=foundry+ai_chip+ai_packaging）。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (theme metadata is TW-only, see sector_tags_manual.json)"
+
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        from peer_comparison import get_ticker_themes, get_theme_peers, _load_theme_index, _THEME_NAMES
+        _load_theme_index()
+        themes = get_ticker_themes(stock_id)
+        if not themes:
+            return "本檔無 AI era 主流題材標記（不在 sector_tags_manual.json 137 ticker 名單）。"
+
+        # Load full theme metadata for description
+        from pathlib import Path as _P
+        import json as _json
+        theme_path = _P(__file__).resolve().parent / 'data' / 'sector_tags_manual.json'
+        with theme_path.open(encoding='utf-8') as _f:
+            manual = _json.load(_f)
+        theme_full = {t['theme_id']: t for t in manual.get('themes', []) if isinstance(t, dict) and t.get('theme_id')}
+
+        lines = [f"本檔屬於 {len(themes)} 個 AI era 主流題材："]
+        for t in themes:
+            tid = t['id']
+            full = theme_full.get(tid, {})
+            desc = full.get('description', '')
+            tier1_ids = [s.get('ticker', '') for s in full.get('tier1', []) if isinstance(s, dict)]
+            tier2_ids = [s.get('ticker', '') for s in full.get('tier2', []) if isinstance(s, dict)]
+            tier_label = 'tier1' if stock_id in tier1_ids else ('tier2' if stock_id in tier2_ids else 'unknown')
+            tier1_str = ', '.join(tier1_ids[:6]) + (f' (+{len(tier1_ids)-6})' if len(tier1_ids) > 6 else '')
+            tier2_str = ', '.join(tier2_ids[:6]) + (f' (+{len(tier2_ids)-6})' if len(tier2_ids) > 6 else '')
+            lines.append(f"\n- **{t['zh']}** ({tid}, 本檔屬 {tier_label})")
+            if desc:
+                lines.append(f"  描述: {desc}")
+            if tier1_str:
+                lines.append(f"  tier1 成員: {tier1_str}")
+            if tier2_str:
+                lines.append(f"  tier2 成員: {tier2_str}")
+
+        if len(themes) > 1:
+            lines.append(f"\n⚠️ 多題材交集: 本檔同時跨 {len(themes)} 個題材，catalyst 來源較分散；"
+                          f"分析時請考慮各 theme 衝擊 weight 是否對等，或某一 theme 為主導。")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning("Theme context failed for %s: %s", ticker, e)
+        return f"N/A (theme context failed: {e})"
+
+
 def _build_peer_data(ticker, fund_data):
     """[PEER_COMPARISON] Peer industry comparison."""
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
@@ -809,6 +862,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     data_sections.append(f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}")
     data_sections.append(f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}")
     data_sections.append(f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}")
+    data_sections.append(f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}")
 
     data_block = "\n\n".join(data_sections)
 
@@ -960,6 +1014,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}",
         f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}",
         f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}",
+        f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}",
     ]
     data_block = "\n\n".join(data_sections)
 

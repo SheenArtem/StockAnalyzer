@@ -115,7 +115,7 @@ with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.sessio
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.04.29.1")
+    st.caption("Version: v2026.04.29.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -207,11 +207,94 @@ with st.sidebar:
     
     st.markdown("### ⚠️ 風險提示")
     st.caption("""
-    本系統分析結果僅供參考  
-    股市有風險，投資需謹慎  
+    本系統分析結果僅供參考
+    股市有風險，投資需謹慎
     歷史績效不代表未來表現
     """)
-    
+
+    st.markdown("---")
+
+    # === Cache 健康度監控 (Cache 三層 P5, 2026-04-29) ===
+    with st.expander("📊 Cache 健康度", expanded=False):
+        try:
+            from pathlib import Path as _CP
+            import json as _CJ
+            from datetime import date as _CD
+
+            _repo = _CP(__file__).resolve().parent
+            _frozen_dir = _repo / 'data_cache' / 'fundamental_frozen'
+            _live_dir = _repo / 'data_cache' / 'fundamental_cache'
+
+            # Layer 0/1 stocks count
+            _frozen_files = list(_frozen_dir.glob('*.parquet')) if _frozen_dir.exists() else []
+            _live_files = list(_live_dir.glob('*.parquet')) if _live_dir.exists() else []
+            _frozen_stocks = len({f.stem.split('_', 1)[1] for f in _frozen_files if '_' in f.stem})
+            _live_stocks = len({f.stem.split('_', 1)[1] for f in _live_files if '_' in f.stem})
+
+            st.markdown("**Layer 0/1 fundamental cache**")
+            st.caption(f"frozen: {len(_frozen_files)} parquets / {_frozen_stocks} stocks")
+            st.caption(f"live: {len(_live_files)} parquets / {_live_stocks} stocks")
+
+            # MOPS daily usage
+            _mops_usage_file = _repo / 'data_cache' / 'mops_daily_usage.json'
+            if _mops_usage_file.exists():
+                try:
+                    _mu = _CJ.loads(_mops_usage_file.read_text(encoding='utf-8'))
+                    _today = _CD.today().isoformat()
+                    if _mu.get('date') == _today:
+                        st.markdown("**MOPS 今日用量**")
+                        import os as _COS
+                        _cap = int(_COS.getenv('MOPS_DAILY_CAP', '500'))
+                        _cnt = _mu.get('count', 0)
+                        _pct = (_cnt / _cap * 100) if _cap else 0
+                        if _pct < 50:
+                            st.success(f"{_cnt} / {_cap} req ({_pct:.0f}%)")
+                        elif _pct < 80:
+                            st.warning(f"{_cnt} / {_cap} req ({_pct:.0f}%)")
+                        else:
+                            st.error(f"{_cnt} / {_cap} req ({_pct:.0f}%)")
+                    else:
+                        st.caption(f"MOPS 今日尚未呼叫 (last: {_mu.get('date', '?')})")
+                except Exception:
+                    pass
+
+            # FinMind hour usage
+            try:
+                from cache_manager import get_finmind_stats as _gfs
+                _fs = _gfs()
+                if _fs:
+                    st.markdown("**FinMind 當前小時用量**")
+                    _fcnt = _fs.get('request_count', 0)
+                    _frem = _fs.get('remaining', 0)
+                    _frate = _fs.get('rate_per_hour', 0)
+                    _ftok = _fs.get('has_token', False)
+                    _flim = _fcnt + _frem
+                    _fpct = (_fcnt / _flim * 100) if _flim else 0
+                    _ttag = "🔑 token" if _ftok else "⚪ anon"
+                    if _fpct < 50:
+                        st.success(f"{_fcnt}/{_flim} req ({_fpct:.0f}%) {_ttag}")
+                    elif _fpct < 80:
+                        st.warning(f"{_fcnt}/{_flim} req ({_fpct:.0f}%) {_ttag}")
+                    else:
+                        st.error(f"{_fcnt}/{_flim} req ({_fpct:.0f}%) {_ttag}")
+                    st.caption(f"當前 rate: {_frate} req/hr")
+            except Exception:
+                pass
+
+            # data_cache total size
+            try:
+                _cache_root = _repo / 'data_cache'
+                if _cache_root.exists():
+                    _total_bytes = sum(p.stat().st_size for p in _cache_root.rglob('*') if p.is_file())
+                    _gb = _total_bytes / (1024 ** 3)
+                    st.caption(f"**data_cache 總大小**: {_gb:.2f} GB")
+            except Exception:
+                pass
+
+            st.caption("📌 frozen layer 唯讀（promote_to_frozen.py 推升），live 為日常 backfill 寫入點")
+        except Exception as _e:
+            st.caption(f"cache 健康度載入失敗: {_e}")
+
     st.markdown("---")
 
 # 封裝分析函數 (暫時移除 Cache 以確保代碼更新生效)
@@ -389,6 +472,23 @@ if st.session_state.get('app_mode') == 'screener':
             from weekly_chip_loader import get_stock_tags as _wc_get
             tags = _wc_get(stock_id)
             return '; '.join(tags) if tags else ''
+        except Exception:
+            return ''
+
+    # Theme tag loader (VF-GM Phase 3 — picks 表 column, 2026-04-29)
+    # 從 sector_tags_manual.json 137 ticker / 28 multi-label 反向索引帶入
+    def _theme_tags_short(stock_id):
+        """回傳 ticker 所屬題材中文名 short string；最多顯示 2 個 + 餘數。Empty → ''."""
+        try:
+            from peer_comparison import get_ticker_themes as _gtt
+            themes = _gtt(stock_id)
+            if not themes:
+                return ''
+            zh_names = [t.get('zh', t.get('id', '')) for t in themes]
+            head = ' / '.join(zh_names[:2])
+            if len(zh_names) > 2:
+                head += f' +{len(zh_names) - 2}'
+            return head
         except Exception:
             return ''
 
@@ -1148,6 +1248,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '名稱': r.get('name', ''),
                     '共振': '✨' if r['stock_id'] in _qm_value_resonance_tw else '',
                     '週榜': _wc_tags_short(r['stock_id']),
+                    '題材': _theme_tags_short(r['stock_id']),
                     '市值排名': _mc_rank.get(r['stock_id']),
                     '綜合': _cs if _cs is not None else None,
                     'F-Score': _fs if _fs is not None else None,
@@ -1184,6 +1285,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                 column_config={
                     '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
                     '週榜': st.column_config.TextColumn(width='medium', help="本週三大法人榜單上的標記（連買/連賣天數 + 4 維度排名）"),
+                    '題材': st.column_config.TextColumn(width='medium', help="所屬 AI era 主流題材（sector_tags_manual.json 137 ticker / 28 multi-label）"),
                     '市值排名': st.column_config.NumberColumn(format="%d", help="1 = 台股市值最大"),
                     '綜合': st.column_config.NumberColumn(format="%.1f"),
                     'F-Score': st.column_config.NumberColumn(format="%d"),
@@ -1542,6 +1644,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '共振': '✨' if r['stock_id'] in _qm_value_resonance_tw else '',
                     '大型股': '🏛️' if r.get('bypass_reason') == 'large_cap_graham_exempt' else '',
                     '週榜': _wc_tags_short(r['stock_id']),
+                    '題材': _theme_tags_short(r['stock_id']),
                     '綜合分數': r.get('value_score', 0),
                     '收盤': r.get('price', 0),
                     'PE': r.get('PE', 0),
@@ -1575,6 +1678,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
                     '大型股': st.column_config.TextColumn(width='small', help="🏛️ = 走大型股 Graham 例外通道（市值前 50 + F-Score>=5 + quality>=50），PE×PB>22.5 但被放行"),
                     '週榜': st.column_config.TextColumn(width='medium', help="本週三大法人榜單上的標記（連買/連賣天數 + 4 維度排名）"),
+                    '題材': st.column_config.TextColumn(width='medium', help="所屬 AI era 主流題材（sector_tags_manual.json 137 ticker / 28 multi-label）"),
                     '綜合分數': st.column_config.NumberColumn(format="%.1f"),
                     'PE': st.column_config.NumberColumn(format="%.1f"),
                     'PB': st.column_config.NumberColumn(format="%.2f"),
@@ -2064,11 +2168,12 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                             'C1 拐點': _c1,
                             'YT 7d': _yt_str,
                             '週榜': _wc_tags_short(_sid),
+                            '題材': _theme_tags_short(_sid),
                         })
 
                     if _rows:
                         st.dataframe(_pd_d.DataFrame(_rows), use_container_width=True, hide_index=True)
-                        st.caption("劇本 A=現價可進 / B=等拉回 5-10MA / C=觀望 / D=空頭避開 | C1 ✅ = 月營收 YoY 拐點 (×1.2 加分) | YT 7d = 近 7 日節目提及次數 | 週榜 = 本週三大法人榜上標記")
+                        st.caption("劇本 A=現價可進 / B=等拉回 5-10MA / C=觀望 / D=空頭避開 | C1 ✅ = 月營收 YoY 拐點 (×1.2 加分) | YT 7d = 近 7 日節目提及次數 | 週榜 = 本週三大法人榜上標記 | 題材 = AI era sector tag")
                     else:
                         st.info("無 pick 資料")
             except Exception as _e:
