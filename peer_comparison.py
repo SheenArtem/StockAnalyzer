@@ -7,7 +7,7 @@
   3. FinMind industry_category — fallback（~30 大類，粒度最粗）
 
 Multi-theme 增量（2026-04-27）：
-  - 從 data/sector_tags_manual.json 載入 23 個 AI era 題材分組（137 ticker，28 多 label）
+  - 從 data/sector_tags_manual.json 載入 24 個 AI era 題材分組（140 ticker，29 多 label）
   - get_tw_peer_comparison() 結果加 'themes' 欄位（題材分組 metadata）
   - 估值 peer (P1) 與題材 themes 解耦：估值同業看 business 同性，題材看共振 catalyst
   - 用途：AI 報告同業比較標註目標屬於哪些題材；Pair Divergence 驗證
@@ -591,7 +591,7 @@ def format_peer_comparison(result):
     lines.append(f"Industry: {result['industry']}{src_tag}")
     lines.append(f"Total peers: {result['total_in_industry']}")
 
-    # Multi-theme metadata（題材分組，AI era 23 themes）
+    # Multi-theme metadata（題材分組，AI era 24 themes）
     themes = result.get('themes') or []
     if themes:
         theme_str = ', '.join(f"{t['zh']}({t['id']})" for t in themes)

@@ -771,7 +771,7 @@ def _build_theme_context(ticker):
         _load_theme_index()
         themes = get_ticker_themes(stock_id)
         if not themes:
-            return "本檔無 AI era 主流題材標記（不在 sector_tags_manual.json 137 ticker 名單）。"
+            return "本檔無 AI era 主流題材標記（不在 sector_tags_manual.json 140 ticker 名單）。"
 
         # Load full theme metadata for description
         from pathlib import Path as _P
