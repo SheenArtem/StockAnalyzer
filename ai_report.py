@@ -828,6 +828,117 @@ def _build_peer_data(ticker, fund_data):
         return f"N/A (peer comparison failed: {e})"
 
 
+# Module-level RAG resources (lazy-load shared across requests)
+_RAG_MODEL = None
+_RAG_COLLECTION = None
+_RAG_DB_PATH = os.path.join(os.path.dirname(__file__),
+                            'data_cache', 'transcripts', '_chromadb')
+_RAG_SIM_GATE = 0.40  # top-1 sim < 此值 → 不帶進 prompt（避免簡報 PDF 雜訊）
+
+# Post-filter: 簡報 PDF 共通的 boilerplate (封面/目錄/免責聲明)，無實質 forward guidance
+# 過濾邏輯: chunk 命中 >= 2 個 pattern 視為 boilerplate, 跳過
+import re as _re
+_RAG_BOILERPLATE_PATTERNS = [
+    _re.compile(r'著作權所有|All [Rr]ights [Rr]eserved|©\s*20\d\d', _re.UNICODE),
+    _re.compile(r'免責聲明|投資安全聲明|[Dd]isclaimer', _re.UNICODE),
+    _re.compile(r'預測性陳述|預測性資訊|[Ff]orward.?looking [Ss]tatements?', _re.UNICODE),
+    _re.compile(r'簡報內所提供之資訊|本簡報.{0,20}(發佈|提供|揭露)', _re.UNICODE),
+    _re.compile(r'第[一二三四1234]\s*季法人說明會\s*$|[Ii]nvestor [Cc]onference\s*$', _re.UNICODE | _re.MULTILINE),
+    _re.compile(r'[Cc]opyright|商業機密|本公司未來實際所發生', _re.UNICODE),
+]
+
+
+def _is_rag_boilerplate(text: str) -> bool:
+    """Detect if chunk is mostly boilerplate (cover/disclaimer/footer)."""
+    matches = sum(1 for p in _RAG_BOILERPLATE_PATTERNS if p.search(text))
+    return matches >= 2
+
+
+def _ensure_rag_resources():
+    """Lazy-load embedding model + chromadb collection. False = unavailable."""
+    global _RAG_MODEL, _RAG_COLLECTION
+    if _RAG_MODEL is False:
+        return False  # already known failed
+    if _RAG_MODEL is not None and _RAG_COLLECTION is not None:
+        return True
+    try:
+        from sentence_transformers import SentenceTransformer
+        import chromadb
+        _RAG_MODEL = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+        client = chromadb.PersistentClient(path=_RAG_DB_PATH)
+        _RAG_COLLECTION = client.get_collection('transcripts_top300')
+        return True
+    except Exception as e:
+        logger.warning("RAG resources unavailable: %s", e)
+        _RAG_MODEL = False
+        return False
+
+
+def _build_law_transcript_rag(ticker, fund_data=None):
+    """[LAW_TRANSCRIPT_RAG] 從本檔過去法說會 PDF 中 RAG 撈 top-5 相關段落。
+
+    僅台股 (US 不支援)；similarity gate top-1 < 0.45 → 不帶進 prompt。
+    Multi-query (forward guidance / 策略進展 / 風險) 提升 recall。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (RAG 目前只覆蓋台股 top 300 法說會 PDFs)"
+
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+
+    if not _ensure_rag_resources():
+        return "N/A (RAG resources 載入失敗，可能 chromadb 未建或 model 未下載)"
+
+    try:
+        # Multi-query for breadth - 用具體時間/業務詞避免 disclaimer match
+        queries = ['明年 全年 業績展望 營收 預期', '重要新產品 客戶 出貨 進展', 'AI 半導體 產能 毛利率']
+        merged = {}  # key: doc-prefix, value: dict
+        for q in queries:
+            qe = _RAG_MODEL.encode([q])[0].tolist()
+            # over-fetch n=10 to leave room for boilerplate post-filter
+            res = _RAG_COLLECTION.query(
+                query_embeddings=[qe],
+                n_results=10,
+                where={'ticker': stock_id},
+            )
+            if not res['documents'] or not res['documents'][0]:
+                continue
+            for doc, meta, dist in zip(res['documents'][0], res['metadatas'][0], res['distances'][0]):
+                # post-filter boilerplate
+                if _is_rag_boilerplate(doc):
+                    continue
+                sim = 1.0 - dist
+                key = doc[:60]
+                if key not in merged or sim > merged[key]['sim']:
+                    merged[key] = {'doc': doc, 'meta': meta, 'sim': sim}
+
+        if not merged:
+            return f"N/A (本檔 {stock_id} 在法說會 RAG 中無有效命中，過濾 boilerplate 後 0 hits)"
+
+        ranked = sorted(merged.values(), key=lambda x: -x['sim'])[:5]
+        top_sim = ranked[0]['sim']
+
+        if top_sim < _RAG_SIM_GATE:
+            return (f"N/A (本檔 {stock_id} 法說會 RAG semantic match 弱 "
+                    f"(top sim={top_sim:.2f} < gate {_RAG_SIM_GATE})，可能為簡報 PDF 而非真逐字稿，"
+                    f"避免低品質雜訊不帶入 prompt)")
+
+        lines = [f"從本檔 ({stock_id}) 過去法說會 PDF 中 RAG retrieve 出最相關段落 "
+                 f"(top {len(ranked)} hits, multi-query dedup)，**僅作背景參考**："]
+        for i, r in enumerate(ranked, 1):
+            speaker = r['meta'].get('speaker', 'Unknown')
+            date = r['meta'].get('date', '?')
+            sim = r['sim']
+            doc = r['doc'].replace('\n', ' / ').replace('\r', '')[:280]
+            lines.append(f"\n[{i}] {date} {speaker} (sim={sim:.2f}): {doc}")
+        lines.append(f"\n⚠️ 此 section 是 PDF retrieval 結果，可能包含簡報投影片片段（非完整句子）。"
+                     f"使用時優先看高 sim chunks (>= 0.6)，引用前自行判斷上下文連貫性。")
+        return '\n'.join(lines)
+    except Exception as e:
+        logger.warning("RAG retrieval failed for %s: %s", ticker, e)
+        return f"N/A (RAG retrieval 失敗: {type(e).__name__}: {e})"
+
+
 def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
                     include_songfen=False):
     """
@@ -863,6 +974,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     data_sections.append(f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}")
     data_sections.append(f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}")
     data_sections.append(f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}")
+    data_sections.append(f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
 
@@ -1015,6 +1127,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}",
         f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}",
         f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}",
+        f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]
     data_block = "\n\n".join(data_sections)
 
