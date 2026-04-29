@@ -13,7 +13,7 @@ Council R2 (2026-04-25) 共識實作要點:
   - 1d: 其他 Hard pnl >+15% → suggested (保護獲利,改三段減碼)
 - Rebalance drop top_20 (Rule 2)  → action_type=suggested (不強制,人工拍板)
 - Soft alerts (Rule 3)            → action_type=info (純通知,累積到 rebalance)
-- MIN_HOLD_DAYS=20 (Rule 4)       → 軟 badge 不擋出場
+- MIN_HOLD_DAYS=40 (Rule 4, 改 2026-04-29 vf_dual_contract 驗證) → 軟 badge 不擋出場
 - Whipsaw ban 30d (Rule 5)        → ban_list (Wave 3 paper engine 補完整)
 - Rule 6/7                         → Wave 3 / Phase 3 補
 
@@ -40,8 +40,11 @@ REGIME_LOG = REPO / "data" / "tracking" / "regime_log.jsonl"
 DAILY_ALERTS_OUT = REPO / "data" / "latest" / "daily_alerts.json"
 
 SCHEMA_VERSION = 1
-MIN_HOLD_DAYS = 20    # Rule 4
-WHIPSAW_BAN_DAYS = 30 # Rule 5
+# 2026-04-29 改 20→40: vf_dual_contract_step_bc.py 驗證 dropout fwd_40d +6.48%
+# vs fwd_20d +4.26% (多賺 +2.22pp); MIN_HOLD = 40 反而較佳, dropout 股 mean reversion
+# 在 40d 才完成, 20d 太早砍 (反直覺發現).
+MIN_HOLD_DAYS = 40    # Rule 4 (validated 2026-04-29)
+WHIPSAW_BAN_DAYS = 30 # Rule 5 (validated 2026-04-29: re-entry edge -1.72pp)
 TOP_N = 20            # Rule 2 top_20 threshold
 
 
@@ -74,11 +77,24 @@ def load_today_regime() -> str:
         return "unknown"
 
 
+# 2026-04-29 Rule 2 quarterly findings:
+# vf_dual_contract Rule 2 backtest shows quarterly rebalance CAGR +42% vs monthly +28%
+# (24 samples, no tx cost). Switched default from monthly to quarterly.
+# Set REBALANCE_FREQ='monthly' env override to revert.
+import os as _os
+REBALANCE_FREQ = _os.environ.get('STEP_A_REBALANCE_FREQ', 'quarterly')
+
+
 def is_rebalance_day(today: date) -> bool:
-    """月第 1 個交易日 = 簡化判定: day-of-month <= 5 且為 weekday"""
+    """Quarterly default (Jan/Apr/Jul/Oct 第 1 週 weekday); monthly override via env."""
     if today.weekday() >= 5:  # Sat/Sun
         return False
-    return today.day <= 5
+    if today.day > 5:
+        return False
+    if REBALANCE_FREQ == 'monthly':
+        return True  # any month's first 5 weekdays
+    # quarterly: month must be Jan/Apr/Jul/Oct
+    return today.month in (1, 4, 7, 10)
 
 
 def days_between(d1_str: str, d2: date) -> int:
