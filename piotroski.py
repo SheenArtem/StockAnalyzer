@@ -300,6 +300,7 @@ def _fetch_balance(dl, stock_id, start_date):
         'Equity': 'equity',
         'CommonStockSharesOutstanding': 'shares_outstanding',
         'OrdinaryShare': 'shares_outstanding',
+        'PropertyPlantAndEquipment': 'ppe',  # 2026-04-29 加: capital sinkhole 偵測用
     }
 
     for _, row in df.iterrows():
