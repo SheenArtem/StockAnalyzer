@@ -889,9 +889,9 @@ class MomentumScreener:
                 sid = s['stock_id']
                 try:
                     q_details = []
-                    # _score_quality returns (score, fscore) since 2026-04-29 trap-warning refactor;
-                    # QM does not use trap warning, only the score.
-                    q_score, _ = _vs._score_quality(sid, q_details, s.get('price', 0))
+                    # _score_quality returns (score, fscore, sinkhole) since 2026-04-29 refactor;
+                    # QM only uses score (trap warning + sinkhole penalty 都在 value_screener side).
+                    q_score, _, _ = _vs._score_quality(sid, q_details, s.get('price', 0))
                     r_score = _vs._score_revenue(sid, q_details)
                     s['qm_quality_score'] = round(q_score * 0.6 + r_score * 0.4)  # combined 顯示用
                     s['qm_body_score'] = q_score  # 体质分 (排序用)

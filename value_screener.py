@@ -939,13 +939,14 @@ class ValueScreener:
         scores['valuation'] = self._score_valuation(stock_id, market_row, details)
 
         # --- 2. Quality Score (0-100) ---
-        # TW path returns (score, fscore) tuple so trap warning can read F-Score later.
-        # US path stays single-value (US trap signal not validated; F-Score US side D-rejected 2026-04-22).
+        # TW path returns (score, fscore, sinkhole) tuple for downstream trap+sinkhole penalty.
+        # US path stays single-value (US factors D-rejected 2026-04-22).
         _fscore_for_trap = None
+        _sinkhole_flag = False
         if is_us:
             scores['quality'] = self._score_quality_us(stock_id, finviz, details)
         else:
-            scores['quality'], _fscore_for_trap = self._score_quality(stock_id, details, price=_latest_close)
+            scores['quality'], _fscore_for_trap, _sinkhole_flag = self._score_quality(stock_id, details, price=_latest_close)
 
         # --- 3. Revenue Trend Score (0-100) ---
         if is_us:
@@ -982,6 +983,17 @@ class ValueScreener:
         if (not is_us) and (_fscore_for_trap is not None) and (_fscore_for_trap <= 4) and (scores['revenue'] < 60):
             total -= 5
             details.append(f"價值陷阱警告 (F={_fscore_for_trap}/9 + 月營收弱 {scores['revenue']:.0f}/100) (-5)")
+
+        # Value-#5 capital sinkhole penalty (TW only, 2026-04-29):
+        # PP&E YoY > 20% AND TTM CFO/Rev < 0 → -10 (擴張中燒錢)
+        # Validated alpha @ 12m = -7.56%, snr=-8.55, 9/10 years 負 alpha (n=5763 ~3.6% panel)
+        # 2017 -15.34% / 2018 -9.26% / 2019 -6.64% / 2020 -21.16% (COVID) / 2021 -4.75% /
+        # 2022 -6.03% / 2023 -6.45% / 2024 -5.06% / 2025 +4.13% (small partial sample n=255)
+        # 比 trap warning -3.33% 更強 → -10 不 -5；但與 trap warning 獨立可疊加（不同訊號維度）
+        if (not is_us) and _sinkhole_flag:
+            total -= 10
+            # details 已在 _score_quality 加過 "資本黑洞警示" 行，這裡只補扣分標記
+            details.append(f"資本黑洞扣分 (-10)")
 
         # US: load price for avg trading value (TW already pre-loaded above)
         if is_us and avg_tv_5d == 0:
@@ -1206,11 +1218,15 @@ class ValueScreener:
             price: latest close price (pre-loaded from _score_single to avoid extra API call)
 
         Returns:
-            (score, fscore) — fscore is the Piotroski F-Score value (0-9) or None if unavailable.
-            Caller uses fscore for downstream trap warning logic; score is the 0-100 quality score.
+            (score, fscore, sinkhole) where:
+              - score: 0-100 quality score
+              - fscore: Piotroski F-Score (0-9) or None — 用於 trap warning
+              - sinkhole: bool — 2026-04-29 capital sinkhole flag (PP&E YoY>20% AND TTM CFO/Rev<0)
+                          Validated alpha @ 12m = -7.56%, snr=-8.55, 9/10 years 負 (n=5763)
         """
         score = 50
         fscore_out = None  # captured F-Score for trap-warning post-check
+        sinkhole_out = False  # capital sinkhole flag for downstream penalty
         mcap = price * 1e8 if price > 0 else 0  # Rough market cap placeholder
 
         # --- Combined: F-Score + Z-Score + ROIC/FCF (single FinMind fetch) ---
@@ -1220,6 +1236,36 @@ class ValueScreener:
             all_result = calculate_all(stock_id, market_cap=mcap)
         except Exception:
             pass
+
+        # --- Capital sinkhole detection (2026-04-29) ---
+        # F1: PP&E YoY growth > 20% (5 quarters of PP&E from balance)
+        # F2: TTM CFO / TTM Revenue < 0 (4 quarters of CFO + Revenue)
+        # 兩條件同時觸發 → sinkhole=True，後續 _score_single 扣 -10
+        try:
+            balance = all_result.get('balance') if all_result else None
+            cashflow = all_result.get('cashflow') if all_result else None
+            income = all_result.get('income') if all_result else None
+            if balance and cashflow and income:
+                periods = sorted(balance.keys())
+                if len(periods) >= 5:
+                    ppe_curr = balance[periods[-1]].get('ppe', 0)
+                    ppe_prev_yr = balance[periods[-5]].get('ppe', 0)
+                    ppe_yoy = (ppe_curr / ppe_prev_yr - 1) if ppe_prev_yr > 0 else None
+
+                    cfo_periods = sorted(cashflow.keys())[-4:]
+                    rev_periods = sorted(income.keys())[-4:]
+                    cfo_ttm = sum(cashflow[p].get('operating_cf', 0) for p in cfo_periods)
+                    rev_ttm = sum(income[p].get('revenue', 0) for p in rev_periods)
+                    cfo_ratio = (cfo_ttm / rev_ttm) if rev_ttm > 0 else None
+
+                    if ppe_yoy is not None and cfo_ratio is not None:
+                        if ppe_yoy > 0.20 and cfo_ratio < 0:
+                            sinkhole_out = True
+                            details.append(
+                                f"資本黑洞警示 (PP&E YoY +{ppe_yoy*100:.0f}% + TTM CFO/Rev {cfo_ratio*100:.1f}%) [扣分]"
+                            )
+        except Exception as e:
+            logger.debug("Capital sinkhole check failed for %s: %s", stock_id, e)
 
         # --- F-Score ---
         if all_result and all_result.get('fscore'):
@@ -1372,7 +1418,7 @@ class ValueScreener:
                 score -= 5
                 details.append(f"負債/權益={de:.2f} 偏高 (-5) [TV]")
 
-        return max(0, min(100, score)), fscore_out
+        return max(0, min(100, score)), fscore_out, sinkhole_out
 
     def _score_revenue(self, stock_id, details):
         """
