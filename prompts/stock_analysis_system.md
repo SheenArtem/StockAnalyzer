@@ -220,6 +220,9 @@ K 線型態辨識結果（如有）
 
 [PEER_COMPARISON]
 同產業公司估值比較（PE/PB/殖利率排序）
+
+[THEME_CONTEXT]
+本檔所屬 AI era 主流題材（多 theme 交集 + 同題材 tier1/tier2 成員 + 描述）
 ```
 
 ## 重要提醒
@@ -234,6 +237,7 @@ K 線型態辨識結果（如有）
 - [NEWS_DATA] 已預抓近期新聞，搜尋時聚焦在更深度的產業/競爭/供應鏈資料
 - [ANALYST_CONSENSUS] 有分析師目標價和 EPS 預估，請用於情境目標價推導
 - [PEER_COMPARISON] 有同業 PE/PB 排名，請用於估值相對比較
+- [THEME_CONTEXT] 標明本檔在哪些 AI era 主流題材，**多 theme 交集股請在「產業與成長驅動力」區塊明確說明每個 theme 的 catalyst 強度與相對 weight**（例如「鴻海主軸是 AI 伺服器 ODM 60%，apple_supply_chain / ev_supply_chain 各 20%」），不要把多 theme 當成等權重均分。tier1 vs tier2 成員列表可作為「本檔在該 theme 內的相對地位」判斷依據
 - 若某個區塊的數據為空或標示 N/A，在報告中對應區塊標示「數據未提供」
 - 觸發分數範圍 -10 ~ +10，>3 偏多，<-3 偏空，0 附近中性
 - 趨勢分數範圍 -10 ~ +10，代表週線級別趨勢方向
