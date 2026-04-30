@@ -13,7 +13,7 @@ sync_substack.py — Substack 文章下載 + 索引重建
   下次開 Claude Code 時請求補 INDEX 即可。
 
 排程整合：
-  run_scanner.bat 每日 22:00 呼叫本腳本。即使失敗也不影響 scanner 主流程
+  run_scanner.bat TUE-SAT 00:00 呼叫本腳本。即使失敗也不影響 scanner 主流程
   （exit code 不 propagate 出去）。
 
 Robustness First：

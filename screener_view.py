@@ -436,7 +436,7 @@ ATR_pct  = ATR(14) / 收盤價 x 100      （波動率佔比）
             _pm_cap_col.caption(
                 "出場條件：動態停損(ATR%調整, -5%~-14%) / 週 Supertrend 翻空 / 週 MA20 動態跌破 / "
                 "月營收 YoY 連 2 月負 / trend_score < 1。"
-                "每日 22:00 scanner 自動跑，此按鈕可立即檢查。"
+                "TUE-SAT 00:00 scanner 自動跑，此按鈕可立即檢查。"
             )
 
         with st.expander("📋 篩選條件說明", expanded=False):
@@ -1682,7 +1682,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
             try:
                 _qm_file = _Path('data/latest/qm_result.json')
                 if not _qm_file.exists():
-                    st.info("尚無 QM 選股結果，等 Scanner 22:00 跑完。")
+                    st.info("尚無 QM 選股結果，等 Scanner TUE-SAT 00:00 跑完。")
                 else:
                     with open(_qm_file, 'r', encoding='utf-8') as _f:
                         _qm_data = _json.load(_f)
@@ -1950,7 +1950,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
             st.caption("近 N 日財經節目對 Fed / 利率 / 大盤 / 美中政策的整體看法（非個股訊號）")
             _videos_path = _Path('data/yt_videos_panel.parquet')
             if not _videos_path.exists():
-                st.info("尚無 YT video panel。跑 `run_yt_sync.bat` 或等 scanner 22:00 排程產資料。")
+                st.info("尚無 YT video panel。跑 `run_yt_sync.bat` 或等 scanner TUE-SAT 00:00 排程產資料。")
             else:
                 _videos = _pd_d.read_parquet(_videos_path)
                 _macro_window = st.radio(

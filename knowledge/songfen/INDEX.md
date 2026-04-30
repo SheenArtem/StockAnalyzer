@@ -2,7 +2,7 @@
 
 > 作者「宋分」（美股送分題）的 Substack 文章索引。
 > 原文：`C:\ClaudeCode\Normal\substack_posts\`（single source of truth，不複製到本 repo）
-> 更新：由 `tools/sync_substack.py` 於每日 22:00 排程自動重建。
+> 更新：由 `tools/sync_substack.py` 於 TUE-SAT 00:00 排程自動重建。
 
 ## 分類標籤
 

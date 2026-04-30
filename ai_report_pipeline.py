@@ -3,7 +3,7 @@ AI 報告 pipeline — 單一入口，UI worker 與 CLI 共用。
 
 Refactor rationale (2026-04-23, Robustness First Phase 2 H3):
   之前 `app.py:_ai_report_worker` 與 `tools/auto_ai_reports.py:_run_one` 是兩份
-  幾乎一樣的 pipeline。UI 每天被操爆 → 錯誤立刻看到；CLI 只有 22:00 排程跑 →
+  幾乎一樣的 pipeline。UI 每天被操爆 → 錯誤立刻看到；CLI 只有 TUE-SAT 00:00 排程跑 →
   錯誤會躲過。兩邊 signature drift 在昨天炸光（import 路徑錯 / 建構子誤用 /
   tuple 未 unpack）。
 
