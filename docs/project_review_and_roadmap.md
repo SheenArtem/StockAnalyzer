@@ -23,9 +23,9 @@
 ### 2. 缺乏自動化測試 (Testing) ✅（2026-04-30 起步）
 
 * ✅ `tests/` + `pytest.ini` + `conftest.py` 框架建好，`pytest` 一行跑全部
-* ✅ 首批 cover `piotroski.py` 純函式 **20 tests** 全綠
-* 下批排程：`pattern_detection / scenario_engine / addon_factors /
-  cache_manager`，見 `tests/README.md`
+* ✅ 已 cover `piotroski` (20) + `pattern_detection` (15) + `scenario_engine`
+  (18) = **53 tests 全綠 / 0.7s**（commit a691144 + 7dbd987）
+* 下批排程：`addon_factors / cache_manager` 純函式，見 `tests/README.md`
 * 歷史手寫驗證腳本歸檔到 `tools/_archive/{manual_tests,verify}/`
 
 ### 3. 安全性隱患 (Security Risks) ❌（評估後不動）
