@@ -265,3 +265,27 @@ IC 驗證報告在 `reports/chip_ic_matrix.csv`、組合驗證在 `reports/chip_
   - `run_yt_sync.bat` — 已整合進 scanner 前段，獨立排程可保留 backup
 - **AI 報告** — 使用 Claude CLI `claude -p --allowedTools "WebSearch,WebFetch"`，Team Plan 額度
 
+## 已評估後不動的「技術債」項目（避免未來重複討論）
+
+`docs/project_review_and_roadmap.md` Part 1 列了 5 項技術債，2026-04-30 逐項
+pre-flight 評估後，以下 4 項判定「不該動」：
+
+- **#3 SSL `verify=False`（23 處）** — 不是程式問題，是台灣公部門/金融機構憑證
+  本身爛（MOPS 缺 SKI extension）。抓的全是公開 market data，無 auth/secret，
+  MITM 最壞=拿到錯股價，沒攻擊誘因。改的代價：scanner 整鏈 + 個股分析 + Discord
+  summary 都掛這些 module，verify=True 一改不對全鏈炸。風險/ROI 不對等，**不動**。
+- **#1c 扁平化結構（缺 src/ui/, src/core/, src/data/）** — app.py 已 -92.5%
+  (#1a 主痛點解決)，root 平鋪是 ergonomic 不是 critical。動則 80+ import path
+  全改、Streamlit run path 變、pytest fixtures 對齊、一 typo 整個 app boot 失敗。
+  等真要 packaging (`pip install -e .`) 才動，**現階段不動**。
+- **#4b 手動版本號** — pre-commit hook 已驗證更新（半自動化）。手動填號
+  force 開發者想「這次改有沒有 user-facing」，這個 friction 是有功能的。
+  完全自動化邊際效益低，**現狀 sweet spot 不動**。
+- **#5b requirements.txt 版本鬆** — Review 點誤判：85 行全 `==` pinned 是
+  reproducible build best practice 不是問題。`yfinance==1.0` 是真實版本（最新
+  1.3.0，落後 3 minor），但 yfinance 有名 API 不穩，盲升風險 > 收益。**不動**。
+
+已動完的：#1a (app.py 4243→319 -92.5%, 2026-04-29) / #1b (analysis_engine
+2281→933 -59%, 2026-04-23 M2) / #2 (pytest 起步 + piotroski 20 tests, 2026-04-30) /
+#4a (`except: pass` grep 0 個) / #5a (tools/ 187→113 -40% archive, 2026-04-30)。
+
