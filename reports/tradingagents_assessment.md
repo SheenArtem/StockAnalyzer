@@ -7,6 +7,15 @@
 
 ---
 
+> **⚠️ 2026-04-30 STATUS UPDATE**: 本評估推薦的 **C3 自製路線**已執行完成，
+> 落地檔案 `tools/multi_agent_debate_poc.py` (commit `c81cf80`)。
+> POC verdict: 兩階段架構 (Stage 1 ai_report.py + WebSearch → Stage 2 多 agent
+> 辯論) 顯著勝純 single-prompt，10 CLI calls / 4-5 min / Team Plan $0 API。
+> NVDA POC 報告: `reports/multi_agent_debate_NVDA_20260430_1316.md`。
+> 本評估文件仍保留作 architecture 設計 reference。
+
+---
+
 ## TL;DR
 
 - **架構成熟**：LangGraph + LangChain，12 agents 分 5 層（Analyst → Researcher → Trader → Risk → PM）
