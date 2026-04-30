@@ -106,7 +106,7 @@ audit verdict。
 
 ## 限制 (Robustness First)
 
-- **不自動觸發**：絕不把此 skill 塞進 scanner 22:00 pipeline。人工下單 = 人工審查
+- **不自動觸發**：絕不把此 skill 塞進 scanner TUE-SAT 00:00 pipeline。人工下單 = 人工審查
 - **不改 QM / Value score**：純獨立 verdict，不 feedback 到選股分數
 - **不阻擋 scanner**：Wave 3 整合時只 best-effort 讀 audit，找不到不報錯
 - **audit 結果有時效**：scanner_scan_date 與當日不符 → 標記 stale，不使用

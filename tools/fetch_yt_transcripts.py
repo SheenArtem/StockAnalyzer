@@ -7,7 +7,7 @@ E1 Stage 1: 抓 3 財經節目 YouTube 自動字幕 (VTT)
 - 鈔錢部署 (華視 + 盧燕俐)        Tue/Thu 20:00
 
 輸出: data_cache/yt_transcripts/<show_key>/<YYYYMMDD>_<id>_<title>.zh-TW.vtt
-排程: run_yt_sync.bat 每日 21:30 (避開 22:00 scanner 時段)
+排程: 已整合進 run_scanner.bat 前段 (TUE-SAT 00:00); run_yt_sync.bat 保留供手動重跑
 
 CLI:
     python tools/fetch_yt_transcripts.py                 # 抓過去 7 天
