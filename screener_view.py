@@ -264,7 +264,7 @@ ATR_pct  = ATR(14) / 收盤價 x 100      （波動率佔比）
             _pm_title = "📦 我的持股 + 每日警報"
             _pm_expanded = False
 
-        with st.expander(_pm_title, expanded=_pm_expanded):
+        if False:  # 持股警報暫時隱藏 (user req 2026-04-30)
             from position_monitor import (
                 load_positions as _pm_load,
                 save_positions as _pm_save,
@@ -439,6 +439,310 @@ ATR_pct  = ATR(14) / 收盤價 x 100      （波動率佔比）
                 "TUE-SAT 00:00 scanner 自動跑，此按鈕可立即檢查。"
             )
 
+        # 篩選條件說明 + 操作 SOP 已挪到頁面最下方 (user req 2026-04-30)
+
+        qm_file = _Path('data/latest/qm_result.json')
+        qm_result = None
+        if qm_file.exists():
+            try:
+                with open(qm_file, 'r', encoding='utf-8') as _f:
+                    qm_result = _json.load(_f)
+            except Exception:
+                qm_result = None
+
+        if qm_result and qm_result.get('results'):
+            qm_results = qm_result['results']
+            st.caption(
+                f"掃描日期: {qm_result.get('scan_date', '?')} {qm_result.get('scan_time', '')} | "
+                f"全市場 {qm_result.get('total_scanned', 0)} 檔 → "
+                f"品質篩 {qm_result.get('passed_initial', 0)} 檔 → "
+                f"評分 {qm_result.get('scored_count', 0)} 檔 | "
+                f"耗時 {qm_result.get('elapsed_seconds', 0):.0f}s"
+            )
+            if _qm_value_resonance_tw:
+                _res_in_qm = [r['stock_id'] for r in qm_results if r['stock_id'] in _qm_value_resonance_tw]
+                if _res_in_qm:
+                    st.success(f"✨ **動能+價值共振** ({len(_res_in_qm)} 檔): {', '.join(_res_in_qm)} — 同時通過兩個 screener 的稀有組合")
+
+            # 🎯 精選 3 檔（上班族）— TV>=10億 + F>=8 + Comp>=75 + weighted rank
+            # 2026-04-22: set-and-forget 用，篩掉小型高波動 / F<8 雷股 / 過熱 FOMO
+            from tools.qm_office_picks import select_office_picks as _office_pick
+            _office_picks = _office_pick(qm_result, n=3)
+            if _office_picks:
+                with st.expander(
+                    f"🎯 精選 3 檔（上班族不看盤版）— 共 {len(_office_picks)} 檔通過硬篩",
+                    expanded=True,
+                ):
+                    st.caption(
+                        "硬篩：日均成交 ≥ 10 億 · F-Score ≥ 8 · Composite ≥ 75。"
+                        "排序：Composite + ETF×5 − |Trigger|×1.5 + 流動性加分。"
+                    )
+                    _cols = st.columns(len(_office_picks))
+                    for _i, _p in enumerate(_office_picks):
+                        _tv_yi = _p.get('avg_trading_value_5d', 0) / 1e8
+                        with _cols[_i]:
+                            st.markdown(
+                                f"**#{_i+1} {_p['stock_id']} {_p.get('name','')}**"
+                            )
+                            st.metric(
+                                "Office Score",
+                                f"{_p.get('office_score',0):.1f}",
+                                delta=f"QM#{qm_results.index(next(r for r in qm_results if r['stock_id']==_p['stock_id']))+1}",
+                            )
+                            st.markdown(
+                                f"💰 {_p['price']:.0f} · 📊 TV {_tv_yi:.0f}億  \n"
+                                f"F={_p.get('qm_f_score',0)}/9 · "
+                                f"Comp {_p.get('composite_score',0):.1f} · "
+                                f"Trig {_p.get('trigger_score',0):+.1f} · "
+                                f"ETF×{_p.get('etf_buy_count',0)}"
+                            )
+                    st.caption(
+                        "💡 適合持倉 40-60 天的中長線。高 |Trigger| 分代表熱度高，"
+                        "可分批進場避免追高；低 |Trigger| 分適合直接進場後放。"
+                    )
+
+            # 🎯 今日擇時 Top 5（依 trigger_score 由高到低）
+            #    trigger_score 整合日線 MACD/KD/RSI/RVOL/籌碼/情緒/營收/ETF，
+            #    用於「今天該下手哪檔」的進場時機判斷（不影響選股排名）
+            def _timing_badge(ts):
+                if ts is None:
+                    return '⚪'
+                if ts >= 3:
+                    return '🟢'
+                if ts >= 0:
+                    return '🟡'
+                return '🔴'
+
+            _qm_by_trigger = sorted(
+                qm_results,
+                key=lambda r: r.get('trigger_score', 0) or 0,
+                reverse=True,
+            )[:5]
+            if _qm_by_trigger:
+                st.markdown("#### 🎯 今日擇時 Top 5")
+                _top5_cols = st.columns(5)
+                for _i, _r in enumerate(_qm_by_trigger):
+                    _ts = _r.get('trigger_score', 0) or 0
+                    _cs = _r.get('composite_score')
+                    _trend = _r.get('trend_score', 0) or 0
+                    _badge = _timing_badge(_ts)
+                    _cs_txt = f"{_cs:.0f}" if _cs is not None else "-"
+                    with _top5_cols[_i]:
+                        st.metric(
+                            label=f"{_badge} {_r['stock_id']} {_r.get('name', '')[:6]}",
+                            value=f"{_ts:+.1f}",
+                            delta=f"綜合 {_cs_txt} / 趨勢 {_trend:+.1f}",
+                            delta_color="off",
+                        )
+                st.caption("🟢 ≥3 今日可進場 / 🟡 0-3 觀察 / 🔴 <0 等訊號轉強（trigger_score 為日線擇時指標）")
+
+            # 台股市值排名（1 = 台股市值最大）— 復用 momentum_screener 的 1h cache
+            # 過濾 ETF/特別股/權證：僅保留 1000-9999 的一般普通股
+            try:
+                from momentum_screener import MomentumScreener
+                _tv_data_all = MomentumScreener._fetch_tv_marketcap_volume() or {}
+                _tv_data = {
+                    sid: d for sid, d in _tv_data_all.items()
+                    if sid.isdigit() and len(sid) == 4 and not sid.startswith('0')
+                }
+                _mc_rank = {
+                    sid: i + 1
+                    for i, (sid, _) in enumerate(
+                        sorted(
+                            _tv_data.items(),
+                            key=lambda x: x[1].get('market_cap', 0) or 0,
+                            reverse=True,
+                        )
+                    )
+                }
+            except Exception:
+                _mc_rank = {}
+
+            _qm_rows = []
+            for r in qm_results:
+                _fs = r.get('qm_f_score')
+                _bs = r.get('qm_body_score')
+                _cs = r.get('composite_score')
+                _ts = r.get('trigger_score', 0) or 0
+                _ap = r.get('action_plan', {}) or {}
+                _sl = _ap.get('rec_sl_price')
+                _rr = _ap.get('rr_ratio')
+                _el = _ap.get('rec_entry_low')
+                _eh = _ap.get('rec_entry_high')
+                _entry_str = f"{_el:.1f}~{_eh:.1f}" if (_el and _eh) else None
+                _qm_rows.append({
+                    '代號': r['stock_id'],
+                    '名稱': r.get('name', ''),
+                    '共振': '✨' if r['stock_id'] in _qm_value_resonance_tw else '',
+                    '週榜': _wc_tags_short(r['stock_id']),
+                    '題材': _theme_tags_short(r['stock_id']),
+                    '市值排名': _mc_rank.get(r['stock_id']),
+                    '綜合': _cs if _cs is not None else None,
+                    'F-Score': _fs if _fs is not None else None,
+                    '體質分': round(_bs, 0) if _bs is not None else None,
+                    '趨勢分數': r.get('trend_score', 0),
+                    '擇時': _timing_badge(_ts),
+                    '觸發分數': _ts,
+                    '收盤': r.get('price', 0),
+                    '建議進場': _entry_str,
+                    '推薦停損': _sl if _sl else None,
+                    'R:R': _rr if _rr else None,
+                    '漲跌%': r.get('change_pct', 0),
+                })
+            _df_qm = pd.DataFrame(_qm_rows)
+
+            _sort_opts_qm = {
+                '綜合 (高→低)': ('綜合', False),
+                '觸發分數 (高→低)': ('觸發分數', False),
+                'F-Score (高→低)': ('F-Score', False),
+                '體質分 (高→低)': ('體質分', False),
+                '趨勢分數 (高→低)': ('趨勢分數', False),
+                'R:R (高→低)': ('R:R', False),
+                '市值排名 (小→大)': ('市值排名', True),
+            }
+            _qm_sort = st.selectbox("排序方式", list(_sort_opts_qm.keys()), key='qm_tw_sort')
+            _qm_col, _qm_asc = _sort_opts_qm[_qm_sort]
+            _df_qm = _df_qm.sort_values(_qm_col, ascending=_qm_asc).reset_index(drop=True)
+            _df_qm.index = range(1, len(_df_qm) + 1)
+
+            st.dataframe(
+                _df_qm,
+                width='stretch',
+                height=int(38 + len(_df_qm) * 35 + 3),
+                column_config={
+                    '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
+                    '週榜': st.column_config.TextColumn(width='medium', help="本週三大法人榜單上的標記（連買/連賣天數 + 4 維度排名）"),
+                    '題材': st.column_config.TextColumn(width='medium', help="所屬 AI era 主流題材（sector_tags_manual.json 140 ticker / 29 multi-label）"),
+                    '市值排名': st.column_config.NumberColumn(format="%d", help="1 = 台股市值最大"),
+                    '綜合': st.column_config.NumberColumn(format="%.1f"),
+                    'F-Score': st.column_config.NumberColumn(format="%d"),
+                    '體質分': st.column_config.NumberColumn(format="%.0f"),
+                    '趨勢分數': st.column_config.NumberColumn(format="%.1f"),
+                    '觸發分數': st.column_config.NumberColumn(format="%+.1f"),
+                    '漲跌%': st.column_config.NumberColumn(format="%.1f%%"),
+                    '收盤': st.column_config.NumberColumn(format="%.1f"),
+                    '建議進場': st.column_config.TextColumn(help="rec_entry_low ~ rec_entry_high"),
+                    '推薦停損': st.column_config.NumberColumn(format="%.1f"),
+                    'R:R': st.column_config.NumberColumn(format="%.2f"),
+                },
+            )
+
+            st.caption("綜合 = F-Score 50% + 體質分 30% + 趨勢分數 20%（選股排名用） · "
+                       "觸發分數為日線擇時指標（決定今天該下手哪檔，不影響選股）")
+
+            # 操作建議
+            with st.expander("個股操作建議"):
+                _qm_selected = st.selectbox(
+                    "選擇股票",
+                    options=[f"{r['stock_id']} {r.get('name', '')}" for r in qm_results],
+                    key='qm_detail_select',
+                )
+                if _qm_selected:
+                    _qm_sid = _qm_selected.split()[0]
+                    _qm_match = next((r for r in qm_results if r['stock_id'] == _qm_sid), None)
+                    if _qm_match:
+                        _ap = _qm_match.get('action_plan', {})
+
+                        st.markdown(f"### {_qm_sid} {_qm_match.get('name', '')}")
+                        _cs = _qm_match.get('composite_score')
+                        _fs = _qm_match.get('qm_f_score')
+                        _bs = _qm_match.get('qm_body_score')
+                        _qs = _qm_match.get('qm_quality_score')
+                        st.markdown(f"**綜合: {_cs}** / "
+                                    f"F-Score: {_fs if _fs is not None else 'N/A'} / "
+                                    f"體質: {round(_bs, 0) if _bs is not None else 'N/A'} / "
+                                    f"趨勢: {_qm_match['trend_score']:+.1f} / "
+                                    f"品質總分: {_qs if _qs is not None else 'N/A'}")
+
+                        if _ap.get('strategy'):
+                            st.markdown(f"\n{_ap['strategy']}")
+
+                        _el = _ap.get('rec_entry_low')
+                        _eh = _ap.get('rec_entry_high')
+                        if _el and _eh:
+                            st.markdown(f"- 進場區間: **{_el:.1f} ~ {_eh:.1f}** ({_ap.get('rec_entry_desc', '')})")
+
+                        # QM 風險報酬摘要
+                        _qm_sl = _ap.get('rec_sl_price')
+                        _qm_tp = _ap.get('rec_tp_price')
+                        _qm_rr = _ap.get('rr_ratio')
+                        if _qm_sl and _qm_tp:
+                            _c1, _c2, _c3 = st.columns(3)
+                            _c1.metric("推薦停損", f"{_qm_sl:.2f}", _ap.get('rec_sl_method', ''))
+                            _c2.metric("首要停利 (+15%)", f"{_qm_tp:.2f}", "TP1 減碼 1/3")
+                            if _qm_rr:
+                                _c3.metric("風報比 R:R", f"{_qm_rr:.2f}", "TP1 vs 停損")
+
+                        # QM 分批進場（A#2：依 trigger_score 色燈顯示）
+                        _qm_batches = _ap.get('qm_entry_batches')
+                        _qm_gate = _ap.get('qm_entry_gate') or {}
+                        _qm_gate_level = _qm_gate.get('level', 'unknown')
+                        if _qm_batches:
+                            if _qm_gate_level == 'green':
+                                st.success(f"📥 **分批進場**: {_qm_batches}")
+                            elif _qm_gate_level == 'yellow':
+                                st.warning(f"📥 **分批進場**: {_qm_batches}")
+                            elif _qm_gate_level == 'red':
+                                st.error(f"📥 **分批進場**: {_qm_batches}")
+                            else:
+                                st.info(f"📥 **分批進場**: {_qm_batches}")
+
+                        # QM 動態倉位建議（A#3：composite × trigger）
+                        _qm_size = _ap.get('qm_position_size')
+                        if _qm_size:
+                            _qm_pct = _qm_size.get('recommended_pct', 0)
+                            _qm_base = _qm_size.get('base_pct', 0)
+                            _qm_mult = _qm_size.get('multiplier', 1.0)
+                            _sc1, _sc2, _sc3 = st.columns(3)
+                            _sc1.metric("建議倉位", f"{_qm_pct:.1f}%",
+                                        f"×{_qm_mult:.2f} 擇時調整")
+                            _sc2.metric("基礎倉位", f"{_qm_base:.1f}%",
+                                        "依綜合評分 / 80")
+                            _sc3.metric("擇時係數", f"×{_qm_mult:.2f}",
+                                        "clip(trigger/5, 0.5, 1.5)")
+                            st.caption(f"💰 {_qm_size.get('rationale', '')}")
+
+                        # QM 三段停利
+                        if _ap.get('tp_list'):
+                            st.markdown("**停利階梯**")
+                            for _tp in _ap['tp_list']:
+                                _mark = " ← 推薦" if _tp.get('is_rec') else ""
+                                st.markdown(f"- {_tp['method']}: {_tp['price']:.1f} ({_tp.get('desc', '')}){_mark}")
+
+                        if _ap.get('sl_list'):
+                            st.markdown("**停損參考價位**")
+                            for _sl in _ap['sl_list']:
+                                _p = _sl.get('price', 0)
+                                _loss = _sl.get('loss')
+                                _loss_txt = f" ({_loss:+.1f}%)" if _loss is not None else ""
+                                st.markdown(f"- {_sl['method']}: {_p:.1f}{_loss_txt}")
+
+                        # QM 出場訊號
+                        _qm_exits = _ap.get('qm_exit_signals', [])
+                        if _qm_exits:
+                            st.markdown("**出場訊號 (任一觸發即全出)**")
+                            for _e in _qm_exits:
+                                st.markdown(f"- 🚨 {_e}")
+
+                        _q_details = _qm_match.get('qm_quality_details', [])
+                        if _q_details:
+                            with st.expander("品質評分明細", expanded=False):
+                                for d in _q_details:
+                                    st.markdown(f"- {d}")
+
+                        with st.expander("技術評分明細", expanded=False):
+                            for d in _qm_match.get('trigger_details', []):
+                                st.markdown(f"- {d}")
+        else:
+            st.info("尚無品質選股掃描結果。\n\n"
+                    "在命令列執行 `python scanner_job.py --mode qm` 進行品質選股掃描\n"
+                    "（動能選股 + 品質門檻，過濾虧損/高負債/營收崩的股票）")
+
+        st.caption("💡 Full scan: `python scanner_job.py --mode qm`")
+
+        # ====================================================================
+        # 頁面最下方：篩選條件說明 + 操作 SOP (2026-04-30 從頁首挪到頁尾)
+        # ====================================================================
         with st.expander("📋 篩選條件說明", expanded=False):
             st.markdown("""
 結合**技術面動能**、**基本面品質**與**波段趨勢**，三層篩選找出體質好、趨勢向上、有人吃貨的股票。
@@ -689,305 +993,6 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
 > 已依本 SOP 自動計算並顯示（驗證錨點：Round 4 F50/Body30/Trend20 權重）。
 """)
 
-        qm_file = _Path('data/latest/qm_result.json')
-        qm_result = None
-        if qm_file.exists():
-            try:
-                with open(qm_file, 'r', encoding='utf-8') as _f:
-                    qm_result = _json.load(_f)
-            except Exception:
-                qm_result = None
-
-        if qm_result and qm_result.get('results'):
-            qm_results = qm_result['results']
-            st.caption(
-                f"掃描日期: {qm_result.get('scan_date', '?')} {qm_result.get('scan_time', '')} | "
-                f"全市場 {qm_result.get('total_scanned', 0)} 檔 → "
-                f"品質篩 {qm_result.get('passed_initial', 0)} 檔 → "
-                f"評分 {qm_result.get('scored_count', 0)} 檔 | "
-                f"耗時 {qm_result.get('elapsed_seconds', 0):.0f}s"
-            )
-            if _qm_value_resonance_tw:
-                _res_in_qm = [r['stock_id'] for r in qm_results if r['stock_id'] in _qm_value_resonance_tw]
-                if _res_in_qm:
-                    st.success(f"✨ **動能+價值共振** ({len(_res_in_qm)} 檔): {', '.join(_res_in_qm)} — 同時通過兩個 screener 的稀有組合")
-
-            # 🎯 精選 3 檔（上班族）— TV>=10億 + F>=8 + Comp>=75 + weighted rank
-            # 2026-04-22: set-and-forget 用，篩掉小型高波動 / F<8 雷股 / 過熱 FOMO
-            from tools.qm_office_picks import select_office_picks as _office_pick
-            _office_picks = _office_pick(qm_result, n=3)
-            if _office_picks:
-                with st.expander(
-                    f"🎯 精選 3 檔（上班族不看盤版）— 共 {len(_office_picks)} 檔通過硬篩",
-                    expanded=True,
-                ):
-                    st.caption(
-                        "硬篩：日均成交 ≥ 10 億 · F-Score ≥ 8 · Composite ≥ 75。"
-                        "排序：Composite + ETF×5 − |Trigger|×1.5 + 流動性加分。"
-                    )
-                    _cols = st.columns(len(_office_picks))
-                    for _i, _p in enumerate(_office_picks):
-                        _tv_yi = _p.get('avg_trading_value_5d', 0) / 1e8
-                        with _cols[_i]:
-                            st.markdown(
-                                f"**#{_i+1} {_p['stock_id']} {_p.get('name','')}**"
-                            )
-                            st.metric(
-                                "Office Score",
-                                f"{_p.get('office_score',0):.1f}",
-                                delta=f"QM#{qm_results.index(next(r for r in qm_results if r['stock_id']==_p['stock_id']))+1}",
-                            )
-                            st.markdown(
-                                f"💰 {_p['price']:.0f} · 📊 TV {_tv_yi:.0f}億  \n"
-                                f"F={_p.get('qm_f_score',0)}/9 · "
-                                f"Comp {_p.get('composite_score',0):.1f} · "
-                                f"Trig {_p.get('trigger_score',0):+.1f} · "
-                                f"ETF×{_p.get('etf_buy_count',0)}"
-                            )
-                    st.caption(
-                        "💡 適合持倉 40-60 天的中長線。高 |Trigger| 分代表熱度高，"
-                        "可分批進場避免追高；低 |Trigger| 分適合直接進場後放。"
-                    )
-
-            # 🎯 今日擇時 Top 5（依 trigger_score 由高到低）
-            #    trigger_score 整合日線 MACD/KD/RSI/RVOL/籌碼/情緒/營收/ETF，
-            #    用於「今天該下手哪檔」的進場時機判斷（不影響選股排名）
-            def _timing_badge(ts):
-                if ts is None:
-                    return '⚪'
-                if ts >= 3:
-                    return '🟢'
-                if ts >= 0:
-                    return '🟡'
-                return '🔴'
-
-            _qm_by_trigger = sorted(
-                qm_results,
-                key=lambda r: r.get('trigger_score', 0) or 0,
-                reverse=True,
-            )[:5]
-            if _qm_by_trigger:
-                st.markdown("#### 🎯 今日擇時 Top 5")
-                _top5_cols = st.columns(5)
-                for _i, _r in enumerate(_qm_by_trigger):
-                    _ts = _r.get('trigger_score', 0) or 0
-                    _cs = _r.get('composite_score')
-                    _trend = _r.get('trend_score', 0) or 0
-                    _badge = _timing_badge(_ts)
-                    _cs_txt = f"{_cs:.0f}" if _cs is not None else "-"
-                    with _top5_cols[_i]:
-                        st.metric(
-                            label=f"{_badge} {_r['stock_id']} {_r.get('name', '')[:6]}",
-                            value=f"{_ts:+.1f}",
-                            delta=f"綜合 {_cs_txt} / 趨勢 {_trend:+.1f}",
-                            delta_color="off",
-                        )
-                st.caption("🟢 ≥3 今日可進場 / 🟡 0-3 觀察 / 🔴 <0 等訊號轉強（trigger_score 為日線擇時指標）")
-
-            # 台股市值排名（1 = 台股市值最大）— 復用 momentum_screener 的 1h cache
-            # 過濾 ETF/特別股/權證：僅保留 1000-9999 的一般普通股
-            try:
-                from momentum_screener import MomentumScreener
-                _tv_data_all = MomentumScreener._fetch_tv_marketcap_volume() or {}
-                _tv_data = {
-                    sid: d for sid, d in _tv_data_all.items()
-                    if sid.isdigit() and len(sid) == 4 and not sid.startswith('0')
-                }
-                _mc_rank = {
-                    sid: i + 1
-                    for i, (sid, _) in enumerate(
-                        sorted(
-                            _tv_data.items(),
-                            key=lambda x: x[1].get('market_cap', 0) or 0,
-                            reverse=True,
-                        )
-                    )
-                }
-            except Exception:
-                _mc_rank = {}
-
-            _qm_rows = []
-            for r in qm_results:
-                _fs = r.get('qm_f_score')
-                _bs = r.get('qm_body_score')
-                _cs = r.get('composite_score')
-                _ts = r.get('trigger_score', 0) or 0
-                _ap = r.get('action_plan', {}) or {}
-                _sl = _ap.get('rec_sl_price')
-                _rr = _ap.get('rr_ratio')
-                _el = _ap.get('rec_entry_low')
-                _eh = _ap.get('rec_entry_high')
-                _entry_str = f"{_el:.1f}~{_eh:.1f}" if (_el and _eh) else None
-                _qm_rows.append({
-                    '代號': r['stock_id'],
-                    '名稱': r.get('name', ''),
-                    '共振': '✨' if r['stock_id'] in _qm_value_resonance_tw else '',
-                    '週榜': _wc_tags_short(r['stock_id']),
-                    '題材': _theme_tags_short(r['stock_id']),
-                    '市值排名': _mc_rank.get(r['stock_id']),
-                    '綜合': _cs if _cs is not None else None,
-                    'F-Score': _fs if _fs is not None else None,
-                    '體質分': round(_bs, 0) if _bs is not None else None,
-                    '趨勢分數': r.get('trend_score', 0),
-                    '擇時': _timing_badge(_ts),
-                    '觸發分數': _ts,
-                    '收盤': r.get('price', 0),
-                    '建議進場': _entry_str,
-                    '推薦停損': _sl if _sl else None,
-                    'R:R': _rr if _rr else None,
-                    '漲跌%': r.get('change_pct', 0),
-                })
-            _df_qm = pd.DataFrame(_qm_rows)
-
-            _sort_opts_qm = {
-                '綜合 (高→低)': ('綜合', False),
-                '觸發分數 (高→低)': ('觸發分數', False),
-                'F-Score (高→低)': ('F-Score', False),
-                '體質分 (高→低)': ('體質分', False),
-                '趨勢分數 (高→低)': ('趨勢分數', False),
-                'R:R (高→低)': ('R:R', False),
-                '市值排名 (小→大)': ('市值排名', True),
-            }
-            _qm_sort = st.selectbox("排序方式", list(_sort_opts_qm.keys()), key='qm_tw_sort')
-            _qm_col, _qm_asc = _sort_opts_qm[_qm_sort]
-            _df_qm = _df_qm.sort_values(_qm_col, ascending=_qm_asc).reset_index(drop=True)
-            _df_qm.index = range(1, len(_df_qm) + 1)
-
-            st.dataframe(
-                _df_qm,
-                width='stretch',
-                height=600,
-                column_config={
-                    '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
-                    '週榜': st.column_config.TextColumn(width='medium', help="本週三大法人榜單上的標記（連買/連賣天數 + 4 維度排名）"),
-                    '題材': st.column_config.TextColumn(width='medium', help="所屬 AI era 主流題材（sector_tags_manual.json 140 ticker / 29 multi-label）"),
-                    '市值排名': st.column_config.NumberColumn(format="%d", help="1 = 台股市值最大"),
-                    '綜合': st.column_config.NumberColumn(format="%.1f"),
-                    'F-Score': st.column_config.NumberColumn(format="%d"),
-                    '體質分': st.column_config.NumberColumn(format="%.0f"),
-                    '趨勢分數': st.column_config.NumberColumn(format="%.1f"),
-                    '觸發分數': st.column_config.NumberColumn(format="%+.1f"),
-                    '漲跌%': st.column_config.NumberColumn(format="%.1f%%"),
-                    '收盤': st.column_config.NumberColumn(format="%.1f"),
-                    '建議進場': st.column_config.TextColumn(help="rec_entry_low ~ rec_entry_high"),
-                    '推薦停損': st.column_config.NumberColumn(format="%.1f"),
-                    'R:R': st.column_config.NumberColumn(format="%.2f"),
-                },
-            )
-
-            st.caption("綜合 = F-Score 50% + 體質分 30% + 趨勢分數 20%（選股排名用） · "
-                       "觸發分數為日線擇時指標（決定今天該下手哪檔，不影響選股）")
-
-            # 操作建議
-            with st.expander("個股操作建議"):
-                _qm_selected = st.selectbox(
-                    "選擇股票",
-                    options=[f"{r['stock_id']} {r.get('name', '')}" for r in qm_results],
-                    key='qm_detail_select',
-                )
-                if _qm_selected:
-                    _qm_sid = _qm_selected.split()[0]
-                    _qm_match = next((r for r in qm_results if r['stock_id'] == _qm_sid), None)
-                    if _qm_match:
-                        _ap = _qm_match.get('action_plan', {})
-
-                        st.markdown(f"### {_qm_sid} {_qm_match.get('name', '')}")
-                        _cs = _qm_match.get('composite_score')
-                        _fs = _qm_match.get('qm_f_score')
-                        _bs = _qm_match.get('qm_body_score')
-                        _qs = _qm_match.get('qm_quality_score')
-                        st.markdown(f"**綜合: {_cs}** / "
-                                    f"F-Score: {_fs if _fs is not None else 'N/A'} / "
-                                    f"體質: {round(_bs, 0) if _bs is not None else 'N/A'} / "
-                                    f"趨勢: {_qm_match['trend_score']:+.1f} / "
-                                    f"品質總分: {_qs if _qs is not None else 'N/A'}")
-
-                        if _ap.get('strategy'):
-                            st.markdown(f"\n{_ap['strategy']}")
-
-                        _el = _ap.get('rec_entry_low')
-                        _eh = _ap.get('rec_entry_high')
-                        if _el and _eh:
-                            st.markdown(f"- 進場區間: **{_el:.1f} ~ {_eh:.1f}** ({_ap.get('rec_entry_desc', '')})")
-
-                        # QM 風險報酬摘要
-                        _qm_sl = _ap.get('rec_sl_price')
-                        _qm_tp = _ap.get('rec_tp_price')
-                        _qm_rr = _ap.get('rr_ratio')
-                        if _qm_sl and _qm_tp:
-                            _c1, _c2, _c3 = st.columns(3)
-                            _c1.metric("推薦停損", f"{_qm_sl:.2f}", _ap.get('rec_sl_method', ''))
-                            _c2.metric("首要停利 (+15%)", f"{_qm_tp:.2f}", "TP1 減碼 1/3")
-                            if _qm_rr:
-                                _c3.metric("風報比 R:R", f"{_qm_rr:.2f}", "TP1 vs 停損")
-
-                        # QM 分批進場（A#2：依 trigger_score 色燈顯示）
-                        _qm_batches = _ap.get('qm_entry_batches')
-                        _qm_gate = _ap.get('qm_entry_gate') or {}
-                        _qm_gate_level = _qm_gate.get('level', 'unknown')
-                        if _qm_batches:
-                            if _qm_gate_level == 'green':
-                                st.success(f"📥 **分批進場**: {_qm_batches}")
-                            elif _qm_gate_level == 'yellow':
-                                st.warning(f"📥 **分批進場**: {_qm_batches}")
-                            elif _qm_gate_level == 'red':
-                                st.error(f"📥 **分批進場**: {_qm_batches}")
-                            else:
-                                st.info(f"📥 **分批進場**: {_qm_batches}")
-
-                        # QM 動態倉位建議（A#3：composite × trigger）
-                        _qm_size = _ap.get('qm_position_size')
-                        if _qm_size:
-                            _qm_pct = _qm_size.get('recommended_pct', 0)
-                            _qm_base = _qm_size.get('base_pct', 0)
-                            _qm_mult = _qm_size.get('multiplier', 1.0)
-                            _sc1, _sc2, _sc3 = st.columns(3)
-                            _sc1.metric("建議倉位", f"{_qm_pct:.1f}%",
-                                        f"×{_qm_mult:.2f} 擇時調整")
-                            _sc2.metric("基礎倉位", f"{_qm_base:.1f}%",
-                                        "依綜合評分 / 80")
-                            _sc3.metric("擇時係數", f"×{_qm_mult:.2f}",
-                                        "clip(trigger/5, 0.5, 1.5)")
-                            st.caption(f"💰 {_qm_size.get('rationale', '')}")
-
-                        # QM 三段停利
-                        if _ap.get('tp_list'):
-                            st.markdown("**停利階梯**")
-                            for _tp in _ap['tp_list']:
-                                _mark = " ← 推薦" if _tp.get('is_rec') else ""
-                                st.markdown(f"- {_tp['method']}: {_tp['price']:.1f} ({_tp.get('desc', '')}){_mark}")
-
-                        if _ap.get('sl_list'):
-                            st.markdown("**停損參考價位**")
-                            for _sl in _ap['sl_list']:
-                                _p = _sl.get('price', 0)
-                                _loss = _sl.get('loss')
-                                _loss_txt = f" ({_loss:+.1f}%)" if _loss is not None else ""
-                                st.markdown(f"- {_sl['method']}: {_p:.1f}{_loss_txt}")
-
-                        # QM 出場訊號
-                        _qm_exits = _ap.get('qm_exit_signals', [])
-                        if _qm_exits:
-                            st.markdown("**出場訊號 (任一觸發即全出)**")
-                            for _e in _qm_exits:
-                                st.markdown(f"- 🚨 {_e}")
-
-                        _q_details = _qm_match.get('qm_quality_details', [])
-                        if _q_details:
-                            with st.expander("品質評分明細", expanded=False):
-                                for d in _q_details:
-                                    st.markdown(f"- {d}")
-
-                        with st.expander("技術評分明細", expanded=False):
-                            for d in _qm_match.get('trigger_details', []):
-                                st.markdown(f"- {d}")
-        else:
-            st.info("尚無品質選股掃描結果。\n\n"
-                    "在命令列執行 `python scanner_job.py --mode qm` 進行品質選股掃描\n"
-                    "（動能選股 + 品質門檻，過濾虧損/高負債/營收崩的股票）")
-
-        st.caption("💡 Full scan: `python scanner_job.py --mode qm`")
-
     # ====================================================================
     # Tab Convergence: 多策略共振 (hidden)
     # ====================================================================
@@ -1149,40 +1154,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
             "詳見 `reports/vf_value_portfolio_backtest_only_volatile.md`。"
         )
 
-        with st.expander("📋 篩選條件說明"):
-            st.markdown("""
-**Stage 1 初篩**
-
-| 條件 | 門檻 | 說明 |
-|------|------|------|
-| PE (本益比) | 0.1 ~ 12 | 排除虧損股和高估值股（VF-VA B 級落地） |
-| PB (股價淨值比) | ≤ 3.0 | 排除資產泡沫股 |
-| Graham 複合 | PE × PB ≤ 22.5 | PE 或 PB 單邊可偏高，乘積需合理 |
-| 成交值 | > 3000 萬 | 機構可交易水準 |
-| 🏛️ 大型股例外 | 市值前 50 + F≥5 + Q≥50 + PE≤50 | Value-#4 通道：台積/中華電類被 Graham 擋下但體質佳者放行 |
-
-**Stage 2 綜合評分（0-100 分）** — VF-GM 落地 2026-04-27
-
-| 面向 | 權重 | 評分項目 | 加分/扣分規則 |
-|------|------|----------|---------------|
-| **估值** | 25% | PE/PB 高低、歷史分位、殖利率、PEG、DDM 折價 | PE<8 +25, PB<1 +15, 殖利率>6% +10, PEG<0.5 +12 |
-| **體質** | 25% | Piotroski F-Score、Altman Z-Score、ROIC、FCF Yield | F≥7/9 +25, Z-Score 安全 +8, ROIC>15% +8 |
-| **營收** | 25% | 月營收 YoY 趨勢、營收驚喜 | YoY轉正 +10, 衰退收斂 +改善幅度×2, 驚喜 +12 |
-| **技術轉折** | 15% | RSI 超賣、量能萎縮、BB 壓縮、距 52 週低點 | RSI<30 +20, RVOL<0.5 +15, 近低點10% +15 |
-| **毛利邊際** | 10% | GM QoQ Δ（單季毛利率 vs 上一季）| Δ>+3pp +20, +1<Δ≤+3 +10, 持平 0, -3≤Δ<-1 -10, Δ<-3 -20（F2 A 級 IR=+0.872）|
-| **聰明錢** | 0% | (已停用，VF-VE D 級無 alpha) | — |
-
-**體質指標說明**
-
-| 指標 | 說明 |
-|------|------|
-| **Piotroski F-Score** | 9 項財務健康指標（獲利/槓桿/效率），7 分以上為強健 |
-| **Altman Z-Score** | 破產風險指標，>2.99 安全，<1.81 有風險 |
-| **ROIC** | 投入資本報酬率，衡量公司用資本賺錢的效率 |
-| **FCF Yield** | 自由現金流殖利率，衡量實際產生的現金回報 |
-| **PEG** | PE / 盈餘成長率，<1 表示成長相對估值便宜 |
-| **DDM** | 股利折現模型，估算合理股價與目前折溢價 |
-""")
+        # 篩選條件說明已挪到頁面最下方 (user req 2026-04-30)
 
         value_file = _Path('data/latest/value_result.json')
         value_result = None
@@ -1248,7 +1220,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
             st.dataframe(
                 _v_df_results,
                 width='stretch',
-                height=600,
+                height=int(38 + len(_v_df_results) * 35 + 3),
                 column_config={
                     '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
                     '大型股': st.column_config.TextColumn(width='small', help="🏛️ = 走大型股 Graham 例外通道（市值前 50 + F-Score>=5 + quality>=50），PE×PB>22.5 但被放行"),
@@ -1326,6 +1298,44 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
             st.info("尚無掃描結果。\n\n"
                     "在命令列執行 `python scanner_job.py --mode value` 進行完整掃描\n"
                     "（含 5 維評分，約需 20-40 分鐘）")
+
+        # ====================================================================
+        # 頁面最下方：篩選條件說明 (2026-04-30 從頁首挪到頁尾)
+        # ====================================================================
+        with st.expander("📋 篩選條件說明"):
+            st.markdown("""
+**Stage 1 初篩**
+
+| 條件 | 門檻 | 說明 |
+|------|------|------|
+| PE (本益比) | 0.1 ~ 12 | 排除虧損股和高估值股（VF-VA B 級落地） |
+| PB (股價淨值比) | ≤ 3.0 | 排除資產泡沫股 |
+| Graham 複合 | PE × PB ≤ 22.5 | PE 或 PB 單邊可偏高，乘積需合理 |
+| 成交值 | > 3000 萬 | 機構可交易水準 |
+| 🏛️ 大型股例外 | 市值前 50 + F≥5 + Q≥50 + PE≤50 | Value-#4 通道：台積/中華電類被 Graham 擋下但體質佳者放行 |
+
+**Stage 2 綜合評分（0-100 分）** — VF-GM 落地 2026-04-27
+
+| 面向 | 權重 | 評分項目 | 加分/扣分規則 |
+|------|------|----------|---------------|
+| **估值** | 25% | PE/PB 高低、歷史分位、殖利率、PEG、DDM 折價 | PE<8 +25, PB<1 +15, 殖利率>6% +10, PEG<0.5 +12 |
+| **體質** | 25% | Piotroski F-Score、Altman Z-Score、ROIC、FCF Yield | F≥7/9 +25, Z-Score 安全 +8, ROIC>15% +8 |
+| **營收** | 25% | 月營收 YoY 趨勢、營收驚喜 | YoY轉正 +10, 衰退收斂 +改善幅度×2, 驚喜 +12 |
+| **技術轉折** | 15% | RSI 超賣、量能萎縮、BB 壓縮、距 52 週低點 | RSI<30 +20, RVOL<0.5 +15, 近低點10% +15 |
+| **毛利邊際** | 10% | GM QoQ Δ（單季毛利率 vs 上一季）| Δ>+3pp +20, +1<Δ≤+3 +10, 持平 0, -3≤Δ<-1 -10, Δ<-3 -20（F2 A 級 IR=+0.872）|
+| **聰明錢** | 0% | (已停用，VF-VE D 級無 alpha) | — |
+
+**體質指標說明**
+
+| 指標 | 說明 |
+|------|------|
+| **Piotroski F-Score** | 9 項財務健康指標（獲利/槓桿/效率），7 分以上為強健 |
+| **Altman Z-Score** | 破產風險指標，>2.99 安全，<1.81 有風險 |
+| **ROIC** | 投入資本報酬率，衡量公司用資本賺錢的效率 |
+| **FCF Yield** | 自由現金流殖利率，衡量實際產生的現金回報 |
+| **PEG** | PE / 盈餘成長率，<1 表示成長相對估值便宜 |
+| **DDM** | 股利折現模型，估算合理股價與目前折溢價 |
+""")
 
     # ====================================================================
     # Tab US Value: 美股價值選股
