@@ -251,7 +251,7 @@ IC 驗證報告在 `reports/chip_ic_matrix.csv`、組合驗證在 `reports/chip_
 
 ## 注意事項
 
-- **pytest 起步** — `tests/` 目錄已建（2026-04-30 起），目前 cover `piotroski.py` 純函式 20 tests。`pytest` 一行跑全部。手寫驗證腳本歸檔至 `tools/_archive/{manual_tests,verify}/`。下批要 cover `pattern_detection / scenario_engine / addon_factors / cache_manager` 純函式，見 `tests/README.md`
+- **pytest** — `tests/` 目錄已建（2026-04-30 起），目前 **53 tests** cover `piotroski` (20) / `pattern_detection` (15) / `scenario_engine` (18) 純函式，0.7s 全綠。`pytest` 一行跑全部。手寫驗證腳本歸檔至 `tools/_archive/{manual_tests,verify}/`。下批要 cover `addon_factors / cache_manager` 純函式，見 `tests/README.md`
 - **analysis_engine.py** 經 2026-04-23 M2 重構從 2281 行縮至 937 行 (-59%)，形態偵測 / add-on 因子 / 劇本計畫分別拆到 pattern_detection / addon_factors / scenario_engine，regression 用 `tools/snapshot_run_analysis.py` byte-for-byte 驗證
 - **FinMind 免費額度** — 600 req/hr，容易爆。法人已改 TWSE/TPEX 優先
 - **無 .env** — FinMind token 在 `local/.env`，其他設定以硬編碼 + session state + JSON 為主
@@ -286,6 +286,6 @@ pre-flight 評估後，以下 4 項判定「不該動」：
   1.3.0，落後 3 minor），但 yfinance 有名 API 不穩，盲升風險 > 收益。**不動**。
 
 已動完的：#1a (app.py 4243→319 -92.5%, 2026-04-29) / #1b (analysis_engine
-2281→933 -59%, 2026-04-23 M2) / #2 (pytest 起步 + piotroski 20 tests, 2026-04-30) /
+2281→933 -59%, 2026-04-23 M2) / #2 (pytest + 53 tests cover 3 純函式 module, 2026-04-30) /
 #4a (`except: pass` grep 0 個) / #5a (tools/ 187→113 -40% archive, 2026-04-30)。
 
