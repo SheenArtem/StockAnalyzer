@@ -1,0 +1,24 @@
+{
+  "_comment": "POC Path A skeleton crew: TSMC 2330 only. Other 4 stocks (鴻海/聯發/台達/環球晶) verified no zh-Hant auto-sub on official or 3rd-party YT uploads. Verdict gate: top-1 retrieve sim improvement >= +0.1 vs PDF-only baseline.",
+  "tickers": {
+    "2330": {
+      "name": "TSMC",
+      "urls": [
+        {
+          "url": "https://www.youtube.com/live/tlZl5Au0kMA",
+          "session": "2025Q4",
+          "date": "2026-01-15",
+          "source": "USTV 非凡電視",
+          "verified_subs": "zh-Hant,zh-Hans,en (auto)"
+        },
+        {
+          "url": "https://www.youtube.com/live/jK3FKsNjVNg",
+          "session": "2025Q4",
+          "date": "2026-01-15",
+          "source": "新聞現場 LIVE",
+          "verified_subs": "zh-Hant (auto)"
+        }
+      ]
+    }
+  }
+}
