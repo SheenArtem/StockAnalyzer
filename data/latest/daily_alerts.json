@@ -1,30 +1,48 @@
 {
   "schema_version": 1,
-  "scan_date": "2026-04-29",
-  "scan_time": "00:44",
+  "scan_date": "2026-04-30",
+  "scan_time": "01:15",
   "regime": "volatile",
   "is_rebalance_day": false,
   "position_count": 3,
-  "alert_count": 1,
+  "alert_count": 2,
   "forced_count": 0,
   "suggested_count": 0,
-  "info_count": 1,
+  "info_count": 2,
   "alerts": [
     {
       "ticker": "3324",
       "name": "雙鴻",
       "side": "QM",
-      "days_held": 14,
+      "days_held": 15,
       "buy_price": 990.0,
-      "current_price": 1170.0,
-      "pnl_pct": 18.18,
+      "current_price": 1160.0,
+      "pnl_pct": 17.17,
       "action_type": "info",
       "category": "fscore_drop",
       "rule": "Rule 1b - F-Score 滯後 echo (持股 <30 日)",
       "severity": "warning",
       "reason": "F-Score 季掉 3 分（低分區）",
-      "recommendation": "F-Score 已壞但買進前已 priced in,持股 14 日 < 30 視為 noise",
-      "downgrade_reason": "fscore_drop + days_held=14 < 30",
+      "recommendation": "F-Score 已壞但買進前已 priced in,持股 15 日 < 30 視為 noise",
+      "downgrade_reason": "fscore_drop + days_held=15 < 30",
+      "min_hold_warning": true,
+      "whipsaw_banned": false
+    },
+    {
+      "ticker": "6239",
+      "name": "力成",
+      "side": "QM",
+      "days_held": 15,
+      "buy_price": 216.5,
+      "current_price": 202.5,
+      "pnl_pct": -6.47,
+      "action_type": "info",
+      "category": "trend_weak",
+      "rule": "Rule 3 - Soft alert (累積到 rebalance)",
+      "severity": "warning",
+      "reason": "趨勢分數 < 1（趨勢論據弱化）",
+      "recommendation": "心裡有數,rebalance 日一併審視",
+      "downgrade_reason": null,
       "min_hold_warning": true,
       "whipsaw_banned": false
     }
@@ -33,6 +51,6 @@
   "notes": {
     "rule_5_whipsaw_ban": "Wave 3 #6 paper engine 落地後從 trade history 算 30d ban",
     "rule_6_dual_side": "Value side 持股實際出現後啟用 (目前無)",
-    "rule_7_regime_switch": "Phase 3 補 (regime 切換 lag 1 月清倉)"
+    "rule_7_regime_switch": "Phase 3 補 (regime 切換 lag 1 月清倉; portfolio walk-forward 顯示 quarterly 下 defer 1/3mo redundant，monthly 下 1mo defer 為 PRE_POLICY 設定)"
   }
 }
