@@ -60,6 +60,19 @@ set YT_EC3=%ERRORLEVEL%
 echo [%date% %time%] YT sync done (EC1=%YT_EC1% EC2=%YT_EC2% EC3=%YT_EC3%) >> scanner.log
 
 REM ------------------------------------------------------------
+REM RAG #4 Path A POC: fetch YT earnings call VTT auto-subs.
+REM Added 2026-04-30: TSMC 2330 only (other 4 stocks no YT auto-sub coverage).
+REM Best-effort: failures do not affect scanner exit. Run at 00:00 to dodge
+REM YT timedtext IP-rate-limit (429) that hits during daytime testing.
+REM Verdict gate (via rag_compare_yt_vs_pdf.py next day): top-1 retrieve sim
+REM improvement >= +0.1 vs PDF-only -> consider Whisper scale; else abort A.
+REM ------------------------------------------------------------
+echo [%date% %time%] RAG YT earnings POC fetch starting >> scanner.log
+python tools\rag_fetch_yt_earnings.py >> scanner.log 2>&1
+set YT_POC_EC=%ERRORLEVEL%
+echo [%date% %time%] RAG YT earnings POC fetch done (exit=%YT_POC_EC%) >> scanner.log
+
+REM ------------------------------------------------------------
 REM MOPS WAF unblock probe (1 req/day). 3 consecutive successes -> Discord ping.
 REM Runs before scanner to avoid extra Task Scheduler entry.
 REM ------------------------------------------------------------
