@@ -1,12 +1,12 @@
 {
   "scan_type": "qm",
-  "scan_date": "2026-05-01",
-  "scan_time": "00:23",
+  "scan_date": "2026-05-02",
+  "scan_time": "00:34",
   "market": "tw",
   "total_scanned": 1967,
-  "passed_initial": 286,
+  "passed_initial": 284,
   "scored_count": 20,
-  "elapsed_seconds": 536.3,
+  "elapsed_seconds": 550.3,
   "failures": [],
   "config": {
     "momentum_change_min": -1.0,
@@ -20,13 +20,13 @@
       "price": 104.0,
       "change_pct": 1.96,
       "trading_value": 812979173,
-      "avg_trading_value_5d": 682475890,
+      "avg_trading_value_5d": 682052652,
       "trigger_score": -2.54,
       "trend_score": 5,
       "score_percentile": 27.3,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -3.3561,
+      "rvol_lowatr": -3.3572,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+0.52 (tanh=+0.48)",
@@ -194,13 +194,13 @@
       "price": 347.5,
       "change_pct": 9.97,
       "trading_value": 8458098572,
-      "avg_trading_value_5d": 4974825203,
+      "avg_trading_value_5d": 4973201405,
       "trigger_score": 2.9,
       "trend_score": 5,
       "score_percentile": 74.4,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -0.3272,
+      "rvol_lowatr": -0.3293,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+1.13 (tanh=+0.81)",
@@ -325,7 +325,7 @@
           "text": "🟡 第 1 批觀望 — 等 trigger 轉強至 ≥ 3（目前 +2.9）"
         },
         "qm_position_size": {
-          "recommended_pct": 4.8,
+          "recommended_pct": 4.9,
           "base_pct": 8.4,
           "multiplier": 0.58,
           "rationale": "base=8.4% (composite 84/80) × multiplier=0.58 (trigger +2.9/5)"
@@ -360,9 +360,9 @@
         "連續 4 季獲利 (+5)"
       ],
       "qm_f_score": 9,
-      "composite_score": 83.6,
+      "composite_score": 83.8,
       "qm_position_size": {
-        "recommended_pct": 4.8,
+        "recommended_pct": 4.9,
         "base_pct": 8.4,
         "multiplier": 0.58,
         "rationale": "base=8.4% (composite 84/80) × multiplier=0.58 (trigger +2.9/5)"
@@ -375,13 +375,13 @@
       "price": 576.0,
       "change_pct": 3.78,
       "trading_value": 6771418853,
-      "avg_trading_value_5d": 6142011028,
-      "trigger_score": 3.1,
+      "avg_trading_value_5d": 6139882477,
+      "trigger_score": 3.09,
       "trend_score": 5,
       "score_percentile": 75.8,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -1.4273,
+      "rvol_lowatr": -1.4299,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+2.37 (tanh=+0.98)",
@@ -537,7 +537,7 @@
         "連續 4 季獲利 (+5)"
       ],
       "qm_f_score": 9,
-      "composite_score": 83.6,
+      "composite_score": 83.8,
       "qm_position_size": {
         "recommended_pct": 5.2,
         "base_pct": 8.4,
@@ -552,13 +552,13 @@
       "price": 609.0,
       "change_pct": 8.75,
       "trading_value": 1030930329,
-      "avg_trading_value_5d": 925959130,
-      "trigger_score": -1.77,
+      "avg_trading_value_5d": 924469516,
+      "trigger_score": -1.78,
       "trend_score": 4.5,
-      "score_percentile": 33.5,
+      "score_percentile": 33.4,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -2.2649,
+      "rvol_lowatr": -2.2684,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+0.50 (tanh=+0.46)",
@@ -568,7 +568,7 @@
         "💀 MACD【頂背離】⚠️ 僅供參考 (IC驗證反向)",
         "🔻 KD 死亡交叉/空方排列 (-1)",
         "🔻 RSI頂背離 ⚠️ 僅供參考 (IC驗證反向)",
-        "📊 RVOL=0.4x (z=-0.8) (-0.56)",
+        "📊 RVOL=0.4x (z=-0.8) (-0.57)",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0",
         "💰 外資近5日買超 (+1,530張) (+0.3)",
         "❄️ 投信近5日賣超 (-538張) → 籌碼沉澱 (+0.3)"
@@ -715,7 +715,7 @@
         "營收正驚喜 +22.2% (+12)"
       ],
       "qm_f_score": 9,
-      "composite_score": 81.6,
+      "composite_score": 81.7,
       "qm_position_size": {
         "recommended_pct": 4.1,
         "base_pct": 8.2,
@@ -730,13 +730,13 @@
       "price": 104.0,
       "change_pct": 9.59,
       "trading_value": 436081924,
-      "avg_trading_value_5d": 1529942430,
-      "trigger_score": 3.85,
+      "avg_trading_value_5d": 1528250662,
+      "trigger_score": 3.84,
       "trend_score": 5,
-      "score_percentile": 81.0,
+      "score_percentile": 80.9,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -2.5436,
+      "rvol_lowatr": -2.5492,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+3.19 (tanh=+1.00)",
@@ -757,7 +757,7 @@
         "desc": "週線強多 + 日線訊號佳，順勢重倉。"
       },
       "action_plan": {
-        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.9 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 75.17\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
+        "strategy": "🚀 **強勢股 (等待拉回)**：乖離過大，建議掛單在 5MA 附近接，不追高。\n\n**進場信心: 高** — K線型態【紅三兵 (3 Soldiers)】確認多方進場\n\n**QM 波段操作要點** (VF-6 A 級: pure_right 贏 CAGR +22.8pp；VF-G2 Ext: 60d 贏 40d +3.6pp)\n- 第 1 批閘門: 🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.8 ≥ 3）\n- 第 2 批補倉: 第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)\n- 持倉目標 **60 日**，不要短抱（VF-G2 Ext 驗證 60d mean=10.4% > 40d 6.8%）\n- 停損: **QM. -14.0% 硬停損** → 75.17\n- 停利: +24% / +40% / +64% **僅供心理參考，不強制**\n  ⚠️ VF-G2 驗證（多頭年）pure-hold 60d 贏三階 TP +6.2pp；空頭年 TP 可能救命，觀察後再定\n- 出場訊號: 硬停損觸發 / 週 Supertrend 翻空 / 週 MA20 跌破 / 月營收連 2 月 YoY 負 / F-Score 掉 2 分",
         "rec_entry_low": 85.22999999999999,
         "rec_entry_high": 89.58,
         "rec_entry_desc": "等待拉回 (5MA-10MA)",
@@ -849,17 +849,17 @@
         ],
         "qm_horizon": "40-60d",
         "qm_hold_days_target": 60,
-        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.9 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
+        "qm_entry_batches": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.8 ≥ 3）；第 2 批 50% — 回補條件：trigger 從低點回升至 ≥ +2 且 RVOL > 1.2 (或回調至日 MA10 / RSI 45-55)",
         "qm_entry_gate": {
           "level": "green",
           "ready": true,
-          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.9 ≥ 3）"
+          "text": "🟢 第 1 批 50% 可當日進場（擇時 trigger=+3.8 ≥ 3）"
         },
         "qm_position_size": {
           "recommended_pct": 6.2,
           "base_pct": 8.1,
           "multiplier": 0.77,
-          "rationale": "base=8.1% (composite 81/80) × multiplier=0.77 (trigger +3.9/5)"
+          "rationale": "base=8.1% (composite 81/80) × multiplier=0.77 (trigger +3.8/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -894,7 +894,7 @@
         "recommended_pct": 6.2,
         "base_pct": 8.1,
         "multiplier": 0.77,
-        "rationale": "base=8.1% (composite 81/80) × multiplier=0.77 (trigger +3.9/5)"
+        "rationale": "base=8.1% (composite 81/80) × multiplier=0.77 (trigger +3.8/5)"
       }
     },
     {
@@ -904,13 +904,13 @@
       "price": 2575.0,
       "change_pct": 7.29,
       "trading_value": 1960675960,
-      "avg_trading_value_5d": 1679777300,
+      "avg_trading_value_5d": 1679653700,
       "trigger_score": 5.45,
       "trend_score": 5,
       "score_percentile": 89.4,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -0.7389,
+      "rvol_lowatr": -0.7394,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+2.98 (tanh=+0.99)",
@@ -1076,7 +1076,7 @@
         "ROE=28.1% 高 (+5) [TV]"
       ],
       "qm_f_score": 8,
-      "composite_score": 79.9,
+      "composite_score": 80.0,
       "qm_position_size": {
         "recommended_pct": 8.7,
         "base_pct": 8.0,
@@ -1091,13 +1091,13 @@
       "price": 169.5,
       "change_pct": 3.35,
       "trading_value": 4728327826,
-      "avg_trading_value_5d": 4528787628,
-      "trigger_score": 4.59,
+      "avg_trading_value_5d": 4526666980,
+      "trigger_score": 4.58,
       "trend_score": 4,
       "score_percentile": 85.2,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -0.1305,
+      "rvol_lowatr": -0.1336,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+0.16 (tanh=+0.16)",
@@ -1235,7 +1235,7 @@
       "checklist": {
         "risk": [
           "若收盤跌破 **月線 (160.15)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 90.6 億) 且收跌，視為主力出貨訊號。"
+          "若出現 **爆量長黑** (成交值 > 90.5 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
           "若帶量突破 **波段前高 (187.50)**，趨勢續攻，可嘗試加碼。"
@@ -1271,13 +1271,13 @@
       "price": 2280.0,
       "change_pct": 3.17,
       "trading_value": 8579401800,
-      "avg_trading_value_5d": 9036656064,
+      "avg_trading_value_5d": 9034249752,
       "trigger_score": 0.98,
       "trend_score": 5,
-      "score_percentile": 58.4,
+      "score_percentile": 58.3,
       "regime": "volatile",
       "etf_buy_count": 3,
-      "rvol_lowatr": -1.0898,
+      "rvol_lowatr": -1.0929,
       "signals": [
         "etf_sync_buy"
       ],
@@ -1434,7 +1434,7 @@
         "ROE=56.1% 高 (+5) [TV]"
       ],
       "qm_f_score": 8,
-      "composite_score": 79.0,
+      "composite_score": 79.1,
       "qm_position_size": {
         "recommended_pct": 4.0,
         "base_pct": 7.9,
@@ -1449,13 +1449,13 @@
       "price": 1455.0,
       "change_pct": 2.46,
       "trading_value": 4125279245,
-      "avg_trading_value_5d": 3022414350,
+      "avg_trading_value_5d": 3022248771,
       "trigger_score": 5.04,
       "trend_score": 5,
       "score_percentile": 87.5,
       "regime": "volatile",
       "etf_buy_count": 3,
-      "rvol_lowatr": -0.1789,
+      "rvol_lowatr": -0.1796,
       "signals": [
         "rvol_high",
         "etf_sync_buy"
@@ -1631,13 +1631,13 @@
       "price": 764.0,
       "change_pct": 4.51,
       "trading_value": 467314987,
-      "avg_trading_value_5d": 184877292,
+      "avg_trading_value_5d": 184840772,
       "trigger_score": 4.6,
       "trend_score": 5,
       "score_percentile": 85.3,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": 1.4486,
+      "rvol_lowatr": 1.4476,
       "signals": [
         "rvol_high"
       ],
@@ -1814,13 +1814,13 @@
       "price": 536.0,
       "change_pct": 6.77,
       "trading_value": 15903709107,
-      "avg_trading_value_5d": 16456773530,
-      "trigger_score": -2.72,
+      "avg_trading_value_5d": 16445865930,
+      "trigger_score": -2.73,
       "trend_score": 5,
-      "score_percentile": 25.9,
+      "score_percentile": 25.8,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -2.1547,
+      "rvol_lowatr": -2.1581,
       "signals": [
         "etf_sync_sell"
       ],
@@ -1963,7 +1963,7 @@
       "checklist": {
         "risk": [
           "若收盤跌破 **月線 (492.62)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 329.1 億) 且收跌，視為主力出貨訊號。"
+          "若出現 **爆量長黑** (成交值 > 328.9 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
           "若帶量突破 **波段前高 (637.00)**，趨勢續攻，可嘗試加碼。"
@@ -1998,13 +1998,13 @@
       "price": 126.0,
       "change_pct": 1.2,
       "trading_value": 192034634,
-      "avg_trading_value_5d": 152117329,
-      "trigger_score": -2.91,
+      "avg_trading_value_5d": 152037092,
+      "trigger_score": -2.92,
       "trend_score": 5,
       "score_percentile": 24.5,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": 0.2133,
+      "rvol_lowatr": 0.2113,
       "signals": [],
       "trigger_details": [
         "📉 MeanRev=-0.41 (tanh=-0.39)",
@@ -2122,9 +2122,9 @@
         },
         "qm_position_size": {
           "recommended_pct": 3.8,
-          "base_pct": 7.6,
+          "base_pct": 7.7,
           "multiplier": 0.5,
-          "rationale": "base=7.6% (composite 76/80) × multiplier=0.50 (trigger -2.9/5)"
+          "rationale": "base=7.7% (composite 77/80) × multiplier=0.50 (trigger -2.9/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -2158,12 +2158,12 @@
         "營益率=21.8% 優 (+5) [TV]"
       ],
       "qm_f_score": 9,
-      "composite_score": 76.4,
+      "composite_score": 76.6,
       "qm_position_size": {
         "recommended_pct": 3.8,
-        "base_pct": 7.6,
+        "base_pct": 7.7,
         "multiplier": 0.5,
-        "rationale": "base=7.6% (composite 76/80) × multiplier=0.50 (trigger -2.9/5)"
+        "rationale": "base=7.7% (composite 77/80) × multiplier=0.50 (trigger -2.9/5)"
       }
     },
     {
@@ -2173,13 +2173,13 @@
       "price": 360.5,
       "change_pct": -0.55,
       "trading_value": 1999894703,
-      "avg_trading_value_5d": 4204378022,
+      "avg_trading_value_5d": 4203301064,
       "trigger_score": -3.87,
       "trend_score": 5,
       "score_percentile": 18.1,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -1.8909,
+      "rvol_lowatr": -1.893,
       "signals": [],
       "trigger_details": [
         "📉 MeanRev=-0.75 (tanh=-0.64)",
@@ -2351,13 +2351,13 @@
       "price": 2615.0,
       "change_pct": 1.36,
       "trading_value": 3038183275,
-      "avg_trading_value_5d": 3571748315,
-      "trigger_score": -1.53,
+      "avg_trading_value_5d": 3569840934,
+      "trigger_score": -1.54,
       "trend_score": 4.5,
-      "score_percentile": 35.6,
+      "score_percentile": 35.5,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -1.7577,
+      "rvol_lowatr": -1.7623,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+0.61 (tanh=+0.54)",
@@ -2527,13 +2527,13 @@
       "price": 888.0,
       "change_pct": 1.95,
       "trading_value": 2498572323,
-      "avg_trading_value_5d": 1718696507,
-      "trigger_score": 0.24,
+      "avg_trading_value_5d": 1717359534,
+      "trigger_score": 0.23,
       "trend_score": 4.5,
-      "score_percentile": 51.6,
+      "score_percentile": 51.5,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": 0.1553,
+      "rvol_lowatr": 0.1516,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+0.15 (tanh=+0.15)",
@@ -2671,7 +2671,7 @@
       "checklist": {
         "risk": [
           "若收盤跌破 **月線 (856.25)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 34.4 億) 且收跌，視為主力出貨訊號。"
+          "若出現 **爆量長黑** (成交值 > 34.3 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
           "若帶量突破 **波段前高 (942.00)**，趨勢續攻，可嘗試加碼。"
@@ -2708,13 +2708,13 @@
       "price": 144.0,
       "change_pct": 1.41,
       "trading_value": 1185200822,
-      "avg_trading_value_5d": 868083343,
+      "avg_trading_value_5d": 867695032,
       "trigger_score": -1.32,
       "trend_score": 4.5,
       "score_percentile": 37.4,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -1.4947,
+      "rvol_lowatr": -1.496,
       "signals": [],
       "trigger_details": [
         "📈 MeanRev=+0.09 (tanh=+0.09)",
@@ -2864,7 +2864,7 @@
         "連續 4 季獲利 (+5)"
       ],
       "qm_f_score": 8,
-      "composite_score": 74.2,
+      "composite_score": 74.3,
       "qm_position_size": {
         "recommended_pct": 3.7,
         "base_pct": 7.4,
@@ -2879,18 +2879,18 @@
       "price": 2640.0,
       "change_pct": 7.98,
       "trading_value": 9774588805,
-      "avg_trading_value_5d": 7949492740,
-      "trigger_score": -2.05,
+      "avg_trading_value_5d": 7944992596,
+      "trigger_score": -2.06,
       "trend_score": 4,
-      "score_percentile": 31.2,
+      "score_percentile": 31.1,
       "regime": "volatile",
       "etf_buy_count": 3,
-      "rvol_lowatr": -2.3206,
+      "rvol_lowatr": -2.323,
       "signals": [
         "etf_sync_buy"
       ],
       "trigger_details": [
-        "📉 MeanRev=-0.52 (tanh=-0.47)",
+        "📉 MeanRev=-0.52 (tanh=-0.48)",
         "📉 Supertrend 空頭趨勢 (-1)",
         "✅ 日線 DMI 多方攻擊 (ADX=55.9) (+1)",
         "🔻 MACD 柱狀體翻綠 (-1)",
@@ -3008,7 +3008,7 @@
           "recommended_pct": 3.6,
           "base_pct": 7.2,
           "multiplier": 0.5,
-          "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger -2.0/5)"
+          "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger -2.1/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -3020,7 +3020,7 @@
       "checklist": {
         "risk": [
           "若收盤跌破 **月線 (2443.25)**，短期轉弱，建議減碼或停損。",
-          "若出現 **爆量長黑** (成交值 > 159.0 億) 且收跌，視為主力出貨訊號。"
+          "若出現 **爆量長黑** (成交值 > 158.9 億) 且收跌，視為主力出貨訊號。"
         ],
         "active": [
           "若帶量突破 **波段前高 (3305.00)**，趨勢續攻，可嘗試加碼。"
@@ -3042,12 +3042,12 @@
         "營收正驚喜 +65.4% (+12)"
       ],
       "qm_f_score": 8,
-      "composite_score": 71.9,
+      "composite_score": 71.8,
       "qm_position_size": {
         "recommended_pct": 3.6,
         "base_pct": 7.2,
         "multiplier": 0.5,
-        "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger -2.0/5)"
+        "rationale": "base=7.2% (composite 72/80) × multiplier=0.50 (trigger -2.1/5)"
       }
     },
     {
@@ -3057,13 +3057,13 @@
       "price": 180.0,
       "change_pct": 1.41,
       "trading_value": 1605356083,
-      "avg_trading_value_5d": 1780007850,
+      "avg_trading_value_5d": 1779422886,
       "trigger_score": -2.14,
       "trend_score": 5,
       "score_percentile": 30.5,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -1.8047,
+      "rvol_lowatr": -1.806,
       "signals": [],
       "trigger_details": [
         "📉 MeanRev=-0.31 (tanh=-0.30)",
@@ -3238,13 +3238,13 @@
       "price": 670.0,
       "change_pct": 0.15,
       "trading_value": 1243529454,
-      "avg_trading_value_5d": 1815183298,
+      "avg_trading_value_5d": 1814654132,
       "trigger_score": -3.39,
       "trend_score": 5,
-      "score_percentile": 21.2,
+      "score_percentile": 21.1,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -2.4347,
+      "rvol_lowatr": -2.4358,
       "signals": [],
       "trigger_details": [
         "📉 MeanRev=-0.26 (tanh=-0.25)",
@@ -3421,20 +3421,20 @@
       "price": 1295.0,
       "change_pct": 1.57,
       "trading_value": 395788160,
-      "avg_trading_value_5d": 409882429,
+      "avg_trading_value_5d": 409378674,
       "trigger_score": -2.52,
       "trend_score": 2,
-      "score_percentile": 27.5,
+      "score_percentile": 27.4,
       "regime": "volatile",
       "etf_buy_count": 0,
-      "rvol_lowatr": -1.3716,
+      "rvol_lowatr": -1.375,
       "signals": [],
       "trigger_details": [
         "📉 MeanRev=-1.74 (tanh=-0.94)",
         "📉 Supertrend 空頭趨勢 (-1)",
         "🔻 MACD 柱狀體翻綠 (-1)",
         "✅ KD 黃金交叉/多方排列 (+1)",
-        "📊 RVOL=0.5x (z=-0.6) (-0.42)",
+        "📊 RVOL=0.5x (z=-0.6) (-0.43)",
         "[Regime] volatile -- weights: T=1.0 M=1.0 V=1.0"
       ],
       "scenario": {
@@ -3585,7 +3585,7 @@
         "ROE=81.7% 高 (+5) [TV]"
       ],
       "qm_f_score": 8,
-      "composite_score": 70.8,
+      "composite_score": 70.7,
       "qm_position_size": {
         "recommended_pct": 3.5,
         "base_pct": 7.1,
