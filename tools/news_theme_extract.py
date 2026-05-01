@@ -1,14 +1,21 @@
-"""News theme discovery (2026-05-01 Day 2 production)
+"""News theme discovery (2026-05-01)
 
-抓 Google News RSS（用 theme/sector 關鍵字查），餵 Claude Sonnet 萃取
-(theme, ticker_mentions, sentiment, tone, confidence) 結構化輸出，
+抓 broad Google News query + UDN money RSS direct，**unfiltered stream** 餵
+Claude Sonnet 自由萃 (theme, ticker_mentions, sentiment, tone, confidence) 結構化輸出，
 並 append 進 `data/news_themes.parquet` 供 Layer 4 _theme_tags_short 讀。
 
 LLM 規範 (CLAUDE.md): Claude Sonnet `--model sonnet` + 600s timeout
 
+設計原則 (2026-05-01 改):
+- **不用 catalyst keyword query** — 那會 discovery bias 偏向已知題材
+- Google News 用 broad query 為了 aggregate Yahoo/sinotrade/cnyes 等多家媒體
+- UDN RSS direct (證券/產業/要聞 各 20 items) 提供 categorical TW finance stream
+- LLM 從原始流自由萃 — 看到什麼新題材就抽什麼，不限預設清單
+
 Pipeline:
-1. 抓 ~10 個 catalyst-driven theme query × Google News RSS
-2. dedupe by title across queries
+1a. 抓 5 個 broad Google News query (台股 個股 / 法說會 / 概念股 / 漲停 / 籌碼)
+1b. 抓 UDN money RSS direct 3 categories (證券/產業/要聞)
+2. dedupe by title across sources
 3. batch 1 次 LLM call → JSON 結構化輸出
 4. 寫 daily JSON `data_cache/news_theme_pop/YYYYMMDD.json` (raw debug)
 5. append 進 `data/news_themes.parquet` (Layer 4 用，30 天 TTL)
@@ -45,18 +52,16 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 AGG_PATH.parent.mkdir(parents=True, exist_ok=True)
 NEWS_TTL_DAYS = 30  # parquet 只保留近 30 天，更舊的剃掉
 
-# 10 個 catalyst-driven theme query (cover 你目前 manual.json 主流 + 幾個 emerging)
+# Broad Google News queries (2026-05-01 改：去 catalyst keyword discovery bias)
+# 原 hardcode 10 個題材 query 會偏向已知題材 (manual.json 已 cover)，
+# 換成 broad query 讓 LLM 從原始新聞流自由萃題材，補 UDN 沒 cover 的
+# sinotrade / Yahoo 股市 / cnyes 等 ~15 家媒體（Google News auto-aggregate）
 THEME_QUERIES = [
-    'AI 伺服器 台股',
-    'CoWoS 先進封裝 台股',
-    'ABF 載板 台股',
-    '矽光子 CPO 台股',
-    '高速傳輸 台股',
-    'AI PC 台股',
-    'EV 電動車 台股',
-    'AI 散熱 液冷 台股',
-    '機器人 台股',
-    '低軌衛星 台股',
+    '台股 個股',
+    '台股 法說會',
+    '台股 概念股',
+    '台股 漲停',
+    '台股 籌碼',
 ]
 
 # 經濟日報 (udn money) RSS direct categories (補深度報導)
@@ -187,17 +192,28 @@ def build_extraction_prompt(articles: list[dict]) -> str:
         )
     articles_text = "\n".join(article_blocks)
 
-    return f"""你是台股新聞題材分析員。我給你 {len(articles)} 篇新聞，請每一篇萃取結構化標籤。
+    return f"""你是台股新聞題材分析員。我給你 {len(articles)} 篇 unfiltered 台股新聞 stream（不限特定題材），
+你需要**自由萃取**每篇真實出現的 catalyst-driven 題材標籤 + 提到的 ticker。
 
 對每篇新聞輸出 JSON object 含以下 fields：
 - id: 文章編號 (Article 1, 2, ...)
-- themes: list[str]，1-3 個 catalyst-driven 題材中文標籤（例: "AI 伺服器 ODM", "CoWoS 先進封裝", "矽光子", "ABF 載板", "EV 供應鏈", "AI 散熱"等）。**禁止**寫太泛的 "AI" / "半導體" / "其他"。**沒題材**就回 []
-- tickers: list[str]，4 位數字台股 ticker（從文章內容明確提到的）。**禁止**亂猜，只列文章字面提到。沒明確提到就回 []
+- themes: list[str]，**0-3 個** catalyst-driven 題材中文標籤
+  範例（不限於此清單，看到什麼新題材就抽什麼）：
+    "AI 伺服器 ODM", "CoWoS 先進封裝", "ABF 載板", "矽光子", "CPO 共封裝光學",
+    "AI 散熱", "AI PC SoC", "EV 供應鏈", "低軌衛星", "機器人", "高速傳輸",
+    "ASIC 設計服務", "HBM", "Apple 蘋果供應鏈", "矽晶圓", "PCB 硬板",
+    "量子運算", "AI 眼鏡", "車用功率半導體", "電動巴士", "工業機器人" 等
+  **禁止**寫太泛 "AI" / "半導體" / "電子股" / "其他" / "權值股"。
+  **若文章是大盤新聞 / 個股單純漲跌沒明確 catalyst** → themes 回 []
+- tickers: list[str]，4 位數字台股 ticker（**只**從文章字面明確提到的）。
+  **禁止**從題材推測（例如看到 ABF 不要自己補 8046/3037），只抓文章寫出來的。
+  沒明確提到就回 []
 - sentiment: float -1.0 ~ +1.0，文章對該題材的情緒（正面利多 / 負面利空 / 中性）
 - tone: str ("bullish" / "bearish" / "neutral")
 - confidence: int 0-100，**你對 themes + tickers 萃取的信心**（高信心 >= 80）
 
-輸出格式：JSON array `[{{"id": 1, "themes": [...], "tickers": [...], ...}}, ...]`，**只輸出 JSON**，不要加 markdown fence、不要加說明文字。
+輸出格式：JSON array `[{{"id": 1, "themes": [...], "tickers": [...], ...}}, ...]`，
+**只輸出 JSON**，不要加 markdown fence、不要加說明文字。
 
 新聞清單：
 
