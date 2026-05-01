@@ -70,6 +70,7 @@ THEMES_CORE_LOOKBACK_DAYS = 365  # 1y rolling for sticky theme晉升
 THEMES_CORE_MIN_COUNT = 3  # BLOCKER #1 spec: ≥3 次同 (ticker, theme) 才晉升 core
 HOT_VIEW_PATH = NEW_NEWS_DIR / 'articles_recent.parquet'
 THEMES_CORE_PATH = NEW_NEWS_DIR / 'themes_core.parquet'
+EARNINGS_SCHEMA_PATH = NEW_NEWS_DIR / 'earnings_schema.parquet'  # Phase 1 #1b
 
 # 經濟日報 (udn money) RSS direct
 UDN_RSS_CATS = [
@@ -1031,15 +1032,80 @@ def rebuild_themes_core() -> dict:
     }
 
 
-def rebuild_all_derived() -> dict:
-    """Rebuild hot view + all derived parquets from archive (Commit 5).
+def rebuild_earnings_schema() -> dict:
+    """Rebuild data/news/earnings_schema.parquet — 法說會 forward guidance (Phase 1 #1b).
 
-    Phase 0: hot view + themes_core only.
-    Phase 1+ 加 earnings_schema / material_events / analyst_targets。
+    Logic:
+    1. Read archive last 1y (法說會 sample 稀疏，不限 90d hot view)
+    2. Filter article_type='individual' + 非空 ticker
+    3. Filter rows with ANY non-empty earnings field (forward_*/key_capacity_event/q_period)
+    4. Dedupe by event_id (BLOCKER #1) — 同事件 cnyes+UDN 不灌水
+    5. Output schema: ticker / date / source / q_period / forward_eps_change /
+       forward_revenue_guidance / forward_gross_margin / key_capacity_event /
+       sentiment / confidence / event_id / title
+
+    Council BLOCKER #7: 此 derived 僅進 AI 報告 [FORWARD_GUIDANCE] (informational),
+    不入 scanner 排序 (validation_spec 過閘門才考慮)。
+    """
+    import pandas as pd
+    cutoff_dt = datetime.now() - timedelta(days=THEMES_CORE_LOOKBACK_DAYS)
+    cutoff_partition = cutoff_dt.strftime('%Y-%m')
+    earn_cols = ['forward_eps_change', 'forward_revenue_guidance',
+                 'forward_gross_margin', 'key_capacity_event', 'q_period']
+    out_cols = ['ticker', 'date', 'source', 'title', 'sentiment', 'confidence',
+                'event_id'] + earn_cols
+    empty_schema = pd.DataFrame(columns=out_cols)
+
+    df, _ = _read_archive_partitions(cutoff_partition)
+    if df.empty:
+        _atomic_write_parquet(empty_schema, EARNINGS_SCHEMA_PATH)
+        return {'rows': 0, 'tickers': 0, 'q_periods': 0}
+
+    # Filter individual articles with ticker + earnings fields
+    if 'article_type' in df.columns:
+        df = df[df['article_type'] == 'individual']
+    df = df[df['ticker'].astype(str) != ''].copy()
+
+    # Filter: 至少一個 earnings 欄位非空
+    earn_present = [col for col in earn_cols if col in df.columns]
+    if not earn_present:
+        _atomic_write_parquet(empty_schema, EARNINGS_SCHEMA_PATH)
+        return {'rows': 0, 'tickers': 0, 'q_periods': 0}
+    has_earn = pd.Series(False, index=df.index)
+    for col in earn_present:
+        has_earn = has_earn | (df[col].astype(str) != '')
+    df = df[has_earn].copy()
+
+    if df.empty:
+        _atomic_write_parquet(empty_schema, EARNINGS_SCHEMA_PATH)
+        return {'rows': 0, 'tickers': 0, 'q_periods': 0}
+
+    # BLOCKER #1: dedupe by event_id
+    df = dedupe_by_event_id(df)
+
+    # Output subset (only relevant columns)
+    avail_cols = [c for c in out_cols if c in df.columns]
+    out_df = df[avail_cols].copy()
+
+    _atomic_write_parquet(out_df, EARNINGS_SCHEMA_PATH)
+    return {
+        'rows': len(out_df),
+        'tickers': int(out_df['ticker'].nunique()),
+        'q_periods': int((out_df['q_period'].astype(str) != '').sum()) if 'q_period' in out_df.columns else 0,
+    }
+
+
+def rebuild_all_derived() -> dict:
+    """Rebuild hot view + all derived parquets from archive.
+
+    Phase 0: hot view + themes_core.
+    Phase 1 #1b: + earnings_schema.
+    Phase 1+ 後續加 material_events / analyst_targets。
     """
     out = {}
     out['hot_view'] = rebuild_hot_view()
     out['themes_core'] = rebuild_themes_core()
+    out['earnings_schema'] = rebuild_earnings_schema()
     return out
 
 
@@ -1068,25 +1134,29 @@ def main():
                         p['partition'], p['rows_added'], p['total_after'])
         # Rebuild hot view + derived after migration
         rebuild_stats = rebuild_all_derived()
-        logger.info("Hot view: %d rows from %d partitions; themes_core: %d rows "
-                    "(%d tickers × %d themes)",
+        logger.info("Hot view: %d rows; themes_core: %d (%d tickers × %d themes); "
+                    "earnings_schema: %d rows (%d tickers, %d q_period entries)",
                     rebuild_stats['hot_view']['rows'],
-                    rebuild_stats['hot_view']['partitions_read'],
                     rebuild_stats['themes_core']['rows'],
                     rebuild_stats['themes_core']['tickers'],
-                    rebuild_stats['themes_core']['themes'])
+                    rebuild_stats['themes_core']['themes'],
+                    rebuild_stats['earnings_schema']['rows'],
+                    rebuild_stats['earnings_schema']['tickers'],
+                    rebuild_stats['earnings_schema']['q_periods'])
         return
 
     # Rebuild-only shortcut (no fetcher/LLM)
     if args.rebuild_only:
         rebuild_stats = rebuild_all_derived()
-        logger.info("Hot view: %d rows from %d partitions; themes_core: %d rows "
-                    "(%d tickers × %d themes)",
+        logger.info("Hot view: %d rows; themes_core: %d (%d tickers × %d themes); "
+                    "earnings_schema: %d rows (%d tickers, %d q_period entries)",
                     rebuild_stats['hot_view']['rows'],
-                    rebuild_stats['hot_view']['partitions_read'],
                     rebuild_stats['themes_core']['rows'],
                     rebuild_stats['themes_core']['tickers'],
-                    rebuild_stats['themes_core']['themes'])
+                    rebuild_stats['themes_core']['themes'],
+                    rebuild_stats['earnings_schema']['rows'],
+                    rebuild_stats['earnings_schema']['tickers'],
+                    rebuild_stats['earnings_schema']['q_periods'])
         return
 
     today = datetime.now().strftime('%Y%m%d')
@@ -1248,13 +1318,15 @@ def main():
 
         # 4c. Rebuild hot view + derived parquets (Commit 5)
         rebuild_stats = rebuild_all_derived()
-        logger.info("Hot view: %d rows from %d partitions; themes_core: %d rows "
-                    "(%d tickers × %d themes)",
+        logger.info("Hot view: %d rows; themes_core: %d (%d tickers × %d themes); "
+                    "earnings_schema: %d rows (%d tickers, %d q_period entries)",
                     rebuild_stats['hot_view']['rows'],
-                    rebuild_stats['hot_view']['partitions_read'],
                     rebuild_stats['themes_core']['rows'],
                     rebuild_stats['themes_core']['tickers'],
-                    rebuild_stats['themes_core']['themes'])
+                    rebuild_stats['themes_core']['themes'],
+                    rebuild_stats['earnings_schema']['rows'],
+                    rebuild_stats['earnings_schema']['tickers'],
+                    rebuild_stats['earnings_schema']['q_periods'])
 
     # 5. summary stats
     theme_counts: dict[str, int] = {}

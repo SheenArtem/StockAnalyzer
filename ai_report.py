@@ -575,6 +575,63 @@ def _parse_fund_float(fund_data, key):
         return 0
 
 
+def _build_forward_guidance_context(ticker, max_events: int = 4) -> str:
+    """[FORWARD_GUIDANCE] B1 builder (Phase 1 #1b).
+
+    讀 data/news/earnings_schema.parquet, filter 該 ticker, 取最近 N 件法說會 /
+    財報展望. Output Tier 2 公司展望，與 Tier 1 yfinance forwardEps 共識並列
+    讓 LLM 能比較 (差異本身是 signal, Council BLOCKER #5 spec)。
+
+    Council BLOCKER #7: 此資料僅 informational, 不入 scanner 排序。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (earnings_schema 目前只覆蓋台股)"
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        path = _P(__file__).resolve().parent / 'data' / 'news' / 'earnings_schema.parquet'
+        if not path.exists():
+            return "N/A (earnings_schema.parquet 尚未產生，scanner 跑過後才有)"
+        df = pd.read_parquet(path)
+        if df.empty:
+            return "N/A (近 1 年無法說會 / 財報展望抽取資料)"
+        sub = df[df['ticker'].astype(str) == stock_id].copy()
+        if sub.empty:
+            return f"N/A (近 1 年 {stock_id} 無法說會 / 財報展望抽取資料)"
+
+        sub['date'] = pd.to_datetime(sub['date'], errors='coerce')
+        sub = sub.sort_values('date', ascending=False).head(max_events)
+
+        lines = ["近 1 年法說會 / 公司展望抽取 (Tier 2 from news, dedupe by event):"]
+        for _, row in sub.iterrows():
+            d = row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '?'
+            qp = str(row.get('q_period', '') or '').strip()
+            qp_str = f" Q={qp}" if qp else ''
+            parts = []
+            for col, label in [('forward_eps_change', 'EPS'),
+                               ('forward_revenue_guidance', 'Revenue'),
+                               ('forward_gross_margin', 'GM'),
+                               ('key_capacity_event', '產能')]:
+                v = str(row.get(col, '') or '').strip()
+                if v:
+                    parts.append(f"{label}={v}")
+            tone = row.get('tone', 'neutral') if 'tone' in sub.columns else 'neutral'
+            sent = float(row.get('sentiment', 0.0) or 0.0)
+            title = str(row.get('title', ''))[:70]
+            joined = ', '.join(parts) if parts else '(無 directional)'
+            lines.append(f"  [{d}{qp_str}] ({tone} {sent:+.2f}) {joined}")
+            lines.append(f"      {title}")
+
+        lines.append("")
+        lines.append("⚠️ Tier 2 source = news 抽取「公司自己法說會講的展望」, 非分析師共識")
+        lines.append("   若與 [ANALYST_CONSENSUS] / yfinance forward EPS 不一致，差異本身是 signal")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"N/A (forward guidance 讀取失敗: {e})"
+
+
 def _build_market_context_news(days: int = 7, max_events: int = 10) -> str:
     """[MARKET_CONTEXT] B6 macro/sector news section (Council BLOCKER #6).
 
@@ -1181,6 +1238,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     data_sections.append(f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}")
     data_sections.append(f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}")
     data_sections.append(f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}")
+    data_sections.append(f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}")
     data_sections.append(f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
@@ -1341,6 +1399,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}",
         f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}",
         f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}",
+        f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}",
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]
     data_block = "\n\n".join(data_sections)
