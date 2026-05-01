@@ -17,8 +17,10 @@ Pipeline:
 1a. 抓 UDN money RSS direct 3 categories (證券/產業/要聞)
 1b. 抓 cnyes JSON API 2 categories (tw_stock_news / headline)
 2. dedupe by title across sources
-3. batch 1 次 LLM call → JSON 結構化輸出
+3. N=20 batch split → 多次 LLM call (fault-isolated；解 Windows subprocess
+   stdout truncation 問題，single big call 會丟失開頭 35-50% 文章)
 4. 寫 daily JSON `data_cache/news_theme_pop/YYYYMMDD.json` (raw debug)
+   失敗的 batch raw 寫進 `{date}_failed_batches.json`
 5. append 進 `data/news_themes.parquet` (Layer 4 用，30 天 TTL)
 
 CLI:
