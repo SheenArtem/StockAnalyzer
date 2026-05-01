@@ -42,7 +42,7 @@ THEMES_PATH = REPO / "data" / "sector_tags_manual.json"
 OUT_PATH = REPO / "data" / "sector_tags_llm.json"
 TMP_DIR = REPO / "tools" / "tmp" / "llm_tag_batches"
 
-CLAUDE_MODEL_FLAG = "--model claude-sonnet-4-6"  # 同 yt extract 用 Sonnet
+CLAUDE_MODEL_FLAG = "--model sonnet"  # LLM 規範 (2026-05-01)：Sonnet alias 自動跟最新 sonnet
 
 
 def load_themes_schema() -> tuple[list[dict], set[str]]:
@@ -317,7 +317,7 @@ def main():
             json.dump({
                 'schema_version': 1,
                 'generated_at': time.strftime('%Y-%m-%d %H:%M:%S'),
-                'source': 'claude-sonnet-4-6 + TV sector/industry context',
+                'source': 'claude sonnet + TV sector/industry context',
                 'description': 'LLM bulk auto-tag (manual.json takes precedence)',
                 'theme_ids_valid': sorted(valid_theme_ids),
                 'tags': all_tags,

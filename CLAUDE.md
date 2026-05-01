@@ -136,7 +136,7 @@ for p in glob.glob('**/*.bat', recursive=True):
 - 技術分析：`ta`、`mplfinance`
 - 圖表：`plotly`
 - 網頁爬蟲：`beautifulsoup4`、`curl_cffi`
-- AI：Claude CLI（`claude -p --allowedTools "WebSearch,WebFetch"`）
+- AI：Claude CLI（詳見上方「LLM 使用規則」段，AI 報告強制 `--model opus --allowedTools "*"`）
 
 ## 啟動方式
 
@@ -300,7 +300,7 @@ IC 驗證報告在 `reports/chip_ic_matrix.csv`、組合驗證在 `reports/chip_
   - `run_c1_monthly.bat` — 每月初（C1 月營收拐點 tilt flag 重算）
   - `run_mops_probe.bat` — 每日（MOPS WAF 解禁狀態探測）
   - `run_yt_sync.bat` — 已整合進 scanner 前段，獨立排程可保留 backup
-- **AI 報告** — 使用 Claude CLI `claude -p --allowedTools "WebSearch,WebFetch"`，Team Plan 額度
+- **AI 報告** — 使用 Claude CLI `claude -p --model opus --allowedTools "*"`（Team Plan 額度，詳見開頭「LLM 使用規則」）
 
 ## 已評估後不動的「技術債」項目（避免未來重複討論）
 
