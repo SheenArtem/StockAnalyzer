@@ -1,26 +1,22 @@
-"""News theme discovery Phase 1 POC (2026-05-01 Day 1-3)
+"""News theme discovery (2026-05-01 Day 2 production)
 
 抓 Google News RSS（用 theme/sector 關鍵字查），餵 Claude Sonnet 萃取
-(theme, ticker_mentions, sentiment, tone, confidence) 結構化輸出。
+(theme, ticker_mentions, sentiment, tone, confidence) 結構化輸出，
+並 append 進 `data/news_themes.parquet` 供 Layer 4 _theme_tags_short 讀。
 
-LLM 規範 (CLAUDE.md):
-- News 解析強制用 Claude Sonnet (`--model sonnet`) + 600s timeout
-- 不用 Haiku (accuracy 不夠)，不用 Opus (浪費)
+LLM 規範 (CLAUDE.md): Claude Sonnet `--model sonnet` + 600s timeout
 
-POC scope (single source + small batch):
-- 抓 10 個熱門題材關鍵字 × 每查 8 篇 = 最多 80 篇 (近 7 天)
-- dedupe by url
-- batch 送 Claude Sonnet 一次性萃取 (避免 80 次 LLM call)
-- 輸出 JSON `data_cache/news_theme_pop/poc_YYYYMMDD.json`
-- 人工 audit 取樣 20 篇看 accuracy
-
-驗收閘門 (Day 2 才繼續做):
-- accuracy >= 60% strict (theme 命中 + ticker 不亂寫)
-- 不過閘門 → abort，3 層題材融合維持
+Pipeline:
+1. 抓 ~10 個 catalyst-driven theme query × Google News RSS
+2. dedupe by title across queries
+3. batch 1 次 LLM call → JSON 結構化輸出
+4. 寫 daily JSON `data_cache/news_theme_pop/YYYYMMDD.json` (raw debug)
+5. append 進 `data/news_themes.parquet` (Layer 4 用，30 天 TTL)
 
 CLI:
-    python tools/news_theme_extract_poc.py            # 跑 POC
-    python tools/news_theme_extract_poc.py --dry-run  # 只抓不解析
+    python tools/news_theme_extract.py            # 完整跑 + parquet append
+    python tools/news_theme_extract.py --dry-run  # 只抓不解析 (debug)
+    python tools/news_theme_extract.py --no-aggregate  # 解析但不寫 parquet
 """
 from __future__ import annotations
 
@@ -44,7 +40,10 @@ logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO / 'data_cache' / 'news_theme_pop'
+AGG_PATH = REPO / 'data' / 'news_themes.parquet'  # Layer 4 input
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+AGG_PATH.parent.mkdir(parents=True, exist_ok=True)
+NEWS_TTL_DAYS = 30  # parquet 只保留近 30 天，更舊的剃掉
 
 # 10 個 catalyst-driven theme query (cover 你目前 manual.json 主流 + 幾個 emerging)
 THEME_QUERIES = [
@@ -192,15 +191,85 @@ def parse_json_response(output: str) -> list[dict] | None:
         return None
 
 
+def aggregate_to_parquet(merged: list[dict]) -> dict:
+    """Append today's merged articles into data/news_themes.parquet。
+
+    Parquet schema:
+      [date, source, ticker, theme, sentiment, tone, confidence,
+       title (短), link]
+
+    Each article 展開成 ticker × theme 的 multi-row。
+    最後 dedupe by (date, ticker, theme, title) 並 trim 30 天 TTL。
+    """
+    import pandas as pd
+
+    rows = []
+    for a in merged:
+        themes = a.get('themes') or []
+        tickers = a.get('tickers') or []
+        # 沒 ticker 的也保留 (theme-only)，ticker 設 ''；沒 theme 的整篇略過
+        if not themes:
+            continue
+        if not tickers:
+            tickers = ['']
+        for t in tickers:
+            for th in themes:
+                rows.append({
+                    'date': a.get('date'),
+                    'source': a.get('source', ''),
+                    'ticker': str(t),
+                    'theme': str(th),
+                    'sentiment': float(a.get('sentiment', 0.0) or 0.0),
+                    'tone': str(a.get('tone', 'neutral')),
+                    'confidence': int(a.get('confidence', 0) or 0),
+                    'title': str(a.get('title', ''))[:200],
+                    'link': str(a.get('link', '')),
+                })
+
+    new_df = pd.DataFrame(rows)
+    if new_df.empty:
+        return {'rows_added': 0, 'rows_total': 0}
+
+    # 載既有 parquet
+    if AGG_PATH.exists():
+        try:
+            existing = pd.read_parquet(AGG_PATH)
+            combined = pd.concat([existing, new_df], ignore_index=True)
+        except Exception as e:
+            logger.warning("讀 %s 失敗，重建: %s", AGG_PATH, e)
+            combined = new_df
+    else:
+        combined = new_df
+
+    # dedupe + 30 天 TTL
+    combined = combined.drop_duplicates(
+        subset=['date', 'ticker', 'theme', 'title'], keep='last'
+    )
+    combined['date'] = pd.to_datetime(combined['date'], errors='coerce')
+    cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=NEWS_TTL_DAYS)
+    combined = combined[combined['date'] >= cutoff].copy()
+    combined['date'] = combined['date'].dt.strftime('%Y-%m-%d')
+
+    combined.to_parquet(AGG_PATH, index=False)
+    return {
+        'rows_added': len(new_df),
+        'rows_total': len(combined),
+        'tickers_total': combined['ticker'].nunique(),
+        'themes_total': combined['theme'].nunique(),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dry-run', action='store_true', help='只抓不解析 LLM')
+    parser.add_argument('--no-aggregate', action='store_true',
+                        help='解析但不 append 進 parquet (debug 用)')
     parser.add_argument('--days', type=int, default=7)
     parser.add_argument('--max-per-query', type=int, default=8)
     args = parser.parse_args()
 
     today = datetime.now().strftime('%Y%m%d')
-    out_path = OUT_DIR / f'poc_{today}.json'
+    out_path = OUT_DIR / f'{today}.json'
 
     # 1. 抓所有 query
     all_articles = []
@@ -218,7 +287,7 @@ def main():
     logger.info("Total unique articles: %d", len(all_articles))
 
     if args.dry_run:
-        out_path = OUT_DIR / f'poc_{today}_dry.json'
+        out_path = OUT_DIR / f'{today}_dry.json'
         out_path.write_text(
             json.dumps(all_articles, ensure_ascii=False, indent=2),
             encoding='utf-8',
@@ -242,13 +311,13 @@ def main():
     if err:
         logger.error("Claude error: %s", err)
         # 仍寫出 raw output 供 debug
-        (OUT_DIR / f'poc_{today}_raw.txt').write_text(output, encoding='utf-8')
+        (OUT_DIR / f'{today}_raw.txt').write_text(output, encoding='utf-8')
         sys.exit(1)
 
     extracted = parse_json_response(output)
     if extracted is None:
         logger.error("JSON parse failed, raw output saved")
-        (OUT_DIR / f'poc_{today}_raw.txt').write_text(output, encoding='utf-8')
+        (OUT_DIR / f'{today}_raw.txt').write_text(output, encoding='utf-8')
         sys.exit(1)
 
     # 3. merge: align extracted to articles by id
@@ -280,6 +349,13 @@ def main():
         encoding='utf-8',
     )
     logger.info("Saved %d/%d to %s", len(merged), len(all_articles), out_path)
+
+    # 4b. aggregate to parquet
+    if not args.no_aggregate:
+        agg = aggregate_to_parquet(merged)
+        logger.info("Aggregated to %s: +%d rows, total=%d, tickers=%d, themes=%d",
+                    AGG_PATH.name, agg['rows_added'], agg['rows_total'],
+                    agg.get('tickers_total', 0), agg.get('themes_total', 0))
 
     # 5. summary stats
     theme_counts: dict[str, int] = {}

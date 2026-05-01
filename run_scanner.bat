@@ -69,6 +69,19 @@ REM chromadb (142 from Q4 2025) preserved.
 REM ------------------------------------------------------------
 
 REM ------------------------------------------------------------
+REM News theme discovery (2026-05-01 Day 2):
+REM Google News RSS x 10 catalyst-driven queries -> Claude Sonnet batch
+REM extract -> data/news_themes.parquet (Layer 4 of _theme_tags_short
+REM 4-layer fusion). 30-day TTL inside parquet.
+REM POC accuracy ~95% strict (Day 1-3 audit, commit de836ba).
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] News theme extract starting >> scanner.log
+python tools\news_theme_extract.py >> scanner.log 2>&1
+set NEWS_EC=%ERRORLEVEL%
+echo [%date% %time%] News theme extract done (exit=%NEWS_EC%) >> scanner.log
+
+REM ------------------------------------------------------------
 REM MOPS WAF unblock probe (1 req/day). 3 consecutive successes -> Discord ping.
 REM Runs before scanner to avoid extra Task Scheduler entry.
 REM ------------------------------------------------------------
