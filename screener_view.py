@@ -612,7 +612,7 @@ ATR_pct  = ATR(14) / 收盤價 x 100      （波動率佔比）
                 column_config={
                     '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
                     '週榜': st.column_config.TextColumn(width='medium', help="本週三大法人榜單上的標記（連買/連賣天數 + 4 維度排名）"),
-                    '題材': st.column_config.TextColumn(width='medium', help="3 層融合：sector_tags_manual.json AI era 題材 (140 ticker) → YT 法說提及 (180d 內) → TV industry 中文 fallback；最多顯示 2 個 + 餘數"),
+                    '題材': st.column_config.TextColumn(width='medium', help="4 層融合：sector_tags_manual.json AI era 題材 (140 ticker) → News RSS 萃取 (30d) → YT 法說提及 (180d) → TV industry 中文 fallback；最多顯示 2 個 + 餘數"),
                     '市值排名': st.column_config.NumberColumn(format="%d", help="1 = 台股市值最大"),
                     '綜合': st.column_config.NumberColumn(format="%.1f"),
                     'F-Score': st.column_config.NumberColumn(format="%d"),
@@ -1225,7 +1225,7 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
                     '共振': st.column_config.TextColumn(width='small', help="✨ = 同時出現在動能+價值選股（便宜+轉強組合）"),
                     '大型股': st.column_config.TextColumn(width='small', help="🏛️ = 走大型股 Graham 例外通道（市值前 50 + F-Score>=5 + quality>=50），PE×PB>22.5 但被放行"),
                     '週榜': st.column_config.TextColumn(width='medium', help="本週三大法人榜單上的標記（連買/連賣天數 + 4 維度排名）"),
-                    '題材': st.column_config.TextColumn(width='medium', help="3 層融合：sector_tags_manual.json AI era 題材 (140 ticker) → YT 法說提及 (180d 內) → TV industry 中文 fallback；最多顯示 2 個 + 餘數"),
+                    '題材': st.column_config.TextColumn(width='medium', help="4 層融合：sector_tags_manual.json AI era 題材 (140 ticker) → News RSS 萃取 (30d) → YT 法說提及 (180d) → TV industry 中文 fallback；最多顯示 2 個 + 餘數"),
                     '綜合分數': st.column_config.NumberColumn(format="%.1f"),
                     'PE': st.column_config.NumberColumn(format="%.1f"),
                     'PB': st.column_config.NumberColumn(format="%.2f"),
@@ -1758,7 +1758,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
 
                     if _rows:
                         st.dataframe(_pd_d.DataFrame(_rows), use_container_width=True, hide_index=True)
-                        st.caption("劇本 A=現價可進 / B=等拉回 5-10MA / C=觀望 / D=空頭避開 | C1 ✅ = 月營收 YoY 拐點 (×1.2 加分) | YT 7d = 近 7 日節目提及次數 | 週榜 = 本週三大法人榜上標記 | 題材 = AI era sector tag (manual + YT 180d + TV industry 三層融合)")
+                        st.caption("劇本 A=現價可進 / B=等拉回 5-10MA / C=觀望 / D=空頭避開 | C1 ✅ = 月營收 YoY 拐點 (×1.2 加分) | YT 7d = 近 7 日節目提及次數 | 週榜 = 本週三大法人榜上標記 | 題材 = AI era sector tag (manual + News 30d + YT 180d + TV industry 四層融合)")
                     else:
                         st.info("無 pick 資料")
             except Exception as _e:
