@@ -441,9 +441,23 @@ def render_individual(target_ticker):
 
 
         # 顯示圖表
+        # ==========================================
+        # 情緒儀表板 (2026-05-01 Day 3): 市場 vs 個股對比
+        # 顯示 3 個 -100~+100 score (大盤 / 個股 / diff) + 訊號明細 + 對比標籤
+        # 訊號來源: market_sentiment v1 = 法人/融資/MA/News tone (LLM Sonnet 萃)
+        # ==========================================
+        try:
+            from market_sentiment import render_sentiment_divergence_block
+            stock_id_clean = (target_ticker or '').replace('.TW', '').replace('.TWO', '').strip()
+            if stock_id_clean and stock_id_clean.isdigit():
+                with st.expander("🌡️ 情緒對比 (市場 vs 個股)", expanded=False):
+                    render_sentiment_divergence_block(stock_id_clean, chip_data=chip_data)
+        except Exception as _e:
+            pass  # best-effort, 不影響主 flow
+
         tab1, tab2, tab3, tab4, tab6 = st.tabs(
             ["週K", "日K", "籌碼面", "🏢 基本面", "📊 除息/營收"])
-        
+
         with tab1:
             if 'Weekly' in figures:
                 st.plotly_chart(figures['Weekly'], width='stretch')
