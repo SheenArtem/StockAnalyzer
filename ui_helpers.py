@@ -181,23 +181,391 @@ def _wc_tags_short(stock_id):
         return ''
 
 
-def _theme_tags_short(stock_id):
-    """回傳 ticker 所屬題材中文名 short string；最多顯示 2 個 + 餘數 (VF-GM Phase 3)。
+# --- 3-layer 題材融合 (2026-05-01)：manual.json → YT dynamic (180d TTL) → TV industry 中文 ---
+# 改善 picks 表「題材」column coverage：原僅 manual.json 140 ticker (~15-40% picks
+# 命中率) → 三層融合後 ~95%+ non-empty。
 
-    從 sector_tags_manual.json 140 ticker / 29 multi-label 反向索引帶入。Empty -> ''.
+_DYN_TAGS_TTL_DAYS = 180  # YT 動態題材：只用近 180 天提及
+_DYN_TAGS_RELOAD_SEC = 3600  # parquet 1h reload (檔案每日由 scanner 更新)
+_DYN_TAGS_CACHE = {'data': None, 'ts': 0.0}
+
+# TV industry 英文 → 中文 mapping (cover 全部 112 個 TW 市場 industries)
+_TV_INDUSTRY_ZH = {
+    # 半導體 / 電子
+    'Semiconductors': '半導體',
+    'Electronic Components': '電子零組件',
+    'Electronic Production Equipment': '電子設備製造',
+    'Electronic Equipment/Instruments': '電子儀器',
+    'Electronics Distributors': '電子通路',
+    'Electronics/Appliances': '消費電子',
+    'Electronics/Appliance Stores': '消費電子零售',
+    'Computer Peripherals': '電腦週邊',
+    'Computer Processing Hardware': '電腦處理硬體',
+    'Computer Communications': '電腦通訊',
+    'Telecommunications Equipment': '通訊設備',
+    # 工業機械 / 製造
+    'Industrial Machinery': '工業機械',
+    'Industrial Specialties': '工業特用',
+    'Industrial Conglomerates': '工業集團',
+    'Miscellaneous Manufacturing': '一般製造',
+    'Metal Fabrication': '金屬加工',
+    'Tools & Hardware': '工具五金',
+    'Trucks/Construction/Farm Machinery': '工程/農用車輛',
+    'Building Products': '建材製品',
+    'Construction Materials': '建材',
+    'Engineering & Construction': '工程營建',
+    'Aerospace & Defense': '航太國防',
+    # 化工 / 材料
+    'Chemicals: Specialty': '特用化學',
+    'Chemicals: Major Diversified': '綜合化工',
+    'Chemicals: Agricultural': '農化',
+    'Pulp & Paper': '紙漿/紙業',
+    'Containers/Packaging': '包裝材料',
+    'Forest Products': '林產',
+    # 鋼鐵 / 金屬
+    'Steel': '鋼鐵',
+    'Aluminum': '鋁',
+    'Other Metals/Minerals': '其他金屬礦產',
+    'Precious Metals': '貴金屬',
+    'Mining/Quarrying': '採礦',
+    'Coal': '煤炭',
+    # 紡織 / 民生
+    'Textiles': '紡織',
+    'Apparel/Footwear': '成衣/鞋業',
+    'Apparel/Footwear Retail': '成衣零售',
+    'Home Furnishings': '家具',
+    'Household/Personal Care': '家居/個人護理',
+    'Consumer Sundries': '日用品',
+    'Recreational Products': '休閒娛樂用品',
+    'Other Consumer Specialties': '其他消費商品',
+    # 食品 / 飲料
+    'Food: Major Diversified': '綜合食品',
+    'Food: Specialty/Candy': '特用食品',
+    'Food: Meat/Fish/Dairy': '肉品/水產/乳品',
+    'Beverages: Non-Alcoholic': '飲料',
+    'Beverages: Alcoholic': '酒類',
+    'Tobacco': '菸草',
+    'Agricultural Commodities/Milling': '農產加工',
+    'Food Retail': '食品零售',
+    'Food Distributors': '食品通路',
+    # 零售 / 通路
+    'Specialty Stores': '專賣店',
+    'Department Stores': '百貨',
+    'Discount Stores': '量販',
+    'Internet Retail': '電商',
+    'Wholesale Distributors': '批發通路',
+    'Catalog/Specialty Distribution': '型錄/專業通路',
+    'Drugstore Chains': '連鎖藥局',
+    'Home Improvement Chains': '居家修繕',
+    'Medical Distributors': '醫療通路',
+    # 醫療 / 生技
+    'Pharmaceuticals: Major': '主要藥廠',
+    'Pharmaceuticals: Generic': '學名藥',
+    'Pharmaceuticals: Other': '其他製藥',
+    'Biotechnology': '生技',
+    'Medical Specialties': '醫療器材',
+    'Medical/Nursing Services': '醫療看護服務',
+    'Hospital/Nursing Management': '醫院管理',
+    # 服務 / 觀光
+    'Restaurants': '餐飲',
+    'Hotels/Resorts/Cruise lines': '觀光酒店',
+    'Hotels/Resorts/Cruiselines': '觀光酒店',
+    'Movies/Entertainment': '電影娛樂',
+    'Casinos/Gaming': '博弈',
+    'Broadcasting': '廣播',
+    'Cable/Satellite TV': '有線電視',
+    'Publishing: Books/Magazines': '出版',
+    'Publishing: Newspapers': '報業',
+    'Advertising/Marketing Services': '廣告行銷',
+    'Personnel Services': '人力服務',
+    'Commercial Printing/Forms': '印刷',
+    'Office Equipment/Supplies': '辦公用品',
+    'Other Consumer Services': '其他消費服務',
+    'Miscellaneous Commercial Services': '商業服務',
+    'Environmental Services': '環保服務',
+    # 運輸 / 物流
+    'Marine Shipping': '航運',
+    'Air Freight/Couriers': '空運/快遞',
+    'Trucking': '陸運',
+    'Airlines': '航空',
+    'Other Transportation': '其他運輸',
+    # 汽車
+    'Auto Parts: OEM': '汽車零組件',
+    'Motor Vehicles': '汽車整車',
+    'Automotive Aftermarket': '汽車後市場',
+    # 建材 / 不動產
+    'Real Estate Development': '不動產開發',
+    'Real Estate Investment Trusts': 'REITs',
+    'Homebuilding': '建設',
+    # 金融 / 保險
+    'Major Banks': '大型銀行',
+    'Regional Banks': '區域銀行',
+    'Investment Banks/Brokers': '證券',
+    'Investment Managers': '投信投顧',
+    'Investment Trusts/Mutual Funds': 'ETF/基金',
+    'Life/Health Insurance': '人壽/健康險',
+    'Property/Casualty Insurance': '產險',
+    'Multi-Line Insurance': '綜合保險',
+    'Specialty Insurance': '特別保險',
+    'Insurance Brokers/Services': '保險經紀',
+    'Finance/Rental/Leasing': '租賃融資',
+    'Financial Conglomerates': '金融集團',
+    # 軟體 / IT
+    'Packaged Software': '軟體',
+    'Information Technology Services': 'IT 服務',
+    'Internet Software/Services': '網路服務',
+    'Data Processing Services': '資料處理服務',
+    # 電力 / 公用事業
+    'Electrical Products': '電氣設備',
+    'Electric Utilities': '電力',
+    'Water Utilities': '自來水',
+    'Gas Distributors': '燃氣',
+    'Alternative Power Generation': '再生能源',
+    'Oil & Gas Production': '油氣生產',
+    'Oil Refining/Marketing': '煉油',
+    'Integrated Oil': '綜合油氣',
+    # 電信
+    'Major Telecommunications': '電信',
+    'Wireless Telecommunications': '無線通訊',
+    'Specialty Telecommunications': '特用電信',
+}
+
+
+# 同題材常見變體 → canonical 顯示名 (處理 manual.json vs YT 分頭命名差異)
+# Key 是 strip-whitespace+lowercase 後的 normalize 形；value 是顯示名（或 '' 黑名單）
+# 多個 key 可指向相同 value 達成跨變體去重 (e.g. 'cowos' 和 'cowos先進封裝' → 'CoWoS 先進封裝')
+_THEME_ALIAS = {
+    # 蘋果供應鏈 (manual.json 用「Apple 蘋果供應鏈」作 canonical)
+    'apple供應鏈': 'Apple 蘋果供應鏈',
+    'apple蘋果供應鏈': 'Apple 蘋果供應鏈',
+    # AI 伺服器 (有 ODM / 電源 / 一般三層)
+    'ai伺服器': 'AI 伺服器',
+    'ai伺服器odm': 'AI 伺服器 ODM',
+    'ai伺服器電源': 'AI 伺服器電源',
+    'aipc': 'AI PC',
+    'aipcsoc': 'AI PC SoC',
+    # 先進封裝 / CoWoS (合併 CoWoS / 先進封裝 → manual canonical)
+    'cowos': 'CoWoS 先進封裝',
+    'cowos先進封裝': 'CoWoS 先進封裝',
+    '先進封裝': 'CoWoS 先進封裝',
+    '先進封測': '先進封測',
+    # 載板 / PCB
+    'pcb硬板': 'PCB 硬板',
+    'abf載板': 'ABF 載板',
+    # 半導體
+    '矽晶圓': '矽晶圓',
+    '半導體': '半導體',
+    'asic': 'ASIC',
+    'asic設計服務': 'ASIC 設計服務',
+    'cpo': 'CPO',
+    'hbm': 'HBM',
+    # EV
+    'ev': 'EV',
+    'evev供應鏈': 'EV 供應鏈',
+    # 黑名單
+    'ai': '',
+    '其他': '',
+    '無': '',
+    '電子': '',
+    '半導體龍頭': '',
+    '護國神山': '',
+}
+
+
+def _clean_yt_tag(tag):
+    """處理 YT LLM 萃出常見的「主題（解釋）」格式：
+
+    '先進封測（CoWoS 後段 / AI 測試）' → '先進封測'
+    'AI 散熱（液冷）' → 'AI 散熱'
+    截到第一個全形/半形括號前。如果整段都是 wrapped，回原字串。
     """
+    if not tag or not isinstance(tag, str):
+        return ''
+    s = tag.strip()
+    # 去 leading 括號描述
+    for bracket in ('（', '('):
+        if bracket in s:
+            head = s.split(bracket, 1)[0].strip()
+            if head:  # 確保截掉後不是空字串
+                s = head
+                break
+    return s
+
+
+def _normalize_theme_key(s):
+    """Dedup key: 去空白 + lowercase + 共用 alias。
+
+    'AI 伺服器 ODM' / 'AI伺服器ODM' → 同 key。
+    'Apple 供應鏈' / 'Apple 蘋果供應鏈' → 走 _THEME_ALIAS 映射到同 key。
+    """
+    if not s or not isinstance(s, str):
+        return ''
+    base = s.replace(' ', '').replace('　', '').lower()
+    # alias 表把已知變體 normalize 成同一個 canonical key
+    canonical = _THEME_ALIAS.get(base)
+    if canonical == '':
+        return ''  # 顯式黑名單 (其他 / AI 太泛)
+    if canonical:
+        return canonical.replace(' ', '').replace('　', '').lower()
+    return base
+
+
+def _is_junk_yt_tag(tag):
+    """過濾 LLM 萃出的 catch-all junk tag。
+
+    YT extraction 經常產出 '其他 (晶圓代工)' / '其他(AI晶片代工)' / '其他 大盤指標'
+    這類前綴 '其他' 的 placeholder，全部不要。
+    """
+    if not tag or not isinstance(tag, str):
+        return True
+    t = tag.strip()
+    if t.startswith('其他'):
+        return True
+    if t.lower() == 'ai' or t == '無' or t == '':
+        return True
+    return False
+
+
+def _build_dyn_tags_index():
+    """從 sector_tags_dynamic.parquet 建 ticker → ordered list[theme] 索引。
+
+    Filters:
+      - confidence >= 70
+      - ticker_suspicious == False
+      - date 在 _DYN_TAGS_TTL_DAYS 天內
+      - tag 不是 '其他*' / 'AI' / '' 等 junk (見 _is_junk_yt_tag)
+
+    排序：date 降序，新鮮 mention 優先；同 ticker 內以 alias 去重；
+    每 ticker 最多保留 5 個 (避免 +N 失控)。
+    """
+    import pandas as pd
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent / 'data' / 'sector_tags_dynamic.parquet'
+    if not path.exists():
+        return {}
+    df = pd.read_parquet(path)
+    if df.empty:
+        return {}
+    cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=_DYN_TAGS_TTL_DAYS)
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    mask = (
+        (df['confidence'] >= 70)
+        & (df['ticker_suspicious'] == False)
+        & (df['date'] >= cutoff)
+    )
+    clean = df[mask].sort_values('date', ascending=False)
+
+    MAX_PER_TICKER = 5
+    idx = {}
+    for _, row in clean.iterrows():
+        ticker = row.get('ticker')
+        if not ticker:
+            continue
+        tags = row.get('tags')
+        if tags is None:
+            continue
+        bucket = idx.setdefault(ticker, {'order': [], 'seen': set()})
+        if len(bucket['order']) >= MAX_PER_TICKER:
+            continue
+        for tag in tags:
+            if _is_junk_yt_tag(tag):
+                continue
+            cleaned = _clean_yt_tag(tag)
+            if _is_junk_yt_tag(cleaned):
+                continue
+            k = _normalize_theme_key(cleaned)
+            if not k or k in bucket['seen']:
+                continue
+            base_lower = cleaned.replace(' ', '').replace('　', '').lower()
+            display = _THEME_ALIAS.get(base_lower, cleaned)
+            if not display:
+                continue
+            bucket['order'].append(display)
+            bucket['seen'].add(k)
+            if len(bucket['order']) >= MAX_PER_TICKER:
+                break
+    return {tk: v['order'] for tk, v in idx.items()}
+
+
+def _get_dyn_tags(stock_id):
+    import time as _t
+    now = _t.time()
+    if (
+        _DYN_TAGS_CACHE['data'] is None
+        or now - _DYN_TAGS_CACHE['ts'] > _DYN_TAGS_RELOAD_SEC
+    ):
+        try:
+            _DYN_TAGS_CACHE['data'] = _build_dyn_tags_index()
+        except Exception as e:
+            logger.warning("YT dynamic tags index build failed: %s", e)
+            _DYN_TAGS_CACHE['data'] = {}
+        _DYN_TAGS_CACHE['ts'] = now
+    return _DYN_TAGS_CACHE['data'].get(stock_id, [])
+
+
+def _get_tv_industry_zh(stock_id):
+    """TV industry 英文 → 中文 fallback。沒命中 mapping 則退回英文。"""
     try:
-        from peer_comparison import get_ticker_themes as _gtt
-        themes = _gtt(stock_id)
-        if not themes:
+        from peer_comparison import _fetch_tv_industry_map
+        tv_map = _fetch_tv_industry_map()
+        if tv_map is None or stock_id not in tv_map.index:
             return ''
-        zh_names = [t.get('zh', t.get('id', '')) for t in themes]
-        head = ' / '.join(zh_names[:2])
-        if len(zh_names) > 2:
-            head += f' +{len(zh_names) - 2}'
-        return head
+        ind = tv_map.loc[stock_id, 'industry']
+        if not isinstance(ind, str):
+            return ''
+        return _TV_INDUSTRY_ZH.get(ind, ind)
     except Exception:
         return ''
+
+
+def _theme_tags_short(stock_id):
+    """3 層融合：manual.json → YT dynamic (180d TTL) → TV industry 中文。
+
+    最多顯示 2 個 + 餘數。各層去重 (whitespace-insensitive)。Empty -> ''.
+    """
+    themes = []
+    seen = set()
+
+    # Layer 1: sector_tags_manual.json (高精度 catalyst)
+    try:
+        from peer_comparison import get_ticker_themes as _gtt
+        for t in _gtt(stock_id) or []:
+            zh_raw = t.get('zh', t.get('id', '')) if isinstance(t, dict) else ''
+            zh = _clean_yt_tag(zh_raw)  # 截掉「（解釋）」尾巴與 YT 一致處理
+            k = _normalize_theme_key(zh)
+            if zh and k and k not in seen:
+                # 走 alias 把不同寫法統一成 canonical
+                base_lower = zh.replace(' ', '').replace('　', '').lower()
+                display = _THEME_ALIAS.get(base_lower, zh)
+                if display:
+                    themes.append(display)
+                    seen.add(k)
+    except Exception:
+        pass
+
+    # Layer 2: sector_tags_dynamic (YT 萃取 catalyst, 180d 內)
+    try:
+        for tag in _get_dyn_tags(stock_id):
+            k = _normalize_theme_key(tag)
+            if k and k not in seen:
+                themes.append(tag)
+                seen.add(k)
+    except Exception:
+        pass
+
+    # Layer 3: TV industry 中文 (僅當前兩層皆空時 fallback，避免 catalyst 被 biz segment 稀釋)
+    if not themes:
+        ind_zh = _get_tv_industry_zh(stock_id)
+        if ind_zh:
+            themes.append(ind_zh)
+
+    if not themes:
+        return ''
+    head = ' / '.join(themes[:2])
+    if len(themes) > 2:
+        head += f' +{len(themes) - 2}'
+    return head
 
 
 def _convergence_label(stock_id, conv_map):
