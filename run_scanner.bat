@@ -69,11 +69,12 @@ REM chromadb (142 from Q4 2025) preserved.
 REM ------------------------------------------------------------
 
 REM ------------------------------------------------------------
-REM News theme discovery (2026-05-01 Day 2):
-REM Google News RSS x 10 catalyst queries + UDN money RSS direct
-REM (categories: securities / industry / headline) -> Claude Sonnet batch
-REM extract -> data/news_themes.parquet (Layer 4 of _theme_tags_short
-REM 4-layer fusion). 30-day TTL inside parquet.
+REM News theme discovery (2026-05-01 Phase 0 Commit 1: dual-write):
+REM UDN money RSS direct + cnyes JSON API -> Claude Sonnet batch extract.
+REM Dual-write storage:
+REM   - data_cache/news_archive/YYYY-MM/articles.parquet (new SoT, permanent)
+REM   - data/news_themes.parquet (legacy, 30d TTL, 1-week transition; 5
+REM     readers still on legacy until Commit 6 cutover)
 REM POC accuracy ~95% strict (Day 1-3 audit, commit de836ba).
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
