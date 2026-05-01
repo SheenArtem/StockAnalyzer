@@ -575,8 +575,66 @@ def _parse_fund_float(fund_data, key):
         return 0
 
 
+def _build_market_context_news(days: int = 7, max_events: int = 10) -> str:
+    """[MARKET_CONTEXT] B6 macro/sector news section (Council BLOCKER #6).
+
+    讀 articles_recent filter article_type IN ('macro','sector') 近 N 天，
+    dedupe by event_id, cap N 篇，列日期 / topic / 影響產業 / sentiment / source。
+    News Initiative Phase 0 Commit 6 — 第三輪「macro/sector 救起來」對應 reader。
+    """
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        repo = _P(__file__).resolve().parent
+        path = repo / 'data' / 'news' / 'articles_recent.parquet'
+        if not path.exists():
+            return ''  # empty section, 不污染 prompt
+        df = pd.read_parquet(path)
+        if df.empty or 'article_type' not in df.columns:
+            return ''
+        sub = df[df['article_type'].isin(['macro', 'sector'])].copy()
+        if sub.empty:
+            return ''
+        sub['date'] = pd.to_datetime(sub['date'], errors='coerce')
+        cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=days)
+        sub = sub[sub['date'] >= cutoff]
+        if sub.empty:
+            return ''
+        # BLOCKER #1 dedupe
+        if 'event_id' in sub.columns:
+            try:
+                import sys
+                sys.path.insert(0, str(repo / 'tools'))
+                from news_theme_extract import dedupe_by_event_id
+                sub = dedupe_by_event_id(sub)
+            except Exception:
+                pass
+        sub = sub.sort_values(['date', 'confidence'], ascending=[False, False]).head(max_events)
+        lines = []
+        seen_titles = set()
+        for _, row in sub.iterrows():
+            title = str(row['title'])[:80]
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            d = row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '?'
+            atype = row['article_type']
+            tag = row.get('sector_tag') if atype == 'sector' else row.get('macro_topic')
+            tone = row.get('tone', 'neutral')
+            sent = float(row.get('sentiment', 0.0) or 0.0)
+            lines.append(f"  [{d}] [{atype}/{tag}] ({tone} {sent:+.2f}) {title}")
+            if len(lines) >= max_events:
+                break
+        if not lines:
+            return ''
+        return ("\n近 7 天大盤總經 + 產業整體新聞 (macro/sector, dedupe by event):\n"
+                + "\n".join(lines))
+    except Exception:
+        return ''
+
+
 def _build_market_context(report):
-    """[MARKET_CONTEXT] 市場環境"""
+    """[MARKET_CONTEXT] 市場環境 + B6 macro/sector news"""
     lines = []
     regime = report.get('regime', {})
     if regime:
@@ -621,6 +679,11 @@ def _build_market_context(report):
         lines.append(f"\nFundamental Alerts:")
         for a in fa:
             lines.append(f"  - {a}")
+
+    # B6 (Council BLOCKER #6): macro/sector news 段 (第三輪「不浪費資訊」對應 reader)
+    macro_news = _build_market_context_news(days=7, max_events=10)
+    if macro_news:
+        lines.append(macro_news)
 
     return "\n".join(lines) if lines else "N/A"
 
@@ -879,8 +942,10 @@ def _build_sentiment_context(ticker):
 def _build_news_themes_context(ticker):
     """[NEWS_THEMES] 近 30 天該檔在 news 萃取裡出現的 catalyst (2026-05-01 Day 3 加).
 
-    讀 data/news_themes.parquet，列出該 ticker 出現的 themes + sentiment + 最新標題。
-    幫 LLM 抓「最近市場關注什麼 catalyst on this stock」。
+    News Initiative Phase 0 Commit 6: 從 data/news_themes.parquet (legacy 30d)
+    切到 data/news/articles_recent.parquet (新 hot view 90d)，filter 30 天視窗對齊
+    既有行為。BLOCKER #1 dedupe by event_id 防同事件多 source 灌。
+    Fallback: 新 path 不存在時讀 legacy (1 週過渡期)。
     """
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
     if is_us:
@@ -889,15 +954,31 @@ def _build_news_themes_context(ticker):
     try:
         import pandas as pd
         from pathlib import Path as _P
-        path = _P(__file__).resolve().parent / 'data' / 'news_themes.parquet'
+        repo = _P(__file__).resolve().parent
+        new_path = repo / 'data' / 'news' / 'articles_recent.parquet'
+        legacy_path = repo / 'data' / 'news_themes.parquet'
+        path = new_path if new_path.exists() else legacy_path
         if not path.exists():
-            return "N/A (news_themes.parquet 尚未產生，scanner 跑過後才有)"
+            return "N/A (news parquet 尚未產生，scanner 跑過後才有)"
         df = pd.read_parquet(path)
         if df.empty:
-            return "N/A (news_themes.parquet 為空)"
+            return "N/A (news parquet 為空)"
+        # filter individual articles only (sector/macro/price_only 不提及具體 ticker)
+        if 'article_type' in df.columns:
+            df = df[df['article_type'] == 'individual']
         sub = df[df['ticker'].astype(str) == stock_id].copy()
         if sub.empty:
             return f"近 30 天 news 無提到本檔 (parquet 中不含 {stock_id})"
+
+        # BLOCKER #1: dedupe by event_id 防同事件多 source 灌
+        if 'event_id' in sub.columns:
+            try:
+                import sys
+                sys.path.insert(0, str(repo / 'tools'))
+                from news_theme_extract import dedupe_by_event_id
+                sub = dedupe_by_event_id(sub)
+            except Exception:
+                pass
 
         # 按 confidence + date desc 排序，取 top 8 篇
         sub['date'] = pd.to_datetime(sub['date'], errors='coerce')

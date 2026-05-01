@@ -510,41 +510,59 @@ def _get_dyn_tags(stock_id):
 
 
 def _build_news_tags_index():
-    """從 data/news_themes.parquet 建 ticker → ordered list[theme] 索引。
+    """從 themes_core (1y rolling sticky) 建 ticker → ordered list[theme] 索引。
 
-    Filters:
-      - confidence >= 70
-      - date 在 _NEWS_TAGS_TTL_DAYS 天內
-      - ticker 非空 (theme-only 條目跳過)
-    Tags 去重：先 alias normalize，按 (date desc, confidence desc) 排序，
-    每 ticker 最多 5 個 (避免 +N 失控)。
+    News Initiative Phase 0 Commit 6: Layer 4 reader 從 news_themes.parquet
+    (legacy 30d) 切到 themes_core.parquet (1y rolling, ≥3 次晉升)。
+    sticky themes 較穩定，Layer 4 fusion 不需要 30d 的短期波動。
+    Fallback to legacy 1 週過渡: themes_core 不存在時讀 legacy。
     """
     import pandas as pd
     from pathlib import Path as _P
 
-    path = _P(__file__).resolve().parent / 'data' / 'news_themes.parquet'
-    if not path.exists():
-        return {}
-    try:
-        df = pd.read_parquet(path)
-    except Exception as e:
-        logger.warning("讀 news_themes.parquet 失敗: %s", e)
-        return {}
-    if df.empty:
-        return {}
+    repo = _P(__file__).resolve().parent
+    core_path = repo / 'data' / 'news' / 'themes_core.parquet'
+    legacy_path = repo / 'data' / 'news_themes.parquet'
 
-    df = df[df['ticker'].astype(str).str.strip() != ''].copy()
-    if df.empty:
-        return {}
-
-    df['date'] = pd.to_datetime(df['date'], errors='coerce')
-    cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=_NEWS_TAGS_TTL_DAYS)
-    df = df[(df['date'] >= cutoff) & (df['confidence'] >= 70)].copy()
-    if df.empty:
-        return {}
-
-    # 排序：新鮮 + 高信心優先
-    df = df.sort_values(['date', 'confidence'], ascending=[False, False])
+    if core_path.exists():
+        try:
+            df = pd.read_parquet(core_path)
+        except Exception as e:
+            logger.warning("讀 themes_core.parquet 失敗: %s", e)
+            return {}
+        if df.empty:
+            return {}
+        # themes_core schema: ticker / theme / count / first_seen / last_seen / sentiment_avg
+        df = df[df['ticker'].astype(str).str.strip() != ''].copy()
+        if df.empty:
+            return {}
+        # 排序: count 高 + 最近曝光優先 (代表既穩又熱)
+        df['last_seen'] = pd.to_datetime(df['last_seen'], errors='coerce')
+        df = df.sort_values(['count', 'last_seen'], ascending=[False, False])
+        # 為兼容下游邏輯加 confidence 欄位 (themes_core 沒有, 用 80 預設代表 sticky 高信心)
+        df['confidence'] = 80
+        df['date'] = df['last_seen']
+    else:
+        # Fallback: legacy news_themes.parquet (1 週過渡期)
+        if not legacy_path.exists():
+            return {}
+        try:
+            df = pd.read_parquet(legacy_path)
+        except Exception as e:
+            logger.warning("讀 legacy news_themes.parquet 失敗: %s", e)
+            return {}
+        if df.empty:
+            return {}
+        df = df[df['ticker'].astype(str).str.strip() != ''].copy()
+        if df.empty:
+            return {}
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=_NEWS_TAGS_TTL_DAYS)
+        df = df[(df['date'] >= cutoff) & (df['confidence'] >= 70)].copy()
+        if df.empty:
+            return {}
+        # 排序：新鮮 + 高信心優先
+        df = df.sort_values(['date', 'confidence'], ascending=[False, False])
 
     MAX_PER_TICKER = 5
     idx: dict[str, dict] = {}

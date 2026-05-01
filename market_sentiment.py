@@ -155,13 +155,22 @@ _NEWS_LOAD_TS = 0.0
 
 
 def _load_news_parquet():
-    """Lazy load news_themes.parquet with 1h cache."""
+    """Lazy load articles_recent (90d hot view) with 1h cache.
+
+    News Initiative Phase 0 Commit 6: 從 data/news_themes.parquet (legacy)
+    切到 data/news/articles_recent.parquet (新 hot view)。
+    Apply BLOCKER #1 dedupe_by_event_id 防同事件 cnyes+UDN 灌票 sentiment 分數。
+    Fallback to legacy 1 週過渡期: 新 path 不存在時 fallback 舊 path (週後刪)。
+    """
     global _NEWS_PARQUET, _NEWS_LOAD_TS
     import time as _t
     from pathlib import Path as _P
     if _NEWS_PARQUET is not None and _t.time() - _NEWS_LOAD_TS < 3600:
         return _NEWS_PARQUET
-    path = _P(__file__).resolve().parent / 'data' / 'news_themes.parquet'
+    repo = _P(__file__).resolve().parent
+    new_path = repo / 'data' / 'news' / 'articles_recent.parquet'
+    legacy_path = repo / 'data' / 'news_themes.parquet'
+    path = new_path if new_path.exists() else legacy_path
     if not path.exists():
         _NEWS_PARQUET = None
         _NEWS_LOAD_TS = _t.time()
@@ -170,9 +179,18 @@ def _load_news_parquet():
         import pandas as pd
         df = pd.read_parquet(path)
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        # BLOCKER #1: dedupe by event_id 防同事件多 source 灌票 (僅新 schema 有)
+        if 'event_id' in df.columns:
+            try:
+                import sys
+                sys.path.insert(0, str(repo / 'tools'))
+                from news_theme_extract import dedupe_by_event_id
+                df = dedupe_by_event_id(df)
+            except Exception as e:
+                logger.debug("dedupe_by_event_id failed (fallback no dedupe): %s", e)
         _NEWS_PARQUET = df
     except Exception as e:
-        logger.debug("news_themes.parquet load 失敗: %s", e)
+        logger.debug("news parquet load 失敗 %s: %s", path, e)
         _NEWS_PARQUET = None
     _NEWS_LOAD_TS = _t.time()
     return _NEWS_PARQUET
