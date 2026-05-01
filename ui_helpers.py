@@ -181,13 +181,18 @@ def _wc_tags_short(stock_id):
         return ''
 
 
-# --- 3-layer 題材融合 (2026-05-01)：manual.json → YT dynamic (180d TTL) → TV industry 中文 ---
-# 改善 picks 表「題材」column coverage：原僅 manual.json 140 ticker (~15-40% picks
-# 命中率) → 三層融合後 ~95%+ non-empty。
+# --- 4-layer 題材融合 (2026-05-01)：manual → News (30d) → YT (180d) → TV industry 中文 ---
+# 原僅 manual.json 140 ticker (~15-40% picks 命中率) → 三層 → 四層後 ~95%+ non-empty。
+# 新加 Layer 2: News themes from data/news_themes.parquet (Sonnet 萃取，30d TTL)
+# Why News before YT: news 是 current focus，YT 法說會節奏較慢 (週/月)。
 
 _DYN_TAGS_TTL_DAYS = 180  # YT 動態題材：只用近 180 天提及
 _DYN_TAGS_RELOAD_SEC = 3600  # parquet 1h reload (檔案每日由 scanner 更新)
 _DYN_TAGS_CACHE = {'data': None, 'ts': 0.0}
+
+_NEWS_TAGS_TTL_DAYS = 30  # News themes：只用近 30 天 (parquet 已 trim，這裡 belt+suspenders)
+_NEWS_TAGS_RELOAD_SEC = 3600
+_NEWS_TAGS_CACHE = {'data': None, 'ts': 0.0}
 
 # TV industry 英文 → 中文 mapping (cover 全部 112 個 TW 市場 industries)
 _TV_INDUSTRY_ZH = {
@@ -504,6 +509,86 @@ def _get_dyn_tags(stock_id):
     return _DYN_TAGS_CACHE['data'].get(stock_id, [])
 
 
+def _build_news_tags_index():
+    """從 data/news_themes.parquet 建 ticker → ordered list[theme] 索引。
+
+    Filters:
+      - confidence >= 70
+      - date 在 _NEWS_TAGS_TTL_DAYS 天內
+      - ticker 非空 (theme-only 條目跳過)
+    Tags 去重：先 alias normalize，按 (date desc, confidence desc) 排序，
+    每 ticker 最多 5 個 (避免 +N 失控)。
+    """
+    import pandas as pd
+    from pathlib import Path as _P
+
+    path = _P(__file__).resolve().parent / 'data' / 'news_themes.parquet'
+    if not path.exists():
+        return {}
+    try:
+        df = pd.read_parquet(path)
+    except Exception as e:
+        logger.warning("讀 news_themes.parquet 失敗: %s", e)
+        return {}
+    if df.empty:
+        return {}
+
+    df = df[df['ticker'].astype(str).str.strip() != ''].copy()
+    if df.empty:
+        return {}
+
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=_NEWS_TAGS_TTL_DAYS)
+    df = df[(df['date'] >= cutoff) & (df['confidence'] >= 70)].copy()
+    if df.empty:
+        return {}
+
+    # 排序：新鮮 + 高信心優先
+    df = df.sort_values(['date', 'confidence'], ascending=[False, False])
+
+    MAX_PER_TICKER = 5
+    idx: dict[str, dict] = {}
+    for _, row in df.iterrows():
+        ticker = str(row['ticker'])
+        theme = str(row['theme'])
+        if _is_junk_yt_tag(theme):
+            continue
+        cleaned = _clean_yt_tag(theme)
+        if _is_junk_yt_tag(cleaned):
+            continue
+        k = _normalize_theme_key(cleaned)
+        if not k:
+            continue
+        bucket = idx.setdefault(ticker, {'order': [], 'seen': set()})
+        if len(bucket['order']) >= MAX_PER_TICKER:
+            continue
+        if k in bucket['seen']:
+            continue
+        base_lower = cleaned.replace(' ', '').replace('　', '').lower()
+        display = _THEME_ALIAS.get(base_lower, cleaned)
+        if not display:
+            continue
+        bucket['order'].append(display)
+        bucket['seen'].add(k)
+    return {tk: v['order'] for tk, v in idx.items()}
+
+
+def _get_news_tags(stock_id):
+    import time as _t
+    now = _t.time()
+    if (
+        _NEWS_TAGS_CACHE['data'] is None
+        or now - _NEWS_TAGS_CACHE['ts'] > _NEWS_TAGS_RELOAD_SEC
+    ):
+        try:
+            _NEWS_TAGS_CACHE['data'] = _build_news_tags_index()
+        except Exception as e:
+            logger.warning("News tags index build failed: %s", e)
+            _NEWS_TAGS_CACHE['data'] = {}
+        _NEWS_TAGS_CACHE['ts'] = now
+    return _NEWS_TAGS_CACHE['data'].get(stock_id, [])
+
+
 def _get_tv_industry_zh(stock_id):
     """TV industry 英文 → 中文 fallback。沒命中 mapping 則退回英文。"""
     try:
@@ -520,22 +605,21 @@ def _get_tv_industry_zh(stock_id):
 
 
 def _theme_tags_short(stock_id):
-    """3 層融合：manual.json → YT dynamic (180d TTL) → TV industry 中文。
+    """4 層融合：manual.json → News (30d) → YT dynamic (180d) → TV industry 中文。
 
-    最多顯示 2 個 + 餘數。各層去重 (whitespace-insensitive)。Empty -> ''.
+    最多顯示 2 個 + 餘數。各層去重 (whitespace-insensitive + alias)。Empty -> ''.
     """
     themes = []
     seen = set()
 
-    # Layer 1: sector_tags_manual.json (高精度 catalyst)
+    # Layer 1: sector_tags_manual.json (高精度 curated catalyst)
     try:
         from peer_comparison import get_ticker_themes as _gtt
         for t in _gtt(stock_id) or []:
             zh_raw = t.get('zh', t.get('id', '')) if isinstance(t, dict) else ''
-            zh = _clean_yt_tag(zh_raw)  # 截掉「（解釋）」尾巴與 YT 一致處理
+            zh = _clean_yt_tag(zh_raw)  # 截掉「（解釋）」尾巴與 YT/News 一致
             k = _normalize_theme_key(zh)
             if zh and k and k not in seen:
-                # 走 alias 把不同寫法統一成 canonical
                 base_lower = zh.replace(' ', '').replace('　', '').lower()
                 display = _THEME_ALIAS.get(base_lower, zh)
                 if display:
@@ -544,7 +628,17 @@ def _theme_tags_short(stock_id):
     except Exception:
         pass
 
-    # Layer 2: sector_tags_dynamic (YT 萃取 catalyst, 180d 內)
+    # Layer 2: news_themes.parquet (News RSS LLM 萃取，30d 新鮮)
+    try:
+        for tag in _get_news_tags(stock_id):
+            k = _normalize_theme_key(tag)
+            if k and k not in seen:
+                themes.append(tag)
+                seen.add(k)
+    except Exception:
+        pass
+
+    # Layer 3: sector_tags_dynamic (YT 法說會萃取，180d 內)
     try:
         for tag in _get_dyn_tags(stock_id):
             k = _normalize_theme_key(tag)
@@ -554,7 +648,7 @@ def _theme_tags_short(stock_id):
     except Exception:
         pass
 
-    # Layer 3: TV industry 中文 (僅當前兩層皆空時 fallback，避免 catalyst 被 biz segment 稀釋)
+    # Layer 4: TV industry 中文 (前 3 層皆空時 fallback，避免 catalyst 被 biz segment 稀釋)
     if not themes:
         ind_zh = _get_tv_industry_zh(stock_id)
         if ind_zh:

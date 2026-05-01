@@ -1,14 +1,17 @@
-"""市場 vs 個股情緒分數 (2026-05-01 Day 1)
+"""市場 vs 個股情緒分數 (2026-05-01 Day 1+2)
 
 Two scores in -100~+100 range:
   - 市場情緒 (get_market_sentiment_score): 復用 TaiwanFearGreedIndex (5 子指標
     Market Momentum / Breadth / PCR / Volatility / Margin) 0-100 → 線性 map
     到 -100~+100。M1B/成交比過熱當 overlay warning。
-  - 個股情緒 v0 (get_stock_sentiment_score): 純訊號組合 no LLM。
-    法人 5d 買賣超 (40%) + 融資增減反向 (20%) + 股價 vs 5/10MA (40%)。
+  - 個股情緒 v1 (get_stock_sentiment_score): 訊號組合
+    法人 5d 買賣超 (35%) + 融資增減反向 (15%) + 股價 vs 5/10MA (30%) +
+    News tone aggregate (20%, 從 data/news_themes.parquet 30d 內 sentiment 平均)。
+    News tone 不命中時退回 v0 三訊號 + 用全 valid weight 重 normalize。
   - 對比 (get_sentiment_divergence): 兩 score 差值 → 4 種訊號標籤。
 
-Day 2 將擴 News tone (LLM) 加進個股情緒；目前 v0 不打 LLM。
+News tone 來源：tools/news_theme_extract.py 每日由 scanner 跑出，
+sentiment 是 -1.0~+1.0 (LLM Sonnet 萃取)。
 """
 
 from __future__ import annotations
@@ -147,6 +150,57 @@ def _calc_margin_signal(margin_df) -> float | None:
         return None
 
 
+_NEWS_PARQUET = None  # lazy load cache
+_NEWS_LOAD_TS = 0.0
+
+
+def _load_news_parquet():
+    """Lazy load news_themes.parquet with 1h cache."""
+    global _NEWS_PARQUET, _NEWS_LOAD_TS
+    import time as _t
+    from pathlib import Path as _P
+    if _NEWS_PARQUET is not None and _t.time() - _NEWS_LOAD_TS < 3600:
+        return _NEWS_PARQUET
+    path = _P(__file__).resolve().parent / 'data' / 'news_themes.parquet'
+    if not path.exists():
+        _NEWS_PARQUET = None
+        _NEWS_LOAD_TS = _t.time()
+        return None
+    try:
+        import pandas as pd
+        df = pd.read_parquet(path)
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        _NEWS_PARQUET = df
+    except Exception as e:
+        logger.debug("news_themes.parquet load 失敗: %s", e)
+        _NEWS_PARQUET = None
+    _NEWS_LOAD_TS = _t.time()
+    return _NEWS_PARQUET
+
+
+def _calc_news_tone_signal(stock_id: str, days: int = 30) -> float | None:
+    """近 N 天 news sentiment confidence-weighted average → -1~+1。"""
+    df = _load_news_parquet()
+    if df is None or df.empty:
+        return None
+    try:
+        import pandas as pd
+        cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=days)
+        sub = df[(df['ticker'].astype(str) == str(stock_id)) & (df['date'] >= cutoff)]
+        if sub.empty:
+            return None
+        # confidence-weighted average (avoid low-confidence rows dominating)
+        total_w = float(sub['confidence'].sum())
+        if total_w <= 0:
+            return None
+        weighted = float((sub['sentiment'] * sub['confidence']).sum() / total_w)
+        # 限縮到 [-1, 1] (sentiment LLM 預期就在這範圍但保險)
+        return max(-1.0, min(1.0, weighted))
+    except Exception as e:
+        logger.debug("news_tone_signal 計算失敗 %s: %s", stock_id, e)
+        return None
+
+
 def _calc_price_ma_signal(stock_id: str) -> float | None:
     """股價 vs 5MA + 10MA 平均乖離 → -1~+1。"""
     try:
@@ -170,16 +224,18 @@ def _calc_price_ma_signal(stock_id: str) -> float | None:
 
 
 def get_stock_sentiment_score(stock_id: str, chip_data=None) -> Dict[str, Any]:
-    """個股情緒分數 -100~+100 (no LLM, v0)。
+    """個股情緒分數 -100~+100 (v1 含 News tone)。
 
     訊號:
-      - 法人 5d (40%): 三大法人合計買賣超 / 1M shares tanh
-      - 融資反向 (20%): 5d 融資餘額 % 變化 / 10% tanh，反號
-      - 股價 vs MA (40%): 5MA + 10MA 平均乖離 × 50 tanh
+      - 法人 5d (35%): 三大法人合計買賣超 / 1M shares tanh
+      - 融資反向 (15%): 5d 融資餘額 % 變化 / 10% tanh，反號
+      - 股價 vs MA (30%): 5MA + 10MA 平均乖離 × 50 tanh
+      - News tone (20%): 近 30 天 news sentiment confidence-weighted (LLM 萃)
 
+    News 不命中時退回 v0 三訊號，total_w 重 normalize 維持比例。
     可傳入既算好的 chip_data dict 避免重抓 (caller 復用最佳)。
     """
-    weights = {'inst': 0.40, 'margin': 0.20, 'ma': 0.40}
+    weights = {'inst': 0.35, 'margin': 0.15, 'ma': 0.30, 'news': 0.20}
     signals: Dict[str, float] = {}
 
     # 取 chip 資料
@@ -202,6 +258,10 @@ def get_stock_sentiment_score(stock_id: str, chip_data=None) -> Dict[str, Any]:
     v = _calc_price_ma_signal(stock_id)
     if v is not None:
         signals['ma'] = v
+
+    v = _calc_news_tone_signal(stock_id)
+    if v is not None:
+        signals['news'] = v
 
     if not signals:
         return {
