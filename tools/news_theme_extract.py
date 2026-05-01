@@ -83,6 +83,55 @@ _CLAUDE_CLI = shutil.which("claude") or "claude"
 CLAUDE_TIMEOUT = 600  # 10 min per LLM 規範
 
 
+# BLOCKER #1 (Commit 2): dedupe key + event_id helpers
+def normalize_title_hash(title: str) -> str:
+    """md5(strip_punct(lower(title)))[:16]. Empty title → ''.
+
+    Strips all whitespace + punctuation + 全形/半形 標點 + lowercase before
+    hashing，使 cnyes / UDN 同事件不同標點變體歸為同一 hash.
+    """
+    import hashlib
+    import re
+    if not title:
+        return ''
+    # \W matches non-word; _ explicit; CJK chars are word chars (kept)
+    norm = re.sub(r'[\s\W_]+', '', title.lower())
+    if not norm:
+        return ''
+    return hashlib.md5(norm.encode('utf-8')).hexdigest()[:16]
+
+
+def compute_event_id(title_hash: str, date_str: str) -> str:
+    """event_id = '{title_hash}_{YYYY-MM-DD}' for clustering same-event reposts.
+
+    同 hash + 同日 → 同 event_id（cnyes + UDN 同事件不同 source 歸為同一 event）。
+    限制：跨午夜 < 24h 但跨日的 repost 會被當作不同 event（trade-off for batch
+    processing 簡單性，之後若需要可改 sliding window）。
+    """
+    if not title_hash or not date_str:
+        return ''
+    return f"{title_hash}_{date_str[:10]}"
+
+
+def dedupe_by_event_id(df, keep: str = 'first'):
+    """Dedupe rows with same (event_id, ticker, theme), keep first source.
+
+    給 derived rebuild (themes_core / market_sentiment / etc.) 用。
+    Empty event_id rows 不 dedupe（legacy 資料兼容）。
+    """
+    import pandas as pd
+    if df is None or len(df) == 0 or 'event_id' not in df.columns:
+        return df
+    has_id = df['event_id'].astype(str).str.len() > 0
+    if not has_id.any():
+        return df
+    deduped = df[has_id].drop_duplicates(
+        subset=['event_id', 'ticker', 'theme'], keep=keep
+    )
+    no_id = df[~has_id]
+    return pd.concat([deduped, no_id], ignore_index=True)
+
+
 def _clean_html(text: str) -> str:
     import re
     from html import unescape
@@ -382,7 +431,8 @@ def _build_rows(merged: list[dict]) -> list[dict]:
 
     沒 ticker 的也保留 (theme-only)，ticker 設 ''；沒 theme 的整篇略過。
     Schema: date / source / ticker / theme / sentiment / tone / confidence /
-            title / link / extract_version
+            title / link / extract_version /
+            normalized_title_hash / event_id (BLOCKER #1, Commit 2)
     """
     rows = []
     for a in merged:
@@ -392,6 +442,10 @@ def _build_rows(merged: list[dict]) -> list[dict]:
             continue
         if not tickers:
             tickers = ['']
+        title = str(a.get('title', ''))[:200]
+        title_hash = normalize_title_hash(title)
+        date_str = str(a.get('date', ''))
+        event_id = compute_event_id(title_hash, date_str)
         for t in tickers:
             for th in themes:
                 rows.append({
@@ -402,9 +456,11 @@ def _build_rows(merged: list[dict]) -> list[dict]:
                     'sentiment': float(a.get('sentiment', 0.0) or 0.0),
                     'tone': str(a.get('tone', 'neutral')),
                     'confidence': int(a.get('confidence', 0) or 0),
-                    'title': str(a.get('title', ''))[:200],
+                    'title': title,
                     'link': str(a.get('link', '')),
                     'extract_version': EXTRACT_VERSION,
+                    'normalized_title_hash': title_hash,
+                    'event_id': event_id,
                 })
     return rows
 
@@ -557,6 +613,18 @@ def migrate_legacy_to_archive() -> dict:
     if 'extract_version' not in legacy.columns:
         legacy['extract_version'] = EXTRACT_VERSION
 
+    # BLOCKER #1 (Commit 2): backfill normalized_title_hash + event_id
+    if 'normalized_title_hash' not in legacy.columns:
+        legacy['normalized_title_hash'] = legacy['title'].astype(str).map(
+            normalize_title_hash
+        )
+    if 'event_id' not in legacy.columns:
+        legacy['event_id'] = [
+            compute_event_id(h, d)
+            for h, d in zip(legacy['normalized_title_hash'].astype(str),
+                            legacy['date'].astype(str))
+        ]
+
     logger.info("Legacy parquet: %d rows, dates %s..%s",
                 len(legacy), legacy['date'].min(), legacy['date'].max())
 
@@ -569,6 +637,19 @@ def migrate_legacy_to_archive() -> dict:
         path = ARCHIVE_DIR / part / 'articles.parquet'
         if path.exists():
             existing = pd.read_parquet(path)
+            # Schema bump backfill (idempotent across re-runs after schema changes)
+            if 'extract_version' not in existing.columns:
+                existing['extract_version'] = EXTRACT_VERSION
+            if 'normalized_title_hash' not in existing.columns:
+                existing['normalized_title_hash'] = existing['title'].astype(str).map(
+                    normalize_title_hash
+                )
+            if 'event_id' not in existing.columns:
+                existing['event_id'] = [
+                    compute_event_id(h, d)
+                    for h, d in zip(existing['normalized_title_hash'].astype(str),
+                                    existing['date'].astype(str))
+                ]
             # idempotent: dedupe by (date, ticker, theme, title)
             combined = pd.concat([existing, sub], ignore_index=True)
             before = len(existing)
