@@ -35,9 +35,9 @@ VTT_ROOT = REPO / "data_cache" / "yt_transcripts"
 OUT_ROOT = REPO / "data_cache" / "yt_extracts"
 SECTOR_TAGS_FILE = REPO / "data" / "sector_tags_manual.json"
 
-GEMINI_MODEL = "gemini-3-pro-preview"  # pro-preview 最會遵守 JSON 格式指令 (2026-04-24 實測)
+GEMINI_MODEL = "gemini-3.1-pro-preview"  # LLM 規範 (2026-05-01)：Gemini 一律 3.1-pro-preview
 GEMINI_FALLBACK_MODEL = None  # None = default model
-CLAUDE_MODEL_FLAG = "--model=sonnet"  # alias 自動指向最新 Sonnet,2026-04-25 從錯誤的 claude-sonnet-4-6-20250929 修正
+CLAUDE_MODEL_FLAG = "--model=sonnet"  # LLM 規範 (2026-05-01)：News 解析用 Sonnet
 
 
 class TokenExhaustedError(Exception):
@@ -163,7 +163,8 @@ def parse_vtt_filename(vtt_path: Path) -> dict:
     return {"date": date_iso, "video_id": video_id, "title": title}
 
 
-def call_gemini(prompt: str, vtt_text: str, model: str | None, timeout: int = 900) -> tuple[str, str | None]:
+def call_gemini(prompt: str, vtt_text: str, model: str | None, timeout: int = 900) -> tuple[str, str | None]:  # 15 min per LLM 規範
+
     """
     VTT 透過 stdin 傳 (避開 CLI argv 長度上限)。
     shell=True 必須：Windows 上 gemini CLI 是 gemini.cmd (npm global)，shell=False 找不到。
@@ -196,7 +197,8 @@ def call_gemini(prompt: str, vtt_text: str, model: str | None, timeout: int = 90
     return result.stdout, None
 
 
-def call_claude(prompt: str, vtt_text: str, timeout: int = 900) -> tuple[str, str | None]:
+def call_claude(prompt: str, vtt_text: str, timeout: int = 600) -> tuple[str, str | None]:  # 10 min per LLM 規範
+
     """VTT + prompt 合併傳 stdin 避開 Windows argv 限制。
 
     BUG FIX 2026-04-25: 之前漏帶 --model flag 導致 Claude CLI 走 user default

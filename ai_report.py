@@ -1069,9 +1069,13 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 
 
 def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                    timeout=None, include_songfen=False):
+                    timeout=600, include_songfen=False):
     """
     呼叫 Claude CLI 生成 AI 研究報告（含 WebSearch 能力）。
+
+    LLM 規範 (2026-05-01)：
+    - 強制 Opus model + `--allowedTools "*"` 允許所有工具
+    - timeout 預設 10 min (600s)，可由 caller 覆寫
 
     Args:
         timeout: None = no timeout (default), or seconds
@@ -1088,7 +1092,8 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     try:
         result = subprocess.run(
             [_CLAUDE_CLI, "-p",
-             "--allowedTools", "WebSearch,WebFetch",
+             "--model", "opus",
+             "--allowedTools", "*",
              "--output-format", "text"],
             input=prompt,
             capture_output=True,
@@ -1206,9 +1211,11 @@ def _extract_json_from_output(text):
 
 
 def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                         timeout=None):
+                         timeout=600):
     """
     生成 HTML 互動儀表板報告。
+
+    LLM 規範 (2026-05-01)：強制 Opus model + `--allowedTools "*"`，timeout 10 min。
 
     Returns:
         tuple: (success: bool, html_or_error_msg: str, json_data: dict | None)
@@ -1219,7 +1226,8 @@ def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_
     try:
         result = subprocess.run(
             [_CLAUDE_CLI, "-p",
-             "--allowedTools", "WebSearch,WebFetch",
+             "--model", "opus",
+             "--allowedTools", "*",
              "--output-format", "text"],
             input=prompt,
             capture_output=True,

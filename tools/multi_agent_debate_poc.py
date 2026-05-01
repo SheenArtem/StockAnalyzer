@@ -182,8 +182,10 @@ def call_cli(system_prompt: str, user_prompt: str, role: str,
     t0 = time.time()
     logger.info(f"[{role}] calling CLI (prompt {len(full)} chars)...")
     try:
+        # LLM 規範 (2026-05-01)：debate role 屬 News/分析類 → Sonnet + 10 min timeout
         result = subprocess.run(
             [_CLAUDE_CLI, "-p",
+             "--model", "sonnet",
              "--allowedTools", "WebSearch,WebFetch",
              "--output-format", "text"],
             input=full,

@@ -1,5 +1,42 @@
 # StockAnalyzer — 台股/美股交易分析系統
 
+## ⚠️ LLM 使用規則（強制，新增 2026-05-01）
+
+任何呼叫 Claude CLI / Gemini CLI / LLM SDK 的程式碼必須嚴格遵守下列規範：
+
+| 模組類型 | LLM | model flag | extra flag | timeout |
+|---|---|---|---|---|
+| **AI 報告**（`ai_report.py` / `ai_report_pipeline.py`） | Claude | `--model opus` | `--allowedTools "*"` | 600s (10 min) |
+| **News / 短文 / metadata 萃取** | Claude | `--model sonnet` | （視情況）`--allowedTools` | 600s (10 min) |
+| **Sector tag 萃取（YT VTT / batch）** | Claude (主) / Gemini (備) | `--model=sonnet` / `gemini-3.1-pro-preview` | — | Claude 600s / Gemini 900s (15 min) |
+| **Multi-agent debate / 探索性分析** | Claude | `--model sonnet` | `--allowedTools "WebSearch,WebFetch"` | 600s |
+| **任何 Gemini 呼叫** | Gemini | `gemini-3.1-pro-preview` | — | 900s (15 min) |
+
+**Why（user 2026-05-01 拍板）**：
+
+- AI 報告品質要求高，Opus 強制 + `--allowedTools "*"` 允許所有工具（不省成本）
+- News 解析量大但需準確，Sonnet 是平衡點（不要降到 Haiku）
+- Gemini 一律 3.1-pro-preview（preview 版會慢，故 timeout 拉到 15 min）
+- Claude 思考時間給足，timeout 至少 10 min
+
+**How to apply**：
+
+- 新增任何 LLM call **必須**對照上表選 model + timeout
+- 修改既有 LLM call 前先 `grep -n "claude.*-p\|--model\|--allowedTools\|gemini.*-p"` 確認當前狀態
+- ai_report.py 兩個 entry (`generate_report` / `generate_report_html`) 必帶 `--model opus` + `--allowedTools "*"`
+- 任何 timeout=None 都視為違規 — 必須給明確秒數
+
+**已落地的 file（2026-05-01 commit）**：
+
+- `ai_report.py` `generate_report` / `generate_report_html` → Opus + `*` + 600s
+- `ai_report_pipeline.py` 兩個 caller 從 `timeout=None` → `timeout=600`
+- `tools/auto_index_substack.py` Substack metadata → Sonnet + 600s（原無 model flag）
+- `tools/extract_yt_sector_tags.py` YT VTT 萃題材 → Gemini 3.1-pro-preview / Sonnet + 900s/600s
+- `tools/llm_bulk_sector_tag.py` Bulk sector tag → Sonnet + 600s（原 300s）
+- `tools/multi_agent_debate_poc.py` Debate → Sonnet + 600s（原無 model flag）
+
+---
+
 ## ⚠️ 核心原則：Robustness First（最高優先，凌駕其他規範）
 
 **本專案要求 robustness — 一切修改必須保證正確性。**

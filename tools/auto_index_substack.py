@@ -38,7 +38,8 @@ INDEX_FILE = Path(__file__).resolve().parents[1] / "knowledge" / "songfen" / "IN
 AUDIT_LOG = INDEX_FILE.parent / ".auto_added.log"
 
 _CLAUDE_CLI = shutil.which("claude") or "claude"
-_PER_ARTICLE_TIMEOUT = 180  # 3 分鐘 / 篇
+# LLM 規範 (2026-05-01)：metadata 萃取屬 News 類，用 Sonnet + 10 min timeout
+_PER_ARTICLE_TIMEOUT = 600
 _ARTICLE_CAP = 25000        # chars，超過截斷
 
 
@@ -122,7 +123,9 @@ def call_claude(article_text: str) -> str | None:
     prompt = EXTRACTION_PROMPT + article_text[:_ARTICLE_CAP]
     try:
         r = subprocess.run(
-            [_CLAUDE_CLI, "-p", "--output-format", "text"],
+            [_CLAUDE_CLI, "-p",
+             "--model", "sonnet",
+             "--output-format", "text"],
             input=prompt,
             capture_output=True,
             text=True,

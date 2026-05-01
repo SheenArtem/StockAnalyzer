@@ -146,7 +146,7 @@ OUTPUT FORMAT (JSON dict, exact ticker IDs as keys):
 Output JSON only — no markdown fence, no explanations:"""
 
 
-def call_claude(prompt: str, timeout: int = 300) -> tuple[str, Optional[str]]:
+def call_claude(prompt: str, timeout: int = 600) -> tuple[str, Optional[str]]:  # 10 min per LLM 規範 (2026-05-01)
     """呼叫 Claude CLI (沿用 extract_yt_sector_tags 模式)."""
     try:
         result = subprocess.run(
@@ -285,7 +285,7 @@ def main():
         # Save raw prompt for debug
         (TMP_DIR / f"batch_{batch_idx:03d}_prompt.txt").write_text(prompt, encoding='utf-8')
 
-        output, err = call_claude(prompt, timeout=300)
+        output, err = call_claude(prompt, timeout=600)
         if err:
             logger.warning(f"    Batch {batch_idx+1} call error: {err}")
             failed_batches.append(batch_idx)
