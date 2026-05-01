@@ -252,8 +252,16 @@ def _apply_qm_action_plan(action_plan, df_week, trigger_score=None,
       - 進場閘門 (trigger_score): 依 _qm_entry_gate() 分 green/yellow/red
       - strategy 加上 QM 操作要點 + 出場訊號 + 分批進場
 
+    Args:
+        action_plan: 通用 ActionPlan dataclass (scenario_engine.generate_action_plan
+            出口，2026-05-01 commit 3b62d16) 或舊版 dict。內部 dict(action_plan)
+            轉型走 ActionPlan.__iter__ 限制只取 14 public fields，因此 candidate
+            (sl_atr/sl_ma/sl_low/sl_key_candle) 不會帶進 qm_plan；tp_list/sl_list
+            另透過 .get() 顯式取（Mapping 介面允許）後重組為 QM 覆蓋版。
+
     Returns:
-        覆蓋後的 action_plan dict (不修改原物件)
+        覆蓋後的 dict (非 ActionPlan instance — 加了 qm_horizon/qm_entry_gate 等
+        ActionPlan schema 沒有的 QM 專屬欄位)，不修改原物件。
     """
     if not action_plan or not action_plan.get('is_actionable'):
         return action_plan
