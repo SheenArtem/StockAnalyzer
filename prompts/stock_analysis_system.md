@@ -228,6 +228,12 @@ K 線型態辨識結果（如有）
 [THEME_CONTEXT]
 本檔所屬 AI era 主流題材（多 theme 交集 + 同題材 tier1/tier2 成員 + 描述）
 
+[SENTIMENT_CONTEXT]
+市場情緒 vs 個股情緒對比（兩個 -100~+100 score + 4 級對比訊號）
+
+[NEWS_THEMES]
+近 30 天 News RSS 萃取 catalyst 統計（top themes + top 文章 with tone/sentiment）
+
 [LAW_TRANSCRIPT_RAG]
 從本檔過去法說會 PDF (top 300 公司, 2021-2025) RAG retrieve 出最相關段落（top-5 multi-query dedup），含發言人 + 日期 + similarity 分數
 ```
@@ -245,6 +251,8 @@ K 線型態辨識結果（如有）
 - [ANALYST_CONSENSUS] 有分析師目標價和 EPS 預估，請用於情境目標價推導
 - [PEER_COMPARISON] 有同業 PE/PB 排名，請用於估值相對比較
 - [THEME_CONTEXT] 標明本檔在哪些 AI era 主流題材，**多 theme 交集股請在「產業與成長驅動力」區塊明確說明每個 theme 的 catalyst 強度與相對 weight**（例如「鴻海主軸是 AI 伺服器 ODM 60%，apple_supply_chain / ev_supply_chain 各 20%」），不要把多 theme 當成等權重均分。tier1 vs tier2 成員列表可作為「本檔在該 theme 內的相對地位」判斷依據
+- [SENTIMENT_CONTEXT] 兩個 -100~+100 score (市場 / 個股)。**若 |差距| >= 50** 是 strong divergence 必須在「市場面與心理面」區塊明確說明：個股強於大盤 → 「獨立 catalyst」(找出原因)；個股弱於大盤 → 「逆風 warning」(找出 trigger 或基本面風險)。同向走勢可一筆帶過。
+- [NEWS_THEMES] 近 30 天本檔在 News 中被點到的 catalyst (Sonnet 萃取，confidence-weighted)。若有具體 catalyst 出現 (ABF / CPO / AI 散熱等)，**「產業與成長驅動力」區塊應引用具體文章日期 + tone**，呼應為何最近市場關注這檔。
 - [LAW_TRANSCRIPT_RAG] 是從本檔過去法說會 PDF retrieve 的相關段落，**僅作背景參考**，使用時優先看高 sim chunks (>= 0.6)。**多數公司是簡報 PDF (slides) 非真逐字稿，可能含 bullet 數字片段**，引用前自行判斷上下文連貫性。若 N/A 或所有 chunks sim < 0.5 不要強行使用。對少數真逐字稿公司（鴻海等）可作為「公司一手 forward guidance」高權重來源
 - 若某個區塊的數據為空或標示 N/A，在報告中對應區塊標示「數據未提供」
 - 觸發分數範圍 -10 ~ +10，>3 偏多，<-3 偏空，0 附近中性
