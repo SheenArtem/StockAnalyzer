@@ -59,6 +59,15 @@ THEME_QUERIES = [
     '低軌衛星 台股',
 ]
 
+# 經濟日報 (udn money) RSS direct categories (補深度報導)
+# 2026-05-01 probe 結果：證券/產業/要聞 各 20 items 穩定，cnyes 無 public RSS,
+# 工商時報 ctee.com.tw 403 Cloudflare block。
+UDN_RSS_CATS = [
+    ('udn_證券', 'https://money.udn.com/rssfeed/news/1001/5590'),
+    ('udn_產業', 'https://money.udn.com/rssfeed/news/1001/5591'),
+    ('udn_要聞', 'https://money.udn.com/rssfeed/news/1001/5589'),
+]
+
 # Claude CLI
 import shutil
 _CLAUDE_CLI = shutil.which("claude") or "claude"
@@ -73,6 +82,49 @@ def _clean_html(text: str) -> str:
     text = unescape(text)
     text = re.sub(r'<[^>]+>', '', text)
     return text.strip()
+
+
+def fetch_udn_rss(label: str, url: str, days: int = 7, max_items: int = 30) -> list[dict]:
+    """經濟日報 (udn money) RSS direct."""
+    try:
+        resp = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+        resp.raise_for_status()
+    except Exception as e:
+        logger.warning("UDN RSS %s 失敗: %s", url, e)
+        return []
+    try:
+        root = ET.fromstring(resp.text)
+    except ET.ParseError as e:
+        logger.warning("UDN RSS parse failed %s: %s", url, e)
+        return []
+
+    cutoff = datetime.now() - timedelta(days=days)
+    out = []
+    for item in root.findall('.//item')[:max_items]:
+        title = _clean_html(item.findtext('title', ''))
+        pub_date_raw = item.findtext('pubDate', '')
+        link = item.findtext('link', '')
+        desc = _clean_html(item.findtext('description', ''))
+        # parse date
+        dt = None
+        for fmt in ['%a, %d %b %Y %H:%M:%S %Z', '%a, %d %b %Y %H:%M:%S %z',
+                    '%a, %d %b %Y %H:%M:%S GMT']:
+            try:
+                dt = datetime.strptime(pub_date_raw.strip(), fmt)
+                break
+            except ValueError:
+                continue
+        if dt and dt.replace(tzinfo=None) < cutoff:
+            continue
+        out.append({
+            'query': label,
+            'title': title,
+            'source': '經濟日報',
+            'date': dt.strftime('%Y-%m-%d') if dt else pub_date_raw[:16],
+            'summary': desc[:300],
+            'link': link,
+        })
+    return out
 
 
 def fetch_news_for_query(query: str, days: int = 7, max_items: int = 8) -> list[dict]:
@@ -271,20 +323,31 @@ def main():
     today = datetime.now().strftime('%Y%m%d')
     out_path = OUT_DIR / f'{today}.json'
 
-    # 1. 抓所有 query
+    # 1a. 抓 Google News 所有 query
     all_articles = []
     seen_titles = set()
     for q in THEME_QUERIES:
         items = fetch_news_for_query(q, days=args.days, max_items=args.max_per_query)
-        logger.info("[%s] %d articles", q, len(items))
+        logger.info("[GoogleNews %s] %d articles", q, len(items))
         for a in items:
             if a['title'] in seen_titles:
                 continue
             seen_titles.add(a['title'])
             all_articles.append(a)
-        time.sleep(1)  # be nice to Google News
+        time.sleep(1)
 
-    logger.info("Total unique articles: %d", len(all_articles))
+    # 1b. 抓 經濟日報 RSS direct (補深度報導)
+    for label, url in UDN_RSS_CATS:
+        items = fetch_udn_rss(label, url, days=args.days)
+        logger.info("[%s] %d articles (RSS direct)", label, len(items))
+        for a in items:
+            if a['title'] in seen_titles:
+                continue
+            seen_titles.add(a['title'])
+            all_articles.append(a)
+        time.sleep(0.5)
+
+    logger.info("Total unique articles (Google + UDN): %d", len(all_articles))
 
     if args.dry_run:
         out_path = OUT_DIR / f'{today}_dry.json'
