@@ -1,20 +1,21 @@
 """News theme discovery (2026-05-01)
 
-抓 broad Google News query + UDN money RSS direct，**unfiltered stream** 餵
-Claude Sonnet 自由萃 (theme, ticker_mentions, sentiment, tone, confidence) 結構化輸出，
+抓 UDN money RSS direct + 鉅亨 cnyes JSON API（純專業財經媒體），餵 Claude
+Sonnet 自由萃 (theme, ticker_mentions, sentiment, tone, confidence) 結構化輸出，
 並 append 進 `data/news_themes.parquet` 供 Layer 4 _theme_tags_short 讀。
 
 LLM 規範 (CLAUDE.md): Claude Sonnet `--model sonnet` + 600s timeout
 
-設計原則 (2026-05-01 改):
-- **不用 catalyst keyword query** — 那會 discovery bias 偏向已知題材
-- Google News 用 broad query 為了 aggregate Yahoo/sinotrade/cnyes 等多家媒體
+設計原則 (2026-05-01 進化):
+- 砍 Google News broad query — aggregator 雜訊，且我們可直連專業媒體
 - UDN RSS direct (證券/產業/要聞 各 20 items) 提供 categorical TW finance stream
-- LLM 從原始流自由萃 — 看到什麼新題材就抽什麼，不限預設清單
+- cnyes JSON API (tw_stock_news + headline) 提供專業財經報導 +
+  pre-tagged stock id + keyword（cnyes editor 已 tag 過）
+- LLM 從原始流自由萃題材，看到什麼新題材就抽什麼
 
 Pipeline:
-1a. 抓 5 個 broad Google News query (台股 個股 / 法說會 / 概念股 / 漲停 / 籌碼)
-1b. 抓 UDN money RSS direct 3 categories (證券/產業/要聞)
+1a. 抓 UDN money RSS direct 3 categories (證券/產業/要聞)
+1b. 抓 cnyes JSON API 2 categories (tw_stock_news / headline)
 2. dedupe by title across sources
 3. batch 1 次 LLM call → JSON 結構化輸出
 4. 寫 daily JSON `data_cache/news_theme_pop/YYYYMMDD.json` (raw debug)
@@ -52,26 +53,20 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 AGG_PATH.parent.mkdir(parents=True, exist_ok=True)
 NEWS_TTL_DAYS = 30  # parquet 只保留近 30 天，更舊的剃掉
 
-# Broad Google News queries (2026-05-01 改：去 catalyst keyword discovery bias)
-# 原 hardcode 10 個題材 query 會偏向已知題材 (manual.json 已 cover)，
-# 換成 broad query 讓 LLM 從原始新聞流自由萃題材，補 UDN 沒 cover 的
-# sinotrade / Yahoo 股市 / cnyes 等 ~15 家媒體（Google News auto-aggregate）
-THEME_QUERIES = [
-    '台股 個股',
-    '台股 法說會',
-    '台股 概念股',
-    '台股 漲停',
-    '台股 籌碼',
-]
-
-# 經濟日報 (udn money) RSS direct categories (補深度報導)
-# 2026-05-01 probe 結果：證券/產業/要聞 各 20 items 穩定，cnyes 無 public RSS,
-# 工商時報 ctee.com.tw 403 Cloudflare block。
+# 經濟日報 (udn money) RSS direct
 UDN_RSS_CATS = [
     ('udn_證券', 'https://money.udn.com/rssfeed/news/1001/5590'),
     ('udn_產業', 'https://money.udn.com/rssfeed/news/1001/5591'),
     ('udn_要聞', 'https://money.udn.com/rssfeed/news/1001/5589'),
 ]
+
+# 鉅亨網 cnyes 公開 JSON API (2026-05-01 探到，無公開 doc 但無 auth)
+# tw_stock_news: 520 篇 archive / headline: 1554 篇 archive
+CNYES_API_CATS = [
+    ('cnyes_台股新聞', 'tw_stock_news'),
+    ('cnyes_頭條', 'headline'),
+]
+CNYES_API_LIMIT = 30  # 每 category 抓 30 篇
 
 # Claude CLI
 import shutil
@@ -128,6 +123,52 @@ def fetch_udn_rss(label: str, url: str, days: int = 7, max_items: int = 30) -> l
             'date': dt.strftime('%Y-%m-%d') if dt else pub_date_raw[:16],
             'summary': desc[:300],
             'link': link,
+        })
+    return out
+
+
+def fetch_cnyes_api(label: str, category: str, limit: int = 30, days: int = 7) -> list[dict]:
+    """鉅亨 cnyes JSON API (非官方 endpoint，public 可訪)。
+
+    返回 article 帶 cnyes editor pre-tagged stock + keyword fields，
+    當作 LLM 萃 ticker 的 hint。
+    """
+    url = f'https://api.cnyes.com/media/api/v1/newslist/category/{category}'
+    try:
+        resp = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'},
+                            params={'limit': limit}, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        logger.warning("cnyes API %s 失敗: %s", category, e)
+        return []
+    items = data.get('items', {}).get('data', [])
+    cutoff = datetime.now() - timedelta(days=days)
+    out = []
+    for it in items:
+        ts = it.get('publishAt')
+        dt = datetime.fromtimestamp(ts) if ts else None
+        if dt and dt < cutoff:
+            continue
+        title = (it.get('title') or '').strip()
+        summary = (it.get('summary') or '').strip()
+        keywords = it.get('keyword') or []
+        stock_hints = it.get('stock') or []
+        if not title:
+            continue
+        # build summary 擴展含 cnyes pre-tagged keyword + stock 提示
+        summary_aug = summary[:200]
+        if stock_hints:
+            summary_aug += f"\n[cnyes stock tags: {','.join(stock_hints)}]"
+        if keywords:
+            summary_aug += f"\n[cnyes keywords: {','.join(keywords[:8])}]"
+        out.append({
+            'query': label,
+            'title': title,
+            'source': '鉅亨網 cnyes',
+            'date': dt.strftime('%Y-%m-%d') if dt else '',
+            'summary': summary_aug[:400],
+            'link': f'https://news.cnyes.com/news/id/{it.get("newsId", "")}',
         })
     return out
 
@@ -222,24 +263,75 @@ def build_extraction_prompt(articles: list[dict]) -> str:
 
 
 def call_claude_sonnet(prompt: str) -> tuple[str, str | None]:
-    """呼叫 Claude CLI（per LLM 規範用 sonnet + 10 min timeout）。"""
+    """呼叫 Claude CLI（per LLM 規範用 sonnet + 10 min timeout）。
+
+    Windows 平台用 stdin pipe 傳長 prompt (26KB+) 在 shell=True 時會被截
+    （symptom: 開頭 5-10KB 的 model output 不見）。改用 stdin direct + shell=False。
+    用 --output-format json 拿包含 result field 的 envelope，更可靠的 parse。
+    """
+    cmd = [_CLAUDE_CLI, '-p', '--model', 'sonnet', '--output-format', 'json']
     try:
         result = subprocess.run(
-            f'{_CLAUDE_CLI} -p --model sonnet --output-format text',
+            cmd,
             input=prompt,
             capture_output=True, text=True, timeout=CLAUDE_TIMEOUT,
             encoding='utf-8', errors='replace',
-            shell=True,
+            shell=False,
         )
     except subprocess.TimeoutExpired:
         return '', f'claude CLI timeout after {CLAUDE_TIMEOUT}s'
+    except FileNotFoundError:
+        return '', 'claude CLI not found'
     if result.returncode != 0:
         return result.stdout or '', f'claude exit {result.returncode}: {result.stderr[:300]}'
-    return result.stdout, None
+
+    # 解外層 envelope 拿 result field
+    raw = result.stdout
+    try:
+        envelope = json.loads(raw)
+        text = envelope.get('result', '')
+        if envelope.get('is_error'):
+            return text, f'claude is_error=true (api_error_status={envelope.get("api_error_status")})'
+        return text, None
+    except json.JSONDecodeError as e:
+        logger.warning("Claude JSON envelope parse failed: %s, returning raw", e)
+        return raw, None
+
+
+def _find_matching_bracket(s: str, start: int) -> int:
+    """從 s[start] 是 '[' 開始找匹配的 ']' (字串中 [] 不算 depth)。
+
+    回傳匹配的 ] 位置，找不到回 -1。處理 string literal 內的 [] 不增減 depth。
+    """
+    if start >= len(s) or s[start] != '[':
+        return -1
+    depth = 0
+    in_string = False
+    escape_next = False
+    for i in range(start, len(s)):
+        c = s[i]
+        if escape_next:
+            escape_next = False
+            continue
+        if c == '\\':
+            escape_next = True
+            continue
+        if c == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if c == '[':
+            depth += 1
+        elif c == ']':
+            depth -= 1
+            if depth == 0:
+                return i
+    return -1
 
 
 def parse_json_response(output: str) -> list[dict] | None:
-    """容錯 JSON parse (markdown fence / 前後文字)。"""
+    """容錯 JSON parse (markdown fence / 前後文字 / 開頭被截掉)。"""
     s = output.strip()
     # strip markdown fences
     if s.startswith('```'):
@@ -247,16 +339,33 @@ def parse_json_response(output: str) -> list[dict] | None:
         s = '\n'.join(lines[1:-1] if len(lines) >= 3 else lines)
         if s.startswith('json'):
             s = s[4:].lstrip()
-    # find first [ and last ]
+
+    # 1) 正常 case: [{...}, {...}] — 用 bracket-matching 找正確結尾
+    # (avoid rfind(']') misfiring on `[]` literals in trailing markdown)
     start = s.find('[')
-    end = s.rfind(']')
-    if start < 0 or end < 0:
-        return None
-    try:
-        return json.loads(s[start:end + 1])
-    except json.JSONDecodeError as e:
-        logger.warning("JSON parse failed: %s", e)
-        return None
+    if start >= 0:
+        end = _find_matching_bracket(s, start)
+        if end > start:
+            try:
+                return json.loads(s[start:end + 1])
+            except json.JSONDecodeError:
+                pass
+
+    # 2) 開頭截斷 case: 直接是 {"id":N,...},{"id":N+1,...},...]
+    # 也處理 trailing comma / missing 開頭 [
+    if s.startswith('{'):
+        # 補開頭 [，若結尾沒 ] 也補上
+        candidate = s
+        if not candidate.endswith(']'):
+            candidate = candidate.rstrip(', \n\t') + ']'
+        candidate = '[' + candidate
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError as e:
+            logger.warning("JSON parse failed (recovery attempt): %s", e)
+
+    logger.warning("JSON parse failed: 找不到 valid array")
+    return None
 
 
 def aggregate_to_parquet(merged: list[dict]) -> dict:
@@ -339,20 +448,9 @@ def main():
     today = datetime.now().strftime('%Y%m%d')
     out_path = OUT_DIR / f'{today}.json'
 
-    # 1a. 抓 Google News 所有 query
+    # 1a. 抓 經濟日報 RSS direct
     all_articles = []
     seen_titles = set()
-    for q in THEME_QUERIES:
-        items = fetch_news_for_query(q, days=args.days, max_items=args.max_per_query)
-        logger.info("[GoogleNews %s] %d articles", q, len(items))
-        for a in items:
-            if a['title'] in seen_titles:
-                continue
-            seen_titles.add(a['title'])
-            all_articles.append(a)
-        time.sleep(1)
-
-    # 1b. 抓 經濟日報 RSS direct (補深度報導)
     for label, url in UDN_RSS_CATS:
         items = fetch_udn_rss(label, url, days=args.days)
         logger.info("[%s] %d articles (RSS direct)", label, len(items))
@@ -363,7 +461,18 @@ def main():
             all_articles.append(a)
         time.sleep(0.5)
 
-    logger.info("Total unique articles (Google + UDN): %d", len(all_articles))
+    # 1b. 抓 cnyes API
+    for label, cat in CNYES_API_CATS:
+        items = fetch_cnyes_api(label, cat, limit=CNYES_API_LIMIT, days=args.days)
+        logger.info("[%s] %d articles (cnyes API)", label, len(items))
+        for a in items:
+            if a['title'] in seen_titles:
+                continue
+            seen_titles.add(a['title'])
+            all_articles.append(a)
+        time.sleep(0.5)
+
+    logger.info("Total unique articles (UDN + cnyes): %d", len(all_articles))
 
     if args.dry_run:
         out_path = OUT_DIR / f'{today}_dry.json'
@@ -378,41 +487,79 @@ def main():
         logger.error("No articles fetched, abort")
         sys.exit(1)
 
-    # 2. batch send Claude Sonnet
-    prompt = build_extraction_prompt(all_articles)
-    logger.info("Prompt size: %d chars, sending to Claude Sonnet (timeout %ds)...",
-                len(prompt), CLAUDE_TIMEOUT)
-    t0 = time.time()
-    output, err = call_claude_sonnet(prompt)
-    elapsed = time.time() - t0
-    logger.info("Claude returned (%.1fs, %d chars)", elapsed, len(output))
-
-    if err:
-        logger.error("Claude error: %s", err)
-        # 仍寫出 raw output 供 debug
-        (OUT_DIR / f'{today}_raw.txt').write_text(output, encoding='utf-8')
-        sys.exit(1)
-
-    extracted = parse_json_response(output)
-    if extracted is None:
-        logger.error("JSON parse failed, raw output saved")
-        (OUT_DIR / f'{today}_raw.txt').write_text(output, encoding='utf-8')
-        sys.exit(1)
-
-    # 3. merge: align extracted to articles by id
+    # 2. batch send Claude Sonnet (N=20 per batch, fault-isolated)
+    # Why batch=20: single big call (115 articles) hit Windows subprocess
+    # stdout truncation (~5KB threshold). 20 articles → output ~2KB safely
+    # under threshold, fault-isolated (1 batch fail doesn't kill all).
+    BATCH_SIZE = 20
+    elapsed_total = 0.0
+    raw_outputs = []
     merged = []
-    for i, a in enumerate(all_articles, 1):
-        match = next((e for e in extracted if e.get('id') in (i, str(i), f'Article {i}')), None)
-        if not match:
+    n_batches = (len(all_articles) + BATCH_SIZE - 1) // BATCH_SIZE
+    failed_batches = []
+
+    for batch_idx in range(n_batches):
+        start = batch_idx * BATCH_SIZE
+        batch = all_articles[start:start + BATCH_SIZE]
+        prompt = build_extraction_prompt(batch)
+        logger.info("Batch %d/%d (%d articles, prompt %d chars)...",
+                    batch_idx + 1, n_batches, len(batch), len(prompt))
+        t0 = time.time()
+        output, err = call_claude_sonnet(prompt)
+        elapsed = time.time() - t0
+        elapsed_total += elapsed
+
+        if err:
+            logger.error("  Batch %d Claude error: %s", batch_idx + 1, err)
+            failed_batches.append(batch_idx)
+            raw_outputs.append({'batch': batch_idx, 'output': output, 'err': err})
             continue
-        merged.append({
-            **a,
-            'themes': match.get('themes', []),
-            'tickers': match.get('tickers', []),
-            'sentiment': match.get('sentiment', 0.0),
-            'tone': match.get('tone', 'neutral'),
-            'confidence': match.get('confidence', 0),
-        })
+
+        extracted = parse_json_response(output)
+        if extracted is None:
+            logger.error("  Batch %d JSON parse failed", batch_idx + 1)
+            failed_batches.append(batch_idx)
+            raw_outputs.append({'batch': batch_idx, 'output': output, 'err': 'parse_failed'})
+            continue
+
+        # Map batch local id (1..20) back to global article (start..start+20)
+        for local_i, a in enumerate(batch, 1):
+            match = next((e for e in extracted
+                          if e.get('id') in (local_i, str(local_i),
+                                             f'Article {local_i}')), None)
+            if not match:
+                continue
+            merged.append({
+                **a,
+                'themes': match.get('themes', []),
+                'tickers': match.get('tickers', []),
+                'sentiment': match.get('sentiment', 0.0),
+                'tone': match.get('tone', 'neutral'),
+                'confidence': match.get('confidence', 0),
+            })
+        logger.info("  Batch %d done (%.1fs, %d chars output, +%d merged)",
+                    batch_idx + 1, elapsed, len(output),
+                    sum(1 for e in extracted if e.get('id')))
+
+        time.sleep(2)  # be nice between LLM calls
+
+    elapsed = elapsed_total
+    logger.info("All batches done (%.1fs total, %d/%d batches OK, %d articles merged)",
+                elapsed_total, n_batches - len(failed_batches), n_batches, len(merged))
+
+    if failed_batches:
+        # 失敗的 batch raw 寫出 debug
+        (OUT_DIR / f'{today}_failed_batches.json').write_text(
+            json.dumps(raw_outputs, ensure_ascii=False, indent=2),
+            encoding='utf-8',
+        )
+        logger.warning("Failed batches: %s (raw saved)", failed_batches)
+
+    if not merged:
+        logger.error("No articles successfully extracted, abort")
+        sys.exit(1)
+
+    # 3. merge 已在 batch loop 內完成
 
     # 4. save
     out_path.write_text(
@@ -420,7 +567,9 @@ def main():
             'date': today,
             'n_articles_fetched': len(all_articles),
             'n_articles_extracted': len(merged),
-            'queries': THEME_QUERIES,
+            'sources': ['udn money RSS direct', 'cnyes JSON API'],
+            'udn_categories': [c[0] for c in UDN_RSS_CATS],
+            'cnyes_categories': [c[0] for c in CNYES_API_CATS],
             'llm_model': 'claude sonnet',
             'elapsed_s': round(elapsed, 1),
             'articles': merged,
