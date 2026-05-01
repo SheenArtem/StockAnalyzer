@@ -278,7 +278,11 @@ def fetch_news_for_query(query: str, days: int = 7, max_items: int = 8) -> list[
 
 
 def build_extraction_prompt(articles: list[dict]) -> str:
-    """組 batch prompt 給 Claude Sonnet。"""
+    """組 batch prompt 給 Claude Sonnet (4 類分流, Phase 0 Commit 3)。
+
+    BLOCKER #3 macro/sector/price_only 不再丟棄；Council AIA F1 警告 single-prompt
+    4-class accuracy 降，先 baseline + dry-run 驗 confusion matrix 再決定要不要拆兩階段。
+    """
     article_blocks = []
     for i, a in enumerate(articles, 1):
         article_blocks.append(
@@ -291,27 +295,61 @@ def build_extraction_prompt(articles: list[dict]) -> str:
         )
     articles_text = "\n".join(article_blocks)
 
-    return f"""你是台股新聞題材分析員。我給你 {len(articles)} 篇 unfiltered 台股新聞 stream（不限特定題材），
-你需要**自由萃取**每篇真實出現的 catalyst-driven 題材標籤 + 提到的 ticker。
+    return f"""你是台股新聞分析員。我給你 {len(articles)} 篇 unfiltered 台股新聞 stream，
+你需要**先分類** article_type，再依類別抽相應欄位。
 
-對每篇新聞輸出 JSON object 含以下 fields：
-- id: 文章編號 (Article 1, 2, ...)
-- themes: list[str]，**0-3 個** catalyst-driven 題材中文標籤
+## 第一步：classify article_type 為下列 4 類之一
+
+- **individual**: 有具體個股 catalyst（公司動態 / 法說會 / 新合作 / 擴產 / 砍單 /
+  CoWoS / ABF / EV 供應鏈 等明確題材 + 文章字面提到 4 位數字 ticker）
+- **sector**: 產業整體動向（半導體類股集體 / 金融類股走強 / 航運運價 / 觀光復甦
+  等 sector-level 描述，**沒指名特定個股**）
+- **macro**: 大盤總經（CPI / 利率決議 / 匯率 / 美股道瓊 / 地緣政治 / 政府政策 /
+  油價 / 黃金 等大環境議題）
+- **price_only**: 個股單純漲跌**無 catalyst**（如 "台股早盤上漲" / "XX 上漲 5%" 純報價文，
+  未提具體理由 / 訂單 / 法說會 / 政策）
+
+## 第二步：依 article_type 抽相應欄位
+
+### 共通必填
+- id: 文章編號 (1, 2, ...)
+- article_type: 上述 4 選 1
+- sentiment: float -1.0 ~ +1.0
+- tone: "bullish" / "bearish" / "neutral"
+- confidence: int 0-100（你對 article_type 分類的信心）
+
+### 若 article_type='individual'（個股 catalyst 必填）
+- themes: list[str]，**1-3 個** catalyst-driven 題材中文標籤
   範例（不限於此清單，看到什麼新題材就抽什麼）：
     "AI 伺服器 ODM", "CoWoS 先進封裝", "ABF 載板", "矽光子", "CPO 共封裝光學",
     "AI 散熱", "AI PC SoC", "EV 供應鏈", "低軌衛星", "機器人", "高速傳輸",
     "ASIC 設計服務", "HBM", "Apple 蘋果供應鏈", "矽晶圓", "PCB 硬板",
     "量子運算", "AI 眼鏡", "車用功率半導體", "電動巴士", "工業機器人" 等
   **禁止**寫太泛 "AI" / "半導體" / "電子股" / "其他" / "權值股"。
-  **若文章是大盤新聞 / 個股單純漲跌沒明確 catalyst** → themes 回 []
-- tickers: list[str]，4 位數字台股 ticker（**只**從文章字面明確提到的）。
-  **禁止**從題材推測（例如看到 ABF 不要自己補 8046/3037），只抓文章寫出來的。
-  沒明確提到就回 []
-- sentiment: float -1.0 ~ +1.0，文章對該題材的情緒（正面利多 / 負面利空 / 中性）
-- tone: str ("bullish" / "bearish" / "neutral")
-- confidence: int 0-100，**你對 themes + tickers 萃取的信心**（高信心 >= 80）
+- tickers: list[str]，4 位數字台股 ticker（**只**從文章字面明確提到的）
+  **禁止**從題材推測（例如看到 ABF 不要自己補 8046/3037）
 
-輸出格式：JSON array `[{{"id": 1, "themes": [...], "tickers": [...], ...}}, ...]`，
+### 若 article_type='sector'（產業類）
+- sector_tag: str，**1 個**主要影響的產業
+  範例: "半導體", "金融", "航運", "電子下游", "傳產", "生技醫療", "觀光餐飲",
+        "塑化", "鋼鐵", "電動車", "綠能", "AI 應用", "光電" 等
+- themes: []（不抽）
+- tickers: []（不抽）
+
+### 若 article_type='macro'（大盤總經）
+- macro_topic: str，**1 個**之中：
+  "rate" (利率) / "inflation" (通膨/CPI) / "currency" (匯率) /
+  "fiscal" (財政/政策) / "geopolitical" (地緣政治) / "policy" (法規) /
+  "commodity" (原物料/油金) / "global_market" (美股/國際盤) / "labor" (就業)
+- themes: []（不抽）
+- tickers: []（不抽）
+
+### 若 article_type='price_only'（純漲跌報價）
+- themes: [] / tickers: []（不抽）
+- 仍給 sentiment / tone / confidence
+
+輸出格式：JSON array
+`[{{"id": 1, "article_type": "...", "themes": [...], ...}}, ...]`
 **只輸出 JSON**，不要加 markdown fence、不要加說明文字。
 
 新聞清單：
@@ -427,41 +465,85 @@ def parse_json_response(output: str) -> list[dict] | None:
 
 
 def _build_rows(merged: list[dict]) -> list[dict]:
-    """Expand merged articles into (ticker × theme) multi-row format.
+    """Expand merged articles into archive rows (Phase 0 Commit 3: 4-class).
 
-    沒 ticker 的也保留 (theme-only)，ticker 設 ''；沒 theme 的整篇略過。
-    Schema: date / source / ticker / theme / sentiment / tone / confidence /
-            title / link / extract_version /
-            normalized_title_hash / event_id (BLOCKER #1, Commit 2)
+    依 article_type 行為：
+    - individual: ticker × theme expand (沿用舊邏輯)，必填 themes + tickers
+    - sector: 1 row, theme/ticker 留空，填 sector_tag
+    - macro: 1 row, theme/ticker 留空，填 macro_topic
+    - price_only: 1 row, 全留空（archive 保留為未來研究, derived 不讀）
+
+    Backward compat: article_type 缺失 (legacy 第三輪前) → default 'individual',
+    與舊行為一致（必須有 themes + tickers 才寫）。
+
+    Schema (Commit 3 後 14 欄):
+    date / source / ticker / theme / sentiment / tone / confidence /
+    title / link / extract_version / normalized_title_hash / event_id /
+    article_type / sector_tag / macro_topic
     """
     rows = []
     for a in merged:
-        themes = a.get('themes') or []
-        tickers = a.get('tickers') or []
-        if not themes:
-            continue
-        if not tickers:
-            tickers = ['']
+        article_type = (a.get('article_type') or 'individual').strip().lower()
         title = str(a.get('title', ''))[:200]
         title_hash = normalize_title_hash(title)
         date_str = str(a.get('date', ''))
         event_id = compute_event_id(title_hash, date_str)
-        for t in tickers:
-            for th in themes:
-                rows.append({
-                    'date': a.get('date'),
-                    'source': a.get('source', ''),
-                    'ticker': str(t),
-                    'theme': str(th),
-                    'sentiment': float(a.get('sentiment', 0.0) or 0.0),
-                    'tone': str(a.get('tone', 'neutral')),
-                    'confidence': int(a.get('confidence', 0) or 0),
-                    'title': title,
-                    'link': str(a.get('link', '')),
-                    'extract_version': EXTRACT_VERSION,
-                    'normalized_title_hash': title_hash,
-                    'event_id': event_id,
-                })
+
+        # 共通 base row template
+        base = {
+            'date': a.get('date'),
+            'source': a.get('source', ''),
+            'sentiment': float(a.get('sentiment', 0.0) or 0.0),
+            'tone': str(a.get('tone', 'neutral')),
+            'confidence': int(a.get('confidence', 0) or 0),
+            'title': title,
+            'link': str(a.get('link', '')),
+            'extract_version': EXTRACT_VERSION,
+            'normalized_title_hash': title_hash,
+            'event_id': event_id,
+            'article_type': article_type,
+            'sector_tag': str(a.get('sector_tag', '') or ''),
+            'macro_topic': str(a.get('macro_topic', '') or ''),
+        }
+
+        if article_type == 'individual':
+            themes = a.get('themes') or []
+            tickers = a.get('tickers') or []
+            if not themes:
+                # individual 但 LLM 沒抽到 theme → degrade to price_only
+                rows.append({**base, 'ticker': '', 'theme': '',
+                             'article_type': 'price_only'})
+                continue
+            if not tickers:
+                tickers = ['']
+            for t in tickers:
+                for th in themes:
+                    rows.append({**base, 'ticker': str(t), 'theme': str(th)})
+
+        elif article_type == 'sector':
+            rows.append({**base, 'ticker': '', 'theme': ''})
+
+        elif article_type == 'macro':
+            rows.append({**base, 'ticker': '', 'theme': ''})
+
+        elif article_type == 'price_only':
+            rows.append({**base, 'ticker': '', 'theme': ''})
+
+        else:
+            # Unknown article_type, fallback to individual extraction with warning
+            logger.warning("Unknown article_type=%r, fallback to individual",
+                           article_type)
+            themes = a.get('themes') or []
+            if not themes:
+                rows.append({**base, 'ticker': '', 'theme': '',
+                             'article_type': 'price_only'})
+                continue
+            tickers = a.get('tickers') or ['']
+            for t in tickers:
+                for th in themes:
+                    rows.append({**base, 'ticker': str(t), 'theme': str(th),
+                                 'article_type': 'individual'})
+
     return rows
 
 
@@ -624,6 +706,14 @@ def migrate_legacy_to_archive() -> dict:
             for h, d in zip(legacy['normalized_title_hash'].astype(str),
                             legacy['date'].astype(str))
         ]
+    # Commit 3: backfill article_type + sector_tag + macro_topic (BLOCKER #2 default rule)
+    # legacy 全是 individual (有 ticker + theme 才進 archive)
+    if 'article_type' not in legacy.columns:
+        legacy['article_type'] = 'individual'
+    if 'sector_tag' not in legacy.columns:
+        legacy['sector_tag'] = ''
+    if 'macro_topic' not in legacy.columns:
+        legacy['macro_topic'] = ''
 
     logger.info("Legacy parquet: %d rows, dates %s..%s",
                 len(legacy), legacy['date'].min(), legacy['date'].max())
@@ -650,6 +740,12 @@ def migrate_legacy_to_archive() -> dict:
                     for h, d in zip(existing['normalized_title_hash'].astype(str),
                                     existing['date'].astype(str))
                 ]
+            if 'article_type' not in existing.columns:
+                existing['article_type'] = 'individual'
+            if 'sector_tag' not in existing.columns:
+                existing['sector_tag'] = ''
+            if 'macro_topic' not in existing.columns:
+                existing['macro_topic'] = ''
             # idempotent: dedupe by (date, ticker, theme, title)
             combined = pd.concat([existing, sub], ignore_index=True)
             before = len(existing)
@@ -778,8 +874,11 @@ def main():
                 continue
             merged.append({
                 **a,
+                'article_type': match.get('article_type', 'individual'),
                 'themes': match.get('themes', []),
                 'tickers': match.get('tickers', []),
+                'sector_tag': match.get('sector_tag', ''),
+                'macro_topic': match.get('macro_topic', ''),
                 'sentiment': match.get('sentiment', 0.0),
                 'tone': match.get('tone', 'neutral'),
                 'confidence': match.get('confidence', 0),
