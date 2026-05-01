@@ -150,17 +150,21 @@
 
 ## 8. 投資建議與情境分析
 
+⚠️ **價位數字 Hard Rule（必讀）**：本表格的「建議進場區間 / 停損價位 / 停利價位」三個欄位**必須 verbatim 引用 `[MARKET_CONTEXT]` 區塊裡 `Action Plan (DETERMINISTIC — must be quoted verbatim)` 提供的 `rec_entry_low` / `rec_entry_high` / `rec_sl_price` / `rec_tp_price` 數字**。禁止自行計算、禁止四捨五入、禁止用「附近 / 約 / ±X% / X-Y 區間」這類模糊敘述。若 Action Plan 標記 `觀望 (is_actionable=False)`，三欄一律填「觀望，無進場價」。「操作策略」欄可以解釋為何這些數字合理（ATR / 支撐 / 趨勢論述），但**不得重述或修改進場/停損/停利數字**。
+（下方「情境目標價」表的牛/基本/熊三檔目標價是另一回事——那是 EPS × 本益比 推導的長線估值，**不在此 hard rule 範圍內**，仍由你推導。）
+
 | 項目 | 內容 |
 |------|------|
 | 綜合評級 | 強力買進 / 買進 / 觀望 / 減碼 / 賣出 |
 | 觸發分數 | {trigger_score} / 10（百分位: {percentile}） |
 | 趨勢分數 | {trend_score} / 10 |
-| 建議進場區間 | （基於支撐位與技術面） |
-| 停損價位 | （基於 ATR 或關鍵支撐） |
+| 建議進場區間 | **verbatim 引用 [MARKET_CONTEXT] 的 `rec_entry_low` ~ `rec_entry_high`** |
+| 停損價位 | **verbatim 引用 [MARKET_CONTEXT] 的 `rec_sl_price`**（方法：`rec_sl_method`）|
+| 停利價位 | **verbatim 引用 [MARKET_CONTEXT] 的 `rec_tp_price`** |
 | 建議倉位 | {position_adj} （Regime 調整後） |
-| 操作策略 | （右側交易具體建議） |
+| 操作策略 | 解釋為何這些 deterministic 數字合理（ATR / 支撐 / 趨勢論述），不得重述或修改進場/停損/停利數字 |
 
-**情境目標價**（目標價數字必須清晰、加粗、放大，嚴禁特殊符號）：
+**情境目標價**（基於 EPS × 本益比 的長線估值推導，與上方 deterministic 短線數字無關；目標價數字必須清晰、加粗、放大，嚴禁特殊符號）：
 
 ### 情境目標價
 

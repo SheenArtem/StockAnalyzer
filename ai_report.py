@@ -586,12 +586,26 @@ def _build_market_context(report):
         for d in regime.get('details', []):
             lines.append(f"- {d}")
 
-    # Action plan
+    # Action plan — 只丟 final 1 組，不丟 candidate list (sl_list/tp_list/sl_atr/sl_ma/sl_low)
+    # 漂移 root cause：原本 for k, v in ap.items() 把所有 candidate 攤給 Claude，
+    # Claude 從中挑/round/憑空生新數字 → 個股分析 vs AI 報告價位不一致
     ap = report.get('action_plan', {})
-    if ap:
-        lines.append(f"\nAction Plan:")
-        for k, v in ap.items():
-            lines.append(f"  {k}: {v}")
+    if ap and ap.get('is_actionable'):
+        lines.append(f"\nAction Plan (DETERMINISTIC — must be quoted verbatim):")
+        lines.append(f"  rec_entry_low: {ap.get('rec_entry_low', 0)}")
+        lines.append(f"  rec_entry_high: {ap.get('rec_entry_high', 0)}")
+        lines.append(f"  rec_entry_desc: {ap.get('rec_entry_desc', '')}")
+        lines.append(f"  rec_sl_price: {ap.get('rec_sl_price', 0)}")
+        lines.append(f"  rec_sl_method: {ap.get('rec_sl_method', '')}")
+        lines.append(f"  rec_tp_price: {ap.get('rec_tp_price', 0)}")
+        lines.append(f"  rr_ratio: {_safe_val(ap.get('rr_ratio', 0), '.2f')}")
+        lines.append(f"  entry_confidence: {ap.get('entry_confidence', 'standard')}")
+        if ap.get('strategy'):
+            lines.append(f"  strategy: {ap.get('strategy')}")
+        if ap.get('pattern_note'):
+            lines.append(f"  pattern_note: {ap.get('pattern_note')}")
+    elif ap:
+        lines.append(f"\nAction Plan: 觀望 (is_actionable=False)")
 
     # Checklist
     cl = report.get('checklist', [])
