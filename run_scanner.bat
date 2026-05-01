@@ -70,7 +70,8 @@ REM ------------------------------------------------------------
 
 REM ------------------------------------------------------------
 REM News theme discovery (2026-05-01 Day 2):
-REM Google News RSS x 10 catalyst-driven queries -> Claude Sonnet batch
+REM Google News RSS x 10 catalyst queries + UDN money RSS direct
+REM (categories: securities / industry / headline) -> Claude Sonnet batch
 REM extract -> data/news_themes.parquet (Layer 4 of _theme_tags_short
 REM 4-layer fusion). 30-day TTL inside parquet.
 REM POC accuracy ~95% strict (Day 1-3 audit, commit de836ba).
