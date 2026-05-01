@@ -142,6 +142,20 @@ def _clean_html(text: str) -> str:
     return text.strip()
 
 
+# Commit 4 (BLOCKER #5 archive 全文存): truncate cap
+BODY_FULL_MAX_CHARS = 1500  # Legal F2 fair use 邊界 + Quant re-extract 需求平衡
+
+
+def _truncate_body(text: str, max_chars: int = BODY_FULL_MAX_CHARS) -> str:
+    """Strip HTML + unescape entities + truncate to max_chars."""
+    if not text:
+        return ''
+    cleaned = _clean_html(text)
+    if len(cleaned) <= max_chars:
+        return cleaned
+    return cleaned[:max_chars]
+
+
 def fetch_udn_rss(label: str, url: str, days: int = 7, max_items: int = 30) -> list[dict]:
     """經濟日報 (udn money) RSS direct."""
     try:
@@ -181,6 +195,11 @@ def fetch_udn_rss(label: str, url: str, days: int = 7, max_items: int = 30) -> l
             'date': dt.strftime('%Y-%m-%d') if dt else pub_date_raw[:16],
             'summary': desc[:300],
             'link': link,
+            # Commit 4: body_full archive (UDN RSS 只給 description, 真全文需 GET HTML page,
+            # 先用 description as body_full + 標 status='summary_only' fallback,
+            # Phase 1+ 視需要加 GET HTML fetcher)
+            'body_full': _truncate_body(desc),
+            'body_status': 'summary_only',
         })
     return out
 
@@ -210,6 +229,7 @@ def fetch_cnyes_api(label: str, category: str, limit: int = 30, days: int = 7) -
             continue
         title = (it.get('title') or '').strip()
         summary = (it.get('summary') or '').strip()
+        content = (it.get('content') or '').strip()  # Commit 4: 全文 (HTML escaped)
         keywords = it.get('keyword') or []
         stock_hints = it.get('stock') or []
         if not title:
@@ -220,6 +240,14 @@ def fetch_cnyes_api(label: str, category: str, limit: int = 30, days: int = 7) -
             summary_aug += f"\n[cnyes stock tags: {','.join(stock_hints)}]"
         if keywords:
             summary_aug += f"\n[cnyes keywords: {','.join(keywords[:8])}]"
+        # Commit 4 (BLOCKER #5): body_full from cnyes content field (≤1500 chars)
+        # cnyes 'content' is HTML-escaped (e.g. &lt;p&gt;), needs unescape + strip
+        if content:
+            body_full = _truncate_body(content)
+            body_status = 'cnyes_content'
+        else:
+            body_full = _truncate_body(summary)
+            body_status = 'summary_only'
         out.append({
             'query': label,
             'title': title,
@@ -227,6 +255,8 @@ def fetch_cnyes_api(label: str, category: str, limit: int = 30, days: int = 7) -
             'date': dt.strftime('%Y-%m-%d') if dt else '',
             'summary': summary_aug[:400],
             'link': f'https://news.cnyes.com/news/id/{it.get("newsId", "")}',
+            'body_full': body_full,
+            'body_status': body_status,
         })
     return out
 
@@ -504,6 +534,9 @@ def _build_rows(merged: list[dict]) -> list[dict]:
             'article_type': article_type,
             'sector_tag': str(a.get('sector_tag', '') or ''),
             'macro_topic': str(a.get('macro_topic', '') or ''),
+            # Commit 4 (BLOCKER #5): full body archive (≤1500 chars) for re-extract
+            'body_full': str(a.get('body_full', '') or '')[:BODY_FULL_MAX_CHARS],
+            'body_status': str(a.get('body_status', 'summary_only') or 'summary_only'),
         }
 
         if article_type == 'individual':
@@ -714,6 +747,11 @@ def migrate_legacy_to_archive() -> dict:
         legacy['sector_tag'] = ''
     if 'macro_topic' not in legacy.columns:
         legacy['macro_topic'] = ''
+    # Commit 4: backfill body_full + body_status (BLOCKER #5; legacy 沒抓全文)
+    if 'body_full' not in legacy.columns:
+        legacy['body_full'] = ''  # legacy 無全文; future re-extract 失敗
+    if 'body_status' not in legacy.columns:
+        legacy['body_status'] = 'legacy_no_body'
 
     logger.info("Legacy parquet: %d rows, dates %s..%s",
                 len(legacy), legacy['date'].min(), legacy['date'].max())
@@ -746,6 +784,10 @@ def migrate_legacy_to_archive() -> dict:
                 existing['sector_tag'] = ''
             if 'macro_topic' not in existing.columns:
                 existing['macro_topic'] = ''
+            if 'body_full' not in existing.columns:
+                existing['body_full'] = ''
+            if 'body_status' not in existing.columns:
+                existing['body_status'] = 'legacy_no_body'
             # idempotent: dedupe by (date, ticker, theme, title)
             combined = pd.concat([existing, sub], ignore_index=True)
             before = len(existing)
@@ -791,31 +833,39 @@ def main():
     today = datetime.now().strftime('%Y%m%d')
     out_path = OUT_DIR / f'{today}.json'
 
-    # 1a. 抓 經濟日報 RSS direct
+    # Commit 4 (Council 第四輪 #4): 不 dedupe across sources -- 多 source 同事件
+    # 各保留版本，讓「報導密度」可當 signal。同一 source 內仍 dedupe（同 source 同 title
+    # 是真重複，不是不同視角）。Cost: ~25% 更多 LLM call，月 ~$1 增量 negligible。
     all_articles = []
-    seen_titles = set()
+
+    # 1a. 抓 經濟日報 RSS direct (UDN 內部 dedupe 跨 category)
+    udn_seen = set()
     for label, url in UDN_RSS_CATS:
         items = fetch_udn_rss(label, url, days=args.days)
         logger.info("[%s] %d articles (RSS direct)", label, len(items))
         for a in items:
-            if a['title'] in seen_titles:
+            key = (a['source'], a['title'])
+            if key in udn_seen:
                 continue
-            seen_titles.add(a['title'])
+            udn_seen.add(key)
             all_articles.append(a)
         time.sleep(0.5)
 
-    # 1b. 抓 cnyes API
+    # 1b. 抓 cnyes API (cnyes 內部 dedupe 跨 category)
+    cnyes_seen = set()
     for label, cat in CNYES_API_CATS:
         items = fetch_cnyes_api(label, cat, limit=CNYES_API_LIMIT, days=args.days)
         logger.info("[%s] %d articles (cnyes API)", label, len(items))
         for a in items:
-            if a['title'] in seen_titles:
+            key = (a['source'], a['title'])
+            if key in cnyes_seen:
                 continue
-            seen_titles.add(a['title'])
+            cnyes_seen.add(key)
             all_articles.append(a)
         time.sleep(0.5)
 
-    logger.info("Total unique articles (UDN + cnyes): %d", len(all_articles))
+    logger.info("Total articles (UDN + cnyes, source-internal dedupe only): %d",
+                len(all_articles))
 
     if args.dry_run:
         out_path = OUT_DIR / f'{today}_dry.json'
