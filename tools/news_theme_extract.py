@@ -60,7 +60,9 @@ AGG_PATH.parent.mkdir(parents=True, exist_ok=True)
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 NEW_NEWS_DIR.mkdir(parents=True, exist_ok=True)
 NEWS_TTL_DAYS = 30  # legacy parquet 仍 30 天 TTL；archive 永久不 trim
-EXTRACT_VERSION = 1  # BLOCKER #2 prerequisite, bump 時必 backfill 舊 partition default
+EXTRACT_VERSION = 2  # Phase 1 #1: 加 forward_eps_change / forward_revenue_guidance /
+                     # forward_gross_margin / key_capacity_event / q_period 5 欄
+                     # v1 raw articles 5 欄 default null (BLOCKER #2 backfill rule)
 
 # Commit 5: hot view + derived rebuild constants
 HOT_VIEW_DAYS = 90  # articles_recent.parquet rolling window
@@ -435,6 +437,22 @@ def build_extraction_prompt(articles: list[dict]) -> str:
 - tickers: list[str]，4 位數字台股 ticker（**只**從文章字面明確提到的）
   **禁止**從題材推測（例如看到 ABF 不要自己補 8046/3037）
 
+#### individual 額外（Phase 1 #1 法說會 schema, 文章涉及法說會/財報展望時才填）
+- 以下 5 欄**只在文章是該公司「法說會 / 財報 / 公司展望」相關時填**，否則 null:
+- forward_eps_change: str，公司對下季 / 全年 EPS 展望方向
+  - 取值: "上修" / "下修" / "持平" / null
+  - 例: 「公司上修全年 EPS 至 X 元」→ "上修"
+  - 例: 「下調 Q4 展望」→ "下修"
+- forward_revenue_guidance: str，營收展望方向
+  - 取值: "上修" / "下修" / "持平" / null
+- forward_gross_margin: str，毛利率展望方向
+  - 取值: "上修" / "下修" / "持平" / null
+- key_capacity_event: str，重大產能事件
+  - 取值: "擴產" / "減產" / "新廠" / "砍單" / null
+- q_period: str，文章對應的季度 (若文章明確提及)
+  - 例: "2026Q1" / "2025Q4" / null
+- **禁止**從題材推測（沒明確提到展望方向就 null，不要瞎猜）
+
 ### 若 article_type='sector'（產業類）
 - sector_tag: str，**1 個**主要影響的產業
   範例: "半導體", "金融", "航運", "電子下游", "傳產", "生技醫療", "觀光餐飲",
@@ -455,8 +473,9 @@ def build_extraction_prompt(articles: list[dict]) -> str:
 - 仍給 sentiment / tone / confidence
 
 輸出格式：JSON array
-`[{{"id": 1, "article_type": "...", "themes": [...], ...}}, ...]`
+`[{{"id": 1, "article_type": "...", "themes": [...], "forward_eps_change": null, ...}}, ...]`
 **只輸出 JSON**，不要加 markdown fence、不要加說明文字。
+未填欄位用 null，不要省略。
 
 新聞清單：
 
@@ -613,6 +632,12 @@ def _build_rows(merged: list[dict]) -> list[dict]:
             # Commit 4 (BLOCKER #5): full body archive (≤1500 chars) for re-extract
             'body_full': str(a.get('body_full', '') or '')[:BODY_FULL_MAX_CHARS],
             'body_status': str(a.get('body_status', 'summary_only') or 'summary_only'),
+            # Phase 1 #1: earnings call schema (default '' = null/not 法說會)
+            'forward_eps_change': str(a.get('forward_eps_change', '') or ''),
+            'forward_revenue_guidance': str(a.get('forward_revenue_guidance', '') or ''),
+            'forward_gross_margin': str(a.get('forward_gross_margin', '') or ''),
+            'key_capacity_event': str(a.get('key_capacity_event', '') or ''),
+            'q_period': str(a.get('q_period', '') or ''),
         }
 
         if article_type == 'individual':
@@ -829,6 +854,11 @@ def migrate_legacy_to_archive() -> dict:
         legacy['body_full'] = ''  # legacy 無全文; future re-extract 失敗
     if 'body_status' not in legacy.columns:
         legacy['body_status'] = 'legacy_no_body'
+    # Phase 1 #1: earnings call schema (legacy/v1 default '' = null)
+    for col in ('forward_eps_change', 'forward_revenue_guidance',
+                'forward_gross_margin', 'key_capacity_event', 'q_period'):
+        if col not in legacy.columns:
+            legacy[col] = ''
 
     logger.info("Legacy parquet: %d rows, dates %s..%s",
                 len(legacy), legacy['date'].min(), legacy['date'].max())
@@ -865,6 +895,10 @@ def migrate_legacy_to_archive() -> dict:
                 existing['body_full'] = ''
             if 'body_status' not in existing.columns:
                 existing['body_status'] = 'legacy_no_body'
+            for col in ('forward_eps_change', 'forward_revenue_guidance',
+                        'forward_gross_margin', 'key_capacity_event', 'q_period'):
+                if col not in existing.columns:
+                    existing[col] = ''
             # idempotent: dedupe by (date, ticker, theme, title)
             combined = pd.concat([existing, sub], ignore_index=True)
             before = len(existing)
@@ -1157,6 +1191,12 @@ def main():
                 'sentiment': match.get('sentiment', 0.0),
                 'tone': match.get('tone', 'neutral'),
                 'confidence': match.get('confidence', 0),
+                # Phase 1 #1: earnings 5 欄, 非法說會文章為 null
+                'forward_eps_change': match.get('forward_eps_change') or '',
+                'forward_revenue_guidance': match.get('forward_revenue_guidance') or '',
+                'forward_gross_margin': match.get('forward_gross_margin') or '',
+                'key_capacity_event': match.get('key_capacity_event') or '',
+                'q_period': match.get('q_period') or '',
             })
         logger.info("  Batch %d done (%.1fs, %d chars output, +%d merged)",
                     batch_idx + 1, elapsed, len(output),
