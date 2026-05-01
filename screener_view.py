@@ -1812,6 +1812,16 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
         with _mode_d_sub4:
             st.caption("Thesis 層輔助資訊整合（Wave 1 填實，目前為 skeleton）")
 
+            # Section 0: 大盤情緒 (Day 3, 2026-05-01)
+            st.markdown("#### 🌡️ 大盤情緒")
+            try:
+                from market_sentiment import render_market_sentiment_block
+                render_market_sentiment_block()
+            except Exception as _e:
+                st.caption(f"市場情緒模組載入失敗: {_e}")
+
+            st.markdown("---")
+
             # Section 1: 劇本進行式 (Pair Divergence info display, Wave 1 #1)
             st.markdown("#### 📜 劇本進行式")
             st.caption("同業 pair 近 20 日表現差 — 純觀察，V12 已驗 C 級無 edge，不進 Pick 不發 Discord")

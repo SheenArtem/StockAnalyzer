@@ -285,6 +285,150 @@ def get_stock_sentiment_score(stock_id: str, chip_data=None) -> Dict[str, Any]:
     }
 
 
+# ============================================================
+#  Streamlit UI helpers (Day 3, 2026-05-01)
+# ============================================================
+
+def _color_for_score(score: float) -> str:
+    """-100~+100 → traffic light hex"""
+    if score >= 50:
+        return '#1e8e3e'  # 深綠
+    if score >= 20:
+        return '#34a853'  # 綠
+    if score >= -20:
+        return '#9aa0a6'  # 灰中性
+    if score >= -50:
+        return '#fbbc04'  # 橘
+    return '#ea4335'  # 紅
+
+
+def render_market_sentiment_block():
+    """渲染只有市場情緒的 compact block（給 Mode D Thesis Panel 用）。"""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+    m = get_market_sentiment_score()
+    score = m['score']
+    color = _color_for_score(score)
+    cols = st.columns([1, 2])
+    with cols[0]:
+        st.markdown(
+            f"<div style='font-size:0.85em;color:#666'>大盤情緒</div>"
+            f"<div style='font-size:1.8em;font-weight:bold;color:{color}'>"
+            f"{score:+.1f} <span style='font-size:0.6em;color:#999'>/100</span></div>"
+            f"<div style='color:{color};font-weight:600'>{m['label']}</div>",
+            unsafe_allow_html=True,
+        )
+    with cols[1]:
+        comp = m.get('components', {})
+        comp_lines = []
+        for cn, label in [
+            ('market_momentum', '市場動能'),
+            ('market_breadth', '漲跌家數'),
+            ('put_call_ratio', 'Put/Call'),
+            ('volatility', '波動率'),
+            ('margin_balance', '融資餘額'),
+        ]:
+            sub = comp.get(cn) or {}
+            if isinstance(sub, dict) and sub.get('score') is not None:
+                comp_lines.append(f"  - {label}: {sub['score']:.0f}/100")
+        if comp_lines:
+            st.markdown(
+                "<div style='font-size:0.85em;color:#666;margin-bottom:6px'>"
+                "TFGI 5 子指標 (0-100, 50=中性)</div>",
+                unsafe_allow_html=True,
+            )
+            st.markdown("\n".join(comp_lines))
+        if m.get('m1b_overlay'):
+            ov = m['m1b_overlay']
+            ov_color = '#ea4335' if ov['warn'] == 'overheat' else '#4285f4'
+            st.markdown(
+                f"<div style='color:{ov_color};font-weight:600'>⚠️ {ov['msg']}</div>",
+                unsafe_allow_html=True,
+            )
+    if m.get('data_date'):
+        st.caption(f"資料日: {m['data_date']}")
+
+
+def render_sentiment_divergence_block(stock_id: str, chip_data=None):
+    """渲染市場 vs 個股對比 compact block（給個股分析 tab 用）。
+
+    3 columns: 市場 | 個股 | 對比訊號 + 訊號明細。
+    """
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    d = get_sentiment_divergence(stock_id, chip_data=chip_data)
+    m, s = d['market'], d['stock']
+
+    cols = st.columns(3)
+    # 市場
+    with cols[0]:
+        c = _color_for_score(m['score'])
+        st.markdown(
+            f"<div style='font-size:0.85em;color:#666'>大盤情緒</div>"
+            f"<div style='font-size:1.6em;font-weight:bold;color:{c}'>"
+            f"{m['score']:+.1f}</div>"
+            f"<div style='color:{c};font-weight:500;font-size:0.95em'>{m['label']}</div>",
+            unsafe_allow_html=True,
+        )
+        if m.get('m1b_overlay'):
+            ov = m['m1b_overlay']
+            ov_color = '#ea4335' if ov['warn'] == 'overheat' else '#4285f4'
+            st.markdown(
+                f"<div style='color:{ov_color};font-size:0.85em'>⚠️ {ov['msg']}</div>",
+                unsafe_allow_html=True,
+            )
+    # 個股
+    with cols[1]:
+        c = _color_for_score(s['score'])
+        st.markdown(
+            f"<div style='font-size:0.85em;color:#666'>個股情緒</div>"
+            f"<div style='font-size:1.6em;font-weight:bold;color:{c}'>"
+            f"{s['score']:+.1f}</div>"
+            f"<div style='color:{c};font-weight:500;font-size:0.95em'>{s['label']}</div>",
+            unsafe_allow_html=True,
+        )
+        comp = s.get('components', {})
+        sig_lines = []
+        for k, label in [
+            ('inst', '法人 5d'),
+            ('margin', '融資反向'),
+            ('ma', 'MA 乖離'),
+            ('news', 'News tone'),
+        ]:
+            if k in comp:
+                sig_lines.append(f"  - {label}: {comp[k]:+.2f}")
+        if sig_lines:
+            st.markdown(
+                "<div style='font-size:0.85em;color:#666;margin-top:4px'>訊號 -1~+1:</div>",
+                unsafe_allow_html=True,
+            )
+            st.markdown("\n".join(sig_lines))
+    # 對比
+    with cols[2]:
+        diff = d['diff']
+        diff_c = _color_for_score(diff)  # 用 diff 自己的色
+        signal = d['signal']
+        # 強訊號標警示色
+        if abs(diff) >= 50:
+            label_color = '#1e8e3e' if diff > 0 else '#ea4335'
+            label_prefix = '⚡' if diff > 0 else '⚠️'
+        else:
+            label_color = '#666'
+            label_prefix = ''
+        st.markdown(
+            f"<div style='font-size:0.85em;color:#666'>個股 - 大盤</div>"
+            f"<div style='font-size:1.6em;font-weight:bold;color:{diff_c}'>"
+            f"{diff:+.1f}</div>"
+            f"<div style='color:{label_color};font-weight:600'>{label_prefix} {signal}</div>",
+            unsafe_allow_html=True,
+        )
+
+
 def get_sentiment_divergence(stock_id: str, chip_data=None) -> Dict[str, Any]:
     """市場 vs 個股對比訊號。
 
