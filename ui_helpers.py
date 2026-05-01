@@ -515,7 +515,8 @@ def _build_news_tags_index():
     News Initiative Phase 0 Commit 6: Layer 4 reader 從 news_themes.parquet
     (legacy 30d) 切到 themes_core.parquet (1y rolling, ≥3 次晉升)。
     sticky themes 較穩定，Layer 4 fusion 不需要 30d 的短期波動。
-    Fallback to legacy 1 週過渡: themes_core 不存在時讀 legacy。
+    Reader fallback to legacy: themes_core 不存在或讀取失敗時 fallback 舊 path,
+    提供 graceful degradation (Robustness > cleanliness, 永久保留)。
     """
     import pandas as pd
     from pathlib import Path as _P
@@ -543,7 +544,7 @@ def _build_news_tags_index():
         df['confidence'] = 80
         df['date'] = df['last_seen']
     else:
-        # Fallback: legacy news_themes.parquet (1 週過渡期)
+        # Fallback: legacy news_themes.parquet (graceful degradation, 永久保留)
         if not legacy_path.exists():
             return {}
         try:

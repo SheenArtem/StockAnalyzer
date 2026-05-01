@@ -71,10 +71,10 @@ REM ------------------------------------------------------------
 REM ------------------------------------------------------------
 REM News theme discovery (2026-05-01 Phase 0 Commit 1: dual-write):
 REM UDN money RSS direct + cnyes JSON API -> Claude Sonnet batch extract.
-REM Dual-write storage:
+REM Dual-write storage (Phase 0 6/6 done 2026-05-01):
 REM   - data_cache/news_archive/YYYY-MM/articles.parquet (new SoT, permanent)
-REM   - data/news_themes.parquet (legacy, 30d TTL, 1-week transition; 5
-REM     readers still on legacy until Commit 6 cutover)
+REM   - data/news_themes.parquet (legacy, 30d TTL, kept permanently as backup +
+REM     reader fallback for graceful degradation; Robustness > cleanliness)
 REM POC accuracy ~95% strict (Day 1-3 audit, commit de836ba).
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------

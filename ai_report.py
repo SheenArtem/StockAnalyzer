@@ -945,7 +945,8 @@ def _build_news_themes_context(ticker):
     News Initiative Phase 0 Commit 6: 從 data/news_themes.parquet (legacy 30d)
     切到 data/news/articles_recent.parquet (新 hot view 90d)，filter 30 天視窗對齊
     既有行為。BLOCKER #1 dedupe by event_id 防同事件多 source 灌。
-    Fallback: 新 path 不存在時讀 legacy (1 週過渡期)。
+    Reader fallback to legacy: 新 path 不存在或讀取失敗時 fallback 舊 path,
+    提供 graceful degradation (Robustness > cleanliness, 永久保留)。
     """
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
     if is_us:
