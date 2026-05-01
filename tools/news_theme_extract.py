@@ -62,6 +62,13 @@ NEW_NEWS_DIR.mkdir(parents=True, exist_ok=True)
 NEWS_TTL_DAYS = 30  # legacy parquet 仍 30 天 TTL；archive 永久不 trim
 EXTRACT_VERSION = 1  # BLOCKER #2 prerequisite, bump 時必 backfill 舊 partition default
 
+# Commit 5: hot view + derived rebuild constants
+HOT_VIEW_DAYS = 90  # articles_recent.parquet rolling window
+THEMES_CORE_LOOKBACK_DAYS = 365  # 1y rolling for sticky theme晉升
+THEMES_CORE_MIN_COUNT = 3  # BLOCKER #1 spec: ≥3 次同 (ticker, theme) 才晉升 core
+HOT_VIEW_PATH = NEW_NEWS_DIR / 'articles_recent.parquet'
+THEMES_CORE_PATH = NEW_NEWS_DIR / 'themes_core.parquet'
+
 # 經濟日報 (udn money) RSS direct
 UDN_RSS_CATS = [
     ('udn_證券', 'https://money.udn.com/rssfeed/news/1001/5590'),
@@ -808,6 +815,130 @@ def migrate_legacy_to_archive() -> dict:
     return {'rows_migrated': total_added, 'partitions': parts_summary}
 
 
+def _read_archive_partitions(cutoff_partition: str):
+    """Read archive partitions >= cutoff_partition (YYYY-MM format).
+
+    Returns concatenated DataFrame, or empty DataFrame if no partitions found.
+    """
+    import pandas as pd
+    dfs = []
+    if not ARCHIVE_DIR.exists():
+        return pd.DataFrame(), 0
+    for part_dir in sorted(ARCHIVE_DIR.iterdir()):
+        if not part_dir.is_dir():
+            continue
+        if part_dir.name < cutoff_partition:
+            continue
+        path = part_dir / 'articles.parquet'
+        if path.exists():
+            try:
+                dfs.append(pd.read_parquet(path))
+            except Exception as e:
+                logger.warning("Read archive %s failed: %s", path, e)
+    if not dfs:
+        return pd.DataFrame(), 0
+    combined = pd.concat(dfs, ignore_index=True)
+    return combined, len(dfs)
+
+
+def rebuild_hot_view() -> dict:
+    """Rebuild data/news/articles_recent.parquet from archive last 90 days.
+
+    Idempotent: 完全 rebuild from archive，atomic swap (BLOCKER #3)。
+    Source: archive partitions touching last 90d window.
+    Filter: keep rows where date >= today-90d (some old rows may be in
+            newer partitions if articles backfilled cross-month).
+    """
+    import pandas as pd
+    cutoff_dt = datetime.now() - timedelta(days=HOT_VIEW_DAYS)
+    cutoff_date = cutoff_dt.strftime('%Y-%m-%d')
+    cutoff_partition = cutoff_dt.strftime('%Y-%m')
+
+    df, n_parts = _read_archive_partitions(cutoff_partition)
+    if df.empty:
+        logger.warning("No archive partitions for hot view rebuild (cutoff=%s)",
+                       cutoff_partition)
+        # Write empty parquet so reader doesn't fail
+        empty = pd.DataFrame(columns=[
+            'date', 'source', 'ticker', 'theme', 'sentiment', 'tone',
+            'confidence', 'title', 'link', 'extract_version',
+            'normalized_title_hash', 'event_id', 'article_type',
+            'sector_tag', 'macro_topic', 'body_full', 'body_status',
+        ])
+        _atomic_write_parquet(empty, HOT_VIEW_PATH)
+        return {'rows': 0, 'partitions_read': 0}
+
+    df = df[df['date'].astype(str) >= cutoff_date].copy()
+    _atomic_write_parquet(df, HOT_VIEW_PATH)
+    return {'rows': len(df), 'partitions_read': n_parts}
+
+
+def rebuild_themes_core() -> dict:
+    """Rebuild data/news/themes_core.parquet — sticky themes (≥ N counts in 1y).
+
+    Logic per BLOCKER #1:
+    1. Read archive last 1y, filter article_type='individual' + non-empty
+       ticker + theme (sector/macro/price_only 不入 themes_core)
+    2. Dedupe by event_id (count 灌水防護 — cnyes + UDN 同事件不重複計分)
+    3. Group by (ticker, theme), count event_id; keep count >= MIN_COUNT
+    4. Output schema: ticker / theme / count / first_seen / last_seen / sentiment_avg
+
+    Idempotent: from-scratch rebuild from archive, atomic swap.
+    """
+    import pandas as pd
+    cutoff_dt = datetime.now() - timedelta(days=THEMES_CORE_LOOKBACK_DAYS)
+    cutoff_partition = cutoff_dt.strftime('%Y-%m')
+
+    df, _ = _read_archive_partitions(cutoff_partition)
+    empty_schema = pd.DataFrame(columns=[
+        'ticker', 'theme', 'count', 'first_seen', 'last_seen', 'sentiment_avg',
+    ])
+
+    if df.empty:
+        _atomic_write_parquet(empty_schema, THEMES_CORE_PATH)
+        return {'tickers': 0, 'themes': 0, 'rows': 0}
+
+    # Filter individual articles with ticker + theme
+    if 'article_type' in df.columns:
+        df = df[df['article_type'] == 'individual']
+    df = df[(df['ticker'].astype(str) != '') &
+            (df['theme'].astype(str) != '')].copy()
+
+    if df.empty:
+        _atomic_write_parquet(empty_schema, THEMES_CORE_PATH)
+        return {'tickers': 0, 'themes': 0, 'rows': 0}
+
+    # BLOCKER #1: dedupe by event_id 防同事件灌水 themes_core 晉升門檻
+    df = dedupe_by_event_id(df)
+
+    agg = df.groupby(['ticker', 'theme'], as_index=False).agg(
+        count=('event_id', 'count'),
+        first_seen=('date', 'min'),
+        last_seen=('date', 'max'),
+        sentiment_avg=('sentiment', 'mean'),
+    )
+
+    sticky = agg[agg['count'] >= THEMES_CORE_MIN_COUNT].copy()
+    _atomic_write_parquet(sticky, THEMES_CORE_PATH)
+    return {
+        'tickers': int(sticky['ticker'].nunique()) if not sticky.empty else 0,
+        'themes': int(sticky['theme'].nunique()) if not sticky.empty else 0,
+        'rows': len(sticky),
+    }
+
+
+def rebuild_all_derived() -> dict:
+    """Rebuild hot view + all derived parquets from archive (Commit 5).
+
+    Phase 0: hot view + themes_core only.
+    Phase 1+ 加 earnings_schema / material_events / analyst_targets。
+    """
+    out = {}
+    out['hot_view'] = rebuild_hot_view()
+    out['themes_core'] = rebuild_themes_core()
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dry-run', action='store_true', help='只抓不解析 LLM')
@@ -818,6 +949,9 @@ def main():
     parser.add_argument('--migrate-legacy', action='store_true',
                         help='One-shot backfill data/news_themes.parquet → '
                              'data_cache/news_archive/YYYY-MM/ (Phase 0 Commit 1 only)')
+    parser.add_argument('--rebuild-only', action='store_true',
+                        help='Skip fetcher + LLM, only rebuild hot view + derived '
+                             'parquets from existing archive (Phase 0 Commit 5+)')
     args = parser.parse_args()
 
     # Migration shortcut (no LLM call)
@@ -828,6 +962,27 @@ def main():
         for p in result['partitions']:
             logger.info("  %s: +%d rows (total %d)",
                         p['partition'], p['rows_added'], p['total_after'])
+        # Rebuild hot view + derived after migration
+        rebuild_stats = rebuild_all_derived()
+        logger.info("Hot view: %d rows from %d partitions; themes_core: %d rows "
+                    "(%d tickers × %d themes)",
+                    rebuild_stats['hot_view']['rows'],
+                    rebuild_stats['hot_view']['partitions_read'],
+                    rebuild_stats['themes_core']['rows'],
+                    rebuild_stats['themes_core']['tickers'],
+                    rebuild_stats['themes_core']['themes'])
+        return
+
+    # Rebuild-only shortcut (no fetcher/LLM)
+    if args.rebuild_only:
+        rebuild_stats = rebuild_all_derived()
+        logger.info("Hot view: %d rows from %d partitions; themes_core: %d rows "
+                    "(%d tickers × %d themes)",
+                    rebuild_stats['hot_view']['rows'],
+                    rebuild_stats['hot_view']['partitions_read'],
+                    rebuild_stats['themes_core']['rows'],
+                    rebuild_stats['themes_core']['tickers'],
+                    rebuild_stats['themes_core']['themes'])
         return
 
     today = datetime.now().strftime('%Y%m%d')
@@ -974,12 +1129,22 @@ def main():
     )
     logger.info("Saved %d/%d to %s", len(merged), len(all_articles), out_path)
 
-    # 4b. aggregate to parquet
+    # 4b. aggregate to parquet (dual-write archive + legacy)
     if not args.no_aggregate:
         agg = aggregate_to_parquet(merged)
         logger.info("Aggregated to %s: +%d rows, total=%d, tickers=%d, themes=%d",
                     AGG_PATH.name, agg['rows_added'], agg['rows_total'],
                     agg.get('tickers_total', 0), agg.get('themes_total', 0))
+
+        # 4c. Rebuild hot view + derived parquets (Commit 5)
+        rebuild_stats = rebuild_all_derived()
+        logger.info("Hot view: %d rows from %d partitions; themes_core: %d rows "
+                    "(%d tickers × %d themes)",
+                    rebuild_stats['hot_view']['rows'],
+                    rebuild_stats['hot_view']['partitions_read'],
+                    rebuild_stats['themes_core']['rows'],
+                    rebuild_stats['themes_core']['tickers'],
+                    rebuild_stats['themes_core']['themes'])
 
     # 5. summary stats
     theme_counts: dict[str, int] = {}
