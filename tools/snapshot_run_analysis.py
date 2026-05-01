@@ -101,10 +101,14 @@ def _run_analysis(inputs: dict) -> dict:
 
 
 def _sanitize(obj):
-    """把 DataFrame / Series / numpy scalar 轉 JSON-able 型別。"""
+    """把 DataFrame / Series / numpy scalar / ActionPlan dataclass 轉 JSON-able 型別。"""
     import numpy as np
     import pandas as pd
 
+    # ActionPlan dataclass (Phase 2) — 走 to_dict_full() 拿全部欄位（含 candidate）
+    # 比對 baseline 時可看出是否有新增欄位
+    if hasattr(obj, 'to_dict_full') and callable(obj.to_dict_full):
+        return _sanitize(obj.to_dict_full())
     if isinstance(obj, dict):
         return {str(k): _sanitize(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):

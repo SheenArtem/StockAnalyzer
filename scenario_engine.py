@@ -5,6 +5,7 @@
   - determine_scenario            — 根據趨勢分數 + ADX 修正產生劇本 A/B/C/D
   - generate_action_plan          — 進場區間 / 停損 / 停利 / RR / 型態確認信心
   - generate_monitoring_checklist — 🛑 停損、🚀 追價、🔭 未來觀察三區段動態警示
+  - ActionPlan (Phase 2 治本)     — frozen dataclass with restricted iteration
 
 `_safe_get` 共用 helper 也移到這裡，避免相依 analysis_engine 的靜態方法。
 
@@ -14,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field, asdict
 
 import pandas as pd
 
@@ -22,6 +24,134 @@ logger = logging.getLogger(__name__)
 # 與 analysis_engine.py 共用的門檻常數（保持同步）
 DEFAULT_BUY_THRESHOLD = 3
 DEFAULT_SELL_THRESHOLD = -2
+
+
+# ============================================================
+# ActionPlan dataclass (Phase 2 治本，2026-05-01)
+#
+# Background：council 5 視角共識，ai_report.py:590 用 `for k, v in ap.items()`
+# 把整個 action_plan dict 攤平塞進 prompt，讓 Claude 看到
+# sl_atr/sl_ma/sl_low/tp_list/sl_list 多 candidate，造成漂移
+# (NVDA 報告同列三停損 candidate / 2330 列兩停損 + 第三組憑空生成)。
+#
+# Phase 1 (`4777f8e`) 在 ai_report.py 改成只丟 final 4，且 prompt 鎖 hard rule，
+# 2345 實測 100% 服從。但結構上沒保護 — 任何新 caller 仍能 `for k, v in ap.items()`
+# 攤平洩漏 candidate。
+#
+# Phase 2 提供「結構性保護」：
+# - `__getitem__` / `.get()` 不限制（含 candidate 都能取）— 給 individual_view
+#   完整支撐壓力清單顯示、momentum_screener QM 覆蓋計算等合法用例
+# - `items()` / `keys()` / `__iter__` / `dict(ap)` 限制只給 _PUBLIC_FIELDS 14 個
+#   → 治本：未來誰寫 `for k, v in ap.items()` 攤平給 LLM 也只洩漏 final + 上下文
+# - `alternatives()` / `to_dict_full()` 顯式 method 給需要 candidate 的場景
+#
+# horizon / source 欄位：給未來 dispatch table 用（短線 / QM 波段 / value 左側）。
+# ============================================================
+
+# Public fields exposed via items() / keys() / __iter__
+# 不含 candidate（sl_atr/sl_ma/sl_low/sl_key_candle/tp_list/sl_list）
+_ACTION_PLAN_PUBLIC_FIELDS = (
+    'is_actionable',
+    'current_price',
+    'rec_entry_low',
+    'rec_entry_high',
+    'rec_entry_desc',
+    'rec_sl_price',
+    'rec_sl_method',
+    'rec_tp_price',
+    'rr_ratio',
+    'entry_confidence',
+    'pattern_note',
+    'strategy',
+    'is_us_stock',
+    'horizon',
+    'source',
+)
+
+
+@dataclass(frozen=True)
+class ActionPlan:
+    """Frozen action plan with restricted iteration to prevent prompt leakage.
+
+    See module docstring for design rationale.
+    """
+    # Final 4 數字
+    rec_entry_low: float = 0.0
+    rec_entry_high: float = 0.0
+    rec_sl_price: float = 0.0
+    rec_tp_price: float = 0.0
+
+    # Final 上下文
+    rec_entry_desc: str = ''
+    rec_sl_method: str = 'N/A'
+    rr_ratio: float = 0.0
+    is_actionable: bool = False
+    current_price: float = 0.0
+    strategy: str = ''
+    pattern_note: str = ''
+    entry_confidence: str = 'standard'
+    is_us_stock: bool = False
+
+    # horizon / source — 給未來 dispatch table 用
+    horizon: str = 'intraday'   # 'intraday' / 'swing_40_60d' (QM)
+    source: str = 'scenario'    # 'scenario' / 'qm_override' / 'value_screener'
+
+    # Candidates（Mapping 介面隱藏，僅 .get/__getitem__/alternatives() 可取）
+    sl_atr: float = 0.0
+    sl_ma: float = 0.0
+    sl_low: float = 0.0
+    sl_key_candle: float = 0.0
+    tp_list: tuple = field(default_factory=tuple)
+    sl_list: tuple = field(default_factory=tuple)
+
+    # ---- Mapping 介面（dict-style backward compat）----
+    def get(self, key, default=None):
+        """Backward-compat dict.get() — 不限制 candidate access."""
+        return getattr(self, key, default)
+
+    def __getitem__(self, key):
+        if not hasattr(self, key):
+            raise KeyError(key)
+        return getattr(self, key)
+
+    def __contains__(self, key):
+        return hasattr(self, key)
+
+    def __iter__(self):
+        """Yield public field 名稱（治本：dict(ap) / for k in ap 只給 public）."""
+        return iter(_ACTION_PLAN_PUBLIC_FIELDS)
+
+    def keys(self):
+        return list(_ACTION_PLAN_PUBLIC_FIELDS)
+
+    def values(self):
+        return [getattr(self, k) for k in _ACTION_PLAN_PUBLIC_FIELDS]
+
+    def items(self):
+        return [(k, getattr(self, k)) for k in _ACTION_PLAN_PUBLIC_FIELDS]
+
+    # ---- 顯式 method 給 candidate ----
+    def alternatives(self):
+        """Return all SL/TP candidates as dict.
+
+        ⚠️ 不要餵給 LLM — 會造成漂移。給 momentum_screener QM 覆蓋計算 /
+        individual_view 完整支撐壓力清單顯示 等合法 caller 用。
+        """
+        return {
+            'sl_atr': self.sl_atr,
+            'sl_ma': self.sl_ma,
+            'sl_low': self.sl_low,
+            'sl_key_candle': self.sl_key_candle,
+            'tp_list': list(self.tp_list),
+            'sl_list': list(self.sl_list),
+        }
+
+    def to_dict_full(self):
+        """Full dict for JSON serialization (含 candidate)."""
+        d = asdict(self)
+        d['tp_list'] = list(self.tp_list)
+        d['sl_list'] = list(self.sl_list)
+        return d
 
 
 def safe_get(series, key, default=0):
@@ -327,23 +457,23 @@ def generate_action_plan(df, scenario, is_us_stock=False, strategy_params=None, 
     final_sl_list.sort(key=lambda x: x['price'], reverse=True)
 
     if not is_actionable:
-         return {
-            "current_price": close_price,
-            "strategy": strategy_text,
-            "is_actionable": False,
-            "is_us_stock": is_us_stock,
-            "entry_confidence": "n/a",
-            "pattern_note": "",
-            "rec_entry_low": 0, "rec_entry_high": 0, "rec_entry_desc": "",
-            "rec_tp_price": 0, "rec_sl_price": 0,
-            "tp_list": [],
-            "sl_list": final_sl_list,
-            "rec_sl_method": "N/A",
-            "sl_atr": sl_atr,
-            "sl_ma": sl_ma,
-            "sl_key_candle": sl_key_candle,
-            "sl_low": sl_low
-        }
+        return ActionPlan(
+            current_price=close_price,
+            strategy=strategy_text,
+            is_actionable=False,
+            is_us_stock=is_us_stock,
+            entry_confidence="n/a",
+            pattern_note="",
+            rec_entry_low=0, rec_entry_high=0, rec_entry_desc="",
+            rec_tp_price=0, rec_sl_price=0,
+            tp_list=tuple(),
+            sl_list=tuple(final_sl_list),
+            rec_sl_method="N/A",
+            sl_atr=sl_atr,
+            sl_ma=sl_ma,
+            sl_key_candle=sl_key_candle,
+            sl_low=sl_low,
+        )
 
     # --- Logic continues ONLY if actionable ---
 
@@ -492,24 +622,24 @@ def generate_action_plan(df, scenario, is_us_stock=False, strategy_params=None, 
         if potential_risk > 0:
             rr_ratio = potential_reward / potential_risk
 
-    return {
-        "current_price": close_price,
-        "strategy": strategy_text,
-        "is_actionable": True,
-        "is_us_stock": is_us_stock,
-        "entry_confidence": entry_confidence,
-        "pattern_note": pattern_note,
-        "rec_entry_low": rec_entry_low,
-        "rec_entry_high": rec_entry_high,
-        "rec_entry_desc": rec_entry_desc,
-        "rec_sl_method": rec_sl_method,
-        "rec_sl_price": rec_sl_price,
-        "rec_tp_price": rec_tp_price,
-        "rr_ratio": rr_ratio,
-        "tp_list": final_tp_list,
-        "sl_list": final_sl_list,
-        "sl_atr": sl_atr,
-        "sl_ma": sl_ma,
-        "sl_key_candle": sl_key,
-        "sl_low": sl_low,
-    }
+    return ActionPlan(
+        current_price=close_price,
+        strategy=strategy_text,
+        is_actionable=True,
+        is_us_stock=is_us_stock,
+        entry_confidence=entry_confidence,
+        pattern_note=pattern_note,
+        rec_entry_low=rec_entry_low,
+        rec_entry_high=rec_entry_high,
+        rec_entry_desc=rec_entry_desc,
+        rec_sl_method=rec_sl_method,
+        rec_sl_price=rec_sl_price,
+        rec_tp_price=rec_tp_price,
+        rr_ratio=rr_ratio,
+        tp_list=tuple(final_tp_list),
+        sl_list=tuple(final_sl_list),
+        sl_atr=sl_atr,
+        sl_ma=sl_ma,
+        sl_key_candle=sl_key,
+        sl_low=sl_low,
+    )
