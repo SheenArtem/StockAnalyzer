@@ -1,7 +1,7 @@
 {
   "scan_type": "convergence",
-  "scan_date": "2026-05-01",
-  "scan_time": "00:39",
+  "scan_date": "2026-05-02",
+  "scan_time": "00:42",
   "market": "tw",
   "total_found": 1,
   "results": [
@@ -17,7 +17,7 @@
       "price": 126.0,
       "change_pct": 1.2,
       "market": "twse",
-      "trigger_score": -2.91,
+      "trigger_score": -2.92,
       "trend_score": 5,
       "signals": [],
       "scenario": {
@@ -126,9 +126,9 @@
         },
         "qm_position_size": {
           "recommended_pct": 3.8,
-          "base_pct": 7.6,
+          "base_pct": 7.7,
           "multiplier": 0.5,
-          "rationale": "base=7.6% (composite 76/80) × multiplier=0.50 (trigger -2.9/5)"
+          "rationale": "base=7.7% (composite 77/80) × multiplier=0.50 (trigger -2.9/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
