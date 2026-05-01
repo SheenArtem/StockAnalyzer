@@ -10,10 +10,10 @@ Storage 三層架構 (News Initiative 2026-05 Phase 0 Commit 1, dual-write 過�
    - partition key = article publish_date (BLOCKER #4)
    - append-only with atomic swap (.tmp → os.replace + retry, BLOCKER #3)
    - schema 加 extract_version=1 (BLOCKER #2 prerequisite)
-2. **Legacy parquet (1 週 dual-write 過渡期)**: `data/news_themes.parquet`
-   - 既有 5 處 reader 暫時繼續讀 (market_sentiment / ai_report / ui_helpers / ...)
-   - 30 天 TTL 維持
-   - Commit 6 整體 cutover 後才下線
+2. **Legacy parquet (永久 dual-write 當 backup + reader fallback)**: `data/news_themes.parquet`
+   - 5 處 reader 已 cutover 到新 hot view, legacy 仍 dual-write 保留供 fallback
+   - 30 天 TTL 維持 (backup 不需要永久, 新 hot view 才是 SoT)
+   - 不刪 — Robustness > cleanliness (見 feedback_keep_backup_dual_write.md)
 3. **Daily JSON debug**: `data_cache/news_theme_pop/YYYYMMDD.json` (永久保留, 第四輪)
 
 Pipeline:
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO / 'data_cache' / 'news_theme_pop'
-AGG_PATH = REPO / 'data' / 'news_themes.parquet'  # legacy (Layer 4 input, dual-write 1 週過渡)
+AGG_PATH = REPO / 'data' / 'news_themes.parquet'  # legacy backup + reader fallback (永久 dual-write)
 ARCHIVE_DIR = REPO / 'data_cache' / 'news_archive'  # 新 SoT (永久, 按月 partition)
 NEW_NEWS_DIR = REPO / 'data' / 'news'  # 新 hot view + derived parquet 目錄 (Commit 5+)
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -731,12 +731,13 @@ def append_to_archive(rows: list[dict]) -> dict:
 
 
 def aggregate_to_parquet(merged: list[dict]) -> dict:
-    """Dual-write: append into archive (new SoT) + legacy parquet (1 週過渡).
+    """Dual-write: append into archive (new SoT) + legacy parquet (backup + fallback).
 
-    News Initiative Phase 0 Commit 1:
-    - Archive (新): data_cache/news_archive/YYYY-MM/articles.parquet 永久 append
-    - Legacy (舊): data/news_themes.parquet 30d TTL，5 處 reader 暫時繼續讀
-    Commit 6 整體 cutover 後 legacy write 才下線。
+    News Initiative Phase 0:
+    - Archive (新): data_cache/news_archive/YYYY-MM/articles.parquet 永久 append (SoT)
+    - Legacy (舊): data/news_themes.parquet 30d TTL, dual-write 永久保留供 reader
+      fallback 與 backup (Robustness > cleanliness, see
+      feedback_keep_backup_dual_write.md)
     """
     import pandas as pd
 
@@ -750,7 +751,7 @@ def aggregate_to_parquet(merged: list[dict]) -> dict:
                 archive_stats['rows_added'],
                 [p['partition'] for p in archive_stats['partitions']])
 
-    # 2. Dual-write to legacy parquet (1 週過渡期, 5 處 reader 還在讀)
+    # 2. Dual-write to legacy parquet (永久保留: backup + reader fallback graceful degradation)
     new_df = pd.DataFrame(rows)
     if AGG_PATH.exists():
         try:

@@ -160,7 +160,8 @@ def _load_news_parquet():
     News Initiative Phase 0 Commit 6: 從 data/news_themes.parquet (legacy)
     切到 data/news/articles_recent.parquet (新 hot view)。
     Apply BLOCKER #1 dedupe_by_event_id 防同事件 cnyes+UDN 灌票 sentiment 分數。
-    Fallback to legacy 1 週過渡期: 新 path 不存在時 fallback 舊 path (週後刪)。
+    Reader fallback to legacy: 新 path 不存在或讀取失敗時 fallback 舊 path,
+    提供 graceful degradation (Robustness > cleanliness, 永久保留)。
     """
     global _NEWS_PARQUET, _NEWS_LOAD_TS
     import time as _t
