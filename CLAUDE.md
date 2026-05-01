@@ -214,7 +214,7 @@ app.py (Streamlit UI 入口, 3 模式)
 | 基本面(PE/PB) | yfinance + FinMind           | TradingView 補缺     | get_fundamentals()  |
 | 三率/ROE/ROA | TradingView Screener         | —                  | 台股美股統一              |
 | 融資融券/當沖/持股 | FinMind                      | —                  | 無替代                 |
-| 新聞         | Google News RSS              | —                  | news_fetcher.py     |
+| 新聞         | Google News RSS + udn money RSS direct | — | news_fetcher.py (per-ticker) / tools/news_theme_extract.py (theme batch) |
 | 分析師共識      | yfinance                     | —                  | 目標價/Forward EPS/評級  |
 | 同業比較       | TWSE/TPEX PER + FinMind 產業分類 | —                  | peer_comparison.py  |
 
