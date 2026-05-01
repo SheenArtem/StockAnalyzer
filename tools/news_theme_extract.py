@@ -1,32 +1,34 @@
 """News theme discovery (2026-05-01)
 
 抓 UDN money RSS direct + 鉅亨 cnyes JSON API（純專業財經媒體），餵 Claude
-Sonnet 自由萃 (theme, ticker_mentions, sentiment, tone, confidence) 結構化輸出，
-並 append 進 `data/news_themes.parquet` 供 Layer 4 _theme_tags_short 讀。
+Sonnet 自由萃 (theme, ticker_mentions, sentiment, tone, confidence) 結構化輸出。
 
 LLM 規範 (CLAUDE.md): Claude Sonnet `--model sonnet` + 600s timeout
 
-設計原則 (2026-05-01 進化):
-- 砍 Google News broad query — aggregator 雜訊，且我們可直連專業媒體
-- UDN RSS direct (證券/產業/要聞 各 20 items) 提供 categorical TW finance stream
-- cnyes JSON API (tw_stock_news + headline) 提供專業財經報導 +
-  pre-tagged stock id + keyword（cnyes editor 已 tag 過）
-- LLM 從原始流自由萃題材，看到什麼新題材就抽什麼
+Storage 三層架構 (News Initiative 2026-05 Phase 0 Commit 1, dual-write 過渡期):
+1. **Archive (cold, 永久 SoT)**: `data_cache/news_archive/YYYY-MM/articles.parquet`
+   - partition key = article publish_date (BLOCKER #4)
+   - append-only with atomic swap (.tmp → os.replace + retry, BLOCKER #3)
+   - schema 加 extract_version=1 (BLOCKER #2 prerequisite)
+2. **Legacy parquet (1 週 dual-write 過渡期)**: `data/news_themes.parquet`
+   - 既有 5 處 reader 暫時繼續讀 (market_sentiment / ai_report / ui_helpers / ...)
+   - 30 天 TTL 維持
+   - Commit 6 整體 cutover 後才下線
+3. **Daily JSON debug**: `data_cache/news_theme_pop/YYYYMMDD.json` (永久保留, 第四輪)
 
 Pipeline:
 1a. 抓 UDN money RSS direct 3 categories (證券/產業/要聞)
 1b. 抓 cnyes JSON API 2 categories (tw_stock_news / headline)
-2. dedupe by title across sources
-3. N=20 batch split → 多次 LLM call (fault-isolated；解 Windows subprocess
-   stdout truncation 問題，single big call 會丟失開頭 35-50% 文章)
-4. 寫 daily JSON `data_cache/news_theme_pop/YYYYMMDD.json` (raw debug)
-   失敗的 batch raw 寫進 `{date}_failed_batches.json`
-5. append 進 `data/news_themes.parquet` (Layer 4 用，30 天 TTL)
+2. dedupe by title across sources (Commit 4 後改 archive 不 dedupe)
+3. N=20 batch split → 多次 LLM call (fault-isolated)
+4. 寫 daily JSON debug
+5. append 進 archive (新 SoT) + legacy parquet (dual write)
 
 CLI:
-    python tools/news_theme_extract.py            # 完整跑 + parquet append
-    python tools/news_theme_extract.py --dry-run  # 只抓不解析 (debug)
+    python tools/news_theme_extract.py             # 完整跑 + dual-write
+    python tools/news_theme_extract.py --dry-run   # 只抓不解析 (debug)
     python tools/news_theme_extract.py --no-aggregate  # 解析但不寫 parquet
+    python tools/news_theme_extract.py --migrate-legacy  # 一次性 backfill legacy parquet 進 archive
 """
 from __future__ import annotations
 
@@ -50,10 +52,15 @@ logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO / 'data_cache' / 'news_theme_pop'
-AGG_PATH = REPO / 'data' / 'news_themes.parquet'  # Layer 4 input
+AGG_PATH = REPO / 'data' / 'news_themes.parquet'  # legacy (Layer 4 input, dual-write 1 週過渡)
+ARCHIVE_DIR = REPO / 'data_cache' / 'news_archive'  # 新 SoT (永久, 按月 partition)
+NEW_NEWS_DIR = REPO / 'data' / 'news'  # 新 hot view + derived parquet 目錄 (Commit 5+)
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 AGG_PATH.parent.mkdir(parents=True, exist_ok=True)
-NEWS_TTL_DAYS = 30  # parquet 只保留近 30 天，更舊的剃掉
+ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+NEW_NEWS_DIR.mkdir(parents=True, exist_ok=True)
+NEWS_TTL_DAYS = 30  # legacy parquet 仍 30 天 TTL；archive 永久不 trim
+EXTRACT_VERSION = 1  # BLOCKER #2 prerequisite, bump 時必 backfill 舊 partition default
 
 # 經濟日報 (udn money) RSS direct
 UDN_RSS_CATS = [
@@ -370,23 +377,17 @@ def parse_json_response(output: str) -> list[dict] | None:
     return None
 
 
-def aggregate_to_parquet(merged: list[dict]) -> dict:
-    """Append today's merged articles into data/news_themes.parquet。
+def _build_rows(merged: list[dict]) -> list[dict]:
+    """Expand merged articles into (ticker × theme) multi-row format.
 
-    Parquet schema:
-      [date, source, ticker, theme, sentiment, tone, confidence,
-       title (短), link]
-
-    Each article 展開成 ticker × theme 的 multi-row。
-    最後 dedupe by (date, ticker, theme, title) 並 trim 30 天 TTL。
+    沒 ticker 的也保留 (theme-only)，ticker 設 ''；沒 theme 的整篇略過。
+    Schema: date / source / ticker / theme / sentiment / tone / confidence /
+            title / link / extract_version
     """
-    import pandas as pd
-
     rows = []
     for a in merged:
         themes = a.get('themes') or []
         tickers = a.get('tickers') or []
-        # 沒 ticker 的也保留 (theme-only)，ticker 設 ''；沒 theme 的整篇略過
         if not themes:
             continue
         if not tickers:
@@ -403,24 +404,119 @@ def aggregate_to_parquet(merged: list[dict]) -> dict:
                     'confidence': int(a.get('confidence', 0) or 0),
                     'title': str(a.get('title', ''))[:200],
                     'link': str(a.get('link', '')),
+                    'extract_version': EXTRACT_VERSION,
                 })
+    return rows
 
+
+def _atomic_write_parquet(df, path: Path) -> None:
+    """Atomic parquet write with .tmp → os.replace + retry (BLOCKER #3).
+
+    Windows os.replace 對被讀取中的檔 raise PermissionError，加 3× retry。
+    """
+    import os
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix('.tmp')
+    df.to_parquet(tmp, index=False)
+    last_err = None
+    for attempt in range(3):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError as e:
+            last_err = e
+            time.sleep(0.2 * (attempt + 1))
+    raise IOError(f"atomic swap failed after 3 retries: {path}: {last_err}")
+
+
+def _partition_for_article(article_date: str) -> str:
+    """Map article publish_date 'YYYY-MM-DD' to partition 'YYYY-MM' (BLOCKER #4).
+
+    Fallback to current month if publish_date 解析失敗（避免 lose article）。
+    """
+    if article_date and len(article_date) >= 7:
+        # 'YYYY-MM-DD' or 'YYYY-MM' prefix
+        candidate = article_date[:7]
+        if len(candidate) == 7 and candidate[4] == '-':
+            return candidate
+    # Fallback: today's YYYY-MM
+    return datetime.now().strftime('%Y-%m')
+
+
+def append_to_archive(rows: list[dict]) -> dict:
+    """Append rows into monthly-partitioned archive (新 SoT, 永久, append-only).
+
+    Path: data_cache/news_archive/YYYY-MM/articles.parquet
+    Partition key = article.date (publish_date), NOT now() — BLOCKER #4
+    Atomic swap on write — BLOCKER #3
+    No dedupe, no TTL — archive 是永久 SoT (Commit 4 後 + Commit 2 加 dedupe key)
+    """
+    import pandas as pd
+    if not rows:
+        return {'rows_added': 0, 'partitions': []}
+
+    # Group rows by partition (publish_date YYYY-MM)
+    by_partition: dict[str, list[dict]] = {}
+    for r in rows:
+        part = _partition_for_article(r.get('date', ''))
+        by_partition.setdefault(part, []).append(r)
+
+    partitions_written = []
+    rows_added = 0
+    for part, part_rows in by_partition.items():
+        path = ARCHIVE_DIR / part / 'articles.parquet'
+        new_df = pd.DataFrame(part_rows)
+        if path.exists():
+            try:
+                existing = pd.read_parquet(path)
+                combined = pd.concat([existing, new_df], ignore_index=True)
+            except Exception as e:
+                logger.warning("讀 archive %s 失敗，重建: %s", path, e)
+                combined = new_df
+        else:
+            combined = new_df
+        _atomic_write_parquet(combined, path)
+        partitions_written.append({'partition': part, 'rows': len(part_rows),
+                                   'total': len(combined)})
+        rows_added += len(part_rows)
+
+    return {'rows_added': rows_added, 'partitions': partitions_written}
+
+
+def aggregate_to_parquet(merged: list[dict]) -> dict:
+    """Dual-write: append into archive (new SoT) + legacy parquet (1 週過渡).
+
+    News Initiative Phase 0 Commit 1:
+    - Archive (新): data_cache/news_archive/YYYY-MM/articles.parquet 永久 append
+    - Legacy (舊): data/news_themes.parquet 30d TTL，5 處 reader 暫時繼續讀
+    Commit 6 整體 cutover 後 legacy write 才下線。
+    """
+    import pandas as pd
+
+    rows = _build_rows(merged)
+    if not rows:
+        return {'rows_added': 0, 'rows_total': 0, 'archive': {}}
+
+    # 1. Write to archive (新 SoT, 永久, partition by publish_date)
+    archive_stats = append_to_archive(rows)
+    logger.info("Archive write: +%d rows, partitions=%s",
+                archive_stats['rows_added'],
+                [p['partition'] for p in archive_stats['partitions']])
+
+    # 2. Dual-write to legacy parquet (1 週過渡期, 5 處 reader 還在讀)
     new_df = pd.DataFrame(rows)
-    if new_df.empty:
-        return {'rows_added': 0, 'rows_total': 0}
-
-    # 載既有 parquet
     if AGG_PATH.exists():
         try:
             existing = pd.read_parquet(AGG_PATH)
             combined = pd.concat([existing, new_df], ignore_index=True)
         except Exception as e:
-            logger.warning("讀 %s 失敗，重建: %s", AGG_PATH, e)
+            logger.warning("讀 legacy %s 失敗，重建: %s", AGG_PATH, e)
             combined = new_df
     else:
         combined = new_df
 
-    # dedupe + 30 天 TTL
+    # legacy: dedupe + 30 天 TTL (與舊行為一致)
+    # 注意 extract_version 不進 dedupe key (避免新欄位破壞 dedupe)
     combined = combined.drop_duplicates(
         subset=['date', 'ticker', 'theme', 'title'], keep='last'
     )
@@ -429,13 +525,68 @@ def aggregate_to_parquet(merged: list[dict]) -> dict:
     combined = combined[combined['date'] >= cutoff].copy()
     combined['date'] = combined['date'].dt.strftime('%Y-%m-%d')
 
-    combined.to_parquet(AGG_PATH, index=False)
+    _atomic_write_parquet(combined, AGG_PATH)
     return {
         'rows_added': len(new_df),
         'rows_total': len(combined),
         'tickers_total': combined['ticker'].nunique(),
         'themes_total': combined['theme'].nunique(),
+        'archive': archive_stats,
     }
+
+
+def migrate_legacy_to_archive() -> dict:
+    """One-shot: backfill existing data/news_themes.parquet rows into archive.
+
+    Run via `python tools/news_theme_extract.py --migrate-legacy`.
+    Only run once at News Initiative Phase 0 Commit 1 setup.
+    Idempotent: 若 archive partition 已有同 (date, ticker, theme, title) 不重複加。
+    """
+    import pandas as pd
+
+    if not AGG_PATH.exists():
+        logger.error("Legacy parquet not found: %s", AGG_PATH)
+        return {'rows_migrated': 0, 'partitions': []}
+
+    legacy = pd.read_parquet(AGG_PATH)
+    if legacy.empty:
+        logger.info("Legacy parquet empty, nothing to migrate")
+        return {'rows_migrated': 0, 'partitions': []}
+
+    # 補 extract_version 欄位 (legacy 沒有)
+    if 'extract_version' not in legacy.columns:
+        legacy['extract_version'] = EXTRACT_VERSION
+
+    logger.info("Legacy parquet: %d rows, dates %s..%s",
+                len(legacy), legacy['date'].min(), legacy['date'].max())
+
+    # Group by partition
+    legacy['_partition'] = legacy['date'].astype(str).str[:7]
+    parts_summary = []
+    total_added = 0
+    for part, sub in legacy.groupby('_partition'):
+        sub = sub.drop(columns=['_partition'])
+        path = ARCHIVE_DIR / part / 'articles.parquet'
+        if path.exists():
+            existing = pd.read_parquet(path)
+            # idempotent: dedupe by (date, ticker, theme, title)
+            combined = pd.concat([existing, sub], ignore_index=True)
+            before = len(existing)
+            combined = combined.drop_duplicates(
+                subset=['date', 'ticker', 'theme', 'title'], keep='first'
+            )
+            added = len(combined) - before
+        else:
+            combined = sub
+            added = len(sub)
+        _atomic_write_parquet(combined, path)
+        parts_summary.append({'partition': part, 'rows_in_legacy': len(sub),
+                              'rows_added': added, 'total_after': len(combined)})
+        total_added += added
+        logger.info("  Partition %s: +%d rows (legacy had %d, archive total now %d)",
+                    part, added, len(sub), len(combined))
+
+    return {'rows_migrated': total_added, 'partitions': parts_summary}
 
 
 def main():
@@ -445,7 +596,20 @@ def main():
                         help='解析但不 append 進 parquet (debug 用)')
     parser.add_argument('--days', type=int, default=7)
     parser.add_argument('--max-per-query', type=int, default=8)
+    parser.add_argument('--migrate-legacy', action='store_true',
+                        help='One-shot backfill data/news_themes.parquet → '
+                             'data_cache/news_archive/YYYY-MM/ (Phase 0 Commit 1 only)')
     args = parser.parse_args()
+
+    # Migration shortcut (no LLM call)
+    if args.migrate_legacy:
+        result = migrate_legacy_to_archive()
+        logger.info("Migration done: %d rows migrated across %d partitions",
+                    result['rows_migrated'], len(result['partitions']))
+        for p in result['partitions']:
+            logger.info("  %s: +%d rows (total %d)",
+                        p['partition'], p['rows_added'], p['total_after'])
+        return
 
     today = datetime.now().strftime('%Y%m%d')
     out_path = OUT_DIR / f'{today}.json'
