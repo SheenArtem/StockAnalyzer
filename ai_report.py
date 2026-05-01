@@ -7,6 +7,7 @@ import shutil
 import json
 import logging
 import os
+import re
 
 
 def _find_claude_cli():
@@ -1452,6 +1453,143 @@ def list_reports_for_ticker(ticker):
         key=lambda x: x.get('date', '') + x.get('time', ''),
         reverse=True,
     )
+
+
+# ============================================================
+# Post-validate (Phase 3 safety net) — 偵測 Section 8 三欄漂移
+#
+# 背景：Phase 1 砍 candidate 攤平 + prompt hard rule 後 2345 實測 100% 服從，
+# 但 Council Prompt Engineer 警告長文 narrative 仍可能 5-15% violation
+# (不同 ticker / 模型 / Section 8 表格寫法)，且 Auditor 在原 NVDA 報告
+# 發現「第二類漂移」(憑空生成 $190 / $205 不在任何 candidate)。
+#
+# 這層 validator 是兜底：抓 Section 8 三欄關鍵 row 內所有看似價位數字，
+# 跟 action_plan 4 final 數字 ±tolerance% 比對，超出即標 drift。
+# 不檢查其他 section（情境目標價 EPS×PE 推導、毛利率、ATR 等屬合法計算）。
+# ============================================================
+
+def post_validate_numbers(report_md, action_plan, tolerance_pct=0.5):
+    """檢查報告 Section 8 三欄是否漂移。
+
+    Args:
+        report_md: 報告 markdown content
+        action_plan: report['action_plan'] dict (or ActionPlan dataclass)
+        tolerance_pct: 容差 % (default 0.5)，最小絕對值 0.5
+
+    Returns:
+        dict {
+            'drift': bool,
+            'unexpected_numbers': list[float],  # 漂移數字
+            'expected_numbers': list[float],    # ground truth 4 final
+            'note': str,
+        }
+    """
+    # ActionPlan dataclass 也支援 .get() (Phase 2)；dict 原本就支援
+    is_actionable = action_plan.get('is_actionable') if action_plan else False
+    if not is_actionable:
+        return {'drift': False, 'unexpected_numbers': [],
+                'expected_numbers': [], 'note': 'not actionable, skip'}
+
+    # 抓 Section 8（## 8 開頭到 ## 9 之前 / 文末）
+    m = re.search(r'##\s*8[\.、]?\s*投資建議.*?(?=\n##\s*9|\Z)',
+                  report_md, re.DOTALL)
+    if not m:
+        return {'drift': False, 'unexpected_numbers': [],
+                'expected_numbers': [], 'note': 'Section 8 not found, skip'}
+    sec8 = m.group(0)
+
+    # ground truth 4 final
+    gt = []
+    for k in ('rec_entry_low', 'rec_entry_high', 'rec_sl_price', 'rec_tp_price'):
+        v = action_plan.get(k)
+        if v and v > 0:
+            gt.append(round(float(v), 2))
+    if not gt:
+        return {'drift': False, 'unexpected_numbers': [],
+                'expected_numbers': [], 'note': 'no ground truth available'}
+
+    # 抽出三欄 row（| 標籤 | 內容 | 模式，標籤前後可有 ** 加粗）
+    target_labels = ('建議進場區間', '停損價位', '停利價位')
+    # 過濾門檻：< gt 最小值 × 30% 視為非價位（避免抓到 5MA / 20MA / 0.7 倉位等）
+    gt_min = min(gt)
+    price_threshold = max(10.0, gt_min * 0.3)
+    nums_in_rows = []
+    for label in target_labels:
+        row = re.search(
+            rf'\|\s*\*{{0,2}}{re.escape(label)}\*{{0,2}}\s*\|\s*(.*?)\s*\|',
+            sec8, re.DOTALL,
+        )
+        if not row:
+            continue
+        row_text = row.group(1)
+        # 抓所有看似價位數字（支援千分位 2,212 / $XXX / 純數字）
+        # negative lookahead (?![A-Za-z]) 排除「5MA」「20MA」「60d」這類後綴是字母的技術指標
+        for raw in re.findall(r'\$?\s*([\d,]+\.?\d*)(?![A-Za-z])', row_text):
+            num_str = raw.replace(',', '')
+            try:
+                f = float(num_str)
+                # 排除年份（無小數 1900-2100）
+                if num_str.find('.') == -1 and 1900 <= f <= 2100:
+                    continue
+                # 必須是合理價位（門檻來自 ground truth 動態計算）
+                if f < price_threshold or f > 100000:
+                    continue
+                nums_in_rows.append(round(f, 2))
+            except ValueError:
+                continue
+
+    # 比對：每個三欄抓出的數字 必須在 gt ±tolerance% 或 0.5 絕對容差
+    unexpected = []
+    for n in nums_in_rows:
+        ok = any(abs(n - g) <= max(g * tolerance_pct / 100, 0.5) for g in gt)
+        if not ok:
+            unexpected.append(n)
+
+    unexpected = sorted(set(unexpected))
+    return {
+        'drift': bool(unexpected),
+        'unexpected_numbers': unexpected,
+        'expected_numbers': gt,
+        'note': (f'{len(unexpected)} drift number(s) in Section 8 三欄'
+                 if unexpected else 'all verbatim'),
+    }
+
+
+def send_drift_discord(ticker, drift_check, webhook_url=None):
+    """Send drift warning to Discord. Returns True on success.
+
+    Reads DISCORD_WEBHOOK_URL from local/.env if webhook_url not given.
+    Silently no-op (returns False) if webhook unconfigured.
+    """
+    if not drift_check or not drift_check.get('drift'):
+        return False
+    if not webhook_url:
+        env_path = os.path.join(os.path.dirname(__file__), 'local', '.env')
+        if os.path.exists(env_path):
+            with open(env_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith('DISCORD_WEBHOOK_URL='):
+                        webhook_url = line.strip().split('=', 1)[1].strip()
+                        break
+    if not webhook_url:
+        return False
+
+    expected = drift_check.get('expected_numbers', [])
+    unexpected = drift_check.get('unexpected_numbers', [])
+    content = (
+        f"**[DRIFT_DETECTED] {ticker} AI 報告 Section 8 漂移**\n"
+        f"Ground truth (action_plan): `{expected}`\n"
+        f"Unexpected in 三欄: `{unexpected}`\n"
+        f"Note: {drift_check.get('note', '')}\n"
+        f"_提示：Phase 1 hard rule 在此案例失效，請人工 audit 並考慮 Phase 2 dataclass refactor 或調整 prompt_"
+    )
+    try:
+        import requests
+        resp = requests.post(webhook_url, json={'content': content}, timeout=10)
+        return resp.status_code == 204
+    except Exception as e:
+        logger.error("Discord drift notification failed: %s", e)
+        return False
 
 
 from datetime import datetime

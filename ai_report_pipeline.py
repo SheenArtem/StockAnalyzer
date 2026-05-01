@@ -153,7 +153,7 @@ def generate_one_report(
         else:
             sf_note = "（含宋分視角）" if include_songfen else ""
             progress_cb(f"🤖 Claude AI 生成 Markdown 報告中{sf_note}（不設逾時，1-5 分鐘）...")
-            from ai_report import generate_report, save_report
+            from ai_report import generate_report, save_report, post_validate_numbers, send_drift_discord
             ok, content = generate_report(
                 ticker, report, chip_data, us_chip_data, fund_data, df_day,
                 timeout=None, include_songfen=include_songfen,
@@ -162,6 +162,22 @@ def generate_one_report(
                 result['error'] = content
                 result['elapsed_s'] = time.time() - t_start
                 return result
+
+            # Phase 3 safety net: 偵測 Section 8 三欄是否漂移到 candidate 外
+            drift_check = post_validate_numbers(content, report.get('action_plan'))
+            if drift_check['drift']:
+                progress_cb(f"⚠️ 偵測到 Section 8 漂移: {drift_check['unexpected_numbers']} (預期 {drift_check['expected_numbers']})")
+                logger.warning("[%s] DRIFT_DETECTED: %s", ticker, drift_check)
+                send_drift_discord(ticker, drift_check)  # 不阻擋，仍繼續存檔
+                # 在報告頂部加 badge 警告人工 audit
+                badge = (
+                    f"> ⚠️ **[DRIFT_DETECTED]** Section 8 三欄出現未預期數字 "
+                    f"`{drift_check['unexpected_numbers']}`（預期 ground truth: "
+                    f"`{drift_check['expected_numbers']}`）。Phase 1 hard rule 在此案例未完全服從，"
+                    f"請人工 audit Section 8 三欄是否真的對應 deterministic action_plan。\n\n"
+                )
+                content = badge + content
+
             progress_cb("💾 儲存到報告庫...")
             rid = save_report(
                 ticker, content,
