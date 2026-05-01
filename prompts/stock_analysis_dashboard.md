@@ -136,10 +136,13 @@
       }
     ],
     recommendation: {
-      entry_zone: string,    // "1,980 - 2,100 元"
-      stop_loss: string,     // "1,850 元"
+      // ⚠️ Hard Rule：entry_zone / stop_loss 必須 verbatim 引用 [MARKET_CONTEXT]
+      // 區塊的 Action Plan deterministic 數字，禁止自行計算 / 四捨五入。
+      // 若 Action Plan 標記 is_actionable=False，兩欄一律填「觀望，無進場價」。
+      entry_zone: string,    // verbatim from rec_entry_low ~ rec_entry_high，例: "580 - 585 元"
+      stop_loss: string,     // verbatim from rec_sl_price，例: "562 元 (A. ATR 波動停損)"
       position_size: string, // "標準倉位 / 減碼 5 成 / 輕倉觀望"
-      strategy: string,      // 30-50 字右側交易建議
+      strategy: string,      // 30-50 字右側交易建議；解釋為何上述數字合理，不得重述/修改進場停損數字
     },
   },
 }
