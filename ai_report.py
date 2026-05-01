@@ -823,6 +823,114 @@ def _build_theme_context(ticker):
         return f"N/A (theme context failed: {e})"
 
 
+def _build_sentiment_context(ticker):
+    """[SENTIMENT_CONTEXT] 市場情緒 vs 個股情緒對比 (2026-05-01 Day 3 加).
+
+    用 market_sentiment.get_sentiment_divergence() 輸出兩個 -100~+100 score
+    + 4 種對比訊號 (個股獨立催化 / 個股逆風 / 相對強弱 / 跟盤同步)。
+
+    幫 LLM 判斷：個股當前是不是有獨立 catalyst (market 弱 + stock 強)
+    或被大盤拖累 (market 強 + stock 弱)。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (sentiment module 目前只支援台股)"
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        from market_sentiment import get_sentiment_divergence
+        d = get_sentiment_divergence(stock_id)
+        m = d['market']
+        s = d['stock']
+        lines = [
+            f"市場情緒 (TWSE 大盤): {m['score']:+.1f}/100 ({m['label']})",
+            f"  - 復用 TaiwanFearGreedIndex (Market Momentum / Breadth / PCR / Volatility / Margin)",
+        ]
+        if m.get('m1b_overlay'):
+            lines.append(f"  - Overlay: {m['m1b_overlay']['msg']}")
+        lines.append(f"")
+        lines.append(f"個股情緒: {s['score']:+.1f}/100 ({s['label']})")
+        comp = s.get('components', {})
+        comp_parts = []
+        if 'inst' in comp:
+            comp_parts.append(f"法人 {comp['inst']:+.2f}")
+        if 'margin' in comp:
+            comp_parts.append(f"融資反向 {comp['margin']:+.2f}")
+        if 'ma' in comp:
+            comp_parts.append(f"MA 乖離 {comp['ma']:+.2f}")
+        if 'news' in comp:
+            comp_parts.append(f"News tone {comp['news']:+.2f}")
+        if comp_parts:
+            lines.append(f"  - 訊號 (-1~+1): {' | '.join(comp_parts)}")
+        lines.append(f"")
+        lines.append(f"對比訊號: **{d['signal']}** (個股 - 大盤 = {d['diff']:+.1f})")
+        if abs(d['diff']) >= 50:
+            if d['diff'] > 0:
+                lines.append(f"⚠️ 強 divergence: 個股遠強於大盤，**獨立 catalyst**，"
+                            f"分析時注重「為何此檔被選中而非跟盤」")
+            else:
+                lines.append(f"⚠️ 強 divergence: 個股遠弱於大盤，**逆風 warning**，"
+                            f"分析時注意 trigger 風險或基本面問題")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning("Sentiment context failed for %s: %s", ticker, e)
+        return f"N/A (sentiment context failed: {e})"
+
+
+def _build_news_themes_context(ticker):
+    """[NEWS_THEMES] 近 30 天該檔在 news 萃取裡出現的 catalyst (2026-05-01 Day 3 加).
+
+    讀 data/news_themes.parquet，列出該 ticker 出現的 themes + sentiment + 最新標題。
+    幫 LLM 抓「最近市場關注什麼 catalyst on this stock」。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (news theme parquet 目前只覆蓋台股)"
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        path = _P(__file__).resolve().parent / 'data' / 'news_themes.parquet'
+        if not path.exists():
+            return "N/A (news_themes.parquet 尚未產生，scanner 跑過後才有)"
+        df = pd.read_parquet(path)
+        if df.empty:
+            return "N/A (news_themes.parquet 為空)"
+        sub = df[df['ticker'].astype(str) == stock_id].copy()
+        if sub.empty:
+            return f"近 30 天 news 無提到本檔 (parquet 中不含 {stock_id})"
+
+        # 按 confidence + date desc 排序，取 top 8 篇
+        sub['date'] = pd.to_datetime(sub['date'], errors='coerce')
+        sub = sub.sort_values(['date', 'confidence'], ascending=[False, False]).head(8)
+
+        # theme 統計
+        theme_counts = sub['theme'].value_counts().head(5)
+        theme_lines = [f"- {t}: {n} 篇提及" for t, n in theme_counts.items()]
+
+        # 文章列表
+        article_lines = []
+        seen_titles = set()
+        for _, row in sub.iterrows():
+            title = str(row['title'])[:80]
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            d = row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '?'
+            tone = row['tone']
+            sent = float(row['sentiment'])
+            article_lines.append(f"  [{d}] ({tone} {sent:+.2f}) {title}")
+            if len(article_lines) >= 5:
+                break
+
+        return ("近 30 天 news catalyst 統計 (Sonnet 萃取):\n"
+                + "\n".join(theme_lines)
+                + "\n\nTop 文章:\n"
+                + "\n".join(article_lines))
+    except Exception as e:
+        logger.warning("News themes context failed for %s: %s", ticker, e)
+        return f"N/A (news themes failed: {e})"
+
+
 def _build_peer_data(ticker, fund_data):
     """[PEER_COMPARISON] Peer industry comparison."""
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
@@ -989,6 +1097,8 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     data_sections.append(f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}")
     data_sections.append(f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}")
     data_sections.append(f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}")
+    data_sections.append(f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}")
+    data_sections.append(f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}")
     data_sections.append(f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
@@ -1147,6 +1257,8 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}",
         f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}",
         f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}",
+        f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}",
+        f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}",
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]
     data_block = "\n\n".join(data_sections)
