@@ -87,6 +87,16 @@ set NEWS_EC=%ERRORLEVEL%
 echo [%date% %time%] News theme extract done (exit=%NEWS_EC%) >> scanner.log
 
 REM ------------------------------------------------------------
+REM News flow anomaly detection (Phase 1 #4).
+REM Added 2026-05-02: today >= 3 articles AND >= 3x 7d_avg per ticker.
+REM Council BLOCKER #7: informational only, NOT in scanner ranking.
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] News flow anomaly starting >> scanner.log
+python tools\news_flow_anomaly.py >> scanner.log 2>&1
+echo [%date% %time%] News flow anomaly done >> scanner.log
+
+REM ------------------------------------------------------------
 REM MOPS WAF unblock probe (1 req/day). 3 consecutive successes -> Discord ping.
 REM Runs before scanner to avoid extra Task Scheduler entry.
 REM ------------------------------------------------------------
