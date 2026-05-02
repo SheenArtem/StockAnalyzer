@@ -224,6 +224,40 @@ def build_summary() -> str:
             lines.append(f"News Flow 爆量: (load error: {exc})")
             lines.append("")
 
+    # --- 3.6 Theme momentum (Phase 1 #5) ---
+    tm_path = REPO / 'data' / 'news' / 'theme_momentum.parquet'
+    if tm_path.exists():
+        try:
+            import pandas as _pd
+            tdf = _pd.read_parquet(tm_path)
+            tdf['detection_date'] = _pd.to_datetime(tdf['detection_date']).dt.date
+            today_tm = tdf[tdf['detection_date'] == today]
+            heat = today_tm[today_tm['direction'] == 'heating'].sort_values(
+                ['ratio_7d', 'count_today'], ascending=[False, False]).head(5)
+            cool = today_tm[today_tm['direction'] == 'cooling'].sort_values(
+                'count_30d_avg', ascending=False).head(3)
+            if not heat.empty:
+                lines.append(f"升溫題材 [{len(heat)}]:")
+                for _, r in heat.iterrows():
+                    th = str(r.get('theme', ''))[:18]
+                    cnt = int(r.get('count_today', 0))
+                    avg = float(r.get('count_7d_avg', 0))
+                    ratio = float(r.get('ratio_7d', 0))
+                    ratio_str = "new" if ratio >= 999 else f"{ratio:.1f}x"
+                    tickers = str(r.get('top_tickers', ''))[:25]
+                    lines.append(f"  + {th} | {cnt}篇 vs {avg:.1f} ({ratio_str}) | {tickers}")
+                lines.append("")
+            if not cool.empty:
+                lines.append(f"降溫題材 [{len(cool)}]:")
+                for _, r in cool.iterrows():
+                    th = str(r.get('theme', ''))[:18]
+                    avg30 = float(r.get('count_30d_avg', 0))
+                    lines.append(f"  - {th} | 30d avg {avg30:.1f} 篇, today 0")
+                lines.append("")
+        except Exception as exc:
+            lines.append(f"題材熱度榜: (load error: {exc})")
+            lines.append("")
+
     # --- 4. Audits ---
     audits = load_audits_today()
     if audits:

@@ -44,6 +44,7 @@ REQUIRED_STAGES = [
     ('Substack sync done',     r'\] Substack sync done'),
     ('Chip history resume done', r'\] Chip history resume done'),
     ('News flow anomaly done', r'\] News flow anomaly done'),
+    ('Theme momentum done', r'\] Theme momentum done'),
     ('Earnings calendar fetch done', r'\] Earnings calendar fetch done'),
     ('Scanner finished (exit=0)', r'\] Scanner finished \(exit=0\)'),
 ]

@@ -632,6 +632,59 @@ def _build_forward_guidance_context(ticker, max_events: int = 4) -> str:
         return f"N/A (forward guidance 讀取失敗: {e})"
 
 
+def _build_theme_momentum_context(ticker, lookback_days: int = 7) -> str:
+    """[THEME_MOMENTUM] B8 builder (Phase 1 #5).
+
+    讀 data/news/theme_momentum.parquet, 列近 N 天該檔的 theme 是否在升溫/降溫榜。
+    用 4-layer themes (manual+News+YT+TV) 比對 momentum theme。
+
+    informational only, Council BLOCKER #7: 不入 scanner 排序。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return ""
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        path = _P(__file__).resolve().parent / 'data' / 'news' / 'theme_momentum.parquet'
+        if not path.exists():
+            return ""
+        df = pd.read_parquet(path)
+        if df.empty:
+            return ""
+        df['detection_date'] = pd.to_datetime(df['detection_date'])
+        cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=lookback_days)
+        df = df[df['detection_date'] >= cutoff]
+        if df.empty:
+            return ""
+
+        # filter rows where ticker is in top_tickers csv list
+        df['top_tickers'] = df['top_tickers'].astype(str)
+        mask = df['top_tickers'].str.contains(rf'\b{stock_id}\b', regex=True, na=False)
+        sub = df[mask].copy()
+        if sub.empty:
+            return ""
+
+        sub = sub.sort_values('detection_date', ascending=False).head(8)
+        lines = [f"近 {lookback_days} 天本檔在題材熱度榜中出現紀錄:"]
+        for _, r in sub.iterrows():
+            d = r['detection_date'].strftime('%Y-%m-%d')
+            direction = str(r.get('direction', ''))
+            theme = str(r.get('theme', ''))[:25]
+            cnt = int(r.get('count_today', 0))
+            ratio = float(r.get('ratio_7d', 0))
+            arrow = '↑' if direction == 'heating' else '↓'
+            ratio_str = "new" if ratio >= 999 else f"{ratio:.1f}x"
+            lines.append(f"  [{d}] {arrow} {theme} | today {cnt} 篇 ({ratio_str})")
+
+        lines.append("")
+        lines.append("⚠️ Council BLOCKER #7: theme momentum informational only, 不入 scanner")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"N/A (theme_momentum 讀取失敗: {e})"
+
+
 def _build_news_flow_alert_context(ticker, lookback_days: int = 14) -> str:
     """[NEWS_FLOW_ALERT] B7 builder (Phase 1 #4).
 
@@ -1418,6 +1471,9 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     _flow_alert = _build_news_flow_alert_context(ticker)
     if _flow_alert:  # 該檔近期爆量才加段, 避免污染 prompt
         data_sections.append(f"[NEWS_FLOW_ALERT]\n{_flow_alert}")
+    _theme_mom = _build_theme_momentum_context(ticker)
+    if _theme_mom:
+        data_sections.append(f"[THEME_MOMENTUM]\n{_theme_mom}")
     data_sections.append(f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
@@ -1585,6 +1641,9 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
     _flow_alert2 = _build_news_flow_alert_context(ticker)
     if _flow_alert2:
         data_sections.append(f"[NEWS_FLOW_ALERT]\n{_flow_alert2}")
+    _theme_mom2 = _build_theme_momentum_context(ticker)
+    if _theme_mom2:
+        data_sections.append(f"[THEME_MOMENTUM]\n{_theme_mom2}")
     data_sections += [
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]

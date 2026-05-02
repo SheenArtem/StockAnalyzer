@@ -97,6 +97,16 @@ python tools\news_flow_anomaly.py >> scanner.log 2>&1
 echo [%date% %time%] News flow anomaly done >> scanner.log
 
 REM ------------------------------------------------------------
+REM Theme momentum (Phase 1 #5).
+REM Added 2026-05-02: theme heating (today>=3 AND ratio>=2x) / cooling
+REM (30d_avg>=3 AND today=0). Council BLOCKER #7: informational only.
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] Theme momentum starting >> scanner.log
+python tools\theme_momentum.py >> scanner.log 2>&1
+echo [%date% %time%] Theme momentum done >> scanner.log
+
+REM ------------------------------------------------------------
 REM MOPS WAF unblock probe (1 req/day). 3 consecutive successes -> Discord ping.
 REM Runs before scanner to avoid extra Task Scheduler entry.
 REM ------------------------------------------------------------
