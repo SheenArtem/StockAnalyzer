@@ -632,6 +632,54 @@ def _build_forward_guidance_context(ticker, max_events: int = 4) -> str:
         return f"N/A (forward guidance 讀取失敗: {e})"
 
 
+def _build_news_flow_alert_context(ticker, lookback_days: int = 14) -> str:
+    """[NEWS_FLOW_ALERT] B7 builder (Phase 1 #4).
+
+    讀 data/news/news_flow_anomaly.parquet, filter 該 ticker, 列近 N 天觸發
+    過異常的紀錄。informational only, Council BLOCKER #7: 不入 scanner 排序。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (news_flow_anomaly 目前只覆蓋台股)"
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        path = _P(__file__).resolve().parent / 'data' / 'news' / 'news_flow_anomaly.parquet'
+        if not path.exists():
+            return ""  # empty section, 不污染 prompt
+        df = pd.read_parquet(path)
+        if df.empty:
+            return ""
+        sub = df[df['ticker'].astype(str) == stock_id].copy()
+        if sub.empty:
+            return ""  # 該檔近期沒爆量, 不顯示 section
+
+        sub['detection_date'] = pd.to_datetime(sub['detection_date'])
+        cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=lookback_days)
+        sub = sub[sub['detection_date'] >= cutoff].sort_values(
+            'detection_date', ascending=False).head(5)
+        if sub.empty:
+            return ""
+
+        lines = [f"近 {lookback_days} 天 news flow 爆量紀錄 (today >= 3 篇 AND >= 3x 7d_avg):"]
+        for _, r in sub.iterrows():
+            d = r['detection_date'].strftime('%Y-%m-%d')
+            cnt = int(r.get('count_today', 0))
+            avg = float(r.get('count_7d_avg', 0))
+            ratio = float(r.get('ratio', 0))
+            ratio_str = "new (7d 0 篇)" if ratio >= 999 else f"{ratio:.1f}x"
+            themes = str(r.get('top_themes', ''))[:50]
+            lines.append(f"  [{d}] {cnt}篇 vs 7d avg {avg:.1f} ({ratio_str}) | themes={themes}")
+
+        lines.append("")
+        lines.append("⚠️ Council BLOCKER #7: 此訊號 informational only, 未過 backtest 閘門")
+        lines.append("   不該作為 scanner ranking 或進場閘門, 但可作為 thesis 的 timing context")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"N/A (news_flow_alert 讀取失敗: {e})"
+
+
 def _build_analyst_targets_context(ticker, days: int = 30, max_items: int = 10) -> str:
     """[ANALYST_TARGETS] B2 builder (Phase 1 #3).
 
@@ -1367,6 +1415,9 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     data_sections.append(f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}")
     data_sections.append(f"[EARNINGS_CALENDAR]\n{_build_earnings_calendar_context(ticker)}")
     data_sections.append(f"[ANALYST_TARGETS]\n{_build_analyst_targets_context(ticker)}")
+    _flow_alert = _build_news_flow_alert_context(ticker)
+    if _flow_alert:  # 該檔近期爆量才加段, 避免污染 prompt
+        data_sections.append(f"[NEWS_FLOW_ALERT]\n{_flow_alert}")
     data_sections.append(f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
@@ -1530,6 +1581,11 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}",
         f"[EARNINGS_CALENDAR]\n{_build_earnings_calendar_context(ticker)}",
         f"[ANALYST_TARGETS]\n{_build_analyst_targets_context(ticker)}",
+    ]
+    _flow_alert2 = _build_news_flow_alert_context(ticker)
+    if _flow_alert2:
+        data_sections.append(f"[NEWS_FLOW_ALERT]\n{_flow_alert2}")
+    data_sections += [
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]
     data_block = "\n\n".join(data_sections)

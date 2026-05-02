@@ -199,6 +199,31 @@ def build_summary() -> str:
         lines.append(f"  Opened today: {op_str}")
     lines.append("")
 
+    # --- 3.5 News flow anomaly (Phase 1 #4) ---
+    flow_path = REPO / 'data' / 'news' / 'news_flow_anomaly.parquet'
+    if flow_path.exists():
+        try:
+            import pandas as _pd
+            adf = _pd.read_parquet(flow_path)
+            adf['detection_date'] = _pd.to_datetime(adf['detection_date']).dt.date
+            today_anom = adf[adf['detection_date'] == today].sort_values(
+                'ratio', ascending=False).head(8)
+            if not today_anom.empty:
+                lines.append(f"News Flow 爆量 [{len(today_anom)}]:")
+                for _, r in today_anom.iterrows():
+                    tk = str(r.get('ticker', ''))
+                    nm = str(r.get('company_name', ''))[:6]
+                    cnt = int(r.get('count_today', 0))
+                    avg = float(r.get('count_7d_avg', 0))
+                    ratio = float(r.get('ratio', 0))
+                    ratio_str = "new" if ratio >= 999 else f"{ratio:.1f}x"
+                    themes = str(r.get('top_themes', ''))[:30]
+                    lines.append(f"  * {tk} {nm} | {cnt}篇 vs 7d avg {avg:.1f} ({ratio_str}) | {themes}")
+                lines.append("")
+        except Exception as exc:
+            lines.append(f"News Flow 爆量: (load error: {exc})")
+            lines.append("")
+
     # --- 4. Audits ---
     audits = load_audits_today()
     if audits:

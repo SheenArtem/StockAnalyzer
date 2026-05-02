@@ -43,6 +43,7 @@ REQUIRED_STAGES = [
     ('Discord daily summary done', r'\] Discord daily summary done'),
     ('Substack sync done',     r'\] Substack sync done'),
     ('Chip history resume done', r'\] Chip history resume done'),
+    ('News flow anomaly done', r'\] News flow anomaly done'),
     ('Earnings calendar fetch done', r'\] Earnings calendar fetch done'),
     ('Scanner finished (exit=0)', r'\] Scanner finished \(exit=0\)'),
 ]
