@@ -258,6 +258,33 @@ def build_summary() -> str:
             lines.append(f"題材熱度榜: (load error: {exc})")
             lines.append("")
 
+    # --- 3.7 Material events today (Phase 1 #6) ---
+    me_path = REPO / 'data' / 'news' / 'material_events.parquet'
+    if me_path.exists():
+        try:
+            import pandas as _pd
+            mdf = _pd.read_parquet(me_path)
+            mdf['date'] = _pd.to_datetime(mdf['date']).dt.date
+            today_me = mdf[mdf['date'] == today].sort_values(
+                'confidence', ascending=False).head(8)
+            if not today_me.empty:
+                type_zh = {
+                    'merger': '併購', 'buyback': '庫藏股', 'lawsuit': '訴訟',
+                    'capital_reduction': '減資', 'penalty': '裁罰',
+                    'major_contract': '重大合約',
+                }
+                lines.append(f"今日重大事件 [{len(today_me)}]:")
+                for _, r in today_me.iterrows():
+                    tk = str(r.get('ticker', ''))
+                    et = str(r.get('material_event_type', ''))
+                    et_str = type_zh.get(et, et)
+                    title = str(r.get('title', ''))[:40]
+                    lines.append(f"  ! {tk} [{et_str}] {title}")
+                lines.append("")
+        except Exception as exc:
+            lines.append(f"今日重大事件: (load error: {exc})")
+            lines.append("")
+
     # --- 4. Audits ---
     audits = load_audits_today()
     if audits:

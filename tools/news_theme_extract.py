@@ -60,7 +60,8 @@ AGG_PATH.parent.mkdir(parents=True, exist_ok=True)
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 NEW_NEWS_DIR.mkdir(parents=True, exist_ok=True)
 NEWS_TTL_DAYS = 30  # legacy parquet 仍 30 天 TTL；archive 永久不 trim
-EXTRACT_VERSION = 3  # v3 (2026-05-02): 加 target_prices_json 欄 (Phase 1 #3 券商目標價)
+EXTRACT_VERSION = 4  # v4 (2026-05-02): 加 material_event_type 欄 (Phase 1 #6 重大事件)
+                     # v3 (2026-05-02): 加 target_prices_json (Phase 1 #3 券商目標價)
                      # v2 (2026-05-01): forward_eps_change / forward_revenue_guidance /
                      #                  forward_gross_margin / key_capacity_event / q_period
                      # v1 (2026-05-01): base schema; 舊 row 新欄 default null/'[]' per BLOCKER #2
@@ -73,6 +74,7 @@ HOT_VIEW_PATH = NEW_NEWS_DIR / 'articles_recent.parquet'
 THEMES_CORE_PATH = NEW_NEWS_DIR / 'themes_core.parquet'
 EARNINGS_SCHEMA_PATH = NEW_NEWS_DIR / 'earnings_schema.parquet'  # Phase 1 #1b
 ANALYST_TARGETS_PATH = NEW_NEWS_DIR / 'analyst_targets.parquet'   # Phase 1 #3
+MATERIAL_EVENTS_PATH = NEW_NEWS_DIR / 'material_events.parquet'   # Phase 1 #6
 
 # 經濟日報 (udn money) RSS direct
 UDN_RSS_CATS = [
@@ -489,6 +491,18 @@ def build_extraction_prompt(articles: list[dict]) -> str:
   - 例: "2026Q1" / "2025Q4" / null
 - **禁止**從題材推測（沒明確提到展望方向就 null，不要瞎猜）
 
+#### individual 額外（Phase 1 #6 重大事件，文章涉及併購/減資/訴訟/庫藏/裁罰時才填）
+- material_event_type: str，重大事件類型（**只填 6 類之一或 ""**）
+  - "merger": 併購 / 收購 / 換股
+  - "buyback": 庫藏股 / 股票回購
+  - "lawsuit": 訴訟 / 仲裁 / 法律糾紛
+  - "capital_reduction": 減資 / 現金減資 / 彌補虧損減資
+  - "penalty": 政府裁罰 / 證交所處置 / 警示股
+  - "major_contract": 重大合約 / 大訂單 / 標案得標（金額顯著）
+  - "" (空): 純題材新聞 / 法說會 / 升降評 / 一般動態
+  - **禁止**僅因「業務新聞」就填 (e.g. 「擴廠公告」非 major_contract, 屬 forward 欄位)
+  - **禁止**從題材推測（沒明確事件描述就填 ""）
+
 #### individual 額外（Phase 1 #3 券商目標價，文章涉及分析師升降評時才填）
 - target_prices: list[dict]，文章提到的券商目標價清單
   - 每筆 dict: {"broker": str, "price": float, "rating": str}
@@ -688,6 +702,8 @@ def _build_rows(merged: list[dict]) -> list[dict]:
             # Phase 1 #3 (v3): 券商目標價 list 存 JSON string ('[]' = 沒抽到)
             'target_prices_json': json.dumps(
                 a.get('target_prices') or [], ensure_ascii=False),
+            # Phase 1 #6 (v4): 重大事件類型 ('' = 不是重大事件)
+            'material_event_type': str(a.get('material_event_type', '') or ''),
         }
 
         if article_type == 'individual':
@@ -1230,19 +1246,81 @@ def rebuild_analyst_targets() -> dict:
     }
 
 
+def rebuild_material_events() -> dict:
+    """Rebuild data/news/material_events.parquet — 重大事件 (Phase 1 #6).
+
+    Logic:
+    1. Read archive last 1y (重大事件稀疏)
+    2. Filter article_type='individual' + 非空 ticker + material_event_type 非空
+    3. Dedupe by (event_id, ticker, material_event_type) keep first
+    4. Output schema: ticker / date / source / event_id / material_event_type /
+       event_source ('news_inferred' / future 'mops_official') / sentiment /
+       confidence / title / link
+
+    Council BLOCKER #7: informational only, 不入 scanner ranking.
+    場景 D (data_integration.md): MOPS 解禁時切 dual source, keep 'mops_official'。
+    """
+    import pandas as pd
+    cutoff_dt = datetime.now() - timedelta(days=THEMES_CORE_LOOKBACK_DAYS)
+    cutoff_partition = cutoff_dt.strftime('%Y-%m')
+    out_cols = ['ticker', 'date', 'source', 'event_id', 'material_event_type',
+                'event_source', 'sentiment', 'confidence', 'title', 'link']
+    empty_schema = pd.DataFrame(columns=out_cols)
+
+    df, _ = _read_archive_partitions(cutoff_partition)
+    if df.empty or 'material_event_type' not in df.columns:
+        _atomic_write_parquet(empty_schema, MATERIAL_EVENTS_PATH)
+        return {'rows': 0, 'tickers': 0, 'event_types': 0}
+
+    if 'article_type' in df.columns:
+        df = df[df['article_type'] == 'individual']
+    df = df[df['ticker'].astype(str) != ''].copy()
+    df = df[df['material_event_type'].astype(str).str.strip() != ''].copy()
+
+    if df.empty:
+        _atomic_write_parquet(empty_schema, MATERIAL_EVENTS_PATH)
+        return {'rows': 0, 'tickers': 0, 'event_types': 0}
+
+    # Dedupe by (event_id, ticker, material_event_type) keep first
+    df = df.sort_values('confidence', ascending=False)
+    df = df.drop_duplicates(
+        subset=['event_id', 'ticker', 'material_event_type'], keep='first')
+
+    out_df = pd.DataFrame({
+        'ticker': df['ticker'].astype(str),
+        'date': df['date'].astype(str),
+        'source': df.get('source', '').astype(str),
+        'event_id': df['event_id'].astype(str),
+        'material_event_type': df['material_event_type'].astype(str),
+        'event_source': 'news_inferred',  # 場景 D: 未來 MOPS 加 'mops_official'
+        'sentiment': df['sentiment'].astype(float),
+        'confidence': df['confidence'].astype(int),
+        'title': df['title'].astype(str).str.slice(0, 100),
+        'link': df.get('link', '').astype(str),
+    }).sort_values('date', ascending=False).reset_index(drop=True)
+
+    _atomic_write_parquet(out_df, MATERIAL_EVENTS_PATH)
+    return {
+        'rows': len(out_df),
+        'tickers': int(out_df['ticker'].nunique()),
+        'event_types': int(out_df['material_event_type'].nunique()),
+    }
+
+
 def rebuild_all_derived() -> dict:
     """Rebuild hot view + all derived parquets from archive.
 
     Phase 0: hot view + themes_core.
     Phase 1 #1b: + earnings_schema.
     Phase 1 #3: + analyst_targets.
-    Phase 1+ 後續加 material_events。
+    Phase 1 #6: + material_events.
     """
     out = {}
     out['hot_view'] = rebuild_hot_view()
     out['themes_core'] = rebuild_themes_core()
     out['earnings_schema'] = rebuild_earnings_schema()
     out['analyst_targets'] = rebuild_analyst_targets()
+    out['material_events'] = rebuild_material_events()
     return out
 
 

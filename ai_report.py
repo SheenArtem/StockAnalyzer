@@ -632,6 +632,65 @@ def _build_forward_guidance_context(ticker, max_events: int = 4) -> str:
         return f"N/A (forward guidance 讀取失敗: {e})"
 
 
+def _build_material_events_context(ticker, lookback_days: int = 90, max_items: int = 10) -> str:
+    """[MATERIAL_EVENTS] B3 builder (Phase 1 #6).
+
+    讀 data/news/material_events.parquet, filter 該 ticker, 列近 N 天重大事件
+    (併購/減資/訴訟/庫藏/裁罰/重大合約)，帶 source 標記區分 mops_official vs
+    news_inferred (場景 D, USE_MOPS=true 但 MOPS 重訊 endpoint 未 wire 前 100% news_inferred)。
+
+    informational only, Council BLOCKER #7: 不入 scanner 排序。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return ""
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        path = _P(__file__).resolve().parent / 'data' / 'news' / 'material_events.parquet'
+        if not path.exists():
+            return ""
+        df = pd.read_parquet(path)
+        if df.empty:
+            return ""
+        sub = df[df['ticker'].astype(str) == stock_id].copy()
+        if sub.empty:
+            return ""
+
+        sub['date'] = pd.to_datetime(sub['date'], errors='coerce')
+        cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=lookback_days)
+        sub = sub[sub['date'] >= cutoff]
+        if sub.empty:
+            return ""
+
+        type_zh = {
+            'merger': '併購',
+            'buyback': '庫藏股',
+            'lawsuit': '訴訟',
+            'capital_reduction': '減資',
+            'penalty': '裁罰',
+            'major_contract': '重大合約',
+        }
+
+        sub = sub.sort_values(['date', 'confidence'], ascending=[False, False]).head(max_items)
+        lines = [f"近 {lookback_days} 天重大事件抽取 (informational, source 標記區分官方/新聞推論):"]
+        for _, r in sub.iterrows():
+            d = r['date'].strftime('%Y-%m-%d') if pd.notna(r['date']) else '?'
+            etype = str(r.get('material_event_type', ''))
+            etype_str = f"{type_zh.get(etype, etype)} ({etype})"
+            esrc = str(r.get('event_source', 'news_inferred'))
+            esrc_tag = '[官方]' if esrc == 'mops_official' else '[新聞推論]'
+            title = str(r.get('title', ''))[:60]
+            lines.append(f"  [{d}] {etype_str} {esrc_tag} | {title}")
+
+        lines.append("")
+        lines.append("⚠️ event_source='news_inferred' 帶不確定性, MOPS 解禁後可加官方源")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"N/A (material_events 讀取失敗: {e})"
+
+
 def _build_theme_momentum_context(ticker, lookback_days: int = 7) -> str:
     """[THEME_MOMENTUM] B8 builder (Phase 1 #5).
 
@@ -1474,6 +1533,9 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     _theme_mom = _build_theme_momentum_context(ticker)
     if _theme_mom:
         data_sections.append(f"[THEME_MOMENTUM]\n{_theme_mom}")
+    _material_ev = _build_material_events_context(ticker)
+    if _material_ev:
+        data_sections.append(f"[MATERIAL_EVENTS]\n{_material_ev}")
     data_sections.append(f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
@@ -1644,6 +1706,9 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
     _theme_mom2 = _build_theme_momentum_context(ticker)
     if _theme_mom2:
         data_sections.append(f"[THEME_MOMENTUM]\n{_theme_mom2}")
+    _material_ev2 = _build_material_events_context(ticker)
+    if _material_ev2:
+        data_sections.append(f"[MATERIAL_EVENTS]\n{_material_ev2}")
     data_sections += [
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]
