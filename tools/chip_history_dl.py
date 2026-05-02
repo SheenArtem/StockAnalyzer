@@ -39,7 +39,10 @@ OUTPUT_DIR = _ROOT / "data_cache" / "chip_history"
 UNIVERSE_PATH = _ROOT / "data_cache" / "backtest" / "universe_tw.parquet"
 
 DEFAULT_START = "2021-04-16"
-DEFAULT_END   = "2026-04-15"
+# 2026-05-02: changed from hardcoded "2026-04-15" to dynamic (today) so
+# scanner cron --resume picks up the latest trading day automatically.
+# Backtest reproducibility: pass explicit --end-date when needed.
+DEFAULT_END   = datetime.now().strftime("%Y-%m-%d")
 
 # TWSE throttle: already enforced inside TWSEOpenData._throttle(),
 # but we add extra sleep between date-loop iterations to be safe.
