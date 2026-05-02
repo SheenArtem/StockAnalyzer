@@ -1,7 +1,7 @@
 {
   "scan_type": "convergence",
-  "scan_date": "2026-05-02",
-  "scan_time": "00:42",
+  "scan_date": "2026-05-03",
+  "scan_time": "04:49",
   "market": "tw",
   "total_found": 1,
   "results": [
@@ -125,10 +125,10 @@
           "text": "🔴 第 1 批暫緩 — QM 選上但擇時 trigger=-2.9 < 0，訊號矛盾"
         },
         "qm_position_size": {
-          "recommended_pct": 3.8,
-          "base_pct": 7.7,
+          "recommended_pct": 4.1,
+          "base_pct": 8.2,
           "multiplier": 0.5,
-          "rationale": "base=7.7% (composite 77/80) × multiplier=0.50 (trigger -2.9/5)"
+          "rationale": "base=8.2% (composite 82/80) × multiplier=0.50 (trigger -2.9/5)"
         },
         "qm_exit_signals": [
           "週線 Supertrend 翻空",
@@ -138,16 +138,16 @@
         ]
       },
       "mode_ranks": {
-        "qm": 12,
-        "value": 13
+        "qm": 5,
+        "value": 7
       },
-      "value_score": 66.5,
+      "value_score": 67.8,
       "value_scores": {
         "valuation": 85,
-        "quality": 73,
+        "quality": 78,
         "revenue": 50,
         "technical": 50,
-        "smart_money": 40,
+        "smart_money": 50,
         "gm_qoq": 70
       },
       "PE": 9.83,
