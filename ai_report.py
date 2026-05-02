@@ -632,6 +632,75 @@ def _build_forward_guidance_context(ticker, max_events: int = 4) -> str:
         return f"N/A (forward guidance 讀取失敗: {e})"
 
 
+def _build_analyst_targets_context(ticker, days: int = 30, max_items: int = 10) -> str:
+    """[ANALYST_TARGETS] B2 builder (Phase 1 #3).
+
+    讀 data/news/analyst_targets.parquet (LLM extract from news)，filter ticker
+    + 近 N 天，列個別券商目標價歷史。與既有 [ANALYST_CONSENSUS] (yfinance mean)
+    並列，差異本身是 signal (per data_integration.md 場景 C)。
+
+    Outlier 防護：news 抽到的目標價偏離 yfinance mean > 30% → 標 [outlier] 但仍列。
+    Council BLOCKER #7: informational only, 不入 scanner 排序。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (analyst_targets 目前只覆蓋台股)"
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        path = _P(__file__).resolve().parent / 'data' / 'news' / 'analyst_targets.parquet'
+        if not path.exists():
+            return "N/A (analyst_targets.parquet 尚未產生，scanner 跑過後才有)"
+        df = pd.read_parquet(path)
+        if df.empty:
+            return "N/A (近 1 年無券商目標價抽取資料)"
+        sub = df[df['ticker'].astype(str) == stock_id].copy()
+        if sub.empty:
+            return f"N/A ({stock_id} 近期無券商目標價抽取)"
+
+        sub['date'] = pd.to_datetime(sub['date'], errors='coerce')
+        cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=days)
+        sub = sub[sub['date'] >= cutoff]
+        if sub.empty:
+            return f"N/A ({stock_id} 近 {days} 天無券商目標價)"
+
+        # yfinance mean for outlier check
+        yf_mean = None
+        try:
+            import yfinance as yf
+            yticker = f"{stock_id}.TW"
+            info = yf.Ticker(yticker).info
+            if not info.get('targetMeanPrice'):
+                info = yf.Ticker(f"{stock_id}.TWO").info
+            yf_mean = info.get('targetMeanPrice')
+        except Exception:
+            pass
+
+        sub = sub.sort_values(['confidence', 'date'], ascending=[False, False]).head(max_items)
+
+        lines = [f"近 {days} 天券商目標價抽取 (Tier 2 from news, source: moneylink/cnyes/UDN):"]
+        if yf_mean:
+            lines.append(f"yfinance 共識 mean = {yf_mean:.0f} 元 (參考)")
+
+        for _, row in sub.iterrows():
+            d = row['date'].strftime('%Y-%m-%d') if pd.notna(row['date']) else '?'
+            broker = str(row.get('broker', ''))[:20]
+            price = float(row.get('target_price', 0) or 0)
+            rating = str(row.get('rating', '') or '').strip()
+            outlier = ''
+            if yf_mean and yf_mean > 0:
+                deviation = abs(price - yf_mean) / yf_mean
+                if deviation > 0.30:
+                    outlier = f' [outlier {deviation*100:+.0f}% vs共識]'
+            rating_str = f' ({rating})' if rating else ''
+            lines.append(f"  [{d}] {broker} 目標 {price:.0f} 元{rating_str}{outlier}")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"N/A (analyst_targets 讀取失敗: {e})"
+
+
 def _build_earnings_calendar_context(ticker, past_n: int = 4, future_n: int = 1) -> str:
     """[EARNINGS_CALENDAR] B4 builder (Phase 1 #2).
 
@@ -1297,6 +1366,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     data_sections.append(f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}")
     data_sections.append(f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}")
     data_sections.append(f"[EARNINGS_CALENDAR]\n{_build_earnings_calendar_context(ticker)}")
+    data_sections.append(f"[ANALYST_TARGETS]\n{_build_analyst_targets_context(ticker)}")
     data_sections.append(f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
@@ -1459,6 +1529,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}",
         f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}",
         f"[EARNINGS_CALENDAR]\n{_build_earnings_calendar_context(ticker)}",
+        f"[ANALYST_TARGETS]\n{_build_analyst_targets_context(ticker)}",
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]
     data_block = "\n\n".join(data_sections)

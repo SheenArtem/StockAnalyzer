@@ -60,9 +60,10 @@ AGG_PATH.parent.mkdir(parents=True, exist_ok=True)
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 NEW_NEWS_DIR.mkdir(parents=True, exist_ok=True)
 NEWS_TTL_DAYS = 30  # legacy parquet 仍 30 天 TTL；archive 永久不 trim
-EXTRACT_VERSION = 2  # Phase 1 #1: 加 forward_eps_change / forward_revenue_guidance /
-                     # forward_gross_margin / key_capacity_event / q_period 5 欄
-                     # v1 raw articles 5 欄 default null (BLOCKER #2 backfill rule)
+EXTRACT_VERSION = 3  # v3 (2026-05-02): 加 target_prices_json 欄 (Phase 1 #3 券商目標價)
+                     # v2 (2026-05-01): forward_eps_change / forward_revenue_guidance /
+                     #                  forward_gross_margin / key_capacity_event / q_period
+                     # v1 (2026-05-01): base schema; 舊 row 新欄 default null/'[]' per BLOCKER #2
 
 # Commit 5: hot view + derived rebuild constants
 HOT_VIEW_DAYS = 90  # articles_recent.parquet rolling window
@@ -71,6 +72,7 @@ THEMES_CORE_MIN_COUNT = 3  # BLOCKER #1 spec: ≥3 次同 (ticker, theme) 才晉
 HOT_VIEW_PATH = NEW_NEWS_DIR / 'articles_recent.parquet'
 THEMES_CORE_PATH = NEW_NEWS_DIR / 'themes_core.parquet'
 EARNINGS_SCHEMA_PATH = NEW_NEWS_DIR / 'earnings_schema.parquet'  # Phase 1 #1b
+ANALYST_TARGETS_PATH = NEW_NEWS_DIR / 'analyst_targets.parquet'   # Phase 1 #3
 
 # 經濟日報 (udn money) RSS direct
 UDN_RSS_CATS = [
@@ -487,6 +489,17 @@ def build_extraction_prompt(articles: list[dict]) -> str:
   - 例: "2026Q1" / "2025Q4" / null
 - **禁止**從題材推測（沒明確提到展望方向就 null，不要瞎猜）
 
+#### individual 額外（Phase 1 #3 券商目標價，文章涉及分析師升降評時才填）
+- target_prices: list[dict]，文章提到的券商目標價清單
+  - 每筆 dict: {"broker": str, "price": float, "rating": str}
+  - broker: 券商名稱（中文）「凱基/富邦/美林/摩根/野村/瑞銀/...」
+  - price: 目標價數字（純數字, e.g. 1500.0, **單位元/USD 看文章上下文，不要轉換**）
+  - rating: 「買進/Buy/加碼/Outperform/中立/Hold/減碼/Underperform/賣出/Sell」或 ""
+  - 例: [{"broker":"凱基","price":1500.0,"rating":"買進"}, {"broker":"美林","price":1450.0,"rating":"Buy"}]
+  - 文章沒提到券商目標價 → []
+  - **同一篇若多家券商各給目標價要全列**，不要只列一家
+  - **禁止**自己換算 / 推測（沒明確數字就 ""）
+
 ### 若 article_type='sector'（產業類）
 - sector_tag: str，**1 個**主要影響的產業
   範例: "半導體", "金融", "航運", "電子下游", "傳產", "生技醫療", "觀光餐飲",
@@ -672,6 +685,9 @@ def _build_rows(merged: list[dict]) -> list[dict]:
             'forward_gross_margin': str(a.get('forward_gross_margin', '') or ''),
             'key_capacity_event': str(a.get('key_capacity_event', '') or ''),
             'q_period': str(a.get('q_period', '') or ''),
+            # Phase 1 #3 (v3): 券商目標價 list 存 JSON string ('[]' = 沒抽到)
+            'target_prices_json': json.dumps(
+                a.get('target_prices') or [], ensure_ascii=False),
         }
 
         if article_type == 'individual':
@@ -1129,17 +1145,104 @@ def rebuild_earnings_schema() -> dict:
     }
 
 
+def rebuild_analyst_targets() -> dict:
+    """Rebuild data/news/analyst_targets.parquet — 券商目標價歷史 (Phase 1 #3).
+
+    Logic:
+    1. Read archive last 1y (升降評稀疏不限 90d hot view)
+    2. Filter article_type='individual' + 非空 ticker + target_prices_json != '[]'
+    3. Explode target_prices JSON → 1 row per (event, ticker, broker)
+    4. Dedupe by (event_id, ticker, broker) keep first
+    5. Output schema: ticker / date / source / event_id / broker / target_price /
+       rating / sentiment / confidence / title
+
+    Council BLOCKER #7: informational only, 不入 scanner 排序。
+    """
+    import pandas as pd
+    cutoff_dt = datetime.now() - timedelta(days=THEMES_CORE_LOOKBACK_DAYS)
+    cutoff_partition = cutoff_dt.strftime('%Y-%m')
+    out_cols = ['ticker', 'date', 'source', 'event_id', 'broker', 'target_price',
+                'rating', 'sentiment', 'confidence', 'title']
+    empty_schema = pd.DataFrame(columns=out_cols)
+
+    df, _ = _read_archive_partitions(cutoff_partition)
+    if df.empty or 'target_prices_json' not in df.columns:
+        _atomic_write_parquet(empty_schema, ANALYST_TARGETS_PATH)
+        return {'rows': 0, 'tickers': 0, 'brokers': 0}
+
+    if 'article_type' in df.columns:
+        df = df[df['article_type'] == 'individual']
+    df = df[df['ticker'].astype(str) != ''].copy()
+    df = df[df['target_prices_json'].astype(str).str.strip().isin(['', '[]']) == False].copy()
+
+    if df.empty:
+        _atomic_write_parquet(empty_schema, ANALYST_TARGETS_PATH)
+        return {'rows': 0, 'tickers': 0, 'brokers': 0}
+
+    # explode JSON
+    rows = []
+    for _, r in df.iterrows():
+        try:
+            targets = json.loads(r['target_prices_json'])
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(targets, list):
+            continue
+        for t in targets:
+            if not isinstance(t, dict):
+                continue
+            broker = str(t.get('broker', '') or '').strip()
+            try:
+                price = float(t.get('price', 0) or 0)
+            except (TypeError, ValueError):
+                continue
+            if not broker or price <= 0:
+                continue
+            rating = str(t.get('rating', '') or '').strip()[:20]
+            rows.append({
+                'ticker': str(r['ticker']),
+                'date': str(r['date']),
+                'source': str(r.get('source', '')),
+                'event_id': str(r.get('event_id', '')),
+                'broker': broker[:30],
+                'target_price': price,
+                'rating': rating,
+                'sentiment': float(r.get('sentiment', 0.0) or 0.0),
+                'confidence': int(r.get('confidence', 0) or 0),
+                'title': str(r.get('title', ''))[:100],
+            })
+    if not rows:
+        _atomic_write_parquet(empty_schema, ANALYST_TARGETS_PATH)
+        return {'rows': 0, 'tickers': 0, 'brokers': 0}
+
+    out_df = pd.DataFrame(rows)
+    # Dedupe by (event_id, ticker, broker) keep first (highest confidence at top)
+    out_df = out_df.sort_values('confidence', ascending=False)
+    out_df = out_df.drop_duplicates(
+        subset=['event_id', 'ticker', 'broker'], keep='first')
+    out_df = out_df.sort_values('date', ascending=False).reset_index(drop=True)
+
+    _atomic_write_parquet(out_df, ANALYST_TARGETS_PATH)
+    return {
+        'rows': len(out_df),
+        'tickers': int(out_df['ticker'].nunique()),
+        'brokers': int(out_df['broker'].nunique()),
+    }
+
+
 def rebuild_all_derived() -> dict:
     """Rebuild hot view + all derived parquets from archive.
 
     Phase 0: hot view + themes_core.
     Phase 1 #1b: + earnings_schema.
-    Phase 1+ 後續加 material_events / analyst_targets。
+    Phase 1 #3: + analyst_targets.
+    Phase 1+ 後續加 material_events。
     """
     out = {}
     out['hot_view'] = rebuild_hot_view()
     out['themes_core'] = rebuild_themes_core()
     out['earnings_schema'] = rebuild_earnings_schema()
+    out['analyst_targets'] = rebuild_analyst_targets()
     return out
 
 
