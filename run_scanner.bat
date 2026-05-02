@@ -171,6 +171,16 @@ python tools\chip_history_dl.py --dataset institutional --resume >> scanner.log 
 echo [%date% %time%] Chip history resume done >> scanner.log
 
 REM ------------------------------------------------------------
+REM Earnings calendar fetch (News Initiative Phase 1 #2).
+REM Added 2026-05-02: LLM parse moneylink HTML -> Sonnet extract -> parquet.
+REM Forward calendar (~6 weeks ahead) for B4 [EARNINGS_CALENDAR] AI report.
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] Earnings calendar fetch starting >> scanner.log
+python tools\earnings_calendar_fetch.py >> scanner.log 2>&1
+echo [%date% %time%] Earnings calendar fetch done >> scanner.log
+
+REM ------------------------------------------------------------
 REM Auto-generate AI reports for QM office picks (top 3).
 REM Added 2026-04-22 per user request: set-and-forget briefing ready by morning.
 REM DISABLED 2026-04-29 per user request: cancel daily auto AI reports.

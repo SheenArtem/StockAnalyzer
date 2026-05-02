@@ -632,6 +632,63 @@ def _build_forward_guidance_context(ticker, max_events: int = 4) -> str:
         return f"N/A (forward guidance 讀取失敗: {e})"
 
 
+def _build_earnings_calendar_context(ticker, past_n: int = 4, future_n: int = 1) -> str:
+    """[EARNINGS_CALENDAR] B4 builder (Phase 1 #2).
+
+    讀 data/calendar/earnings_call.parquet, filter 該 ticker, 顯示
+    過去 N 場 actual + 下次 1 場（forward 取最近未來日期）。
+
+    用途：模型可據時序判斷「下次法說會 X 日，前 N 天不建議重押」這類 thesis。
+    Source: moneylink (LLM extract)，未來可加 yahoo / wantgoo 等。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (earnings_calendar 目前只覆蓋台股)"
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        path = _P(__file__).resolve().parent / 'data' / 'calendar' / 'earnings_call.parquet'
+        if not path.exists():
+            return "N/A (earnings_call.parquet 尚未產生，scanner 跑過後才有)"
+        df = pd.read_parquet(path)
+        if df.empty:
+            return "N/A (法說會行事曆無資料)"
+        sub = df[df['ticker'].astype(str) == stock_id].copy()
+        if sub.empty:
+            return f"N/A ({stock_id} 無法說會行事曆紀錄)"
+
+        sub['event_date'] = pd.to_datetime(sub['event_date'], errors='coerce')
+        sub = sub.dropna(subset=['event_date']).sort_values('event_date')
+
+        today = pd.Timestamp.now().normalize()
+        past = sub[sub['event_date'] < today].tail(past_n)
+        future = sub[sub['event_date'] >= today].head(future_n)
+
+        lines = [f"法說會行事曆 (source={', '.join(sorted(sub['source'].unique()))}):"]
+        if not future.empty:
+            lines.append("下次法說會:")
+            for _, row in future.iterrows():
+                d = row['event_date'].strftime('%Y-%m-%d')
+                t = str(row.get('event_time', '') or '').strip()
+                loc = str(row.get('location', '') or '').strip()[:40]
+                lines.append(f"  [{d}] {t} {loc}")
+        else:
+            lines.append("下次法說會: (無已公告)")
+
+        if not past.empty:
+            lines.append("過去法說會:")
+            for _, row in past.iterrows():
+                d = row['event_date'].strftime('%Y-%m-%d')
+                t = str(row.get('event_time', '') or '').strip()
+                loc = str(row.get('location', '') or '').strip()[:40]
+                lines.append(f"  [{d}] {t} {loc}")
+
+        return "\n".join(lines)
+    except Exception as e:
+        return f"N/A (earnings_calendar 讀取失敗: {e})"
+
+
 def _build_market_context_news(days: int = 7, max_events: int = 10) -> str:
     """[MARKET_CONTEXT] B6 macro/sector news section (Council BLOCKER #6).
 
@@ -1239,6 +1296,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     data_sections.append(f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}")
     data_sections.append(f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}")
     data_sections.append(f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}")
+    data_sections.append(f"[EARNINGS_CALENDAR]\n{_build_earnings_calendar_context(ticker)}")
     data_sections.append(f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
@@ -1400,6 +1458,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}",
         f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}",
         f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}",
+        f"[EARNINGS_CALENDAR]\n{_build_earnings_calendar_context(ticker)}",
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]
     data_block = "\n\n".join(data_sections)
