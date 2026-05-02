@@ -282,7 +282,7 @@ def main():
     L.append(f"- 統計窗口: **{window[0].date()} ~ {window[-1].date()}** (共 {len(window)} 個交易日)")
     L.append(f"- 產出時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     L.append(f"- Universe: 全市場")
-    L.append(f"- 金額參考收盤日: {close_target.date()} (千元 = 當週淨買賣股數 × 收盤價 / 1000)")
+    L.append(f"- 金額估算: 千元 = 當週淨買賣股數 × 該股 <={close_target.date()} 的最新可得收盤價 / 1000 (per-stock 取最近)")
     L.append(f"- 維度: 4 個 (三大法人合計 / 外資 / 投信 / 自營商) × 4 個榜 = **16 個 Top 10**")
     L.append("")
 
