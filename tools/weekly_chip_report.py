@@ -186,8 +186,12 @@ def compute_weekly_rankings(week_end_str: str | None = None) -> tuple[dict, dict
     close_target = max([d for d in ohlcv_dates if d <= week_end], default=None)
     if close_target is None:
         raise ValueError(f"ohlcv 沒有 <= {week_end.date()} 的資料")
-    closes = ohlcv[ohlcv['date'] == close_target][['stock_id', 'Close']].rename(
-        columns={'Close': 'close_ref'})
+    # 取每檔在 week_end (含) 之前的最新 close 為 close_ref
+    # (ohlcv --resume 不會更新已存在 ticker 的新日期，故 close_target 那天可能只有少數股票
+    #  有資料；改用 per-stock 最後可得 close 避免 weekly_net_amount_k 大量 NaN)
+    ohlcv_pre = ohlcv[ohlcv['date'] <= week_end].sort_values('date')
+    closes = ohlcv_pre.groupby('stock_id', as_index=False).tail(1)[
+        ['stock_id', 'Close']].rename(columns={'Close': 'close_ref'})
 
     dim_results = {}
     for net_col, dim_name, _prefix in NET_DIMENSIONS:
