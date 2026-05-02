@@ -43,9 +43,9 @@ NET_DIMENSIONS = [
 ]
 
 
-def consecutive_from_end(seq: list[int]) -> tuple[int, int]:
+def consecutive_from_end(seq) -> tuple[int, int]:
     """從尾倒推連續同向天數。回 (連續買超天數, 連續賣超天數)。"""
-    if not seq or seq[-1] == 0:
+    if len(seq) == 0 or seq[-1] == 0:
         return 0, 0
     direction = 1 if seq[-1] > 0 else -1
     count = 0
@@ -70,21 +70,34 @@ def load_universe_names() -> dict[str, str]:
     return dict(zip(u['stock_id'].astype(str), u[name_col]))
 
 
-def compute_summary(sub: pd.DataFrame, window: list, net_col: str,
+def compute_summary(inst_recent: pd.DataFrame, window: list, net_col: str,
                     closes: pd.DataFrame) -> pd.DataFrame:
     """對指定 net column 算每檔 consec_buy / consec_sell / weekly_net_shares + 金額。"""
+    # 1. 算當週淨買賣 (window 內)
+    sub_window = inst_recent[inst_recent['date'].isin(window)]
+    weekly_net = sub_window.groupby('stock_id')[net_col].sum().rename('weekly_net_shares')
+
+    # 2. 算連續天數 (使用所有的 inst_recent, 約 120 天)
+    piv = inst_recent.pivot(index='date', columns='stock_id', values=net_col).fillna(0)
+    
     rows = []
-    for stock_id, g in sub.groupby('stock_id'):
-        g_dict = dict(zip(g['date'], g[net_col]))
-        seq = [int(g_dict.get(d, 0)) for d in window]
-        consec_buy, consec_sell = consecutive_from_end(seq)
-        rows.append({
-            'stock_id': stock_id,
-            'consec_buy': consec_buy,
-            'consec_sell': consec_sell,
-            'weekly_net_shares': sum(seq),
-        })
+    for stock_id in piv.columns:
+        seq = piv[stock_id].values
+        cb, cs = consecutive_from_end(seq)
+        shares = weekly_net.get(stock_id, 0)
+        # 只保留有買賣超或有連續紀錄的
+        if shares != 0 or cb > 0 or cs > 0:
+            rows.append({
+                'stock_id': stock_id,
+                'consec_buy': cb,
+                'consec_sell': cs,
+                'weekly_net_shares': shares,
+            })
+            
     df = pd.DataFrame(rows)
+    if df.empty:
+        df = pd.DataFrame(columns=['stock_id', 'consec_buy', 'consec_sell', 'weekly_net_shares'])
+        
     df = df.merge(closes, on='stock_id', how='left')
     df['weekly_net_amount_k'] = (df['weekly_net_shares'] * df['close_ref'] / 1000).round(0)
     return df
@@ -175,10 +188,18 @@ def compute_weekly_rankings(week_end_str: str | None = None) -> tuple[dict, dict
     if not candidates:
         raise ValueError(f"institutional 沒有 <= {target.date()} 的資料")
     week_end = max(candidates)
-    window = sorted([d for d in available if d <= week_end])[-5:]
+    
+    # 找出當週星期一
+    monday = week_end - pd.Timedelta(days=week_end.weekday())
+    # window 取本週的所有交易日 (可能因國定假日少於 5 天)
+    window = sorted([d for d in available if monday <= d <= week_end])
 
-    sub = inst[inst['date'].isin(window)][['date', 'stock_id', 'total_net',
+    # 為了計算正確的連續天數，我們需要比 window 更長的歷史，例如往回推 120 個交易日 (約半年)
+    recent_dates = sorted([d for d in available if d <= week_end])[-120:]
+    inst_recent = inst[inst['date'].isin(recent_dates)][['date', 'stock_id', 'total_net',
                                             'foreign_net', 'trust_net', 'dealer_net']]
+    # 過濾掉 ETF (00開頭) 與權證等非一般個股
+    inst_recent = inst_recent[~inst_recent['stock_id'].astype(str).str.startswith('00')]
 
     ohlcv = pd.read_parquet(OHLCV_PARQUET, columns=['stock_id', 'date', 'Close'])
     ohlcv['stock_id'] = ohlcv['stock_id'].astype(str)
@@ -195,7 +216,7 @@ def compute_weekly_rankings(week_end_str: str | None = None) -> tuple[dict, dict
 
     dim_results = {}
     for net_col, dim_name, _prefix in NET_DIMENSIONS:
-        summary = compute_summary(sub, window, net_col, closes)
+        summary = compute_summary(inst_recent, window, net_col, closes)
         dim_results[net_col] = get_top10s(summary)
 
     metadata = {
