@@ -27,8 +27,11 @@ cd /d C:\GIT\StockAnalyzer
 REM Force UTF-8 for Python I/O (prevents cp950 UnicodeDecodeError on emoji output)
 set PYTHONIOENCODING=utf-8
 
-REM 2026-04-20: MOPS WAF banned local IP; --no-mops CLI flag forces FinMind path.
-REM Remove --no-mops once VPN/IP unblocks (env var approach failed, use CLI flag).
+REM 2026-04-20: MOPS WAF banned local IP; --no-mops CLI flag forced FinMind path.
+REM 2026-05-02: removed --no-mops (probe 11 days OK, USE_MOPS=true cache_manager
+REM default); observe scanner.log circuit breaker for 1-2 weeks before relaxing
+REM MOPS_RATE_INTERVAL from 5.0s to 4.0s. Rollback: re-add --no-mops to two
+REM scanner_job.py invocations below.
 
 REM Rotate log: keep only previous + current
 if exist scanner_prev.log del scanner_prev.log
@@ -113,10 +116,10 @@ REM Value weights 30/25/30/15/0 (V_rev_heavy, WF 24 quarters 15 beats V_live 63%
 REM Chain: QM skips tracking; Value runs tracking last.
 REM --regime-filter: VF-G4 DRY-RUN logs today's regime vs volatile filter
 REM (audit only, does not drop picks).
-python scanner_job.py --mode qm --market tw --no-tracking --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
+python scanner_job.py --mode qm --market tw --no-tracking --regime-filter volatile --push --notify >> scanner.log 2>&1
 set PY_EXIT_QM=%ERRORLEVEL%
 
-python scanner_job.py --mode value --market tw --no-mops --regime-filter volatile --push --notify >> scanner.log 2>&1
+python scanner_job.py --mode value --market tw --regime-filter volatile --push --notify >> scanner.log 2>&1
 set PY_EXIT_VAL=%ERRORLEVEL%
 
 REM US Value scan removed 2026-04-22 after VF-Value-ex2 EDGAR walk-forward D reverse
@@ -153,6 +156,19 @@ REM ------------------------------------------------------------
 echo [%date% %time%] Substack sync starting >> scanner.log
 python tools\sync_substack.py >> scanner.log 2>&1
 echo [%date% %time%] Substack sync done >> scanner.log
+
+REM ------------------------------------------------------------
+REM Chip history institutional resume (daily).
+REM Added 2026-05-02: 5yr panel was one-shot backfill, no daily cron, so
+REM weekly_chip_report (BL-4) was using stale data (cap 4/15). Daily resume
+REM keeps institutional fresh for BL-4 at ~5-10s per run.
+REM margin / short_sale resume moved to run_tdcc_weekly.bat (TPEX FinMind
+REM per-stock fallback is too slow for daily: 12 days = 3.6h per dataset).
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] Chip history resume starting >> scanner.log
+python tools\chip_history_dl.py --dataset institutional --resume >> scanner.log 2>&1
+echo [%date% %time%] Chip history resume done >> scanner.log
 
 REM ------------------------------------------------------------
 REM Auto-generate AI reports for QM office picks (top 3).

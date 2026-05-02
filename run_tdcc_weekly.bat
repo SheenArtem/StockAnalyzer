@@ -43,6 +43,18 @@ if not "%CHIP_EXIT%"=="0" (
     python tools/report_batch_failure.py --stage weekly_chip --exit-code %CHIP_EXIT% --log-file tdcc_weekly.log >> tdcc_weekly.log 2>&1
 )
 
+REM ============================================================
+REM  Chip history margin / short_sale weekly resume.
+REM  Added 2026-05-02: daily cron only runs institutional (5-10s); margin
+REM  and short_sale go through TPEX FinMind per-stock fallback (913 stocks
+REM  x 1.2s = ~18min per trading day) so weekly batch is the right slot.
+REM  Best-effort: failures do not affect TDCC weekly exit.
+REM ============================================================
+echo [%date% %time%] Chip history margin/short_sale resume started >> tdcc_weekly.log
+python tools/chip_history_dl.py --dataset margin --resume >> tdcc_weekly.log 2>&1
+python tools/chip_history_dl.py --dataset short_sale --resume >> tdcc_weekly.log 2>&1
+echo [%date% %time%] Chip history margin/short_sale resume done >> tdcc_weekly.log
+
 echo. >> tdcc_weekly.log
 REM Use TDCC exit code as final to preserve original schedule failure semantics
 exit /b %PY_EXIT%

@@ -42,6 +42,7 @@ REQUIRED_STAGES = [
     ('Paper trade engine done', r'\] Paper trade engine done'),
     ('Discord daily summary done', r'\] Discord daily summary done'),
     ('Substack sync done',     r'\] Substack sync done'),
+    ('Chip history resume done', r'\] Chip history resume done'),
     ('Scanner finished (exit=0)', r'\] Scanner finished \(exit=0\)'),
 ]
 
