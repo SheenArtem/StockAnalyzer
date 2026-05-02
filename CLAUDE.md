@@ -8,14 +8,18 @@
 |---|---|---|---|---|
 | **AI 報告**（`ai_report.py` / `ai_report_pipeline.py`） | Claude | `--model opus` | `--allowedTools "*"` | 600s (10 min) |
 | **News / 短文 / metadata 萃取** | Claude | `--model sonnet` | （視情況）`--allowedTools` | 600s (10 min) |
+| **行事曆 / 結構化 table 抽取** | Claude | `--model haiku` | — | 600s |
 | **Sector tag 萃取（YT VTT / batch）** | Claude (主) / Gemini (備) | `--model=sonnet` / `gemini-3.1-pro-preview` | — | Claude 600s / Gemini 900s (15 min) |
 | **Multi-agent debate / 探索性分析** | Claude | `--model sonnet` | `--allowedTools "WebSearch,WebFetch"` | 600s |
 | **任何 Gemini 呼叫** | Gemini | `gemini-3.1-pro-preview` | — | 900s (15 min) |
 
-**Why（user 2026-05-01 拍板）**：
+**Why（user 2026-05-01 拍板 + 2026-05-02 加 Haiku 條目）**：
 
 - AI 報告品質要求高，Opus 強制 + `--allowedTools "*"` 允許所有工具（不省成本）
 - News 解析量大但需準確，Sonnet 是平衡點（不要降到 Haiku）
+- 行事曆 / 純結構化 table 抽取 (e.g. `earnings_calendar_fetch.py`) 用 Haiku：
+  Sonnet 對相同 prompt 反覆 timeout 600s，Haiku 5-10x 快 + 成本省 4x，
+  table 抽取是 Haiku 強項不是 Sonnet 的 reasoning 範疇
 - Gemini 一律 3.1-pro-preview（preview 版會慢，故 timeout 拉到 15 min）
 - Claude 思考時間給足，timeout 至少 10 min
 
@@ -26,7 +30,7 @@
 - ai_report.py 兩個 entry (`generate_report` / `generate_report_html`) 必帶 `--model opus` + `--allowedTools "*"`
 - 任何 timeout=None 都視為違規 — 必須給明確秒數
 
-**已落地的 file（2026-05-01 commit）**：
+**已落地的 file**：
 
 - `ai_report.py` `generate_report` / `generate_report_html` → Opus + `*` + 600s
 - `ai_report_pipeline.py` 兩個 caller 從 `timeout=None` → `timeout=600`
@@ -34,6 +38,7 @@
 - `tools/extract_yt_sector_tags.py` YT VTT 萃題材 → Gemini 3.1-pro-preview / Sonnet + 900s/600s
 - `tools/llm_bulk_sector_tag.py` Bulk sector tag → Sonnet + 600s（原 300s）
 - `tools/multi_agent_debate_poc.py` Debate → Sonnet + 600s（原無 model flag）
+- `tools/earnings_calendar_fetch.py` HTML table extract → **Haiku** + 600s（2026-05-02）
 
 ---
 
