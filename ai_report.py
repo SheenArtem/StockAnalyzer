@@ -632,6 +632,86 @@ def _build_forward_guidance_context(ticker, max_events: int = 4) -> str:
         return f"N/A (forward guidance 讀取失敗: {e})"
 
 
+def _build_news_evidence_context(ticker, max_items: int = 5, lookback_days: int = 14) -> str:
+    """[NEWS_EVIDENCE] B5 builder (Phase 1 #8).
+
+    讀 articles_recent (90d hot view), filter individual + 該 ticker, 挑
+    top 3-5 篇 high-confidence + recent 文章，給 thesis 段引用。
+
+    ⚠️ Council Audit BLOCKER #5 強制：
+    - **Builder 只給 title + summary excerpt (truncate 60 chars) + source link**
+    - **不給 body 全文**（防 LLM 逐字 quote 違反 §52 短引用 fair use 標準）
+    - prompt 模板加 hard rule：thesis 引用時必須改寫成 ≤50 chars 摘要，
+      格式「據 X 媒體 X 月 X 日報導：[paraphrase]」+ source link
+
+    Council BLOCKER #7: informational only, 不入 scanner 排序。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return ""
+    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        path = _P(__file__).resolve().parent / 'data' / 'news' / 'articles_recent.parquet'
+        if not path.exists():
+            return ""
+        df = pd.read_parquet(path)
+        if df.empty:
+            return ""
+
+        # Filter individual + ticker
+        if 'article_type' in df.columns:
+            df = df[df['article_type'] == 'individual']
+        df = df[df['ticker'].astype(str) == stock_id].copy()
+        if df.empty:
+            return ""
+
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=lookback_days)
+        df = df[df['date'] >= cutoff]
+        if df.empty:
+            return ""
+
+        # Dedupe by event_id (BLOCKER #1)
+        try:
+            import sys as _sys
+            _sys.path.insert(0, str(_P(__file__).resolve().parent / 'tools'))
+            from news_theme_extract import dedupe_by_event_id
+            df = dedupe_by_event_id(df)
+        except Exception:
+            pass
+
+        # Sort: confidence DESC × date DESC, take top max_items
+        df = df.sort_values(['confidence', 'date'], ascending=[False, False]).head(max_items)
+
+        lines = [f"近 {lookback_days} 天本檔 high-confidence news (僅供 thesis 引用，**禁止逐字 quote > 50 chars**):"]
+        seen_titles = set()
+        for _, r in df.iterrows():
+            title = str(r.get('title', ''))[:80]
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            d = r['date'].strftime('%Y-%m-%d') if pd.notna(r['date']) else '?'
+            src = str(r.get('source', ''))[:15]
+            tone = str(r.get('tone', ''))
+            sent = float(r.get('sentiment', 0.0) or 0.0)
+            conf = int(r.get('confidence', 0) or 0)
+            link = str(r.get('link', ''))
+            lines.append(f"  [{d}] {src} ({tone} {sent:+.2f} conf={conf}) {title}")
+            if link:
+                lines.append(f"      link: {link[:80]}")
+
+        lines.append("")
+        lines.append("⚠️ Council BLOCKER #5 hard rule (§52 短引用 fair use):")
+        lines.append("   thesis 段引用必須改寫摘要 ≤50 chars + 帶 source 媒體 + 日期")
+        lines.append("   格式範例: 「據鉅亨網 5/1 報導, 公司 Q3 起營收動能續揚」")
+        lines.append("   禁止: 「根據鉅亨網 5/1 報導『...逐字 quote 原文標題或內文超過 50 chars...』」")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"N/A (news_evidence 讀取失敗: {e})"
+
+
 def _build_material_events_context(ticker, lookback_days: int = 90, max_items: int = 10) -> str:
     """[MATERIAL_EVENTS] B3 builder (Phase 1 #6).
 
@@ -1536,6 +1616,9 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     _material_ev = _build_material_events_context(ticker)
     if _material_ev:
         data_sections.append(f"[MATERIAL_EVENTS]\n{_material_ev}")
+    _evidence = _build_news_evidence_context(ticker)
+    if _evidence:
+        data_sections.append(f"[NEWS_EVIDENCE]\n{_evidence}")
     data_sections.append(f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}")
 
     data_block = "\n\n".join(data_sections)
@@ -1709,6 +1792,9 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
     _material_ev2 = _build_material_events_context(ticker)
     if _material_ev2:
         data_sections.append(f"[MATERIAL_EVENTS]\n{_material_ev2}")
+    _evidence2 = _build_news_evidence_context(ticker)
+    if _evidence2:
+        data_sections.append(f"[NEWS_EVIDENCE]\n{_evidence2}")
     data_sections += [
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]

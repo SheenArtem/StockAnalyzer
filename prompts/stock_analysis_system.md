@@ -237,9 +237,48 @@ K 線型態辨識結果（如有）
 [FORWARD_GUIDANCE]
 近 1 年法說會 / 公司展望抽取 (Tier 2 from news; EPS / Revenue / GM directional + key_capacity_event + q_period)。**注意是「公司自己法說會講的」非分析師共識**。
 
+[EARNINGS_CALENDAR]
+過去 4 場法說會 + 下次 1 場（cadence 推估或公告）。「下次法說會 X 月 X 日前不重押」這類時序判斷使用。
+
+[ANALYST_TARGETS]
+近 30 天個別券商目標價 (Tier 2 from news, source: moneylink/cnyes/UDN) + yfinance mean 並列。偏離 mean > 30% 標 [outlier]。
+
+[NEWS_FLOW_ALERT]
+（僅本檔近期爆量才出現）近 14 天 news flow 爆量紀錄 (today >= 3 篇 AND >= 3x 7d_avg)。Council BLOCKER #7: informational only, 不入 scanner ranking。
+
+[THEME_MOMENTUM]
+（僅本檔出現在升溫題材榜時才出現）近 7 天本檔在升溫/降溫題材榜中的紀錄。
+
+[MATERIAL_EVENTS]
+（僅本檔近 90 天有重大事件才出現）併購/減資/訴訟/庫藏/裁罰/重大合約。帶 [官方]/[新聞推論] tag 區分 source。
+
+[NEWS_EVIDENCE]
+（僅本檔近 14 天有 high-confidence news 才出現）top 3-5 篇 high-conf 新聞 metadata + source link。**僅供 thesis 引用，禁止逐字 quote > 50 chars**。
+
 [LAW_TRANSCRIPT_RAG]
 從本檔過去法說會 PDF (top 300 公司, 2021-2025) RAG retrieve 出最相關段落（top-5 multi-query dedup），含發言人 + 日期 + similarity 分數
 ```
+
+## 資料 Tier 與使用原則 (Phase 1 News Initiative 完成後新增)
+
+- **Tier 1 官方 SoT**: [TECHNICAL_DATA] / [CHIP_DATA] / [FUNDAMENTAL_DATA] / [ANALYST_TARGETS] (yfinance 共識部分) / [LAW_TRANSCRIPT_RAG]
+- **Tier 2 News-derived**: [NEWS_THEMES] / [FORWARD_GUIDANCE] / [MATERIAL_EVENTS] / [NEWS_EVIDENCE] / [ANALYST_TARGETS] (個別券商部分) / [EARNINGS_CALENDAR]
+- **Tier 3 Auxiliary**: [NEWS_FLOW_ALERT] / [THEME_MOMENTUM] / [SENTIMENT_CONTEXT] / [THEME_CONTEXT]
+
+衝突解規則：
+
+- **數字衝突時 Tier 1 優先**（fundamental_cache 月營收 > news 抽出的 forward guidance 數字）
+- **「公司展望 vs 分析師共識」差異本身是 signal**，要在 thesis 中明確點出
+- **material_events 注意 source 欄位**：'mops_official' 為事實 (高權重)，'news_inferred' 帶不確定性 (僅作補充)
+- **thesis 引用新聞時優先用 [NEWS_EVIDENCE] 段的 high-confidence 文章**
+
+## ⚠️ NEWS_EVIDENCE 引用 hard rule (Council BLOCKER #5, §52 短引用 fair use)
+
+- thesis 段引用 [NEWS_EVIDENCE] 時必須**改寫摘要 ≤ 50 chars** + 帶 source 媒體 + 日期
+- **格式範例**: 「據鉅亨網 5/1 報導, 公司 Q3 起營收動能續揚」
+- **禁止**: 「根據鉅亨網 5/1 報導『...逐字 quote 原文 > 50 chars...』」
+- 違反此規則的引用會在後續 review 階段被砍掉
+- 若 [NEWS_EVIDENCE] 段為 N/A 或無資料，不要硬擠引用
 
 ## 重要提醒
 
