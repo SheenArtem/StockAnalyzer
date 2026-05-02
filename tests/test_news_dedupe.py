@@ -17,6 +17,7 @@ from news_theme_extract import (  # noqa: E402
     normalize_title_hash,
     compute_event_id,
     dedupe_by_event_id,
+    dedupe_by_event_ticker,
 )
 
 
@@ -153,6 +154,78 @@ class TestDedupeByEventId:
         ])
         result = dedupe_by_event_id(df)
         assert len(result) == 2  # 1 legacy + 1 deduped (cnyes/udn 變 1)
+
+
+class TestDedupeByEventTicker:
+    """earnings_schema / material_events / analyst_targets 用的窄 dedupe key."""
+
+    def _build_df(self, records):
+        return pd.DataFrame(records)
+
+    def test_empty_df_returns_empty(self):
+        assert len(dedupe_by_event_ticker(pd.DataFrame())) == 0
+
+    def test_no_event_id_column_returns_unchanged(self):
+        df = pd.DataFrame([{'date': '2026-05-01', 'ticker': '2330'}])
+        assert len(dedupe_by_event_ticker(df)) == 1
+
+    def test_same_event_diff_theme_collapsed(self):
+        """earnings_schema 核心 case: 同事件 N theme 應 collapse 為 1 row."""
+        df = self._build_df([
+            {'event_id': 'h1_2026-05-01', 'ticker': '3105', 'theme': '砷化鎵',
+             'forward_revenue_guidance': '上修', 'source': 'cnyes'},
+            {'event_id': 'h1_2026-05-01', 'ticker': '3105', 'theme': '光通訊',
+             'forward_revenue_guidance': '上修', 'source': 'cnyes'},
+            {'event_id': 'h1_2026-05-01', 'ticker': '3105', 'theme': '低軌衛星',
+             'forward_revenue_guidance': '上修', 'source': 'cnyes'},
+        ])
+        result = dedupe_by_event_ticker(df)
+        assert len(result) == 1
+        assert result.iloc[0]['theme'] == '砷化鎵'  # keep first
+
+    def test_same_event_diff_ticker_kept(self):
+        """同事件多 ticker 提及應全保留."""
+        df = self._build_df([
+            {'event_id': 'h1_2026-05-01', 'ticker': '2330', 'theme': 'CoWoS'},
+            {'event_id': 'h1_2026-05-01', 'ticker': '3324', 'theme': 'CoWoS'},
+        ])
+        assert len(dedupe_by_event_ticker(df)) == 2
+
+    def test_diff_event_same_ticker_kept(self):
+        """同 ticker 不同事件應全保留."""
+        df = self._build_df([
+            {'event_id': 'h1_2026-05-01', 'ticker': '2330', 'theme': 'CoWoS'},
+            {'event_id': 'h2_2026-05-01', 'ticker': '2330', 'theme': 'AI server'},
+        ])
+        assert len(dedupe_by_event_ticker(df)) == 2
+
+    def test_empty_event_id_kept_unchanged(self):
+        """legacy event_id='' 不 dedupe."""
+        df = self._build_df([
+            {'event_id': '', 'ticker': '2330', 'theme': 'A'},
+            {'event_id': '', 'ticker': '2330', 'theme': 'B'},
+        ])
+        assert len(dedupe_by_event_ticker(df)) == 2
+
+    def test_earnings_schema_real_world_3105(self):
+        """模擬實際 archive 觀察到的穩懋 1 篇法說會 → 3 themes 灌成 3 row.
+        套 dedupe_by_event_ticker 後應收斂為 1 row.
+        """
+        df = self._build_df([
+            {'event_id': '1d75d6ffdb2bfaed_2026-04-30', 'ticker': '3105',
+             'theme': '砷化鎵', 'forward_revenue_guidance': '上修',
+             'q_period': '2026Q2', 'source': 'cnyes'},
+            {'event_id': '1d75d6ffdb2bfaed_2026-04-30', 'ticker': '3105',
+             'theme': '光通訊', 'forward_revenue_guidance': '上修',
+             'q_period': '2026Q2', 'source': 'cnyes'},
+            {'event_id': '1d75d6ffdb2bfaed_2026-04-30', 'ticker': '3105',
+             'theme': '低軌衛星', 'forward_revenue_guidance': '上修',
+             'q_period': '2026Q2', 'source': 'cnyes'},
+        ])
+        result = dedupe_by_event_ticker(df)
+        assert len(result) == 1
+        assert result.iloc[0]['forward_revenue_guidance'] == '上修'
+        assert result.iloc[0]['q_period'] == '2026Q2'
 
 
 class TestEndToEndDedupeScenario:

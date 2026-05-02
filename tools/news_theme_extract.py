@@ -131,8 +131,8 @@ def compute_event_id(title_hash: str, date_str: str) -> str:
 def dedupe_by_event_id(df, keep: str = 'first'):
     """Dedupe rows with same (event_id, ticker, theme), keep first source.
 
-    給 derived rebuild (themes_core / market_sentiment / etc.) 用。
-    Empty event_id rows 不 dedupe（legacy 資料兼容）。
+    給 themes_core rebuild 用 — 保留多 theme 維度（一篇文章可 attach 多 theme，
+    每個 theme 都該各自 count）。Empty event_id rows 不 dedupe（legacy 兼容）。
     """
     import pandas as pd
     if df is None or len(df) == 0 or 'event_id' not in df.columns:
@@ -142,6 +142,27 @@ def dedupe_by_event_id(df, keep: str = 'first'):
         return df
     deduped = df[has_id].drop_duplicates(
         subset=['event_id', 'ticker', 'theme'], keep=keep
+    )
+    no_id = df[~has_id]
+    return pd.concat([deduped, no_id], ignore_index=True)
+
+
+def dedupe_by_event_ticker(df, keep: str = 'first'):
+    """Dedupe rows with same (event_id, ticker), keep first source.
+
+    給 earnings_schema / material_events / analyst_targets 等「同事件 1 ticker
+    1 筆」derived 用 — forward guidance / 重大事件 / 升降評不關 theme 維度，
+    一篇法說會新聞被 attach N theme 應 collapse 成 1 row。
+    Empty event_id rows 不 dedupe（legacy 兼容）。
+    """
+    import pandas as pd
+    if df is None or len(df) == 0 or 'event_id' not in df.columns:
+        return df
+    has_id = df['event_id'].astype(str).str.len() > 0
+    if not has_id.any():
+        return df
+    deduped = df[has_id].drop_duplicates(
+        subset=['event_id', 'ticker'], keep=keep
     )
     no_id = df[~has_id]
     return pd.concat([deduped, no_id], ignore_index=True)
@@ -440,16 +461,28 @@ def build_extraction_prompt(articles: list[dict]) -> str:
 
 #### individual 額外（Phase 1 #1 法說會 schema, 文章涉及法說會/財報展望時才填）
 - 以下 5 欄**只在文章是該公司「法說會 / 財報 / 公司展望」相關時填**，否則 null:
-- forward_eps_change: str，公司對下季 / 全年 EPS 展望方向
+- forward_eps_change: str，公司對下季 / 全年 **EPS / 獲利 / 業績** 展望方向（前瞻語句即算）
   - 取值: "上修" / "下修" / "持平" / null
   - 例: 「公司上修全年 EPS 至 X 元」→ "上修"
   - 例: 「下調 Q4 展望」→ "下修"
-- forward_revenue_guidance: str，營收展望方向
+  - 例: 「Q2 業績雙位數成長」/「獲利續揚」/「成長動能續揚」→ "上修"（隱含也算）
+  - 例: 「Q3 起獲利顯著貢獻」/「明年將大幅成長」→ "上修"
+  - 例: 「明年衰退」/「Q4 EPS 將下滑」→ "下修"
+  - ⚠️ 純實績披露（如「Q1 EPS 4.61 元」）若**無前瞻語句**應 null；必須有
+    「下季 / 明年 / 未來 / 持續 / 看好 / 動能 / 雙位數成長」等明顯前瞻字眼才算
+- forward_revenue_guidance: str，**營收**展望方向（注意：和 forward_eps_change 區分 —
+  若文章只談「營收」而沒談獲利/EPS，才填這欄；若同時談獲利成長也填 forward_eps_change）
   - 取值: "上修" / "下修" / "持平" / null
-- forward_gross_margin: str，毛利率展望方向
+- forward_gross_margin: str，**毛利率**展望方向
   - 取值: "上修" / "下修" / "持平" / null
-- key_capacity_event: str，重大產能事件
-  - 取值: "擴產" / "減產" / "新廠" / "砍單" / null
+  - 例: 「明年毛利率衝 40%」/「毛利率優於去年」→ "上修"
+- key_capacity_event: str，重大產能事件（**含「量產 / 放量 / 投產」paraphrase**）
+  - 取值: "擴產" / "減產" / "新廠" / "砍單" / "量產" / null
+  - 例: 「擴建 X 廠」/「資本支出加大」/「產能加倍」→ "擴產"
+  - 例: 「設備年底量產」/「明年放大量」/「Q3 起放量」/「投產」→ "量產"
+  - 例: 「新廠落成」/「新工廠啟用」→ "新廠"
+  - 例: 「客戶砍單」/「下修訂單」→ "砍單"
+  - 例: 「縮減產能」/「停產線」→ "減產"
 - q_period: str，文章對應的季度 (若文章明確提及)
   - 例: "2026Q1" / "2025Q4" / null
 - **禁止**從題材推測（沒明確提到展望方向就 null，不要瞎猜）
@@ -1080,8 +1113,9 @@ def rebuild_earnings_schema() -> dict:
         _atomic_write_parquet(empty_schema, EARNINGS_SCHEMA_PATH)
         return {'rows': 0, 'tickers': 0, 'q_periods': 0}
 
-    # BLOCKER #1: dedupe by event_id
-    df = dedupe_by_event_id(df)
+    # BLOCKER #1: dedupe by (event_id, ticker) — forward guidance 不關 theme 維度
+    # (一篇法說會新聞 LLM attach N themes 不該變 N row 灌水)
+    df = dedupe_by_event_ticker(df)
 
     # Output subset (only relevant columns)
     avail_cols = [c for c in out_cols if c in df.columns]
