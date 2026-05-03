@@ -1275,7 +1275,11 @@ def rebuild_material_events() -> dict:
     if 'article_type' in df.columns:
         df = df[df['article_type'] == 'individual']
     df = df[df['ticker'].astype(str) != ''].copy()
-    df = df[df['material_event_type'].astype(str).str.strip() != ''].copy()
+    # 排除 LLM 沒抽到 (legacy v1/v2 default = None / NaN) — astype(str) 會把
+    # None 變成 'None'，必須過濾，否則 79 row noise 全進 panel
+    valid_types = {'merger', 'buyback', 'lawsuit', 'capital_reduction',
+                   'penalty', 'major_contract'}
+    df = df[df['material_event_type'].astype(str).isin(valid_types)].copy()
 
     if df.empty:
         _atomic_write_parquet(empty_schema, MATERIAL_EVENTS_PATH)
