@@ -70,6 +70,37 @@ def load_universe_names() -> dict[str, str]:
     return dict(zip(u['stock_id'].astype(str), u[name_col]))
 
 
+def _fetch_twse_close_for_date(week_end) -> pd.DataFrame | None:
+    """抓 TWSE/TPEX MI_INDEX_ALL 一日全市場 close (~30s, 1 API call).
+
+    Returns DataFrame[stock_id, close_ref] 或 None (API 失敗 / API 無此日資料).
+    用於 weekly_chip_report 把 weekly_net_shares × close 算出當週金額；
+    用 week_end 當日 close 比 ohlcv per-stock fallback 精準很多。
+    """
+    import sys as _sys
+    _sys.path.insert(0, str(REPO))
+    try:
+        from twse_api import TWSEOpenData
+    except ImportError:
+        return None
+    try:
+        api = TWSEOpenData()
+        # week_end 是 pd.Timestamp，轉 datetime 給 API
+        df = api.get_market_daily_all(date=pd.Timestamp(week_end).to_pydatetime())
+        if df is None or df.empty:
+            return None
+        # 標準化 col name (twse_api 用 lowercase 'close', weekly_chip 用 'close_ref')
+        df = df[['stock_id', 'close']].copy()
+        df['stock_id'] = df['stock_id'].astype(str)
+        df = df.rename(columns={'close': 'close_ref'})
+        # 過濾 NaN close (有些股票當日休市/停止交易)
+        df = df.dropna(subset=['close_ref'])
+        return df
+    except Exception:
+        # 任何異常都 graceful degrade 走 ohlcv fallback
+        return None
+
+
 def compute_summary(inst_recent: pd.DataFrame, window: list, net_col: str,
                     closes: pd.DataFrame) -> pd.DataFrame:
     """對指定 net column 算每檔 consec_buy / consec_sell / weekly_net_shares + 金額。"""
@@ -201,18 +232,28 @@ def compute_weekly_rankings(week_end_str: str | None = None) -> tuple[dict, dict
     # 過濾掉 ETF (00開頭) 與權證等非一般個股
     inst_recent = inst_recent[~inst_recent['stock_id'].astype(str).str.startswith('00')]
 
+    # close_ref 三段 fallback (per-stock 最新可得 close)：
+    # 1. 優先試 TWSE/TPEX MI_INDEX_ALL 抓 week_end 當天 全市場 close (1 API call,
+    #    所有股票同一日 close, 金額估算最精準)
+    # 2. fallback: ohlcv_tw.parquet per-stock 最新可得 (--resume 對既有 ticker
+    #    不會推進新日期，故 1900+ 檔可能落在較舊日期)
+    # 3. 兩段缺的最後 fallback: combine — TWSE 蓋過 ohlcv stale 資料
+    closes_twse = _fetch_twse_close_for_date(week_end)
     ohlcv = pd.read_parquet(OHLCV_PARQUET, columns=['stock_id', 'date', 'Close'])
     ohlcv['stock_id'] = ohlcv['stock_id'].astype(str)
     ohlcv_dates = sorted(ohlcv['date'].unique())
     close_target = max([d for d in ohlcv_dates if d <= week_end], default=None)
-    if close_target is None:
-        raise ValueError(f"ohlcv 沒有 <= {week_end.date()} 的資料")
-    # 取每檔在 week_end (含) 之前的最新 close 為 close_ref
-    # (ohlcv --resume 不會更新已存在 ticker 的新日期，故 close_target 那天可能只有少數股票
-    #  有資料；改用 per-stock 最後可得 close 避免 weekly_net_amount_k 大量 NaN)
+    if close_target is None and closes_twse is None:
+        raise ValueError(f"既沒 TWSE API 也沒 ohlcv 有 <= {week_end.date()} 的資料")
     ohlcv_pre = ohlcv[ohlcv['date'] <= week_end].sort_values('date')
-    closes = ohlcv_pre.groupby('stock_id', as_index=False).tail(1)[
+    closes_ohlcv = ohlcv_pre.groupby('stock_id', as_index=False).tail(1)[
         ['stock_id', 'Close']].rename(columns={'Close': 'close_ref'})
+    if closes_twse is not None and not closes_twse.empty:
+        # TWSE API 蓋過 ohlcv stale value (where overlap)
+        closes = closes_twse.set_index('stock_id').combine_first(
+            closes_ohlcv.set_index('stock_id')).reset_index()
+    else:
+        closes = closes_ohlcv
 
     dim_results = {}
     for net_col, dim_name, _prefix in NET_DIMENSIONS:
@@ -303,7 +344,7 @@ def main():
     L.append(f"- 統計窗口: **{window[0].date()} ~ {window[-1].date()}** (共 {len(window)} 個交易日)")
     L.append(f"- 產出時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     L.append(f"- Universe: 全市場")
-    L.append(f"- 金額估算: 千元 = 當週淨買賣股數 × 該股 <={close_target.date()} 的最新可得收盤價 / 1000 (per-stock 取最近)")
+    L.append(f"- 金額估算: 千元 = 當週淨買賣股數 × 該股 {week_end.date()} 收盤價 / 1000 (TWSE/TPEX MI_INDEX 直連; 個股缺資料退化用 ohlcv per-stock 最新)")
     L.append(f"- 維度: 4 個 (三大法人合計 / 外資 / 投信 / 自營商) × 4 個榜 = **16 個 Top 10**")
     L.append("")
 
