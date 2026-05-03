@@ -4,14 +4,33 @@
 觸發條件對 merged 結構的判斷正確。
 """
 import sys
+from datetime import date
 from pathlib import Path
 
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / 'tools'))
 
 from news_intraday_monitor import evaluate_trigger  # noqa: E402
+from tw_calendar import is_tw_trading_day  # noqa: E402
+
+
+class TestWeekdayGate:
+    """確保 weekday gate 行為正確 (script main 用 is_tw_trading_day)."""
+
+    def test_monday_is_trading_day(self):
+        assert is_tw_trading_day(date(2026, 5, 4))   # Mon
+
+    def test_friday_is_trading_day(self):
+        assert is_tw_trading_day(date(2026, 5, 8))   # Fri
+
+    def test_saturday_blocked(self):
+        assert not is_tw_trading_day(date(2026, 5, 2))  # Sat
+
+    def test_sunday_blocked(self):
+        assert not is_tw_trading_day(date(2026, 5, 3))  # Sun
 
 
 class TestEvaluateTriggerEmpty:

@@ -247,9 +247,23 @@ def main():
                     help='只抓不 LLM 不 push (debug)')
     ap.add_argument('--no-discord', action='store_true',
                     help='跑全鏈但不送 Discord')
+    ap.add_argument('--force', action='store_true',
+                    help='略過 weekday/holiday 檢查強跑 (debug)')
     args = ap.parse_args()
 
     slot_label = datetime.now().strftime('%H:%M')
+
+    # 假日守門 — 週末 + (隱性) 國定假日跳過免燒 LLM
+    # tw_calendar 只覆蓋 weekday()，國定假日如 5/1 / 春節 / 雙十仍會 fire，
+    # 但那天 cnyes/UDN 流量本就低，trigger 不易命中 cost 微小（~$0.05/holiday）
+    # 若 user 想完全省，可在 Task Scheduler 手動 Disable + Re-enable
+    if not args.force:
+        from tw_calendar import is_tw_trading_day  # noqa: E402
+        if not is_tw_trading_day(datetime.now().date()):
+            logger.info("Today is non-trading day (weekend), skip slot %s",
+                        slot_label)
+            return
+
     logger.info("=== Intraday monitor slot %s (window=%d min) ===",
                 slot_label, args.window_min)
 
