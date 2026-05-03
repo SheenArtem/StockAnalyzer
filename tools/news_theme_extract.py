@@ -505,11 +505,11 @@ def build_extraction_prompt(articles: list[dict]) -> str:
 
 #### individual 額外（Phase 1 #3 券商目標價，文章涉及分析師升降評時才填）
 - target_prices: list[dict]，文章提到的券商目標價清單
-  - 每筆 dict: {"broker": str, "price": float, "rating": str}
+  - 每筆 dict: {{"broker": str, "price": float, "rating": str}}
   - broker: 券商名稱（中文）「凱基/富邦/美林/摩根/野村/瑞銀/...」
   - price: 目標價數字（純數字, e.g. 1500.0, **單位元/USD 看文章上下文，不要轉換**）
   - rating: 「買進/Buy/加碼/Outperform/中立/Hold/減碼/Underperform/賣出/Sell」或 ""
-  - 例: [{"broker":"凱基","price":1500.0,"rating":"買進"}, {"broker":"美林","price":1450.0,"rating":"Buy"}]
+  - 例: [{{"broker":"凱基","price":1500.0,"rating":"買進"}}, {{"broker":"美林","price":1450.0,"rating":"Buy"}}]
   - 文章沒提到券商目標價 → []
   - **同一篇若多家券商各給目標價要全列**，不要只列一家
   - **禁止**自己換算 / 推測（沒明確數字就 ""）
