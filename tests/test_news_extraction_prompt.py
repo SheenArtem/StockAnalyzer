@@ -43,6 +43,65 @@ class TestNormalizeThemeKey:
         assert normalize_theme_key(None) == ''
 
 
+class TestFetchUdnHtmlBody:
+    """Phase 1+ I: UDN HTML body fetcher (網路依賴, 用 mock)."""
+
+    def test_non_udn_url_returns_summary(self):
+        from news_theme_extract import _fetch_udn_html_body
+        body, status = _fetch_udn_html_body('https://example.com/x')
+        assert body == '' and status == 'summary_only'
+
+    def test_empty_url_returns_summary(self):
+        from news_theme_extract import _fetch_udn_html_body
+        body, status = _fetch_udn_html_body('')
+        assert body == '' and status == 'summary_only'
+
+    def test_selector_priority(self, monkeypatch):
+        """Mock UDN HTML 含 article-body__editor 應優先取."""
+        import news_theme_extract as m
+
+        class MockResp:
+            status_code = 200
+            text = (
+                '<html><body>'
+                '<section class="article-body__editor">'
+                + ('文章內容很長很長很長很長。' * 20) +  # > 200 chars
+                '</section>'
+                '<div class="article-body">should not match</div>'
+                '</body></html>'
+            )
+            def raise_for_status(self): pass
+
+        monkeypatch.setattr(m.requests, 'get', lambda *a, **kw: MockResp())
+        body, status = m._fetch_udn_html_body('https://money.udn.com/x')
+        assert status == 'udn_html'
+        assert '文章內容' in body
+        assert 'should not match' not in body
+
+    def test_no_selector_match_falls_back(self, monkeypatch):
+        import news_theme_extract as m
+
+        class MockResp:
+            status_code = 200
+            text = '<html><body><div>tiny content</div></body></html>'
+            def raise_for_status(self): pass
+
+        monkeypatch.setattr(m.requests, 'get', lambda *a, **kw: MockResp())
+        body, status = m._fetch_udn_html_body('https://money.udn.com/x')
+        # tiny content < UDN_HTML_MIN_BODY_FROM_RSS=200 → fallback
+        assert status == 'summary_only'
+
+    def test_get_failure_falls_back(self, monkeypatch):
+        import news_theme_extract as m
+
+        def raise_err(*a, **kw):
+            raise m.requests.exceptions.Timeout('mock timeout')
+
+        monkeypatch.setattr(m.requests, 'get', raise_err)
+        body, status = m._fetch_udn_html_body('https://money.udn.com/x')
+        assert body == '' and status == 'summary_only'
+
+
 class TestPickCanonicalTheme:
     def test_most_common_wins(self):
         # ABF 載板 出現 3 次, ABF載板 1 次 → 前者勝

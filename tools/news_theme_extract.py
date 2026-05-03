@@ -230,8 +230,58 @@ def _truncate_body(text: str, max_chars: int = BODY_FULL_MAX_CHARS) -> str:
     return cleaned[:max_chars]
 
 
-def fetch_udn_rss(label: str, url: str, days: int = 7, max_items: int = 30) -> list[dict]:
-    """經濟日報 (udn money) RSS direct."""
+UDN_HTML_TIMEOUT = 8           # GET 單篇 timeout 秒
+UDN_HTML_THROTTLE = 0.4        # call 間隔（避免被 ban）
+UDN_HTML_MIN_BODY_FROM_RSS = 200  # body_full 短於 N chars 才 GET HTML 補
+UDN_BODY_SELECTORS = (         # ordered fallback
+    'section.article-body__editor',
+    'div.article-body',
+    'div[itemprop="articleBody"]',
+    'article',
+)
+
+
+def _fetch_udn_html_body(url: str) -> tuple[str, str]:
+    """GET UDN money article URL, extract body text from `section.article-body__editor`.
+
+    Returns (body_text, status) where status='udn_html' on success, 'summary_only' on fail.
+    Failure = 403/timeout/no selector match → caller 保留 RSS description body 即可。
+    """
+    if not url or 'money.udn.com' not in url:
+        return '', 'summary_only'
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return '', 'summary_only'
+    try:
+        resp = requests.get(url, timeout=UDN_HTML_TIMEOUT,
+                            headers={'User-Agent': 'Mozilla/5.0'})
+        resp.raise_for_status()
+    except Exception as e:
+        logger.debug("UDN HTML fetch %s failed: %s", url, e)
+        return '', 'summary_only'
+    try:
+        soup = BeautifulSoup(resp.text, 'html.parser')
+    except Exception as e:
+        logger.debug("UDN HTML parse %s failed: %s", url, e)
+        return '', 'summary_only'
+    for sel in UDN_BODY_SELECTORS:
+        el = soup.select_one(sel)
+        if el:
+            text = el.get_text(separator=' ', strip=True)
+            if len(text) >= UDN_HTML_MIN_BODY_FROM_RSS:
+                return _truncate_body(text), 'udn_html'
+    return '', 'summary_only'
+
+
+def fetch_udn_rss(label: str, url: str, days: int = 7, max_items: int = 30,
+                  enrich_html: bool = True) -> list[dict]:
+    """經濟日報 (udn money) RSS direct.
+
+    enrich_html=True: 對每篇 RSS item GET HTML page extract 全文 body
+    (~1s/article, throttled 0.4s; RSS description ~100 chars 太短 LLM 不夠抽).
+    enrich_html=False: 純 RSS（debug / fast path）。
+    """
     try:
         resp = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
         resp.raise_for_status()
@@ -262,6 +312,15 @@ def fetch_udn_rss(label: str, url: str, days: int = 7, max_items: int = 30) -> l
                 continue
         if dt and dt.replace(tzinfo=None) < cutoff:
             continue
+        # Phase 1+ I: GET HTML 補全文 body (RSS description ~100 chars 太短)
+        body_full = _truncate_body(desc)
+        body_status = 'summary_only'
+        if enrich_html and link and len(body_full) < UDN_HTML_MIN_BODY_FROM_RSS:
+            html_body, html_status = _fetch_udn_html_body(link)
+            if html_status == 'udn_html' and html_body:
+                body_full = html_body
+                body_status = html_status
+            time.sleep(UDN_HTML_THROTTLE)
         out.append({
             'query': label,
             'title': title,
@@ -272,11 +331,8 @@ def fetch_udn_rss(label: str, url: str, days: int = 7, max_items: int = 30) -> l
             'published_at': dt.replace(tzinfo=None).isoformat() if dt else '',
             'summary': desc[:300],
             'link': link,
-            # Commit 4: body_full archive (UDN RSS 只給 description, 真全文需 GET HTML page,
-            # 先用 description as body_full + 標 status='summary_only' fallback,
-            # Phase 1+ 視需要加 GET HTML fetcher)
-            'body_full': _truncate_body(desc),
-            'body_status': 'summary_only',
+            'body_full': body_full,
+            'body_status': body_status,
         })
     return out
 
