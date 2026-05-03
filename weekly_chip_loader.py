@@ -8,7 +8,8 @@ Schema: week_end | dim | dim_name_zh | rank_type | rank | stock_id |
         stock_name | consec_days | weekly_amount_k | weekly_shares
 
 dim ∈ {total, foreign, trust, dealer}
-rank_type ∈ {consec_buy, consec_sell, week_buy, week_sell}
+rank_type ∈ {consec_buy, consec_sell, week_buy, week_sell,
+              week_buy_shares, week_sell_shares}
 """
 from __future__ import annotations
 
@@ -42,6 +43,8 @@ RANK_TYPE_LABELS_ZH = {
     'consec_sell': '連續賣超天數',
     'week_buy': '當週買超金額',
     'week_sell': '當週賣超金額',
+    'week_buy_shares': '當週買超張數',
+    'week_sell_shares': '當週賣超張數',
 }
 
 

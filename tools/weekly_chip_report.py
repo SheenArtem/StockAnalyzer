@@ -4,12 +4,14 @@ BL-4: 三大法人週報 (週六 08:00 batch) — v2 各法人分開
 Spec (2026-04-27 user 確認):
 - 最近 5 交易日全市場
 - 4 個維度: 三大法人合計 (total_net) / 外資 / 投信 / 自營商
-- 每維度 4 個獨立 Top 10:
+- 每維度 6 個獨立 Top 10:
     1. 連續買超天數 desc (tiebreak 當週金額 desc)
     2. 連續賣超天數 desc (tiebreak 當週金額 asc)
     3. 當週買超金額 desc
     4. 當週賣超金額 asc
-- 共 4 × 4 = 16 個 Top 10 表
+    5. 當週買超張數 desc
+    6. 當週賣超張數 asc
+- 共 4 × 6 = 24 個 Top 10 表
 
 輸出: reports/weekly_chip_report_YYYY-MM-DD.md
 
@@ -135,6 +137,7 @@ def compute_summary(inst_recent: pd.DataFrame, window: list, net_col: str,
 
 
 def get_top10s(summary: pd.DataFrame) -> tuple:
+    """6 個 Top 10：連買/連賣天數、當週金額買/賣、當週張數買/賣。"""
     cb = summary[summary['consec_buy'] >= 1].sort_values(
         ['consec_buy', 'weekly_net_amount_k'], ascending=[False, False]).head(10)
     cs = summary[summary['consec_sell'] >= 1].sort_values(
@@ -143,12 +146,16 @@ def get_top10s(summary: pd.DataFrame) -> tuple:
         'weekly_net_amount_k', ascending=False).head(10)
     sa = summary[summary['weekly_net_amount_k'] < 0].sort_values(
         'weekly_net_amount_k', ascending=True).head(10)
-    return cb, cs, ba, sa
+    bs = summary[summary['weekly_net_shares'] > 0].sort_values(
+        'weekly_net_shares', ascending=False).head(10)
+    ss = summary[summary['weekly_net_shares'] < 0].sort_values(
+        'weekly_net_shares', ascending=True).head(10)
+    return cb, cs, ba, sa, bs, ss
 
 
 def render_dimension_section(L: list, prefix: str, dim_name: str,
-                             cb, cs, ba, sa, stock_label, fmt_amount):
-    """寫一個維度的 4 個 top 10 markdown table。"""
+                             cb, cs, ba, sa, bs, ss, stock_label, fmt_amount):
+    """寫一個維度的 6 個 top 10 markdown table。"""
     L.append(f"## {prefix}. {dim_name}")
     L.append("")
 
@@ -194,6 +201,28 @@ def render_dimension_section(L: list, prefix: str, dim_name: str,
         for i, (_, r) in enumerate(sa.iterrows(), 1):
             L.append(f"| {i} | {stock_label(r['stock_id'])} | "
                      f"{fmt_amount(r['weekly_net_amount_k'])} | {int(r['consec_sell'])} |")
+    L.append("")
+
+    L.append(f"### {prefix}.5 當週買超張數 Top 10")
+    if bs.empty:
+        L.append("(本週無淨買超標的)")
+    else:
+        L.append("| # | 股票 | 當週股數 | 當週金額 (千元) |")
+        L.append("|---|---|---|---|")
+        for i, (_, r) in enumerate(bs.iterrows(), 1):
+            L.append(f"| {i} | {stock_label(r['stock_id'])} | {int(r['weekly_net_shares']):+,d} | "
+                     f"{fmt_amount(r['weekly_net_amount_k'])} |")
+    L.append("")
+
+    L.append(f"### {prefix}.6 當週賣超張數 Top 10")
+    if ss.empty:
+        L.append("(本週無淨賣超標的)")
+    else:
+        L.append("| # | 股票 | 當週股數 | 當週金額 (千元) |")
+        L.append("|---|---|---|---|")
+        for i, (_, r) in enumerate(ss.iterrows(), 1):
+            L.append(f"| {i} | {stock_label(r['stock_id'])} | {int(r['weekly_net_shares']):+,d} | "
+                     f"{fmt_amount(r['weekly_net_amount_k'])} |")
     L.append("")
 
 
@@ -277,12 +306,13 @@ def save_long_format_parquet(metadata: dict, dim_results: dict, name_map: dict,
     Schema: week_end | dim | rank_type | rank | stock_id | stock_name |
             consec_days | weekly_amount_k | weekly_shares
     """
-    rank_type_keys = ['consec_buy', 'consec_sell', 'week_buy', 'week_sell']
+    rank_type_keys = ['consec_buy', 'consec_sell', 'week_buy', 'week_sell',
+                      'week_buy_shares', 'week_sell_shares']
     rows = []
     for net_col, dim_name, _prefix in NET_DIMENSIONS:
-        cb, cs, ba, sa = dim_results[net_col]
-        for rk_key, df in zip(rank_type_keys, [cb, cs, ba, sa]):
-            consec_col = 'consec_buy' if rk_key in ('consec_buy', 'week_buy') else 'consec_sell'
+        cb, cs, ba, sa, bs, ss = dim_results[net_col]
+        for rk_key, df in zip(rank_type_keys, [cb, cs, ba, sa, bs, ss]):
+            consec_col = 'consec_buy' if rk_key in ('consec_buy', 'week_buy', 'week_buy_shares') else 'consec_sell'
             for rank_idx, (_, r) in enumerate(df.iterrows(), 1):
                 rows.append({
                     'week_end': metadata['week_end'],
@@ -345,12 +375,13 @@ def main():
     L.append(f"- 產出時間: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     L.append(f"- Universe: 全市場")
     L.append(f"- 金額估算: 千元 = 當週淨買賣股數 × 該股 {week_end.date()} 收盤價 / 1000 (TWSE/TPEX MI_INDEX 直連; 個股缺資料退化用 ohlcv per-stock 最新)")
-    L.append(f"- 維度: 4 個 (三大法人合計 / 外資 / 投信 / 自營商) × 4 個榜 = **16 個 Top 10**")
+    L.append(f"- 維度: 4 個 (三大法人合計 / 外資 / 投信 / 自營商) × 6 個榜 = **24 個 Top 10**")
     L.append("")
 
     for net_col, dim_name, prefix in NET_DIMENSIONS:
-        cb, cs, ba, sa = dim_results[net_col]
-        render_dimension_section(L, prefix, dim_name, cb, cs, ba, sa, stock_label, fmt_amount)
+        cb, cs, ba, sa, bs, ss = dim_results[net_col]
+        render_dimension_section(L, prefix, dim_name, cb, cs, ba, sa, bs, ss,
+                                  stock_label, fmt_amount)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"weekly_chip_report_{week_end.strftime('%Y-%m-%d')}.md"
@@ -386,7 +417,7 @@ def push_summary(week_end, window, dim_results, name_map, out_path):
 
     issues = [f"窗口: {window[0].date()} ~ {window[-1].date()}", ""]
     for net_col, dim_name, _ in NET_DIMENSIONS:
-        cb, cs, ba, sa = dim_results[net_col]
+        cb, cs, ba, sa, _bs, _ss = dim_results[net_col]
         issues.extend([
             f"=== {dim_name} ===",
             f"連續買: {top1(cb, 'consec_buy')}",
