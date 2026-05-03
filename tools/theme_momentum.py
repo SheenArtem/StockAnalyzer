@@ -33,7 +33,9 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / 'tools'))
 
-from news_theme_extract import dedupe_by_event_id  # noqa: E402
+from news_theme_extract import (  # noqa: E402
+    dedupe_by_event_id, normalize_theme_key, pick_canonical_theme,
+)
 
 ARCHIVE_DIR = REPO / 'data_cache' / 'news_archive'
 OUT_PATH = REPO / 'data' / 'news' / 'theme_momentum.parquet'
@@ -78,6 +80,12 @@ def detect_momentum(df: pd.DataFrame, today: pd.Timestamp) -> pd.DataFrame:
         return pd.DataFrame()
 
     df['date_only'] = df['date'].dt.normalize()
+    # Phase 1+ theme variant normalize: 用 canonical key groupby 合併「ABF 載板」「ABF載板」
+    df['theme_key'] = df['theme'].astype(str).map(normalize_theme_key)
+    # 顯示用 theme = 該 key 下最常見 variant
+    canonical_map = (df.groupby('theme_key')['theme']
+                       .apply(lambda s: pick_canonical_theme(s.tolist())).to_dict())
+    df['theme'] = df['theme_key'].map(canonical_map)
     by_dt = df.groupby(['date_only', 'theme']).size().reset_index(name='cnt')
 
     today_df = by_dt[by_dt['date_only'] == today].rename(columns={'cnt': 'count_today'})

@@ -18,7 +18,43 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / 'tools'))
 
-from news_theme_extract import build_extraction_prompt  # noqa: E402
+from news_theme_extract import (  # noqa: E402
+    build_extraction_prompt, normalize_theme_key, pick_canonical_theme,
+)
+
+
+class TestNormalizeThemeKey:
+    """Phase 1+ theme variant normalization."""
+
+    def test_strips_internal_whitespace(self):
+        assert (normalize_theme_key('ABF 載板') ==
+                normalize_theme_key('ABF載板') == 'abf載板')
+
+    def test_lowercase_english(self):
+        assert (normalize_theme_key('CoWoS 先進封裝') ==
+                normalize_theme_key('cowos 先進封裝') ==
+                normalize_theme_key('CoWoS先進封裝') == 'cowos先進封裝')
+
+    def test_multiple_spaces_collapsed(self):
+        assert normalize_theme_key('AI    雲端') == 'ai雲端'
+
+    def test_empty_returns_empty(self):
+        assert normalize_theme_key('') == ''
+        assert normalize_theme_key(None) == ''
+
+
+class TestPickCanonicalTheme:
+    def test_most_common_wins(self):
+        # ABF 載板 出現 3 次, ABF載板 1 次 → 前者勝
+        assert pick_canonical_theme(['ABF 載板', 'ABF 載板', 'ABF 載板',
+                                     'ABF載板']) == 'ABF 載板'
+
+    def test_tie_keeps_first(self):
+        assert pick_canonical_theme(['A', 'B', 'A', 'B']) == 'A'
+
+    def test_empty_returns_empty(self):
+        assert pick_canonical_theme([]) == ''
+        assert pick_canonical_theme(['', None, '']) == ''
 
 
 class TestBuildExtractionPromptSyntax:

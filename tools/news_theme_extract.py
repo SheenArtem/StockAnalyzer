@@ -132,6 +132,40 @@ def compute_event_id(title_hash: str, date_str: str) -> str:
     return f"{title_hash}_{date_str[:10]}"
 
 
+def normalize_theme_key(s) -> str:
+    """Theme groupby canonical key — strip 所有內部 whitespace + lowercase.
+
+    Phase 1 #7+ known issue: LLM 對「ABF 載板」vs「ABF載板」這種「英文+中文」
+    題材偶爾輸出 variant，導致 themes_core / theme_momentum groupby 時被視
+    為兩個獨立 theme 灌票。這個 helper 提供 canonical key 給 groupby 用,
+    Display 仍保留 variant 文字（pick_canonical_theme 選最常見）。
+
+    Examples:
+        normalize_theme_key('ABF 載板') == normalize_theme_key('ABF載板') == 'abf載板'
+        normalize_theme_key('CoWoS 先進封裝') == 'cowos先進封裝'
+        normalize_theme_key('') == ''
+    """
+    import re
+    if not s:
+        return ''
+    return re.sub(r'\s+', '', str(s)).lower()
+
+
+def pick_canonical_theme(variants) -> str:
+    """從 variants 挑顯示用 canonical name — most common, tiebreak first-seen.
+
+    用於 rebuild_themes_core / theme_momentum 的 display 欄。
+    """
+    if not variants:
+        return ''
+    from collections import Counter
+    cnt = Counter(v for v in variants if v)
+    if not cnt:
+        return ''
+    # most_common returns sorted by count desc, then insertion order (Python 3.7+)
+    return cnt.most_common(1)[0][0]
+
+
 def dedupe_by_event_id(df, keep: str = 'first'):
     """Dedupe rows with same (event_id, ticker, theme), keep first source.
 
@@ -1087,12 +1121,17 @@ def rebuild_themes_core() -> dict:
     # BLOCKER #1: dedupe by event_id 防同事件灌水 themes_core 晉升門檻
     df = dedupe_by_event_id(df)
 
-    agg = df.groupby(['ticker', 'theme'], as_index=False).agg(
+    # Phase 1+ theme variant normalize: 「ABF 載板」「ABF載板」合併計票
+    # (canonical_key 用於 groupby, display theme 用最常見 variant)
+    df['theme_key'] = df['theme'].astype(str).map(normalize_theme_key)
+    agg = df.groupby(['ticker', 'theme_key'], as_index=False).agg(
+        theme=('theme', lambda s: pick_canonical_theme(s.tolist())),
         count=('event_id', 'count'),
         first_seen=('date', 'min'),
         last_seen=('date', 'max'),
         sentiment_avg=('sentiment', 'mean'),
     )
+    agg = agg.drop(columns=['theme_key'])
 
     sticky = agg[agg['count'] >= THEMES_CORE_MIN_COUNT].copy()
     _atomic_write_parquet(sticky, THEMES_CORE_PATH)
