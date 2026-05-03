@@ -1,12 +1,12 @@
 {
   "scan_type": "qm",
-  "scan_date": "2026-05-03",
-  "scan_time": "04:44",
+  "scan_date": "2026-05-04",
+  "scan_time": "04:59",
   "market": "tw",
   "total_scanned": 1967,
   "passed_initial": 286,
   "scored_count": 20,
-  "elapsed_seconds": 16636.7,
+  "elapsed_seconds": 16718.3,
   "failures": [],
   "config": {
     "momentum_change_min": -1.0,
@@ -3573,7 +3573,7 @@
         "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
         "流動比率=5.5 安全 (+5)",
         "Z-Score=195.0 [資訊]",
-        "營益率=23.1% 優 (+5) [TV]",
+        "營益率=31.5% 優 (+5) [TV]",
         "營收正驚喜 +65.4% (+12)"
       ],
       "qm_f_score": 8,
