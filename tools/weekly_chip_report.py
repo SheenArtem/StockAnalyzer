@@ -301,10 +301,12 @@ def compute_weekly_rankings(week_end_str: str | None = None) -> tuple[dict, dict
 
 def save_long_format_parquet(metadata: dict, dim_results: dict, name_map: dict,
                               out_path: Path = LATEST_PARQUET) -> None:
-    """把 16 個 Top 10 攤成 long-format parquet 給 UI 載入。
+    """把 24 個 Top 10 (4 dim × 6 rank) 攤成 long-format parquet 給 UI 載入。
 
     Schema: week_end | dim | rank_type | rank | stock_id | stock_name |
             consec_days | weekly_amount_k | weekly_shares
+    rank_type ∈ {consec_buy, consec_sell, week_buy, week_sell,
+                 week_buy_shares, week_sell_shares}
     """
     rank_type_keys = ['consec_buy', 'consec_sell', 'week_buy', 'week_sell',
                       'week_buy_shares', 'week_sell_shares']
