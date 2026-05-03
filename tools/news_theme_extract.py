@@ -233,6 +233,9 @@ def fetch_udn_rss(label: str, url: str, days: int = 7, max_items: int = 30) -> l
             'title': title,
             'source': '經濟日報',
             'date': dt.strftime('%Y-%m-%d') if dt else pub_date_raw[:16],
+            # Phase 1 #7 intraday: ISO timestamp for 30-min window filter (additive,
+            # _build_rows 不寫進 archive)
+            'published_at': dt.replace(tzinfo=None).isoformat() if dt else '',
             'summary': desc[:300],
             'link': link,
             # Commit 4: body_full archive (UDN RSS 只給 description, 真全文需 GET HTML page,
@@ -357,6 +360,9 @@ def fetch_cnyes_api(label: str, category: str, limit: int = 30, days: int = 7) -
             'title': title,
             'source': '鉅亨網 cnyes',
             'date': dt.strftime('%Y-%m-%d') if dt else '',
+            # Phase 1 #7 intraday: ISO timestamp for 30-min window filter (additive,
+            # _build_rows 不寫進 archive)
+            'published_at': dt.isoformat() if dt else '',
             'summary': summary_aug[:400],
             'link': f'https://news.cnyes.com/news/id/{it.get("newsId", "")}',
             'body_full': body_full,
