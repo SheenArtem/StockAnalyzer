@@ -84,15 +84,19 @@ _JITTER_FACTOR = float(os.getenv("MOPS_RATE_JITTER", "0.3"))
 _rate_lock = threading.Lock()
 _last_request_ts = 0.0
 
-# Circuit breaker：連續失敗達門檻 -> pause N 秒後重置
+# Circuit breaker：連續失敗達門檻 -> pause N 秒。
+# 2026-05-05: trip 不再 block-sleep，改 raise MopsUnavailable，由 caller fallback FinMind。
+# 同日內 trip 累積達 _MAX_TRIPS_PER_DAY -> sticky disable，剩餘時段全 raise。
+# Why: 5/5 incident 卡 8h18m 在 trip->sleep600s->trip 無限迴圈，違反 fail-loud。
 _BREAKER_THRESHOLD = int(os.getenv("MOPS_BREAKER_THRESHOLD", "5"))
 _BREAKER_PAUSE = int(os.getenv("MOPS_BREAKER_PAUSE", "600"))  # 10 分鐘
+_MAX_TRIPS_PER_DAY = int(os.getenv("MOPS_MAX_TRIPS", "3"))
 _breaker_lock = threading.Lock()
 _consecutive_errors = 0
 _breaker_paused_until = 0.0
 
-# Daily cap：每日 req 總數上限。狀態寫 data_cache/mops_daily_usage.json，
-# 跨 process / 跨執行保留計數；過 00:00 自動歸零。
+# Daily cap：每日 req 總數上限 + circuit breaker trip 次數。
+# 狀態寫 data_cache/mops_daily_usage.json，跨 process / 跨執行保留；過 00:00 自動歸零。
 _DAILY_CAP = int(os.getenv("MOPS_DAILY_CAP", "500"))
 _daily_lock = threading.Lock()
 _DAILY_USAGE_FILE = Path(__file__).parent / "data_cache" / "mops_daily_usage.json"
@@ -100,6 +104,10 @@ _DAILY_USAGE_FILE = Path(__file__).parent / "data_cache" / "mops_daily_usage.jso
 
 class MopsDailyCapExceeded(RuntimeError):
     """Daily cap 達上限，本次 request 被拒絕。"""
+
+
+class MopsUnavailable(RuntimeError):
+    """MOPS 不可用（circuit breaker 啟動中或當日 trip 次數爆表），caller 應 fallback FinMind。"""
 
 
 # Backfill semaphore：歷史回填必須 serialize（禁止併發 MOPS call），
@@ -128,14 +136,56 @@ def _throttle() -> None:
         _last_request_ts = time.time()
 
 
+def _load_daily_state() -> dict:
+    """讀今日 MOPS usage state，跨日歸零。回傳 {date, count, trips}。
+
+    跨 process 共享：data_cache/mops_daily_usage.json。
+    """
+    today = date.today().isoformat()
+    state = {"date": today, "count": 0, "trips": 0}
+    if _DAILY_USAGE_FILE.exists():
+        try:
+            loaded = json.loads(_DAILY_USAGE_FILE.read_text(encoding="utf-8"))
+            if loaded.get("date") == today:
+                state["count"] = int(loaded.get("count", 0))
+                state["trips"] = int(loaded.get("trips", 0))
+        except Exception:
+            pass
+    return state
+
+
+def _save_daily_state(state: dict) -> None:
+    """落地今日 state（caller 須自行加鎖避免 race）。"""
+    try:
+        _DAILY_USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _DAILY_USAGE_FILE.write_text(
+            json.dumps(state, ensure_ascii=False), encoding="utf-8"
+        )
+    except Exception as e:
+        logger.debug("MOPS daily usage write failed: %s", e)
+
+
 def _check_breaker() -> None:
-    """若 circuit breaker 啟動中，等到 pause 結束。"""
+    """Circuit breaker 啟動中或當日 trip 爆表 -> raise MopsUnavailable（不 sleep）。
+
+    2026-05-05 fix: 原本 trip 後 block-sleep 600s 又繼續 retry，會卡死 8h+。
+    現在 raise 給 caller (`cache_manager.get_cached_fundamentals`) 立刻 fallback FinMind。
+    """
+    # 1. Sticky disable: 當日 trip 次數爆表 -> 整天剩餘時段全擋（跨 process）
+    state = _load_daily_state()
+    if state["trips"] >= _MAX_TRIPS_PER_DAY:
+        raise MopsUnavailable(
+            f"MOPS sticky-disabled today ({state['trips']} trips >= max {_MAX_TRIPS_PER_DAY}), "
+            f"falling back to FinMind for rest of day"
+        )
+    # 2. 當前 pause window：trip 剛發生，等待 _BREAKER_PAUSE 秒（不 block-sleep）
     with _breaker_lock:
         now = time.time()
         if _breaker_paused_until > now:
             wait = _breaker_paused_until - now
-            logger.warning("MOPS circuit breaker active, sleeping %.0fs", wait)
-            time.sleep(wait)
+            raise MopsUnavailable(
+                f"MOPS circuit breaker active for next {wait:.0f}s, fallback to FinMind"
+            )
 
 
 def _record_success() -> None:
@@ -147,45 +197,44 @@ def _record_success() -> None:
 
 def _check_daily_cap() -> None:
     """檢查並 +1 今日 req 計數。超過 _DAILY_CAP 拋 MopsDailyCapExceeded。"""
-    today = date.today().isoformat()
     with _daily_lock:
-        state = {"date": today, "count": 0}
-        if _DAILY_USAGE_FILE.exists():
-            try:
-                state = json.loads(_DAILY_USAGE_FILE.read_text(encoding="utf-8"))
-                if state.get("date") != today:
-                    state = {"date": today, "count": 0}  # 跨日歸零
-            except Exception:
-                pass
+        state = _load_daily_state()
         if state["count"] >= _DAILY_CAP:
             raise MopsDailyCapExceeded(
                 f"MOPS daily cap {_DAILY_CAP} reached ({state['count']} today), "
                 f"refusing further requests until tomorrow"
             )
         state["count"] += 1
-        try:
-            _DAILY_USAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
-            _DAILY_USAGE_FILE.write_text(
-                json.dumps(state, ensure_ascii=False), encoding="utf-8"
-            )
-        except Exception as e:
-            logger.debug("MOPS daily usage write failed: %s", e)
+        _save_daily_state(state)
 
 
 def _record_failure() -> None:
-    """失敗 +1；達門檻 -> 啟動 circuit breaker。"""
+    """失敗 +1；達門檻 -> 啟動 circuit breaker。trip 累計達 _MAX_TRIPS_PER_DAY -> sticky disable。"""
     global _consecutive_errors, _breaker_paused_until
+    triggered_trip = False
     with _breaker_lock:
         _consecutive_errors += 1
         if _consecutive_errors >= _BREAKER_THRESHOLD:
             _breaker_paused_until = time.time() + _BREAKER_PAUSE
-            logger.warning(
-                "MOPS circuit breaker TRIPPED after %d consecutive errors, "
-                "pausing %ds (until %s)",
-                _consecutive_errors, _BREAKER_PAUSE,
-                datetime.fromtimestamp(_breaker_paused_until).strftime("%H:%M:%S"),
-            )
+            triggered_trip = True
             _consecutive_errors = 0  # reset 避免 re-trigger
+    if triggered_trip:
+        # 持久化 trip 計數（跨 process）
+        with _daily_lock:
+            state = _load_daily_state()
+            state["trips"] += 1
+            _save_daily_state(state)
+            trips_today = state["trips"]
+        logger.warning(
+            "MOPS circuit breaker TRIPPED (%d/%d trips today), pausing %ds (until %s)",
+            trips_today, _MAX_TRIPS_PER_DAY, _BREAKER_PAUSE,
+            datetime.fromtimestamp(_breaker_paused_until).strftime("%H:%M:%S"),
+        )
+        if trips_today >= _MAX_TRIPS_PER_DAY:
+            logger.error(
+                "MOPS sticky-disabled for rest of day: %d trips >= max %d",
+                trips_today, _MAX_TRIPS_PER_DAY,
+            )
 
 
 def _get_session() -> requests.Session:
@@ -214,8 +263,10 @@ def _post(endpoint: str, payload: dict) -> dict:
     """POST 到 MOPS API，回傳 result dict。失敗拋 RuntimeError。
 
     內建：全域 throttle、circuit breaker、daily cap、連續失敗追蹤。
-    Daily cap 爆表時拋 MopsDailyCapExceeded（RuntimeError 子類），
-    上層可以 catch 後 fallback 到 FinMind。
+    抛出 RuntimeError 子類（caller 應 except Exception fallback 到 FinMind）：
+      - MopsDailyCapExceeded: 當日 req 爆 _DAILY_CAP
+      - MopsUnavailable: circuit breaker 啟動中或當日 trip 爆 _MAX_TRIPS_PER_DAY
+      - RuntimeError: API code != 200 或 transport 失敗
     """
     _check_breaker()
     _check_daily_cap()
