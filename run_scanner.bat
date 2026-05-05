@@ -29,9 +29,12 @@ set PYTHONIOENCODING=utf-8
 
 REM 2026-04-20: MOPS WAF banned local IP; --no-mops CLI flag forced FinMind path.
 REM 2026-05-02: removed --no-mops (probe 11 days OK, USE_MOPS=true cache_manager
-REM default); observe scanner.log circuit breaker for 1-2 weeks before relaxing
-REM MOPS_RATE_INTERVAL from 5.0s to 4.0s. Rollback: re-add --no-mops to two
-REM scanner_job.py invocations below.
+REM default).
+REM 2026-05-05: scanner hung 8h18m on infinite trip->sleep->trip loop. Fixed
+REM mops_fetcher circuit breaker: now raises MopsUnavailable (no block-sleep) +
+REM sticky-disables after 3 trips/day. Tests in tests/test_mops_circuit_breaker.py.
+REM Rollback (if MOPS misbehaves): re-add --no-mops to two scanner_job.py
+REM invocations below.
 
 REM Rotate log: keep only previous + current
 if exist scanner_prev.log del scanner_prev.log
@@ -136,10 +139,12 @@ REM Value weights 30/25/30/15/0 (V_rev_heavy, WF 24 quarters 15 beats V_live 63%
 REM Chain: QM skips tracking; Value runs tracking last.
 REM --regime-filter: VF-G4 DRY-RUN logs today's regime vs volatile filter
 REM (audit only, does not drop picks).
-python scanner_job.py --mode qm --market tw --no-tracking --regime-filter volatile --push --notify >> scanner.log 2>&1
+REM --notify removed 2026-05-04 per user request: cancel scan-result Discord pushes.
+REM To re-enable: append --notify back to both invocations.
+python scanner_job.py --mode qm --market tw --no-tracking --regime-filter volatile --push >> scanner.log 2>&1
 set PY_EXIT_QM=%ERRORLEVEL%
 
-python scanner_job.py --mode value --market tw --regime-filter volatile --push --notify >> scanner.log 2>&1
+python scanner_job.py --mode value --market tw --regime-filter volatile --push >> scanner.log 2>&1
 set PY_EXIT_VAL=%ERRORLEVEL%
 
 REM US Value scan removed 2026-04-22 after VF-Value-ex2 EDGAR walk-forward D reverse
@@ -165,9 +170,14 @@ echo [%date% %time%] Paper trade engine starting >> scanner.log
 python tools\paper_trade_engine.py >> scanner.log 2>&1
 echo [%date% %time%] Paper trade engine done >> scanner.log
 
+REM Discord daily summary DISABLED 2026-05-04 per user request: cancel scan-result
+REM Discord pushes (covers QM Top 5 + Step-A alerts + paper trade summary block).
+REM To re-enable: remove the "goto skip_discord_summary" line directly below.
+goto skip_discord_summary
 echo [%date% %time%] Discord daily summary starting >> scanner.log
 python tools\discord_daily_summary.py >> scanner.log 2>&1
 echo [%date% %time%] Discord daily summary done >> scanner.log
+:skip_discord_summary
 
 REM ------------------------------------------------------------
 REM Substack sync: download new songfen articles + detect pending INDEX updates.
