@@ -88,6 +88,7 @@ class TAIFEXData:
     Methods:
         get_futures_basis()        - 台指期正逆價差
         get_put_call_ratio()       - 選擇權 Put/Call Ratio (未平倉)
+        get_atm_put_premium()      - 近月 ATM PUT 權利金 + put skew (避險成本)
         get_institutional_futures()- 三大法人台指期未平倉
         get_large_trader_positions()- 大額交易人未沖銷部位
     """
@@ -295,6 +296,142 @@ class TAIFEXData:
             logger.warning("Failed to fetch put/call ratio (network): %s", e)
         except Exception as e:
             logger.error("Failed to fetch put/call ratio: %s", e, exc_info=True)
+
+        return result
+
+    # ------------------------------------------------------------------
+    # 近月 ATM 賣權權利金 + 5% OTM put skew (避險成本指標)
+    # ------------------------------------------------------------------
+    def get_atm_put_premium(self) -> Dict[str, Any]:
+        """
+        Fetch near-month ATM put premium (% of index) and OTM5 put skew.
+
+        避險成本指標：
+          - atm_put_pct 高 = 買 PUT 避險權利金貴 = 市場恐慌定價
+          - put_skew 高 = OTM PUT 比 ATM PUT 貴的程度（左尾恐慌定價，崩盤前常先升）
+
+        與 get_put_call_ratio 共用 TXO CSV 端點，僅取月選（排除週選 Wn）+ 一般盤。
+        Reference 用 spot_price (TWII) 優先，無則 fallback futures_price。
+
+        Returns:
+            dict with keys:
+              data_date, near_month, reference,
+              atm_strike, atm_put_close, atm_put_pct,
+              otm5_strike, otm5_put_close, put_skew
+        """
+        cached = self._cache.get('atm_put_premium')
+        if cached is not None:
+            return cached
+
+        result = {
+            'data_date': None,
+            'near_month': None,
+            'reference': 0.0,
+            'atm_strike': 0,
+            'atm_put_close': 0.0,
+            'atm_put_pct': 0.0,
+            'otm5_strike': 0,
+            'otm5_put_close': 0.0,
+            'put_skew': 0.0,
+        }
+
+        try:
+            # 1. 取 reference price（spot 優先，futures 備援）
+            basis = self.get_futures_basis()
+            reference = basis.get('spot_price') or basis.get('futures_price') or 0.0
+            if reference <= 0:
+                logger.warning("ATM PUT premium: no reference price available")
+                return result
+
+            # 2. 5 天回溯找最新有資料的交易日
+            today = datetime.now()
+            for delta in range(5):
+                d = today - timedelta(days=delta)
+                date_str = d.strftime('%Y/%m/%d')
+                url = 'https://www.taifex.com.tw/cht/3/dlOptDataDown'
+                payload = {
+                    'down_type': '1',
+                    'commodity_id': 'TXO',
+                    'queryStartDate': date_str,
+                    'queryEndDate': date_str,
+                }
+                resp = self._session.post(url, data=payload, timeout=REQUEST_TIMEOUT)
+                resp.raise_for_status()
+                content = resp.text.strip()
+                lines = content.split('\n')
+                if len(lines) < 10:
+                    continue
+
+                # 3. 收集月選 (排除 W 週選) + 一般盤 (排除盤後) 的 PUT records
+                # CSV cols: [0]date [1]contract [2]month_str [3]strike [4]PC
+                #          [5]open [6]high [7]low [8]close [9]volume [10]settle
+                #          [11]OI ... [17]session
+                put_records = []
+                for line in lines[1:]:
+                    fields = line.split(',')
+                    if len(fields) < 18:
+                        continue
+                    if fields[4].strip() != '賣權':
+                        continue
+                    month_str = fields[2].strip()
+                    if 'W' in month_str:  # 排除週選
+                        continue
+                    session = fields[17].strip()
+                    if session and session != '一般':  # 排除盤後 session
+                        continue
+                    try:
+                        strike = float(fields[3].strip())
+                        close_str = fields[8].strip()
+                        if close_str in ('-', ''):
+                            continue
+                        close_f = float(close_str)
+                        put_records.append((month_str, strike, close_f))
+                    except (ValueError, IndexError):
+                        continue
+
+                if not put_records:
+                    continue
+
+                # 4. 近月 = 字典序最早的 month_str (e.g. '202605' < '202606')
+                near_month = sorted(set(r[0] for r in put_records))[0]
+                near_records = [r for r in put_records if r[0] == near_month]
+                if not near_records:
+                    continue
+
+                # 5. ATM = 履約價最接近 reference; OTM5 = 最接近 reference * 0.95
+                atm_record = min(near_records, key=lambda r: abs(r[1] - reference))
+                otm5_target = reference * 0.95
+                otm5_record = min(near_records, key=lambda r: abs(r[1] - otm5_target))
+
+                atm_pct = (atm_record[2] / reference) * 100
+                put_skew = (otm5_record[2] / atm_record[2]) if atm_record[2] > 0 else 0.0
+
+                result = {
+                    'data_date': d.date(),
+                    'near_month': near_month,
+                    'reference': round(reference, 2),
+                    'atm_strike': int(atm_record[1]),
+                    'atm_put_close': round(atm_record[2], 2),
+                    'atm_put_pct': round(atm_pct, 3),
+                    'otm5_strike': int(otm5_record[1]),
+                    'otm5_put_close': round(otm5_record[2], 2),
+                    'put_skew': round(put_skew, 3),
+                }
+
+                self._cache.set('atm_put_premium', result)
+                logger.info(
+                    "ATM PUT premium: ref=%.0f near=%s ATM=%d close=%.1f (%.3f%%) "
+                    "OTM5=%d close=%.1f skew=%.3f",
+                    reference, near_month, result['atm_strike'], result['atm_put_close'],
+                    result['atm_put_pct'], result['otm5_strike'], result['otm5_put_close'],
+                    result['put_skew'],
+                )
+                break
+
+        except requests.RequestException as e:
+            logger.warning("Failed to fetch ATM PUT premium (network): %s", e)
+        except Exception as e:
+            logger.error("Failed to fetch ATM PUT premium: %s", e, exc_info=True)
 
         return result
 

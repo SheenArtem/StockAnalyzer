@@ -109,6 +109,18 @@ echo [%date% %time%] Theme momentum starting >> scanner.log
 python tools\theme_momentum.py >> scanner.log 2>&1
 echo [%date% %time%] Theme momentum done >> scanner.log
 
+REM ------------------------------------------------------------
+REM ATM PUT premium archiver (hedge cost daily snapshot).
+REM Added 2026-05-05: TXO near-month ATM PUT premium + 5%% OTM put skew.
+REM Writes 1 row/day to data/sentiment/atm_put_premium.parquet to accumulate
+REM baseline (need >= 30 trading days for z-score / threshold logic later).
+REM Replaces ad-hoc get_opt.py.
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] ATM PUT premium archive starting >> scanner.log
+python tools\fetch_atm_put_premium.py >> scanner.log 2>&1
+echo [%date% %time%] ATM PUT premium archive done >> scanner.log
+
 REM MOPS probe stage removed 2026-05-05 (USE_MOPS default flipped to false).
 REM To reactivate: set USE_MOPS=true and restore tools\mops_probe.py invocation here.
 
