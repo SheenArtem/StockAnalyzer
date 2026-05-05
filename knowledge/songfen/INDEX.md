@@ -21,6 +21,22 @@
 
 ## Articles (by date, newest first)
 
+### 2026-05-04 《宋分分析師備忘錄 #9》不是全面牛市，是「確定性分化」｜當AI開始賺錢，市場才剛進入下一段
+- **Category:** memo
+- **Tags:** ai-monetization, pricing-power, csp, product-mix, re-rating
+- **Summary:** 財報季揭示市場進入「確定性分化」：Apple 靠定價權與 Services 佔毛利 43% 重估地板；MSFT 使用量計費轉型打開 TAM；Meta 缺乏可標價 AI 收入單位仍在估值第二階段等待。
+- **Actionable:** 買 Apple 的敘事從需求復甦轉為定價權集中，重點追蹤 iPhone 18 漲價幅度與折疊機 product mix；追蹤 MSFT GitHub Copilot seats+usage 混合計費後 AI ARR 是否幾何跳升，關注 ASIC 合夥進度做為全棧 AI 基礎設施 re-rate 先行指標；Meta 缺少可見 AI 收入前估值難重回第一階段，等待 agentic AI 新敘事出現再介入
+- **Permanence:** time-sensitive
+<!-- auto-generated 2026-05-05 -->
+
+### 2026-05-02 《資金行情的下一步會怎麼走？看完這篇，避免退潮時只剩你在裸泳》
+- **Category:** methodology
+- **Tags:** liquidity-rally, market-regime, beta-vs-alpha, rotation, valuation
+- **Summary:** 拆解資金行情的 5 大識別指標（估值脫離 EPS、好壞齊漲、宏觀敏感度等），並說明行情從資金轉分化時，如何從「抓 beta」切換至「選 alpha」的操作框架。
+- **Actionable:** 問三問題自測是否在資金行情（公司變更好？假設有數據支持？去掉流動性還合理？）；出現過熱訊號（壞消息不跌、低品質股補漲、槓桿增加）時主動降部位；分化初期立即汰弱留強，用「現在重新開始還會買嗎」檢驗每個持倉
+- **Permanence:** permanent
+<!-- auto-generated 2026-05-03 -->
+
 ### 2026-04-27 《宋分分析師備忘錄 #8》市場創新高，卻是初期牛市的典型結構｜當市場邊漲邊懷疑，通常才剛開始
 - **Category:** memo
 - **Tags:** bull-market,ai-capex,nvda,earnings-season,re-rate

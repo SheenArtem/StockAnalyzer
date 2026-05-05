@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "as_of": "2026-04-29",
+  "as_of": "2026-05-05",
   "regime": "volatile",
   "open_trades": [
     {
@@ -141,6 +141,30 @@
       "pnl_pct": null,
       "trigger_score_entry": -2.2,
       "qm_composite_entry": 81.5,
+      "scenario_entry": "-",
+      "qm_rank_entry": 5,
+      "yt_tag_entry": {
+        "count": 0,
+        "sentiment": 0.0,
+        "shows": []
+      },
+      "c1_tilt_entry": false,
+      "regime_entry": "volatile"
+    },
+    {
+      "trade_id": "PT-20260413-2548",
+      "ticker": "2548",
+      "name": "華固",
+      "entry_date": "2026-04-13",
+      "entry_price": 126.0,
+      "target_tp": 144.78,
+      "target_sl": 118.49,
+      "exit_date": null,
+      "exit_price": null,
+      "exit_reason": null,
+      "pnl_pct": null,
+      "trigger_score_entry": -2.92,
+      "qm_composite_entry": 82.2,
       "scenario_entry": "-",
       "qm_rank_entry": 5,
       "yt_tag_entry": {
