@@ -258,8 +258,9 @@ def _compute_expiry(indicator, data_date, now):
       - us_index：盤中 5 分鐘；閉市 → 下次開盤
       - cnn_fgi：盤中 1h；閉市 4h
     """
-    # 台股 14:00 類
-    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio'):
+    # 台股 14:00 類 (期貨/選擇權結算後資料含 atm_put / mtx_ratio / opt_inst)
+    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio',
+                     'atm_put', 'mtx_ratio', 'opt_inst'):
         expected = _expected_tw_date(_TW_14_CUTOFF, now)
         if data_date == expected:
             return _next_tw_refresh_at(_TW_14_CUTOFF, now).timestamp()
@@ -301,6 +302,9 @@ _OUT_TO_CACHE = {
     'basis': 'basis',
     'pcr': 'pcr',
     'm1b_ratio': 'm1b_ratio',
+    'atm_put': 'atm_put',
+    'mtx_ratio': 'mtx_ratio',
+    'opt_inst': 'opt_inst',
 }
 
 
@@ -330,6 +334,15 @@ def _pure_fetch(cache_key):
         if cache_key == 'm1b_ratio':
             from money_supply import compute_m1b_ratio
             return compute_m1b_ratio()
+        if cache_key == 'atm_put':
+            from taifex_data import TAIFEXData
+            return TAIFEXData().get_atm_put_premium()
+        if cache_key == 'mtx_ratio':
+            from taifex_data import TAIFEXData
+            return TAIFEXData().get_minifutures_oi_ratio()
+        if cache_key == 'opt_inst':
+            from taifex_data import TAIFEXData
+            return TAIFEXData().get_options_institutional()
     except Exception as e:
         logger.debug("Banner fetch %s failed: %s", cache_key, e)
     return None
@@ -524,6 +537,56 @@ def render_market_banner():
                 f'{r:.1f}% {label}</span> '
                 f'<span style="color:#888;font-size:0.85em">(M1B {m_period})</span>'
                 f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        # ── 期權避險訊號 (ATM PUT 成本 / MTX/TXF / 法人 PCskew) ──
+        # baseline 累積中 (≥30 交易日才能 z-score)，目前先顯 raw + 解讀色
+        atm = data.get('atm_put') or {}
+        mtx = data.get('mtx_ratio') or {}
+        opt_inst = data.get('opt_inst') or {}
+
+        sig_parts = []
+        atm_pct = atm.get('atm_put_pct')
+        if atm_pct:
+            atm_color = '#FF4444' if atm_pct > 1.5 else '#FF8800' if atm_pct > 1.0 else '#888888'
+            atm_tip = (f"近月 ATM 賣權權利金 / 現貨 × 100%；"
+                       f"strike={atm.get('atm_strike', 0)} close={atm.get('atm_put_close', 0)} "
+                       f"skew={atm.get('put_skew', 0):.2f}（OTM5/ATM）")
+            sig_parts.append(
+                f'<span title="{atm_tip}">避險成本 '
+                f'<span style="color:{atm_color};font-weight:bold">{atm_pct:.2f}%</span></span>'
+            )
+        mtx_r = mtx.get('mtx_txf_ratio')
+        if mtx_r:
+            mtx_color = '#FF4444' if mtx_r > 1.0 else '#00AA00' if mtx_r < 0.5 else '#888888'
+            mtx_tip = (f"小台 (散戶為主) / 大台 (法人為主) 近月 OI 比；"
+                       f"高 = 散戶倉位過大反向訊號；MTX_OI={mtx.get('mtx_oi', 0):,} "
+                       f"TXF_OI={mtx.get('txf_oi', 0):,}")
+            sig_parts.append(
+                f'<span title="{mtx_tip}">小/大台 OI '
+                f'<span style="color:{mtx_color};font-weight:bold">{mtx_r:.2f}</span></span>'
+            )
+        skew = opt_inst.get('inst_pc_oi_skew')
+        if skew is not None and (
+            opt_inst.get('foreign_call_net') or opt_inst.get('foreign_put_net')
+            or opt_inst.get('dealer_call_net')
+        ):
+            skew_color = '#FF4444' if skew > 5000 else '#FF8800' if skew > 0 else '#00AA00'
+            skew_label = '偏空避險' if skew > 0 else '偏多'
+            skew_tip = (f"三大法人 TXO 賣權淨多 - 買權淨多 OI；>0 = 法人增加 PUT 避險；"
+                        f"foreign C/P={opt_inst.get('foreign_call_net', 0)}/"
+                        f"{opt_inst.get('foreign_put_net', 0)} "
+                        f"dealer C/P={opt_inst.get('dealer_call_net', 0)}/"
+                        f"{opt_inst.get('dealer_put_net', 0)}")
+            sig_parts.append(
+                f'<span title="{skew_tip}">法人PCskew '
+                f'<span style="color:{skew_color};font-weight:bold">{skew:+,d} {skew_label}</span></span>'
+            )
+        if sig_parts:
+            c1.markdown(
+                '<div style="font-size:0.9rem;line-height:1.5">'
+                + ' &nbsp;|&nbsp; '.join(sig_parts) + '</div>',
                 unsafe_allow_html=True,
             )
 
