@@ -1,7 +1,7 @@
 """市場掃描 view (Phase D 從 app.py 抽出)
 
 對應 app_mode == 'market_scan' 的整段邏輯，目前 2 個 tab:
-- 法人週榜 (BL-4 三大法人週報，4 維度 × 6 排行 = 24 Top 10，金額/張數可切換)
+- 法人週榜 (BL-4 三大法人週報，4 維度 × 6 排行：連買連賣天數 + 當週買賣超金額 + 當週買賣超張數)
 - 當週成交活躍榜 (個股總成交金額/張數 Top 30，從 ohlcv_tw.parquet 即時計算)
 
 窗口邏輯：取「當週週一 → 最新可得交易日」全部交易日 (skip 國定假日)，
@@ -141,48 +141,32 @@ def render_market_scan():
             )
 
             # 維度 selectbox
-            _col_dim, _col_metric = st.columns([2, 1])
-            with _col_dim:
-                _dim_choice = st.selectbox(
-                    "維度",
-                    options=['total', 'foreign', 'trust', 'dealer'],
-                    format_func=lambda d: _WC_DIM_LABELS[d],
-                    key='ms_dim_choice',
-                )
-            with _col_metric:
-                _metric_choice = st.radio(
-                    "排序依據",
-                    options=['amount', 'shares'],
-                    format_func=lambda m: '金額 (千元)' if m == 'amount' else '張數',
-                    horizontal=True,
-                    key='ms_metric_choice',
-                )
+            _dim_choice = st.selectbox(
+                "維度",
+                options=['total', 'foreign', 'trust', 'dealer'],
+                format_func=lambda d: _WC_DIM_LABELS[d],
+                key='ms_dim_choice',
+            )
 
-            # 4 個 ranking 欄位顯示 (連買/連賣固定 + 當週買/賣依 metric 切換)
-            _col_a, _col_b = st.columns(2)
-            if _metric_choice == 'amount':
-                _week_buy_key, _week_sell_key = 'week_buy', 'week_sell'
-                _week_buy_label = '💰 當週買超金額 Top 10'
-                _week_sell_label = '💸 當週賣超金額 Top 10'
-            else:
-                _week_buy_key, _week_sell_key = 'week_buy_shares', 'week_sell_shares'
-                _week_buy_label = '💰 當週買超張數 Top 10'
-                _week_sell_label = '💸 當週賣超張數 Top 10'
-
+            # 6 個 ranking 欄位顯示 (2 row × 3 col：第 1 row 買超，第 2 row 賣超)
+            _row_buy = st.columns(3)
+            _row_sell = st.columns(3)
             _rank_specs = [
-                ('consec_buy', '🔥 連續買超天數 Top 10', _col_a),
-                ('consec_sell', '🧊 連續賣超天數 Top 10', _col_b),
-                (_week_buy_key, _week_buy_label, _col_a),
-                (_week_sell_key, _week_sell_label, _col_b),
+                ('consec_buy', '🔥 連續買超天數 Top 10', _row_buy[0], 'days'),
+                ('week_buy', '💰 當週買超金額 Top 10', _row_buy[1], 'amount'),
+                ('week_buy_shares', '📦 當週買超張數 Top 10', _row_buy[2], 'shares'),
+                ('consec_sell', '🧊 連續賣超天數 Top 10', _row_sell[0], 'days'),
+                ('week_sell', '💸 當週賣超金額 Top 10', _row_sell[1], 'amount'),
+                ('week_sell_shares', '📤 當週賣超張數 Top 10', _row_sell[2], 'shares'),
             ]
-            for _rt_key, _rt_label, _col in _rank_specs:
+            for _rt_key, _rt_label, _col, _kind in _rank_specs:
                 with _col:
                     st.markdown(f"**{_rt_label}**")
                     _rdf = _wc_rank(_dim_choice, _rt_key, top_n=10)
                     if _rdf.empty:
                         st.caption("(本週無此類標的)")
                         continue
-                    if _metric_choice == 'amount':
+                    if _kind == 'amount':
                         _disp = _rdf[['rank', 'stock_id', 'stock_name', 'consec_days', 'weekly_amount_k']].copy()
                         _disp.columns = ['#', 'ID', '名稱', '連續日', '金額(千)']
                         _disp['金額(億)'] = (_disp['金額(千)'] / 1e5).round(1)
@@ -195,6 +179,7 @@ def render_market_scan():
                             '金額(億)': st.column_config.NumberColumn(format="%+.1f"),
                         }
                     else:
+                        # 連買連賣 + 張數版本都用 weekly_shares 欄位（連買連賣的 weekly_shares 即連續期間累計股數）
                         _disp = _rdf[['rank', 'stock_id', 'stock_name', 'consec_days', 'weekly_shares']].copy()
                         _disp.columns = ['#', 'ID', '名稱', '連續日', '股數']
                         # 股數 → 千張顯示 (1張=1000股，weekly_shares 是股；除 1e6 = 千張)
@@ -248,22 +233,11 @@ def render_market_scan():
                 f"資料源: ohlcv_tw.parquet"
             )
 
-            _to_metric = st.radio(
-                "排序依據",
-                options=['amount', 'volume'],
-                format_func=lambda m: '成交金額 (億)' if m == 'amount' else '成交張數 (千張)',
-                horizontal=True,
-                key='ms_turnover_metric',
-            )
+            # 兩個表格並列顯示：成交金額 + 成交張數，全部 30 筆無 scrollbar
+            _df_amt = _to_results['amount'].copy()
+            _df_vol = _to_results['volume'].copy()
 
-            _df = _to_results['amount' if _to_metric == 'amount' else 'volume'].copy()
-
-            _disp = _df[['rank', 'stock_id', 'stock_name', 'days',
-                         'weekly_amount_b', 'weekly_volume_lots']].copy()
-            _disp.columns = ['#', 'ID', '名稱', '交易日', '週成交額(億)', '週成交量(張)']
-            if _to_metric == 'volume':
-                _disp = _disp[['#', 'ID', '名稱', '交易日', '週成交量(張)', '週成交額(億)']]
-            _col_cfg = {
+            _col_cfg_amt = {
                 '#': st.column_config.NumberColumn(width='small'),
                 'ID': st.column_config.TextColumn(width='small'),
                 '名稱': st.column_config.TextColumn(width='medium'),
@@ -271,11 +245,30 @@ def render_market_scan():
                 '週成交額(億)': st.column_config.NumberColumn(format="%.1f"),
                 '週成交量(張)': st.column_config.NumberColumn(format="%,d"),
             }
+            _col_cfg_vol = dict(_col_cfg_amt)
 
-            st.dataframe(_disp, hide_index=True, use_container_width=True,
-                         column_config=_col_cfg)
+            _ms_col_a, _ms_col_b = st.columns(2)
+            with _ms_col_a:
+                st.markdown("**💰 週成交金額 Top 30**")
+                _disp_amt = _df_amt[['rank', 'stock_id', 'stock_name', 'days',
+                                     'weekly_amount_b', 'weekly_volume_lots']].copy()
+                _disp_amt.columns = ['#', 'ID', '名稱', '交易日', '週成交額(億)', '週成交量(張)']
+                # 30 rows: row=35px, header=38px, +3px padding = 1091
+                st.dataframe(_disp_amt, hide_index=True, use_container_width=True,
+                             column_config=_col_cfg_amt,
+                             height=35 * (len(_disp_amt) + 1) + 3)
+            with _ms_col_b:
+                st.markdown("**📦 週成交張數 Top 30**")
+                _disp_vol = _df_vol[['rank', 'stock_id', 'stock_name', 'days',
+                                     'weekly_volume_lots', 'weekly_amount_b']].copy()
+                _disp_vol.columns = ['#', 'ID', '名稱', '交易日', '週成交量(張)', '週成交額(億)']
+                st.dataframe(_disp_vol, hide_index=True, use_container_width=True,
+                             column_config=_col_cfg_vol,
+                             height=35 * (len(_disp_vol) + 1) + 3)
 
             with st.expander("🔍 跳轉個股分析（從活躍榜挑股深入研究）", expanded=False):
+                # 跳轉用 union 兩榜的 stock_id（金額榜 + 張數榜）
+                _df = pd.concat([_df_amt, _df_vol]).drop_duplicates(subset='stock_id')
                 _ids = _df['stock_id'].tolist()
                 _name_map = dict(zip(_df['stock_id'], _df['stock_name']))
                 if _ids:
