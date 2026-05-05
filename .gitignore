@@ -14,7 +14,10 @@ tools/screenshots/
 tools/screenshots_*/
 
 # 一次性 UI smoke test 腳本
-tools/ui_test_p*.py
+tools/ui_test_*.py
+
+# Tools 暫存區（smoke test / batch staging / ad-hoc）
+tools/tmp/
 
 # Kronos POC (暫停, memory 有記錄)
 tools/kronos_smoke*.py
