@@ -25,12 +25,16 @@ market_banner.py -- 大盤儀表板 Banner
 import logging
 import time
 from datetime import datetime, date as ddate, time as dtime, timedelta
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 
 logger = logging.getLogger(__name__)
+
+REPO = Path(__file__).resolve().parent
+SENTIMENT_DIR = REPO / "data" / "sentiment"
 
 # ============================================================
 #  快取配置 (per-indicator)
@@ -40,8 +44,10 @@ _CACHE_KEY = '_banner_cache_v2'
 
 # 台股日盤後資料發布時間
 _TW_14_CUTOFF = dtime(14, 0)      # 加權指數/漲跌家數/基差/PCR
+_TW_1435_CUTOFF = dtime(14, 35)   # TAIFEX 三大法人 + 期權盤後 (atm_put / mtx_ratio / opt_inst)
 _TW_20_CUTOFF = dtime(20, 0)      # 融資餘額
 _TW_14_RETRY = 300                 # 5 分鐘
+_TW_1435_RETRY = 1800              # 30 分鐘 (parquet 是 archiver 寫的, 不必狂 retry)
 _TW_20_RETRY = 1800                # 30 分鐘
 
 # 美股盤中 TW 時區 (粗估 ET 夏令時 21:30 TW - 04:00 TW，冬令 22:30 - 05:00)
@@ -258,13 +264,20 @@ def _compute_expiry(indicator, data_date, now):
       - us_index：盤中 5 分鐘；閉市 → 下次開盤
       - cnn_fgi：盤中 1h；閉市 4h
     """
-    # 台股 14:00 類 (期貨/選擇權結算後資料含 atm_put / mtx_ratio / opt_inst)
-    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio',
-                     'atm_put', 'mtx_ratio', 'opt_inst'):
+    # 台股 14:00 類
+    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio'):
         expected = _expected_tw_date(_TW_14_CUTOFF, now)
         if data_date == expected:
             return _next_tw_refresh_at(_TW_14_CUTOFF, now).timestamp()
         return time.time() + _TW_14_RETRY
+
+    # 14:35 TAIFEX 盤後類 (atm_put / mtx_ratio / opt_inst)
+    # archiver 寫 parquet, banner 純 disk read; 命中 today -> 隔日 14:35
+    if indicator in ('atm_put', 'mtx_ratio', 'opt_inst'):
+        expected = _expected_tw_date(_TW_1435_CUTOFF, now)
+        if data_date == expected:
+            return _next_tw_refresh_at(_TW_1435_CUTOFF, now).timestamp()
+        return time.time() + _TW_1435_RETRY
 
     # 台灣 FGI (20:00 融資為主)
     if indicator == 'tw_fgi':
@@ -292,6 +305,33 @@ def _compute_expiry(indicator, data_date, now):
 # ============================================================
 #  Pure fetch (thread-safe, no session_state access)
 # ============================================================
+
+def _read_sentiment_parquet(name: str) -> dict | None:
+    """讀 data/sentiment/<name>.parquet 最後一筆轉 dict.
+
+    archiver (run_taifex_signals_afterclose.bat 14:35 / scanner 00:00) 寫，
+    banner 純讀，零 network。data_date 字串 'YYYY-MM-DD' 還原為 date 物件
+    供 _compute_expiry 比對。檔案不存在 / 為空 -> None.
+    """
+    p = SENTIMENT_DIR / f"{name}.parquet"
+    if not p.exists():
+        return None
+    try:
+        df = pd.read_parquet(p)
+    except Exception as e:
+        logger.warning("Read sentiment parquet %s failed: %s", name, e)
+        return None
+    if df.empty:
+        return None
+    row = df.iloc[-1].to_dict()
+    d = row.get('data_date')
+    if isinstance(d, str) and d:
+        try:
+            row['data_date'] = ddate.fromisoformat(d)
+        except ValueError:
+            pass
+    return row
+
 
 # Banner 輸出 key -> session_state 快取 key
 _OUT_TO_CACHE = {
@@ -334,15 +374,14 @@ def _pure_fetch(cache_key):
         if cache_key == 'm1b_ratio':
             from money_supply import compute_m1b_ratio
             return compute_m1b_ratio()
+        # 期權避險訊號改讀 archive parquet (archiver TUE-SAT 14:35 + scanner 00:00 寫)
+        # 避免 banner intraday 反覆打 TAIFEX 浪費請求
         if cache_key == 'atm_put':
-            from taifex_data import TAIFEXData
-            return TAIFEXData().get_atm_put_premium()
+            return _read_sentiment_parquet('atm_put_premium')
         if cache_key == 'mtx_ratio':
-            from taifex_data import TAIFEXData
-            return TAIFEXData().get_minifutures_oi_ratio()
+            return _read_sentiment_parquet('minifutures_ratio')
         if cache_key == 'opt_inst':
-            from taifex_data import TAIFEXData
-            return TAIFEXData().get_options_institutional()
+            return _read_sentiment_parquet('options_institutional')
     except Exception as e:
         logger.debug("Banner fetch %s failed: %s", cache_key, e)
     return None
