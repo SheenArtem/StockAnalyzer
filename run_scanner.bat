@@ -121,6 +121,18 @@ echo [%date% %time%] ATM PUT premium archive starting >> scanner.log
 python tools\fetch_atm_put_premium.py >> scanner.log 2>&1
 echo [%date% %time%] ATM PUT premium archive done >> scanner.log
 
+REM ------------------------------------------------------------
+REM Mini/Major futures OI ratio archiver (retail positioning proxy).
+REM Added 2026-05-05: MTX (mini, retail-heavy) vs TXF (major, institutional)
+REM near-month OI ratio. Writes 1 row/day to
+REM data/sentiment/minifutures_ratio.parquet for baseline accumulation
+REM (need >= 30 trading days for z-score / threshold logic).
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] Minifutures ratio archive starting >> scanner.log
+python tools\fetch_minifutures_ratio.py >> scanner.log 2>&1
+echo [%date% %time%] Minifutures ratio archive done >> scanner.log
+
 REM MOPS probe stage removed 2026-05-05 (USE_MOPS default flipped to false).
 REM To reactivate: set USE_MOPS=true and restore tools\mops_probe.py invocation here.
 

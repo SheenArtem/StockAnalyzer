@@ -33,13 +33,31 @@ log = logging.getLogger("atm_put_archive")
 ARCHIVE_PATH = REPO / "data" / "sentiment" / "atm_put_premium.parquet"
 
 
+TOP_OI_N = 5  # flatten top_put_oi_strikes -> 5 strike/oi pairs
+
+
 def _normalize(row: dict) -> dict:
-    """Coerce data_date to ISO string for parquet stable schema."""
+    """Coerce data_date to ISO string + flatten top_put_oi_strikes to columns.
+
+    top_put_oi_strikes (List[Tuple[strike, oi]]) -> top_oi_strike_1..N + top_oi_oi_1..N
+    Padding 0 when fewer than N entries (schema-stable).
+    """
     d = row.get("data_date")
     if isinstance(d, _date):
         row["data_date"] = d.isoformat()
     elif d is None:
         row["data_date"] = ""
+
+    # Flatten top_put_oi_strikes
+    strikes = row.pop("top_put_oi_strikes", []) or []
+    for i in range(TOP_OI_N):
+        if i < len(strikes):
+            s, oi = strikes[i]
+            row[f"top_oi_strike_{i+1}"] = int(s)
+            row[f"top_oi_oi_{i+1}"] = int(oi)
+        else:
+            row[f"top_oi_strike_{i+1}"] = 0
+            row[f"top_oi_oi_{i+1}"] = 0
     return row
 
 
@@ -54,9 +72,11 @@ def main() -> int:
 
     r = _normalize(dict(r))
     today_str = r["data_date"]
-    log.info("Fetched: date=%s ref=%.0f ATM=%d close=%.1f pct=%.3f%% OTM5=%d skew=%.3f",
+    log.info("Fetched: date=%s ref=%.0f ATM=%d close=%.1f pct=%.3f%% OTM5=%d skew=%.3f "
+             "top_OI_strike_1=%d (oi=%d)",
              today_str, r["reference"], r["atm_strike"], r["atm_put_close"],
-             r["atm_put_pct"], r["otm5_strike"], r["put_skew"])
+             r["atm_put_pct"], r["otm5_strike"], r["put_skew"],
+             r["top_oi_strike_1"], r["top_oi_oi_1"])
 
     ARCHIVE_PATH.parent.mkdir(parents=True, exist_ok=True)
     if ARCHIVE_PATH.exists():

@@ -13,15 +13,17 @@ from taifex_data import TAIFEXData
 def _build_fake_csv(records):
     """Build TXO CSV body matching real layout (21 cols).
 
-    records: list of (month_str, strike, cp, close, session)
+    records: list of tuples (month_str, strike, cp, close, session, oi=500)
     Pads to >= 10 total lines (real-data sanity guard in get_atm_put_premium).
     """
     header = "交易日期,契約,到期月份(週別),履約價,買賣權,開盤價,最高價,最低價,收盤價,成交量,結算價,未沖銷契約數,最後最佳買價,最後最佳賣價,歷史最高價,歷史最低價,是否因訊息面暫停交易,交易時段,漲跌價,漲跌%,契約到期日"
     lines = [header]
-    for month_str, strike, cp, close, session in records:
+    for tup in records:
+        month_str, strike, cp, close, session = tup[:5]
+        oi = tup[5] if len(tup) >= 6 else 500
         row = [
             "2026/05/05", "TXO", month_str, str(strike), cp,
-            "0.1", "0.5", "0.1", str(close), "100", str(close), "500",
+            "0.1", "0.5", "0.1", str(close), "100", str(close), str(oi),
             "0.4", "0.6", "1.0", "0.1", "", session, "0.1", "0.5%", "20260521",
         ]
         lines.append(",".join(row))
@@ -150,6 +152,35 @@ def test_zero_reference_returns_empty():
     r = td.get_atm_put_premium()
     assert r['atm_strike'] == 0
     assert r['atm_put_close'] == 0.0
+
+
+def test_top_put_oi_strikes_sorted_desc(taifex_with_mock_basis):
+    """top_put_oi_strikes 應依 OI 由高到低排序，排除週選與盤後 + OI=0 strike。"""
+    csv = _build_fake_csv([
+        # (month, strike, cp, close, session, oi)
+        ("202605", 21000, "賣權", 250, "一般", 5000),
+        ("202605", 20000, "賣權", 80,  "一般", 8000),  # OI 最高
+        ("202605", 19000, "賣權", 30,  "一般", 3000),
+        ("202605", 22000, "賣權", 500, "一般", 1000),
+        ("202605", 21500, "賣權", 350, "一般", 7000),
+        ("202605W1", 21000, "賣權", 100, "一般", 9999),  # 週選排除
+        ("202605", 18000, "賣權", 10, "一般", 0),  # OI=0 排除
+    ])
+    mock_resp = MagicMock(text=csv)
+    mock_resp.raise_for_status = MagicMock()
+
+    with patch.object(taifex_with_mock_basis._session, 'post', return_value=mock_resp):
+        r = taifex_with_mock_basis.get_atm_put_premium(top_oi_n=3)
+
+    top = r['top_put_oi_strikes']
+    assert len(top) == 3
+    # 依 OI 由高到低
+    assert top[0] == (20000, 8000)
+    assert top[1] == (21500, 7000)
+    assert top[2] == (21000, 5000)
+    # 週選 21000 / OI=0 18000 不在內
+    strikes_in_top = [s for s, _ in top]
+    assert 18000 not in strikes_in_top
 
 
 def test_cache_hits_second_call(taifex_with_mock_basis):

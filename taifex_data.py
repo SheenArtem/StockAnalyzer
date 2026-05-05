@@ -17,7 +17,7 @@ import logging
 import time
 import urllib3
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Tuple
 
 import requests
 import pandas as pd
@@ -88,7 +88,8 @@ class TAIFEXData:
     Methods:
         get_futures_basis()        - 台指期正逆價差
         get_put_call_ratio()       - 選擇權 Put/Call Ratio (未平倉)
-        get_atm_put_premium()      - 近月 ATM PUT 權利金 + put skew (避險成本)
+        get_atm_put_premium()      - 近月 ATM PUT 權利金 + skew + top-OI (避險成本)
+        get_minifutures_oi_ratio() - 小台/大台近月 OI 比 (散戶倉位 proxy)
         get_institutional_futures()- 三大法人台指期未平倉
         get_large_trader_positions()- 大額交易人未沖銷部位
     """
@@ -302,22 +303,27 @@ class TAIFEXData:
     # ------------------------------------------------------------------
     # 近月 ATM 賣權權利金 + 5% OTM put skew (避險成本指標)
     # ------------------------------------------------------------------
-    def get_atm_put_premium(self) -> Dict[str, Any]:
+    def get_atm_put_premium(self, top_oi_n: int = 5) -> Dict[str, Any]:
         """
-        Fetch near-month ATM put premium (% of index) and OTM5 put skew.
+        Fetch near-month ATM put premium (% of index) + OTM5 skew + top-OI strikes.
 
         避險成本指標：
           - atm_put_pct 高 = 買 PUT 避險權利金貴 = 市場恐慌定價
           - put_skew 高 = OTM PUT 比 ATM PUT 貴的程度（左尾恐慌定價，崩盤前常先升）
+          - top_put_oi_strikes = 大戶買 PUT 集中的履約價 = 市場默契支撐線
 
         與 get_put_call_ratio 共用 TXO CSV 端點，僅取月選（排除週選 Wn）+ 一般盤。
         Reference 用 spot_price (TWII) 優先，無則 fallback futures_price。
+
+        Args:
+            top_oi_n: 回傳前 N 大 PUT OI strikes（預設 5）
 
         Returns:
             dict with keys:
               data_date, near_month, reference,
               atm_strike, atm_put_close, atm_put_pct,
-              otm5_strike, otm5_put_close, put_skew
+              otm5_strike, otm5_put_close, put_skew,
+              top_put_oi_strikes: List[Tuple[strike:int, oi:int]] 由高到低排序
         """
         cached = self._cache.get('atm_put_premium')
         if cached is not None:
@@ -333,6 +339,7 @@ class TAIFEXData:
             'otm5_strike': 0,
             'otm5_put_close': 0.0,
             'put_skew': 0.0,
+            'top_put_oi_strikes': [],
         }
 
         try:
@@ -366,7 +373,7 @@ class TAIFEXData:
                 # CSV cols: [0]date [1]contract [2]month_str [3]strike [4]PC
                 #          [5]open [6]high [7]low [8]close [9]volume [10]settle
                 #          [11]OI ... [17]session
-                put_records = []
+                put_records = []  # (month_str, strike, close, oi)
                 for line in lines[1:]:
                     fields = line.split(',')
                     if len(fields) < 18:
@@ -385,7 +392,9 @@ class TAIFEXData:
                         if close_str in ('-', ''):
                             continue
                         close_f = float(close_str)
-                        put_records.append((month_str, strike, close_f))
+                        oi_str = fields[11].strip()
+                        oi_int = int(oi_str) if oi_str and oi_str != '-' else 0
+                        put_records.append((month_str, strike, close_f, oi_int))
                     except (ValueError, IndexError):
                         continue
 
@@ -406,6 +415,11 @@ class TAIFEXData:
                 atm_pct = (atm_record[2] / reference) * 100
                 put_skew = (otm5_record[2] / atm_record[2]) if atm_record[2] > 0 else 0.0
 
+                # 6. Top-OI strikes（排除 OI=0 的稀薄 strike）
+                near_with_oi = [(r[1], r[3]) for r in near_records if r[3] > 0]
+                near_with_oi.sort(key=lambda x: x[1], reverse=True)
+                top_strikes = [(int(s), int(oi)) for s, oi in near_with_oi[:top_oi_n]]
+
                 result = {
                     'data_date': d.date(),
                     'near_month': near_month,
@@ -416,15 +430,17 @@ class TAIFEXData:
                     'otm5_strike': int(otm5_record[1]),
                     'otm5_put_close': round(otm5_record[2], 2),
                     'put_skew': round(put_skew, 3),
+                    'top_put_oi_strikes': top_strikes,
                 }
 
                 self._cache.set('atm_put_premium', result)
                 logger.info(
                     "ATM PUT premium: ref=%.0f near=%s ATM=%d close=%.1f (%.3f%%) "
-                    "OTM5=%d close=%.1f skew=%.3f",
+                    "OTM5=%d close=%.1f skew=%.3f top_OI=%s",
                     reference, near_month, result['atm_strike'], result['atm_put_close'],
                     result['atm_put_pct'], result['otm5_strike'], result['otm5_put_close'],
                     result['put_skew'],
+                    [s for s, _ in top_strikes[:3]],
                 )
                 break
 
@@ -432,6 +448,120 @@ class TAIFEXData:
             logger.warning("Failed to fetch ATM PUT premium (network): %s", e)
         except Exception as e:
             logger.error("Failed to fetch ATM PUT premium: %s", e, exc_info=True)
+
+        return result
+
+    # ------------------------------------------------------------------
+    # 小台 (MTX) 對大台 (TX) 近月 OI 比例 — 散戶倉位 proxy
+    # ------------------------------------------------------------------
+    def _fetch_futures_near_oi(self, commodity_id: str, date_str: str) -> Tuple[Optional[str], Optional[int]]:
+        """Fetch near-month OI for a single futures commodity (TX/MTX) on date.
+
+        Filters: month-only (no W weekly) + 一般 session. Sums OI across all
+        rows of the near month (usually 1 row but defensive sum).
+
+        Returns:
+            (near_month_str, oi_int) or (None, None) if no data.
+        """
+        url = 'https://www.taifex.com.tw/cht/3/dlFutDataDown'
+        payload = {
+            'down_type': '1',
+            'commodity_id': commodity_id,
+            'queryStartDate': date_str,
+            'queryEndDate': date_str,
+        }
+        resp = self._session.post(url, data=payload, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        lines = resp.text.strip().split('\n')
+        if len(lines) < 3:
+            return None, None
+        # Futures CSV cols: [0]date [1]contract [2]month_str [3]open [4]high
+        #   [5]low [6]close [7]chg [8]chg% [9]volume [10]settle [11]OI
+        #   [12]bid [13]ask [14]hist_high [15]hist_low [16]suspended [17]session ...
+        records: list = []  # (month_str, oi)
+        for line in lines[1:]:
+            fields = line.split(',')
+            if len(fields) < 18:
+                continue
+            month_str = fields[2].strip()
+            if 'W' in month_str:
+                continue
+            session = fields[17].strip()
+            if session and session != '一般':
+                continue
+            try:
+                oi_str = fields[11].strip()
+                if not oi_str or oi_str == '-':
+                    continue
+                records.append((month_str, int(oi_str)))
+            except (ValueError, IndexError):
+                continue
+        if not records:
+            return None, None
+        near = sorted(set(r[0] for r in records))[0]
+        near_oi = sum(oi for m, oi in records if m == near)
+        return near, near_oi
+
+    def get_minifutures_oi_ratio(self) -> Dict[str, Any]:
+        """
+        小台 (MTX) 對大台 (TX) 近月 OI 比例 — 散戶倉位 proxy（反向指標經典）。
+
+        MTX 合約規模是 TXF 1/4 (合約乘數 50 vs 200)，散戶為主用戶；TXF 法人為主。
+        ratio 高 = 散戶倉位過大 = 反向訊號 (歷史頂部常見)。
+        ratio 低 = 散戶撤退 = 可能落底訊號。
+
+        Returns:
+            dict with keys:
+              data_date, near_month, txf_oi, mtx_oi, mtx_txf_ratio
+        """
+        cached = self._cache.get('minifutures_oi_ratio')
+        if cached is not None:
+            return cached
+
+        result = {
+            'data_date': None,
+            'near_month': None,
+            'txf_oi': 0,
+            'mtx_oi': 0,
+            'mtx_txf_ratio': 0.0,
+        }
+
+        try:
+            today = datetime.now()
+            for delta in range(5):
+                d = today - timedelta(days=delta)
+                date_str = d.strftime('%Y/%m/%d')
+                try:
+                    tx_month, tx_oi = self._fetch_futures_near_oi('TX', date_str)
+                    mtx_month, mtx_oi = self._fetch_futures_near_oi('MTX', date_str)
+                except requests.RequestException as e:
+                    logger.debug("MTX/TX fetch %s network err: %s", date_str, e)
+                    continue
+
+                if not tx_oi or not mtx_oi:
+                    continue
+                if tx_month != mtx_month:
+                    logger.warning(
+                        "MTX/TX near-month mismatch: TX=%s MTX=%s; using TX",
+                        tx_month, mtx_month,
+                    )
+                ratio = mtx_oi / tx_oi if tx_oi > 0 else 0.0
+                result = {
+                    'data_date': d.date(),
+                    'near_month': tx_month,
+                    'txf_oi': int(tx_oi),
+                    'mtx_oi': int(mtx_oi),
+                    'mtx_txf_ratio': round(ratio, 4),
+                }
+                self._cache.set('minifutures_oi_ratio', result)
+                logger.info(
+                    "MTX/TX OI ratio: near=%s TX_OI=%d MTX_OI=%d ratio=%.4f",
+                    tx_month, tx_oi, mtx_oi, ratio,
+                )
+                break
+
+        except Exception as e:
+            logger.error("Failed to fetch MTX/TX OI ratio: %s", e, exc_info=True)
 
         return result
 
