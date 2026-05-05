@@ -35,12 +35,15 @@ LOG_PATH = ROOT / 'scanner.log'
 REQUIRED_STAGES = [
     ('Scanner started',        r'\] Scanner started'),
     ('YT sync done',           r'\] YT sync done'),
-    ('MOPS probe done',        r'\] MOPS probe done'),
+    # MOPS probe stage removed 2026-05-05 (USE_MOPS default flipped to false).
+    # Re-add ('MOPS probe done', r'\] MOPS probe done') when reactivating.
     ('RF-1 consistency done',  r'\] RF-1 consistency check done'),
     ('Market regime done',     r'\] Market regime logger done'),
     ('Step-A engine done',     r'\] Step-A engine done'),
     ('Paper trade engine done', r'\] Paper trade engine done'),
-    ('Discord daily summary done', r'\] Discord daily summary done'),
+    # Discord daily summary disabled 2026-05-04 (run_scanner.bat goto skip_discord_summary).
+    # Re-add ('Discord daily summary done', r'\] Discord daily summary done') here
+    # when re-enabling the stage.
     ('Substack sync done',     r'\] Substack sync done'),
     ('Chip history resume done', r'\] Chip history resume done'),
     ('News flow anomaly done', r'\] News flow anomaly done'),

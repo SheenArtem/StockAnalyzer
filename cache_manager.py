@@ -34,8 +34,12 @@ def _get_fetch_lock(cache_key: str, stock_id: str) -> threading.Lock:
 
 # USE_MOPS=true 時優先用 MOPS REST API (Cache Layer 3 last resort)
 # 2026-04-18 ~ 2026-04-21 MOPS WAF ban，後 6 連 probe success (4/21~4/27)
-# 2026-04-27 切回 USE_MOPS=true (env override 仍生效，可一鍵切回 false)
-USE_MOPS = os.getenv("USE_MOPS", "true").lower() == "true"
+# 2026-04-27 切回 USE_MOPS=true
+# 2026-05-05 改回 default false：MOPS 一年只在 ~16 天 refresh peak (4 季 deadline + 12 月營收
+# 公告) 派上用場，其他時段 cache 都 hit、用不到；偏偏這 16 天是 trip 高發窗口
+# (4/20 + 5/5 兩次 hang 都踩在 deadline 觸發 bulk refresh)。FinMind 600 req/hr
+# 已能應付這些 peak day (~3.5h sustained)。env override 仍生效，可一鍵切回 true。
+USE_MOPS = os.getenv("USE_MOPS", "false").lower() == "true"
 
 
 def set_use_mops(enabled: bool) -> None:

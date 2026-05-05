@@ -28,13 +28,13 @@ REM Force UTF-8 for Python I/O (prevents cp950 UnicodeDecodeError on emoji outpu
 set PYTHONIOENCODING=utf-8
 
 REM 2026-04-20: MOPS WAF banned local IP; --no-mops CLI flag forced FinMind path.
-REM 2026-05-02: removed --no-mops (probe 11 days OK, USE_MOPS=true cache_manager
-REM default).
-REM 2026-05-05: scanner hung 8h18m on infinite trip->sleep->trip loop. Fixed
-REM mops_fetcher circuit breaker: now raises MopsUnavailable (no block-sleep) +
-REM sticky-disables after 3 trips/day. Tests in tests/test_mops_circuit_breaker.py.
-REM Rollback (if MOPS misbehaves): re-add --no-mops to two scanner_job.py
-REM invocations below.
+REM 2026-05-02: removed --no-mops; 2026-05-05 scanner hang 8h18m -> circuit breaker
+REM rewrite (commit 8012241) + sticky-disable 3 trips/day.
+REM 2026-05-05 demote: cache_manager USE_MOPS default flipped to false. MOPS only
+REM useful on ~16 refresh-peak days/year (quarterly deadlines + monthly revenue
+REM announce) but those are exactly the trip-prone days. FinMind 600/hr handles
+REM peak load in ~3.5h. mops_fetcher.py + probe kept as opt-in (set USE_MOPS=true
+REM to reactivate). Probe stage removed from this BAT (no point if default off).
 
 REM Rotate log: keep only previous + current
 if exist scanner_prev.log del scanner_prev.log
@@ -109,13 +109,8 @@ echo [%date% %time%] Theme momentum starting >> scanner.log
 python tools\theme_momentum.py >> scanner.log 2>&1
 echo [%date% %time%] Theme momentum done >> scanner.log
 
-REM ------------------------------------------------------------
-REM MOPS WAF unblock probe (1 req/day). 3 consecutive successes -> Discord ping.
-REM Runs before scanner to avoid extra Task Scheduler entry.
-REM ------------------------------------------------------------
-echo [%date% %time%] MOPS probe starting >> scanner.log
-python tools\mops_probe.py >> scanner.log 2>&1
-echo [%date% %time%] MOPS probe done >> scanner.log
+REM MOPS probe stage removed 2026-05-05 (USE_MOPS default flipped to false).
+REM To reactivate: set USE_MOPS=true and restore tools\mops_probe.py invocation here.
 
 REM ------------------------------------------------------------
 REM RF-1 cache consistency check: detect fundamental_cache vs backtest drift.
