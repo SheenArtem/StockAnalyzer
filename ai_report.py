@@ -1309,6 +1309,79 @@ def _build_theme_context(ticker):
         return f"N/A (theme context failed: {e})"
 
 
+def _build_market_hedging_context():
+    """[MARKET_HEDGING_CONTEXT] 大盤期權避險訊號 (2026-05-05 加).
+
+    讀 data/sentiment/{atm_put_premium,minifutures_ratio,options_institutional}.parquet
+    最後一筆，給 LLM 三個避險訊號的當前 raw value + 直覺 anchor。
+
+    ⚠️ Baseline 累積中 (<30 個交易日)，**沒有 z-score 對照**，
+    所以給 LLM 的提示要明確：raw 數值僅供方向參考，避免 LLM 編造
+    「歷史百分位」之類的捏造。
+
+    全市場 (market-wide)，不依個股，跟 [SENTIMENT_CONTEXT] 並列。
+    """
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        repo = _P(__file__).resolve().parent
+        d = repo / 'data' / 'sentiment'
+
+        def _last_row(name):
+            p = d / f'{name}.parquet'
+            if not p.exists():
+                return None
+            df = pd.read_parquet(p)
+            return df.iloc[-1].to_dict() if not df.empty else None
+
+        atm = _last_row('atm_put_premium')
+        mtx = _last_row('minifutures_ratio')
+        opt_inst = _last_row('options_institutional')
+
+        if not atm and not mtx and not opt_inst:
+            return "N/A (sentiment archives 尚未產生)"
+
+        lines = ["⚠️ 注意：以下訊號為 baseline 累積中 (<30 天)，**無 z-score 對照**，"
+                 "raw 數值僅供方向參考；不要捏造『歷史百分位』。"]
+
+        if atm:
+            atm_pct = atm.get('atm_put_pct', 0)
+            put_skew = atm.get('put_skew', 0)
+            atm_anchor = ('偏貴 (>1.5% 罕見, 市場恐慌定價)' if atm_pct > 1.5
+                          else '偏鬆 (<1% 鬆懈)' if atm_pct < 1.0
+                          else '中性 (1-1.5%)')
+            lines.append(f"避險成本 ATM PUT {atm_pct:.2f}% 現貨 → {atm_anchor}; "
+                         f"put_skew={put_skew:.2f} (>1 OTM 比 ATM 還貴=左尾恐慌)")
+
+        if mtx:
+            ratio = mtx.get('mtx_txf_ratio', 0)
+            mtx_anchor = ('散戶過熱 (>1.0 反向訊號頂部常見)' if ratio > 1.0
+                          else '散戶撤退 (<0.5 可能落底)' if ratio < 0.5
+                          else '中性 (0.5-1.0)')
+            lines.append(f"小/大台 OI 比 {ratio:.2f} → {mtx_anchor}; "
+                         f"MTX_OI={mtx.get('mtx_oi', 0):,} TXF_OI={mtx.get('txf_oi', 0):,}")
+
+        if opt_inst:
+            skew = opt_inst.get('inst_pc_oi_skew', 0)
+            inst_anchor = ('法人強烈偏空避險 (>5000)' if skew > 5000
+                           else '法人偏空避險' if skew > 0
+                           else '法人偏多')
+            lines.append(f"法人 PC OI skew {skew:+,d} → {inst_anchor}; "
+                         f"foreign C/P={opt_inst.get('foreign_call_net', 0)}/"
+                         f"{opt_inst.get('foreign_put_net', 0)} "
+                         f"dealer C/P={opt_inst.get('dealer_call_net', 0)}/"
+                         f"{opt_inst.get('dealer_put_net', 0)}")
+
+        lines.append("")
+        lines.append("用法：thesis 寫 entry/exit 時若三訊號同時偏防禦 (避險貴 + 法人偏空 + 散戶撤退)，"
+                     "權重應更傾向防守 (拉高 stop / 縮小倉位)；單一訊號偏多空不足以反轉 thesis。")
+
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning("Market hedging context failed: %s", e)
+        return f"N/A (hedging context failed: {e})"
+
+
 def _build_sentiment_context(ticker):
     """[SENTIMENT_CONTEXT] 市場情緒 vs 個股情緒對比 (2026-05-01 Day 3 加).
 
@@ -1603,6 +1676,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     data_sections.append(f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}")
     data_sections.append(f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}")
     data_sections.append(f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}")
+    data_sections.append(f"[MARKET_HEDGING_CONTEXT]\n{_build_market_hedging_context()}")
     data_sections.append(f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}")
     data_sections.append(f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}")
     data_sections.append(f"[EARNINGS_CALENDAR]\n{_build_earnings_calendar_context(ticker)}")
@@ -1778,6 +1852,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}",
         f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}",
         f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}",
+        f"[MARKET_HEDGING_CONTEXT]\n{_build_market_hedging_context()}",
         f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}",
         f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}",
         f"[EARNINGS_CALENDAR]\n{_build_earnings_calendar_context(ticker)}",
