@@ -50,6 +50,7 @@ REQUIRED_STAGES = [
     ('Theme momentum done', r'\] Theme momentum done'),
     ('ATM PUT premium archive done', r'\] ATM PUT premium archive done'),
     ('Minifutures ratio archive done', r'\] Minifutures ratio archive done'),
+    ('Options institutional archive done', r'\] Options institutional archive done'),
     ('Earnings calendar fetch done', r'\] Earnings calendar fetch done'),
     ('Scanner finished (exit=0)', r'\] Scanner finished \(exit=0\)'),
 ]

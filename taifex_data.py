@@ -91,6 +91,7 @@ class TAIFEXData:
         get_atm_put_premium()      - 近月 ATM PUT 權利金 + skew + top-OI (避險成本)
         get_minifutures_oi_ratio() - 小台/大台近月 OI 比 (散戶倉位 proxy)
         get_institutional_futures()- 三大法人台指期未平倉
+        get_options_institutional()- 三大法人 TXO 買賣權未平倉淨額
         get_large_trader_positions()- 大額交易人未沖銷部位
     """
 
@@ -672,6 +673,162 @@ class TAIFEXData:
             logger.warning("Failed to fetch institutional futures (network): %s", e)
         except Exception as e:
             logger.error("Failed to fetch institutional futures: %s", e, exc_info=True)
+
+        return result
+
+    # ------------------------------------------------------------------
+    # 三大法人 TXO 買賣權未平倉淨額 (callsAndPutsDate)
+    # ------------------------------------------------------------------
+    def get_options_institutional(self) -> Dict[str, Any]:
+        """
+        Fetch institutional investors' TXO (台指選擇權) call/put open interest
+        net positions.
+
+        三大法人選擇權持倉解讀:
+          - foreign_call_net > 0 + foreign_put_net > 0 = 外資雙邊做多 (高勝率多頭訊號)
+          - foreign_put_net 大幅增加 = 外資加碼避險 (大盤恐將回檔)
+          - dealer_call_net 多頭 + foreign_put_net 多頭 = 自營做多但外資避險 (背離警訊)
+
+        Endpoint: GET /cht/3/callsAndPutsDate (HTML, ~322KB)
+        Filter: 只取「臺指選擇權」(TXO), 略過 電子/金融/股票/ETF 選擇權.
+
+        Table column layout after stripping prefix cells (序號/商品/權別/身份別):
+          [0]交易買口 [1]買金 [2]賣口 [3]賣金 [4]差額口 [5]差額金
+          [6]OI買口  [7]OI買金 [8]OI賣口 [9]OI賣金 [10]OI差額口 [11]OI差額金
+        Returns nums[10] = OI 差額口 (net OI in lots).
+
+        Returns:
+            dict with keys:
+              data_date,
+              foreign_call_net, foreign_put_net,
+              trust_call_net, trust_put_net,
+              dealer_call_net, dealer_put_net,
+              inst_call_net_total,    # sum of 三大法人 買權淨
+              inst_put_net_total,     # sum of 三大法人 賣權淨
+              inst_pc_oi_skew         # put_total - call_total (>0 法人偏空避險)
+        """
+        cached = self._cache.get('options_institutional')
+        if cached is not None:
+            return cached
+
+        result = {
+            'data_date': None,
+            'foreign_call_net': 0, 'foreign_put_net': 0,
+            'trust_call_net': 0, 'trust_put_net': 0,
+            'dealer_call_net': 0, 'dealer_put_net': 0,
+            'inst_call_net_total': 0,
+            'inst_put_net_total': 0,
+            'inst_pc_oi_skew': 0,
+        }
+
+        institution_map = {
+            '外資': 'foreign',
+            '外國機構投資人': 'foreign',
+            '投信': 'trust',
+            '自營商': 'dealer',
+            '自營': 'dealer',
+        }
+
+        try:
+            today = datetime.now()
+            for delta in range(5):
+                d = today - timedelta(days=delta)
+                date_str = d.strftime('%Y/%m/%d')
+                url = 'https://www.taifex.com.tw/cht/3/callsAndPutsDate'
+                params = {'queryStartDate': date_str, 'queryEndDate': date_str}
+                try:
+                    resp = self._session.get(url, params=params, timeout=REQUEST_TIMEOUT)
+                    resp.raise_for_status()
+                except requests.RequestException as e:
+                    logger.debug("Options institutional fetch %s err: %s", date_str, e)
+                    continue
+                if len(resp.text) < 5000:
+                    continue
+
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                tables = soup.find_all('table', class_='table_f')
+                if not tables:
+                    continue
+                table = tables[0]
+                rows = table.find_all('tr')
+
+                current_product = None
+                current_cp = None
+                parsed = {}  # (institution, cp) -> oi_net
+                for row in rows:
+                    cells = row.find_all('td')
+                    n = len(cells)
+                    if n == 16:
+                        # [序號, 商品, 權別, 身份別, ...12 nums]
+                        current_product = cells[1].get_text(strip=True)
+                        current_cp = cells[2].get_text(strip=True)
+                        identity = cells[3].get_text(strip=True)
+                        num_cells = cells[4:]
+                    elif n == 14:
+                        # [權別, 身份別, ...12 nums] (same product, switch CP)
+                        current_cp = cells[0].get_text(strip=True)
+                        identity = cells[1].get_text(strip=True)
+                        num_cells = cells[2:]
+                    elif n == 13:
+                        # [身份別, ...12 nums] (same product+CP, next institution)
+                        identity = cells[0].get_text(strip=True)
+                        num_cells = cells[1:]
+                    else:
+                        continue
+
+                    if current_product != '臺指選擇權':
+                        continue
+
+                    inst_key = institution_map.get(identity)
+                    cp_key = 'call' if current_cp == '買權' else ('put' if current_cp == '賣權' else None)
+                    if not inst_key or not cp_key:
+                        continue
+
+                    nums = []
+                    for c in num_cells:
+                        cleaned = c.get_text(strip=True).replace(',', '')
+                        try:
+                            nums.append(int(cleaned))
+                        except ValueError:
+                            nums.append(None)
+                    if len(nums) < 11 or nums[10] is None:
+                        continue
+                    parsed[(inst_key, cp_key)] = nums[10]
+
+                if len(parsed) < 6:
+                    # Need all 3 institutions x 2 CPs to be a valid day
+                    continue
+
+                fc = parsed.get(('foreign', 'call'), 0)
+                fp = parsed.get(('foreign', 'put'), 0)
+                tc = parsed.get(('trust', 'call'), 0)
+                tp = parsed.get(('trust', 'put'), 0)
+                dc = parsed.get(('dealer', 'call'), 0)
+                dp = parsed.get(('dealer', 'put'), 0)
+                call_total = fc + tc + dc
+                put_total = fp + tp + dp
+
+                result = {
+                    'data_date': d.date(),
+                    'foreign_call_net': fc, 'foreign_put_net': fp,
+                    'trust_call_net': tc, 'trust_put_net': tp,
+                    'dealer_call_net': dc, 'dealer_put_net': dp,
+                    'inst_call_net_total': call_total,
+                    'inst_put_net_total': put_total,
+                    'inst_pc_oi_skew': put_total - call_total,
+                }
+                self._cache.set('options_institutional', result)
+                logger.info(
+                    "TXO institutional OI net: foreign C/P=%d/%d trust C/P=%d/%d "
+                    "dealer C/P=%d/%d skew=%d",
+                    fc, fp, tc, tp, dc, dp, result['inst_pc_oi_skew'],
+                )
+                break
+
+        except requests.RequestException as e:
+            logger.warning("Failed to fetch TXO institutional (network): %s", e)
+        except Exception as e:
+            logger.error("Failed to fetch TXO institutional: %s", e, exc_info=True)
 
         return result
 

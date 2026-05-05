@@ -133,6 +133,18 @@ echo [%date% %time%] Minifutures ratio archive starting >> scanner.log
 python tools\fetch_minifutures_ratio.py >> scanner.log 2>&1
 echo [%date% %time%] Minifutures ratio archive done >> scanner.log
 
+REM ------------------------------------------------------------
+REM Options institutional OI archiver (TXO 3-institution call/put OI).
+REM Added 2026-05-05: foreign/trust/dealer x call/put net OI from
+REM TAIFEX callsAndPutsDate. Writes 1 row/day to
+REM data/sentiment/options_institutional.parquet for inst_pc_oi_skew
+REM baseline (need >= 30 trading days for z-score) and IC validation.
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] Options institutional archive starting >> scanner.log
+python tools\fetch_options_institutional.py >> scanner.log 2>&1
+echo [%date% %time%] Options institutional archive done >> scanner.log
+
 REM MOPS probe stage removed 2026-05-05 (USE_MOPS default flipped to false).
 REM To reactivate: set USE_MOPS=true and restore tools\mops_probe.py invocation here.
 
