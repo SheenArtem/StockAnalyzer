@@ -895,6 +895,59 @@ Stage 2 完成後，過濾**趨勢分數 >= 1**，通常剩 50-100 檔。
 
         with st.expander("📖 操作 SOP（選出來之後怎麼做）", expanded=False):
             st.markdown("""
+### 🎯 每日決策樹（打開 scan 後 5 步走完）
+
+> 這是「今天該幹嘛」的執行流程。下方一、二、三章是「為什麼這樣設計」的理論依據。
+
+#### Step 1：先砍掉 gate ≠ green 的
+- 看每檔的 `qm_entry_gate`，只留 `level == 'green'` AND `ready == True`
+- 🟡 yellow（觀望，等 trigger ≥ 3）/ 🔴 red（暫緩，訊號矛盾）→ **今天直接跳過**，等下次 scan
+- Top 20 通常只有 3-5 檔是 green/ready
+
+#### Step 2：開盤後對 entry zone（剛剛剩下的 green 檔）
+比對當前報價 vs `rec_entry_low ~ rec_entry_high`：
+
+| 現價落點 | 動作 |
+|---------|------|
+| **落在 entry zone 內 ±5%** | ✅ 候選 |
+| 現價 > rec_entry_high × 1.05 | ❌ 已追高，**放棄今天**，等拉回 |
+| 現價 < rec_sl × 1.02 | ❌ 已跌穿停損附近，**放棄**，等下次 scan 重評 |
+| 跌停 / 漲停鎖死 | ❌ 流動性失效，跳過 |
+
+#### Step 3：sympathy / sector crash 過濾
+- 同類股當日普跌 >5%（例如 AI 硬體 supply chain 集體被點名）→ **即使 gate green 也跳過**
+- 邏輯：sector beta 風險，等 noise 過再進；個股 alpha 在系統性 risk-off 時不可靠
+
+#### Step 4：剩下的取 Top 1-2 進場（不是 green 全部都進）
+- 排序 key = `composite_score × recommended_pct`
+- 第 1 批倉位 = `recommended_pct × 50%`（system 已經把擇時 multiplier 算好了，再砍半是分批）
+- 第 2 批 50% 等：trigger 從低點回升至 ≥ +2 **且** RVOL > 1.2（或回調至日 MA10 / RSI 45-55）
+- **單檔上限 8-10%**，組合 5-8 檔分散
+
+#### Step 5：掛停損 / 停利單
+- 停損掛 `rec_sl_price`（系統已給）
+- TP1 掛 `rec_tp_price`（+15~24% 視 ATR%）→ 觸及減碼 1/3
+- TP2 之後改週 MA10 移動停利
+- 4 條出場訊號（週 Supertrend / 週 MA20 / 月營收 / F-Score 季更新）→ 每週日盤後檢查一次
+
+---
+
+#### 範例：套用到一個 sector crash 日
+
+假設 4 檔 green/ready 是 A/B/C/D：
+- A：現價跌停鎖死 → Step 2 砍
+- B：現價漲停（+9%）跑離 entry zone +30% → Step 2 砍
+- C：現價高於 entry zone +10% → Step 2 砍
+- D：現價低點剛碰 entry 上緣 → ✅ 留下
+
+當日同類股普跌 6% → Step 3 觸發 → D **降半倉**：原 `recommended_pct` 5.8% × 50%（分批）× 50%（sympathy 折扣）= **約 1.5%**。
+
+**結論：4 檔 green 中，今天只進 D 一檔且只進 1.5%；其餘全 stand down**。
+
+> 💡 Mental model：**Gate green = 「可以開始考慮」的開球哨**，不是「現在就買」的扣板機。還要過 entry zone / sector check / size discount 三道閘門。
+
+---
+
 ### 一、QM 定位：**右側交易 + 基本面保險**
 
 **不是左側抄底**。進場門檻 `trend_score >= 1` 代表週線+日線都已在趨勢中
