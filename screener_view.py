@@ -22,6 +22,100 @@ from ui_helpers import _convergence_label, _theme_tags_short, _wc_tags_short
 logger = logging.getLogger(__name__)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _qm_daily_decision_cached(scan_date: str, scan_time: str):
+    """5 分鐘快取的 daily decision。key = (scan_date, scan_time) 換 scan 自動失效。"""
+    from tools.qm_daily_decision import daily_decision
+    return daily_decision()
+
+
+_QM_DECISION_BADGES = {
+    'enter': ('🟢', '進場'),
+    'enter_discounted': ('🟡', '進場（sympathy 折半）'),
+    'limit_locked': ('⛔', '跌停鎖死'),
+    'chase': ('🔺', '追高放棄'),
+    'broken': ('🔻', '跌穿停損附近'),
+    'wait_pullback': ('⏸️', '等回調'),
+    'gate_yellow': ('🟡', 'Gate 觀望'),
+    'gate_red': ('🔴', 'Gate 暫緩'),
+    'gate_unknown': ('⚪', 'Gate 未知'),
+    'over_max_picks': ('📋', '備位（超過 Top 2）'),
+    'no_quote': ('❓', '無即時報價'),
+    'no_plan': ('❓', '無進場計畫'),
+    'market_closed': ('🌙', '市場未開'),
+}
+
+
+def _render_qm_daily_decision(qm_result):
+    """🎯 今日決策區塊：套 5 步 SOP 自動產出進場/stand-down 清單。"""
+    scan_date = qm_result.get('scan_date', '')
+    scan_time = qm_result.get('scan_time', '')
+    try:
+        decision = _qm_daily_decision_cached(scan_date, scan_time)
+    except Exception as e:
+        st.warning(f"今日決策計算失敗：{e}")
+        return
+
+    if decision.get('error') == 'no_qm_result':
+        return
+
+    enter = decision.get('enter') or []
+    stand_down = decision.get('stand_down') or []
+    green_count = decision.get('green_count', 0)
+    yr_count = decision.get('yellow_red_count', 0)
+    updated = decision.get('updated_at', '')
+
+    with st.expander(
+        f"🎯 今日決策（5 步 SOP 自動套用） — green {green_count} / 進場 {len(enter)}",
+        expanded=True,
+    ):
+        st.caption(
+            f"更新於 {updated}（5 分鐘快取）｜ "
+            f"流程：gate 過濾 → 對 entry zone → sympathy 折扣 → Top 1-2 + 倉位 → 掛單建議"
+        )
+
+        if not green_count:
+            st.info(decision.get('message') or
+                    f"Top 20 全數 yellow/red（{yr_count} 檔），今日不進場。")
+        elif not enter:
+            st.warning("有 green/ready 但全部不符合進場條件（追高 / 跌穿 / 跌停 / 漲停）。"
+                       "見下方「Stand down」明細。")
+        else:
+            st.markdown("#### ✅ 今日進場（最多 Top 2）")
+            cols = st.columns(len(enter))
+            for i, d in enumerate(enter):
+                badge, label = _QM_DECISION_BADGES.get(d['decision'], ('•', d['decision']))
+                with cols[i]:
+                    st.markdown(f"**{badge} {d['stock_id']} {d['name']}** — {label}")
+                    chg = d.get('change_pct', 0) * 100
+                    st.metric(
+                        f"建議倉位 {d['size_pct']}%",
+                        f"{d['current']:.1f}",
+                        delta=f"{chg:+.2f}%",
+                    )
+                    st.markdown(
+                        f"📥 進場區間 **{d['entry_low']:.1f} ~ {d['entry_high']:.1f}**  \n"
+                        f"🛑 停損 **{d['sl']:.1f}**  \n"
+                        f"🎯 TP1 **{d['tp1']:.1f}**  \n"
+                        f"💯 Composite {d.get('composite', 0):.1f}"
+                    )
+                    if d.get('sympathy'):
+                        st.caption(f"⚠️ 同類股普跌 {d['sector_avg_change']*100:+.1f}%，倉位已折半")
+                    st.caption(d['reason'])
+
+        if stand_down:
+            st.markdown(f"#### ⏸️ Stand down（{len(stand_down)} 檔不進）")
+            for d in stand_down:
+                badge, label = _QM_DECISION_BADGES.get(d['decision'], ('•', d['decision']))
+                cur_str = f" · 現價 {d['current']:.1f}" if d.get('current') is not None else ''
+                st.markdown(f"- {badge} **{d['stock_id']} {d.get('name','')}** — {label}{cur_str}　_{d.get('reason','')}_")
+
+        st.caption(
+            f"⚠️ 共 {yr_count} 檔 yellow/red 已先過濾，未顯示。"
+            "5 步 SOP 詳細邏輯見頁面最下方「📖 操作 SOP」。"
+        )
+
+
 def render_screener():
     """渲染自動選股模式整個畫面 (含 5 visible + 4 hidden tabs)。"""
     # ====================================================================
@@ -464,77 +558,10 @@ ATR_pct  = ATR(14) / 收盤價 x 100      （波動率佔比）
                 if _res_in_qm:
                     st.success(f"✨ **動能+價值共振** ({len(_res_in_qm)} 檔): {', '.join(_res_in_qm)} — 同時通過兩個 screener 的稀有組合")
 
-            # 🎯 精選 3 檔（上班族）— TV>=10億 + F>=8 + Comp>=75 + weighted rank
-            # 2026-04-22: set-and-forget 用，篩掉小型高波動 / F<8 雷股 / 過熱 FOMO
-            from tools.qm_office_picks import select_office_picks as _office_pick
-            _office_picks = _office_pick(qm_result, n=3)
-            if _office_picks:
-                with st.expander(
-                    f"🎯 精選 3 檔（上班族不看盤版）— 共 {len(_office_picks)} 檔通過硬篩",
-                    expanded=True,
-                ):
-                    st.caption(
-                        "硬篩：日均成交 ≥ 10 億 · F-Score ≥ 8 · Composite ≥ 75。"
-                        "排序：Composite + ETF×5 − |Trigger|×1.5 + 流動性加分。"
-                    )
-                    _cols = st.columns(len(_office_picks))
-                    for _i, _p in enumerate(_office_picks):
-                        _tv_yi = _p.get('avg_trading_value_5d', 0) / 1e8
-                        with _cols[_i]:
-                            st.markdown(
-                                f"**#{_i+1} {_p['stock_id']} {_p.get('name','')}**"
-                            )
-                            st.metric(
-                                "Office Score",
-                                f"{_p.get('office_score',0):.1f}",
-                                delta=f"QM#{qm_results.index(next(r for r in qm_results if r['stock_id']==_p['stock_id']))+1}",
-                            )
-                            st.markdown(
-                                f"💰 {_p['price']:.0f} · 📊 TV {_tv_yi:.0f}億  \n"
-                                f"F={_p.get('qm_f_score',0)}/9 · "
-                                f"Comp {_p.get('composite_score',0):.1f} · "
-                                f"Trig {_p.get('trigger_score',0):+.1f} · "
-                                f"ETF×{_p.get('etf_buy_count',0)}"
-                            )
-                    st.caption(
-                        "💡 適合持倉 40-60 天的中長線。高 |Trigger| 分代表熱度高，"
-                        "可分批進場避免追高；低 |Trigger| 分適合直接進場後放。"
-                    )
-
-            # 🎯 今日擇時 Top 5（依 trigger_score 由高到低）
-            #    trigger_score 整合日線 MACD/KD/RSI/RVOL/籌碼/情緒/營收/ETF，
-            #    用於「今天該下手哪檔」的進場時機判斷（不影響選股排名）
-            def _timing_badge(ts):
-                if ts is None:
-                    return '⚪'
-                if ts >= 3:
-                    return '🟢'
-                if ts >= 0:
-                    return '🟡'
-                return '🔴'
-
-            _qm_by_trigger = sorted(
-                qm_results,
-                key=lambda r: r.get('trigger_score', 0) or 0,
-                reverse=True,
-            )[:5]
-            if _qm_by_trigger:
-                st.markdown("#### 🎯 今日擇時 Top 5")
-                _top5_cols = st.columns(5)
-                for _i, _r in enumerate(_qm_by_trigger):
-                    _ts = _r.get('trigger_score', 0) or 0
-                    _cs = _r.get('composite_score')
-                    _trend = _r.get('trend_score', 0) or 0
-                    _badge = _timing_badge(_ts)
-                    _cs_txt = f"{_cs:.0f}" if _cs is not None else "-"
-                    with _top5_cols[_i]:
-                        st.metric(
-                            label=f"{_badge} {_r['stock_id']} {_r.get('name', '')[:6]}",
-                            value=f"{_ts:+.1f}",
-                            delta=f"綜合 {_cs_txt} / 趨勢 {_trend:+.1f}",
-                            delta_color="off",
-                        )
-                st.caption("🟢 ≥3 今日可進場 / 🟡 0-3 觀察 / 🔴 <0 等訊號轉強（trigger_score 為日線擇時指標）")
+            # 🎯 今日決策（自動套用 5 步 SOP）— 2026-05-06 取代「精選 3 檔」+「今日擇時 Top 5」
+            # 流程: gate 過濾 → 即時報價對 entry zone → sympathy 過濾 → Top 1-2 + 倉位 → 掛單建議
+            # 純 deterministic rule + yfinance batch fetch，無 LLM
+            _render_qm_daily_decision(qm_result)
 
             # 台股市值排名（1 = 台股市值最大）— 復用 momentum_screener 的 1h cache
             # 過濾 ETF/特別股/權證：僅保留 1000-9999 的一般普通股
