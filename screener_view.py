@@ -29,6 +29,17 @@ def _qm_daily_decision_cached(scan_date: str, scan_time: str):
     return daily_decision()
 
 
+def _timing_badge(ts):
+    """trigger_score 色燈：≥3 綠 / 0-3 黃 / <0 紅 / None ⚪"""
+    if ts is None:
+        return '⚪'
+    if ts >= 3:
+        return '🟢'
+    if ts >= 0:
+        return '🟡'
+    return '🔴'
+
+
 _QM_DECISION_BADGES = {
     'enter': ('🟢', '進場'),
     'enter_discounted': ('🟡', '進場（sympathy 折半）'),
