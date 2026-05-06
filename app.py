@@ -61,10 +61,7 @@ st.markdown("""
 # 標題
 st.markdown('<div class="main-header">📈 StockPulse 智能選股分析系統</div>', unsafe_allow_html=True)
 
-# ==========================================
-# [NEW] 免責聲明與風險提示
-# ==========================================
-# 初始化 session state 用於追蹤是否顯示過免責聲明
+# 初始化 session state 用於追蹤是否顯示過免責聲明（expander 預設展開狀態）
 if 'disclaimer_shown' not in st.session_state:
     st.session_state['disclaimer_shown'] = False
 # 初始化分析快取 session state，避免 KeyError
@@ -72,46 +69,10 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
     if _key not in st.session_state:
         st.session_state[_key] = None
 
-# 使用 expander 顯示免責聲明 (可收合)
-with st.expander("⚠️ 投資風險提示 (請詳閱)", expanded=not st.session_state['disclaimer_shown']):
-    st.markdown("""
-    ### 📜 免責聲明 (Disclaimer)
-    
-    **本系統為技術分析輔助工具，所有分析結果僅供參考，不構成任何投資建議。**
-    
-    #### ⚠️ 投資風險提示
-    - 🔹 股市投資有風險，過去績效不代表未來表現
-    - 🔹 AI 評分模型基於歷史數據訓練，無法預測突發事件
-    - 🔹 籌碼數據存在延遲 (T+1 或更久)，可能不反映即時狀況
-    - 🔹 技術指標在盤整行情中可能產生大量假訊號
-    - 🔹 建議結合基本面分析與自身判斷，審慎決策
-    
-    #### 📊 數據來源說明
-    | 數據類型 | 來源 | 更新頻率 |
-    |---------|------|---------|
-    | 台股股價 | Yahoo Finance / FinMind | 每日收盤後 |
-    | 美股股價 | Yahoo Finance | 即時 (延遲 15 分鐘) |
-    | 台股籌碼 | FinMind (三大法人/融資券) | 每日 21:30 後 |
-    | 美股籌碼 | Yahoo Finance (機構持股/空頭) | 每季 / 每月 |
-    | 基本面數據 | Yahoo Finance / FinMind | 每季 / 每月 |
-    | SEC 申報 | SEC EDGAR (13F/Form 4) | 即時 |
-    | 美股情緒 | CNN Fear & Greed Index | 每日 |
-    | 美股快照 | Finviz (技術面/估值) | 盤中 |
-    
-    #### 📝 使用條款
-    - 本系統僅供個人學習研究使用，禁止商業用途
-    - 用戶應自行承擔投資決策的全部風險
-    - 系統開發者不對任何投資損失負責
-    
-    ---
-    *點擊「收合」按鈕可隱藏此聲明*
-    """)
-    st.session_state['disclaimer_shown'] = True
-
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.05.06.3")
+    st.caption("Version: v2026.05.06.4")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -178,21 +139,35 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # === 數據來源與風險提示 (側邊欄底部) ===
-    st.markdown("### 📊 數據來源")
-    st.caption("""
-    **台股**: FinMind / Yahoo Finance
-    **美股**: Yahoo Finance / SEC EDGAR / Finviz
-    **情緒**: CNN F&G
-    **籌碼更新**: 每日 21:30 後
-    """)
-    
-    st.markdown("### ⚠️ 風險提示")
-    st.caption("""
-    本系統分析結果僅供參考
-    股市有風險，投資需謹慎
-    歷史績效不代表未來表現
-    """)
+    # === 免責聲明 + 數據來源 + 風險提示（2026-05-06 從主畫面移到 sidebar）===
+    with st.expander("⚠️ 投資風險提示 (請詳閱)",
+                     expanded=not st.session_state['disclaimer_shown']):
+        st.markdown("""
+**本系統為技術分析輔助工具，所有分析結果僅供參考，不構成任何投資建議。**
+
+#### ⚠️ 投資風險
+- 股市投資有風險，過去績效不代表未來表現
+- AI 評分模型基於歷史數據訓練，無法預測突發事件
+- 籌碼數據存在延遲 (T+1 或更久)，可能不反映即時狀況
+- 技術指標在盤整行情中可能產生大量假訊號
+- 建議結合基本面分析與自身判斷，審慎決策
+
+#### 📊 數據來源
+- **台股股價**: Yahoo Finance / FinMind（每日收盤後）
+- **美股股價**: Yahoo Finance（即時，延遲 15 分鐘）
+- **台股籌碼**: FinMind 三大法人 / 融資券（每日 21:30 後）
+- **美股籌碼**: Yahoo Finance 機構持股 / 空頭（每季 / 每月）
+- **基本面**: Yahoo Finance / FinMind（每季 / 每月）
+- **SEC 申報**: SEC EDGAR 13F / Form 4（即時）
+- **美股情緒**: CNN Fear & Greed Index（每日）
+- **美股快照**: Finviz 技術面 / 估值（盤中）
+
+#### 📝 使用條款
+- 本系統僅供個人學習研究使用，禁止商業用途
+- 用戶應自行承擔投資決策的全部風險
+- 系統開發者不對任何投資損失負責
+""")
+        st.session_state['disclaimer_shown'] = True
 
     st.markdown("---")
 
