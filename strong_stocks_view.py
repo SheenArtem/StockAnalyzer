@@ -83,14 +83,21 @@ def render_strong_stocks() -> None:
             total = len(meta.get("twse_top", [])) + len(meta.get("tpex_top", []))
             ai_meta = meta.get("ai_analysis_meta", {}) or {}
             mc1, mc2, mc3, mc4 = st.columns(4)
-            mc1.metric("掃描日", meta.get("scan_date", "?"))
+            ref_d = meta.get("ref_date") or meta.get("scan_date", "?")
+            mc1.metric("資料日 (ref)", ref_d, help="所有欄位對齊的交易日 (OHLCV cache 共識)")
             mc2.metric("族群覆蓋", f"{sector_covered}/{total}")
             mc3.metric("法人覆蓋", f"{inst_covered}/{total}")
             ai_warn = len(ai_meta.get("validation_warnings", []) or [])
             mc4.metric("AI 警告", ai_warn, delta=None if ai_warn == 0 else "需注意")
             ai_at = ai_meta.get("generated_at")
+            scan_d = meta.get("scan_date")
+            cap_parts = []
+            if scan_d and scan_d != ref_d:
+                cap_parts.append(f"掃描日 {scan_d}")
             if ai_at:
-                st.caption(f"AI 分析產出於 {ai_at}")
+                cap_parts.append(f"AI 分析產出於 {ai_at}")
+            if cap_parts:
+                st.caption(" | ".join(cap_parts))
 
     # --- PDF download ---
     if selected_pdf.exists():

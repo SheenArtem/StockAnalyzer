@@ -130,9 +130,11 @@ YT 影片同步 → News 題材萃取 → 量價情緒指標 (PUT/小台/期權)
 每天排程跑完後產出：
 
 ```
-data/strong_stocks_reports/YYYY-MM-DD.html
+data/strong_stocks_reports/YYYY-MM-DD.html   # YYYY-MM-DD = 資料日 (ref_date), 不是 scan run 日
 data/strong_stocks_reports/YYYY-MM-DD.pdf
 ```
+
+> 嚴格日期對齊（schema v2）：所有欄位（價量 / 法人 / 融資 / 當沖 / 借券）都對齊到 OHLCV cache 共識最新日 (`ref_date`)，避免「price 是 D-1 + 籌碼是 D」混錯一天。OHLCV cache 不一致 → fail loud 拒絕產出。
 
 12 欄表格（代號 / 名稱 / 族群 / 收盤 / 漲幅 / 量比 / 5日漲 / 法人 / 融資 / 當沖% / 借券賣 / 評分）+ AI 五段論述（資金熱點 / 族群行情 / 追高警告 / 潛力觀察 / 整體風險）。
 
