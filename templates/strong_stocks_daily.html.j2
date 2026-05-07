@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>台股強勢股日報 {{ scan_date_roc }}</title>
+  <style>
+    body {
+      font-family: "Microsoft JhengHei", "PingFang TC", -apple-system, sans-serif;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      color: #222;
+      line-height: 1.65;
+    }
+    @page { size: A4 landscape; margin: 12mm 8mm; }
+    h1 {
+      color: #c93030;
+      border-bottom: 3px solid #c93030;
+      padding-bottom: 8px;
+      font-size: 28px;
+      margin-top: 0;
+    }
+    h2 {
+      color: #c93030;
+      border-bottom: 2px solid #c93030;
+      padding-bottom: 6px;
+      margin-top: 36px;
+      font-size: 22px;
+    }
+    h3 {
+      color: #c93030;
+      border-left: 5px solid #c93030;
+      padding-left: 10px;
+      margin-top: 28px;
+      font-size: 18px;
+    }
+    h4 {
+      color: #444;
+      margin-top: 18px;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 13px;
+      margin-top: -4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 24px;
+      font-size: 12.5px;
+    }
+    th {
+      text-align: left;
+      color: #888;
+      font-weight: normal;
+      border-bottom: 1px solid #ddd;
+      padding: 8px 6px;
+    }
+    td {
+      padding: 10px 6px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: top;
+    }
+    .col-id { font-weight: 600; color: #444; }
+    .col-name { font-weight: 600; }
+    .col-sector { color: #b0b0b0; font-size: 12px; }
+    .col-up { color: #c93030; font-weight: 600; }
+    .col-volratio { color: #444; }
+    .col-abnvol { color: #999; font-size: 11.5px; margin-left: 6px; }
+    .col-inst-pos { color: #c93030; font-weight: 500; }
+    .col-inst-zero { color: #888; }
+    .col-inst-neg { color: #2c7a2c; font-weight: 500; }
+    .col-warn { color: #c93030; font-weight: 600; }
+    .col-score { color: #444; font-weight: 600; }
+    blockquote {
+      border-left: 4px solid #f0a0a0;
+      background: #fdf6f6;
+      margin: 12px 0;
+      padding: 14px 18px;
+      color: #333;
+      font-size: 14.5px;
+    }
+    .stock-block {
+      margin: 14px 0 14px 14px;
+    }
+    .stock-block .stock-title {
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .stock-block .stock-flag {
+      color: #888;
+      font-size: 12px;
+      margin-left: 8px;
+      font-weight: normal;
+    }
+    .stock-block ul {
+      margin: 4px 0 4px 0;
+      padding-left: 22px;
+    }
+    .stock-block ul li {
+      margin: 2px 0;
+      font-size: 14px;
+    }
+    .label-driver, .label-news {
+      color: #c93030;
+      font-weight: 600;
+    }
+    .warn-block {
+      margin: 12px 0 12px 14px;
+    }
+    .warn-block .warn-title {
+      font-weight: 600;
+    }
+    .warn-block .warn-flag {
+      color: #c93030;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+    .watch-block {
+      margin: 12px 0 12px 14px;
+    }
+    .watch-block .watch-title {
+      font-weight: 600;
+    }
+    .watch-block .watch-flag {
+      color: #888;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+      color: #999;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>[台股強勢股日報] {{ scan_date_roc }} ({{ scan_date }})</h1>
+<p class="subtitle">報告產生時間：{{ generated_at }}</p>
+
+{% macro signed_shares(v) %}
+{% if v is none %}<span class="col-inst-zero">N/A</span>
+{%- elif v > 0 %}<span class="col-inst-pos">+{{ "{:,}".format(v) }}張</span>
+{%- elif v < 0 %}<span class="col-inst-neg">{{ "{:,}".format(v) }}張</span>
+{%- else %}<span class="col-inst-zero">0張</span>{% endif -%}
+{% endmacro %}
+
+{% macro render_table(rows) %}
+<table>
+  <thead>
+    <tr>
+      <th>代號</th>
+      <th>名稱</th>
+      <th>族群</th>
+      <th>收盤</th>
+      <th>漲幅</th>
+      <th>量比</th>
+      <th>近5日</th>
+      <th>法人</th>
+      <th>融資增減</th>
+      <th>當沖%</th>
+      <th>借券賣</th>
+      <th>評分</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="col-id">{{ r.stock_id }}</td>
+      <td class="col-name">{{ r.name }}</td>
+      <td class="col-sector">{{ r.primary_sector or '' }}</td>
+      <td>{{ "%.2f"|format(r.price) }}</td>
+      <td class="col-up">{{ "%+.1f"|format(r.change_pct) }}%</td>
+      <td class="col-volratio">
+        {% if r.volume_ratio_5d is not none %}{{ r.volume_ratio_5d }}x{% else %}-{% endif %}
+        {% if r.is_abnormal_volume %}<span class="col-abnvol">爆量</span>{% endif %}
+      </td>
+      <td>{% if r.change_pct_5d is not none %}{{ "%+.1f"|format(r.change_pct_5d) }}%{% else %}-{% endif %}</td>
+      <td>{{ signed_shares(r.inst_net_buy_today_shares) }}</td>
+      <td>{{ signed_shares(r.margin_net_today_shares) }}</td>
+      <td>
+        {% if r.day_trade_pct is not none %}
+          {% if r.day_trade_pct >= 50 %}<span class="col-warn">{{ r.day_trade_pct }}%</span>
+          {%- else %}{{ r.day_trade_pct }}%{% endif %}
+        {%- else %}-{% endif %}
+      </td>
+      <td>
+        {% if r.sbl_sell_today_shares is none %}-
+        {%- elif r.sbl_sell_today_shares >= 100 %}<span class="col-warn">{{ "{:,}".format(r.sbl_sell_today_shares) }}張</span>
+        {%- else %}{{ "{:,}".format(r.sbl_sell_today_shares) }}張{% endif %}
+      </td>
+      <td class="col-score">{{ r.trigger_score }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+<h2>上市強勢股 Top {{ twse_top|length }}</h2>
+{{ render_table(twse_top) }}
+
+<h2>上櫃強勢股 Top {{ tpex_top|length }}</h2>
+{{ render_table(tpex_top) }}
+
+{% if ai_analysis %}
+<h2>AI 盤後分析（Claude Sonnet）</h2>
+
+<h3>一、資金熱點總結</h3>
+<blockquote>{{ ai_analysis.market_summary }}</blockquote>
+
+<h3>二、族群行情判斷</h3>
+{% for sec in ai_analysis.sector_analysis %}
+  <h4>{{ sec.sector_emoji }} {{ sec.sector_name }}</h4>
+  {% for s in sec.stocks %}
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">{{ s.name }} ({{ s.stock_id }})</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> {{ s.driver }}</li>
+        <li><span class="label-news">新聞利多催化劑：</span> {{ s.news_catalyst }}</li>
+      </ul>
+    </div>
+  {% endfor %}
+{% endfor %}
+
+<h3>三、追高風險提示</h3>
+<blockquote>在市場情緒亢奮環境下，部分股價已出現過度樂觀和短期投機跡象，投資人必須警惕「追高陷阱」。</blockquote>
+{% for w in ai_analysis.chase_warnings %}
+  <div class="warn-block">
+    <div>
+      <span class="warn-title">
+        {{ w.stock_id }} {{ w.name }}
+        {% if w.change_pct is not none %}（漲幅 {{ "%+.1f"|format(w.change_pct) }}%）{% endif %}
+      </span>
+      <span class="warn-flag">不宜追價</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">風險原因：</span> {{ w.reason }}</li>
+    </ul>
+  </div>
+{% endfor %}
+
+<h3>四、潛力觀察名單</h3>
+{% for w in ai_analysis.watchlist %}
+  <div class="watch-block">
+    <div>
+      <span class="watch-title">{{ w.stock_id }} {{ w.name }}</span>
+      <span class="watch-flag">潛力觀察</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">推薦邏輯：</span> {{ w.reason }}</li>
+    </ul>
+  </div>
+{% endfor %}
+
+<h3>五、整體風險提醒</h3>
+<blockquote>{{ ai_analysis.overall_risk }}</blockquote>
+{% endif %}
+
+<div class="footer">本報告由 AI 自動產生，僅供參考，不構成投資建議。</div>
+
+</body>
+</html>

@@ -201,6 +201,30 @@ echo [%date% %time%] Paper trade engine starting >> scanner.log
 python tools\paper_trade_engine.py >> scanner.log 2>&1
 echo [%date% %time%] Paper trade engine done >> scanner.log
 
+REM ------------------------------------------------------------
+REM Strong stocks daily report (PDF mimicking the user-supplied template).
+REM Added 2026-05-07: 3-stage pipeline using qm_result.json as source.
+REM   1. strong_stocks_daily.py    -- enrich + bucket (Top 15 twse / Top 15 tpex)
+REM   2. strong_stocks_ai_analysis.py -- Claude Sonnet 5-section analysis
+REM   3. strong_stocks_render.py   -- Jinja2 HTML + Playwright PDF
+REM Output: data\strong_stocks_reports\YYYY-MM-DD.{html,pdf}
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] Strong stocks Stage 1 enrich+bucket starting >> scanner.log
+python tools\strong_stocks_daily.py >> scanner.log 2>&1
+set SS_EC1=%ERRORLEVEL%
+echo [%date% %time%] Strong stocks Stage 1 done (exit=%SS_EC1%) >> scanner.log
+
+echo [%date% %time%] Strong stocks Stage 2 AI analysis starting >> scanner.log
+python tools\strong_stocks_ai_analysis.py >> scanner.log 2>&1
+set SS_EC2=%ERRORLEVEL%
+echo [%date% %time%] Strong stocks Stage 2 done (exit=%SS_EC2%) >> scanner.log
+
+echo [%date% %time%] Strong stocks Stage 3 render starting >> scanner.log
+python tools\strong_stocks_render.py >> scanner.log 2>&1
+set SS_EC3=%ERRORLEVEL%
+echo [%date% %time%] Strong stocks done (EC1=%SS_EC1% EC2=%SS_EC2% EC3=%SS_EC3%) >> scanner.log
+
 REM Discord daily summary DISABLED 2026-05-04 per user request: cancel scan-result
 REM Discord pushes (covers QM Top 5 + Step-A alerts + paper trade summary block).
 REM To re-enable: remove the "goto skip_discord_summary" line directly below.
