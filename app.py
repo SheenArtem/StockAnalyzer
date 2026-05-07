@@ -72,7 +72,7 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.05.06.4")
+    st.caption("Version: v2026.05.07.1")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -113,12 +113,13 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Mode toggle: 個股分析 / 自動選股 / 市場掃描 / AI 報告
-    _mode_options = ['individual', 'screener', 'market_scan', 'ai_reports']
+    # Mode toggle: 個股分析 / 自動選股 / 市場掃描 / AI 報告 / 強勢股日報
+    _mode_options = ['individual', 'screener', 'market_scan', 'ai_reports', 'strong_stocks']
     _mode_labels = {'individual': '📈 個股分析', 'screener': '🔍 自動選股',
-                    'market_scan': '📡 市場掃描', 'ai_reports': '📝 AI 報告'}
+                    'market_scan': '📡 市場掃描', 'ai_reports': '📝 AI 報告',
+                    'strong_stocks': '📰 強勢股日報'}
     _current_mode = st.session_state.get('app_mode', 'analysis')
-    _mode_idx_map = {'screener': 1, 'market_scan': 2, 'ai_reports': 3}
+    _mode_idx_map = {'screener': 1, 'market_scan': 2, 'ai_reports': 3, 'strong_stocks': 4}
     _mode_idx = _mode_idx_map.get(_current_mode, 0)
     app_mode = st.radio(
         "功能模式",
@@ -134,6 +135,8 @@ with st.sidebar:
         st.session_state['app_mode'] = 'market_scan'
     elif app_mode == 'ai_reports':
         st.session_state['app_mode'] = 'ai_reports'
+    elif app_mode == 'strong_stocks':
+        st.session_state['app_mode'] = 'strong_stocks'
     else:
         st.session_state['app_mode'] = 'analysis'
 
@@ -271,6 +274,10 @@ elif st.session_state.get('app_mode') == 'ai_reports':
 elif st.session_state.get('app_mode') == 'market_scan':
     from market_scan_view import render_market_scan
     render_market_scan()
+
+elif st.session_state.get('app_mode') == 'strong_stocks':
+    from strong_stocks_view import render_strong_stocks
+    render_strong_stocks()
 
 elif st.session_state.get('analysis_active', False):
     from individual_view import render_individual
