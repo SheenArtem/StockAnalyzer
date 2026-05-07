@@ -138,7 +138,9 @@ data/strong_stocks_reports/YYYY-MM-DD.pdf
 
 族群 3 層 fallback：manual themes → YT dynamic tags → TradingView industry。
 
-手動產出：
+**網頁查看**：Streamlit UI sidebar → 切「📰 強勢股日報」mode → 日期下拉選歷史報告 + 直接 inline 渲染 + 一鍵下載 PDF。
+
+**手動產出**：
 ```bash
 python tools/strong_stocks_daily.py        # enrich + bucket
 python tools/strong_stocks_ai_analysis.py  # Sonnet 5 段論述
