@@ -25,6 +25,9 @@ tools/kronos_smoke*.py
 # Local-only calibration scripts
 local/
 
+# Substack 知識庫 (付費訂閱內容轉錄, 著作權考量不公開)
+knowledge/songfen/
+
 # Environment
 .env
 *.env
