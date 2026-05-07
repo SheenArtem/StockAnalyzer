@@ -144,8 +144,13 @@
 </head>
 <body>
 
-<h1>[台股強勢股日報] {{ scan_date_roc }} ({{ scan_date }})</h1>
-<p class="subtitle">報告產生時間：{{ generated_at }}</p>
+<h1>[台股強勢股日報] {{ ref_date_roc or scan_date_roc }} ({{ ref_date or scan_date }})</h1>
+<p class="subtitle">
+  報告產生時間：{{ generated_at }}
+  {%- if ref_date and scan_date and ref_date != scan_date %}
+  <span style="color:#888;">（資料日 {{ ref_date }} / 掃描日 {{ scan_date }}）</span>
+  {%- endif %}
+</p>
 
 {% macro signed_shares(v) %}
 {% if v is none %}<span class="col-inst-zero">N/A</span>

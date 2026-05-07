@@ -49,9 +49,12 @@ def render_html(daily: dict) -> str:
     template = env.get_template(TEMPLATE_PATH.name)
 
     scan_date = daily.get("scan_date", "")
+    ref_date = daily.get("ref_date", "") or scan_date
     return template.render(
         scan_date=scan_date,
         scan_date_roc=to_roc(scan_date),
+        ref_date=ref_date,
+        ref_date_roc=to_roc(ref_date),
         generated_at=daily.get(
             "generated_at",
             datetime.now().isoformat(timespec="seconds"),
@@ -109,11 +112,12 @@ def main(argv: list[str] | None = None) -> int:
     with args.input.open("r", encoding="utf-8") as f:
         daily = json.load(f)
 
-    scan_date = daily.get("scan_date") or datetime.now().strftime("%Y-%m-%d")
+    # File name 用 ref_date (資料日)，避免「5/6 資料的報告被命名為 5/7」的混淆
+    file_date = daily.get("ref_date") or daily.get("scan_date") or datetime.now().strftime("%Y-%m-%d")
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    html_path = args.output_dir / f"{scan_date}.html"
-    pdf_path = args.output_dir / f"{scan_date}.pdf"
+    html_path = args.output_dir / f"{file_date}.html"
+    pdf_path = args.output_dir / f"{file_date}.pdf"
 
     html = render_html(daily)
     html_path.write_text(html, encoding="utf-8")

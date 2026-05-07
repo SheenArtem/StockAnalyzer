@@ -1,20 +1,26 @@
 """
-強勢股日報 — Phase 1+2 (enrich + 分桶)
+強勢股日報 — enrich + 分桶 + 嚴格日期對齊
 
-讀 data/latest/momentum_result.json，補 PDF 報告需要的欄位後分桶輸出。
+讀 qm_result.json (or momentum_result.json)，補欄位後分桶輸出。
+
+** 嚴格日期對齊 (schema v2) **：
+  ref_date = OHLCV cache consensus latest date (top-N tickers 必須一致)。
+  所有籌碼 fetcher 都用這個 ref_date 查詢，不會發生「price 是 D-1, 籌碼是 D」
+  的時間錯位 (Robustness First)。OHLCV 不齊 → return 2 fail loud。
 
 新增欄位（非破壞性）:
   - volume_ratio_5d:           今日量 / 前 5 日均量
   - is_abnormal_volume:        volume_ratio_5d >= 1.9
   - change_pct_5d:             近 5 日漲幅 %
-  - inst_net_buy_today_shares: 當日法人合計買賣超 (張)
+  - inst_net_buy_today_shares: ref_date 法人合計買賣超 (張)
   - primary_sector:            sector 3 層 fallback (manual / YT / TV)
-  - margin_net_today_shares:   當日融資增減 (張) = 融資買進 - 融資賣出
-  - day_trade_pct:             當沖比 (%) = 當沖買賣均量 / 總成交量
-  - sbl_sell_today_shares:     當日借券賣出 (張，新空頭力道)
+  - margin_net_today_shares:   ref_date 融資增減 (張) = 融資買進 - 融資賣出
+  - day_trade_pct:             ref_date 當沖比 (%) = 當沖量 / 總成交量
+  - sbl_sell_today_shares:     ref_date 借券賣出 (張，新空頭力道)
 
-輸出: data/latest/strong_stocks_daily.json
-  上市 Top 15 + 上櫃 Top 15 (按 trigger_score 排序)
+輸出 schema v2: data/latest/strong_stocks_daily.json
+  - ref_date 欄位記錄所有資料對齊的交易日
+  - 上市 Top 15 + 上櫃 Top 15 (按 trigger_score 排序)
 
 Usage:
   python tools/strong_stocks_daily.py
@@ -228,129 +234,118 @@ def enrich_from_price_cache(stock_id: str) -> dict[str, Any]:
 
 
 # ============================================================
-# Chip data today (margin / day_trade / sbl)
+# Reference date (strict alignment with OHLCV cache)
 # ------------------------------------------------------------
-# Strategy:
-#   - TWSE batch via chip_history_dl helpers (1 API call each for margin/sbl)
-#   - TPEX via FinMind per-stock (typically 5 tickers, ~6s)
-#   - day_trade via FinMind per-stock (no batch endpoint, ~30s for 30 tickers)
-# Total ~50s for 30-stock report.
+# All fetchers query the exact `ref_date` derived from OHLCV cache consensus
+# of the top-N tickers. Mismatch between OHLCV cache and chip data → fail loud.
 # ============================================================
-def _today_dt() -> "datetime":
-    """Most recent weekday (best-effort, not actual trading day check)."""
+def detect_ref_date(top_records: list[dict]) -> tuple[str | None, list[tuple[str, str]]]:
+    """Return (consensus_date, mismatches).
+    consensus_date = OHLCV cache 最新日期 across top-N (most-common).
+    mismatches = list of (ticker, its_date) where date != consensus."""
+    from collections import Counter
+    detail: list[tuple[str, str]] = []
+    for r in top_records:
+        sid = str(r.get("stock_id"))
+        fp = PRICE_CACHE_DIR / f"{sid}_price.csv"
+        if not fp.exists():
+            continue
+        try:
+            df = pd.read_csv(fp, index_col=0, parse_dates=True)
+            if df.empty:
+                continue
+            d = df.index[-1].strftime("%Y-%m-%d")
+            detail.append((sid, d))
+        except Exception:
+            continue
+    if not detail:
+        return None, []
+    consensus = Counter(d for _, d in detail).most_common(1)[0][0]
+    mismatches = [(sid, d) for sid, d in detail if d != consensus]
+    return consensus, mismatches
+
+
+# ============================================================
+# Chip data for a specific date
+# ------------------------------------------------------------
+# Strategy: TWSE batch helpers from chip_history_dl + TPEX FinMind fallback.
+# All fetchers take explicit ref_date (str, YYYY-MM-DD) — no "today's latest"
+# magic, to avoid the data-misalignment trap (OHLCV from D-1 + chip from D).
+# ============================================================
+def fetch_margin_for_date(tpex_tickers: set[str], ref_date: str) -> dict[str, int]:
+    """ticker -> 當日融資增減 (張) = margin_buy - margin_sell, for ref_date.
+    TWSE batch + TPEX FinMind. 空回傳 → ref_date 資料未公布 (caller 處理)."""
     from datetime import datetime, timedelta
-    dt = datetime.now()
-    while dt.weekday() >= 5:
-        dt -= timedelta(days=1)
-    return dt
-
-
-def fetch_margin_today(tpex_tickers: set[str]) -> dict[str, int]:
-    """ticker -> 當日融資增減 (張) = margin_buy - margin_sell.
-    TWSE 一個 batch call + TPEX 走 FinMind per-stock fallback."""
-    from datetime import timedelta
     out: dict[str, int] = {}
+    dt = datetime.strptime(ref_date, "%Y-%m-%d")
 
     try:
         from tools.chip_history_dl import _fetch_margin_twse_one_day
+        recs = _fetch_margin_twse_one_day(dt)
+        for r in recs:
+            sid = str(r.get("stock_id"))
+            out[sid] = int(r.get("margin_buy", 0)) - int(r.get("margin_sell", 0))
     except Exception as e:
-        logger.warning("chip_history_dl import failed: %s", e)
-        return out
+        logger.warning("margin TWSE fetch failed for %s: %s", ref_date, e)
 
-    # Try last 5 weekdays until we get TWSE data (handle holidays)
-    dt = _today_dt()
-    for _ in range(5):
-        try:
-            recs = _fetch_margin_twse_one_day(dt)
-        except Exception as e:
-            logger.warning("margin TWSE fetch failed for %s: %s", dt.date(), e)
-            recs = []
-        if recs:
-            for r in recs:
-                sid = str(r.get("stock_id"))
-                out[sid] = int(r.get("margin_buy", 0)) - int(r.get("margin_sell", 0))
-            break
-        dt = dt - timedelta(days=1)
-
-    # TPEX via FinMind
     if tpex_tickers:
         try:
             from FinMind.data import DataLoader
             dl = DataLoader()
-            today_str = _today_dt().strftime("%Y-%m-%d")
-            start_str = (_today_dt() - timedelta(days=10)).strftime("%Y-%m-%d")
             for sid in tpex_tickers:
                 try:
                     df = dl.taiwan_stock_margin_purchase_short_sale(
-                        stock_id=sid, start_date=start_str, end_date=today_str)
+                        stock_id=sid, start_date=ref_date, end_date=ref_date)
                     if df is not None and not df.empty:
-                        last = df.sort_values("date").iloc[-1]
-                        out[sid] = int(last.get("MarginPurchaseBuy", 0)) - int(last.get("MarginPurchaseSell", 0))
+                        row = df.iloc[0]
+                        out[sid] = int(row.get("MarginPurchaseBuy", 0)) - int(row.get("MarginPurchaseSell", 0))
                 except Exception as e:
-                    logger.debug("TPEX margin %s failed: %s", sid, e)
+                    logger.debug("TPEX margin %s on %s failed: %s", sid, ref_date, e)
         except Exception as e:
             logger.warning("FinMind margin fallback init failed: %s", e)
     return out
 
 
-def fetch_sbl_today(tpex_tickers: set[str]) -> dict[str, int]:
-    """ticker -> 當日借券賣出 (張，新空頭力道).
-    TWSE 一個 batch call + TPEX 走 FinMind per-stock fallback."""
-    from datetime import timedelta
+def fetch_sbl_for_date(tpex_tickers: set[str], ref_date: str) -> dict[str, int]:
+    """ticker -> 當日借券賣出 (張) for ref_date."""
+    from datetime import datetime
     out: dict[str, int] = {}
+    dt = datetime.strptime(ref_date, "%Y-%m-%d")
 
     try:
         from tools.chip_history_dl import _fetch_shortsale_twse_one_day
+        recs = _fetch_shortsale_twse_one_day(dt)
+        for r in recs:
+            sid = str(r.get("stock_id"))
+            # TWSE TWT93U sbl_sell 單位「股」÷1000 → 張
+            out[sid] = int(r.get("sbl_sell", 0)) // 1000
     except Exception as e:
-        logger.warning("chip_history_dl import failed: %s", e)
-        return out
-
-    dt = _today_dt()
-    for _ in range(5):
-        try:
-            recs = _fetch_shortsale_twse_one_day(dt)
-        except Exception as e:
-            logger.warning("sbl TWSE fetch failed for %s: %s", dt.date(), e)
-            recs = []
-        if recs:
-            for r in recs:
-                sid = str(r.get("stock_id"))
-                # TWSE TWT93U sbl_sell 單位為「股」，÷1000 轉「張」對齊其他欄位
-                out[sid] = int(r.get("sbl_sell", 0)) // 1000
-            break
-        dt = dt - timedelta(days=1)
+        logger.warning("sbl TWSE fetch failed for %s: %s", ref_date, e)
 
     if tpex_tickers:
         try:
             from FinMind.data import DataLoader
             dl = DataLoader()
-            today_str = _today_dt().strftime("%Y-%m-%d")
-            start_str = (_today_dt() - timedelta(days=10)).strftime("%Y-%m-%d")
             for sid in tpex_tickers:
                 try:
                     df = dl.taiwan_stock_securities_lending(
-                        stock_id=sid, start_date=start_str, end_date=today_str)
+                        stock_id=sid, start_date=ref_date, end_date=ref_date)
                     if df is not None and not df.empty:
-                        last = df.sort_values("date").iloc[-1]
-                        # FinMind 欄位: transaction_volume = 借券交易量, 我們取 sell 部分
-                        # 安全 fallback: 用 transaction_volume 當 proxy
+                        row = df.iloc[0]
                         for col in ("sell", "transaction_volume", "volume"):
-                            if col in last.index:
-                                # FinMind 同樣是股，÷1000 轉張
-                                out[sid] = int(last.get(col, 0)) // 1000
+                            if col in row.index:
+                                out[sid] = int(row.get(col, 0)) // 1000
                                 break
                 except Exception as e:
-                    logger.debug("TPEX sbl %s failed: %s", sid, e)
+                    logger.debug("TPEX sbl %s on %s failed: %s", sid, ref_date, e)
         except Exception as e:
             logger.warning("FinMind sbl fallback init failed: %s", e)
     return out
 
 
-def fetch_day_trade_today(tickers: list[str]) -> dict[str, float]:
-    """ticker -> 當日當沖比 (%) = DayTrading.Volume / OHLCV.Volume.
-    FinMind 沒 batch endpoint，逐檔；分母從 data_cache/{sid}_price.csv 取 (零 API)。
-    若當日 FinMind 還沒更新 (=0)，往前找最近一筆非 0 的當沖紀錄。"""
-    from datetime import timedelta
+def fetch_day_trade_for_date(tickers: list[str], ref_date: str) -> dict[str, float]:
+    """ticker -> ref_date 當沖比 (%) = DayTrading.Volume / OHLCV.Volume.
+    FinMind 逐檔；嚴格只取 ref_date，未公布就 N/A (不 fallback 前一日)。"""
     out: dict[str, float] = {}
     if not tickers:
         return out
@@ -361,10 +356,6 @@ def fetch_day_trade_today(tickers: list[str]) -> dict[str, float]:
         logger.warning("FinMind day_trade init failed: %s", e)
         return out
 
-    today_str = _today_dt().strftime("%Y-%m-%d")
-    start_str = (_today_dt() - timedelta(days=10)).strftime("%Y-%m-%d")
-
-    # Pre-load price cache for denominator lookup (per-stock once)
     def _price_volume_on(sid: str, date_str: str) -> int | None:
         fp = PRICE_CACHE_DIR / f"{sid}_price.csv"
         if not fp.exists():
@@ -382,53 +373,55 @@ def fetch_day_trade_today(tickers: list[str]) -> dict[str, float]:
     for sid in tickers:
         try:
             df = dl.taiwan_stock_day_trading(
-                stock_id=sid, start_date=start_str, end_date=today_str)
+                stock_id=sid, start_date=ref_date, end_date=ref_date)
             if df is None or df.empty:
                 continue
-            df = df.sort_values("date")
-            # 找最近一筆 Volume > 0 的紀錄（FinMind 收盤當天可能還是 0）
-            non_zero = df[df["Volume"].astype(float) > 0]
-            if non_zero.empty:
+            row = df.iloc[0]
+            dt_vol = float(row.get("Volume", 0))
+            if dt_vol <= 0:
+                # ref_date 當沖資料還沒公布
                 continue
-            last = non_zero.iloc[-1]
-            dt_vol = float(last["Volume"])  # 當沖股數
-            ref_date = str(last["date"])[:10]
             total_vol = _price_volume_on(sid, ref_date)
             if total_vol and total_vol > 0:
                 out[sid] = round(dt_vol / total_vol * 100, 1)
         except Exception as e:
-            logger.debug("day_trade %s failed: %s", sid, e)
+            logger.debug("day_trade %s on %s failed: %s", sid, ref_date, e)
         time.sleep(1.2)  # FinMind 600/hr safe interval
     return out
 
 
 # ============================================================
-# Institutional today (single API call for whole market)
+# Institutional for a specific date
 # ============================================================
-def fetch_inst_today() -> dict[str, int]:
-    """ticker -> 當日法人合計買賣超 (張). 一次 API call 拿全市場。"""
-    try:
-        from twse_api import TWSEOpenData
-        twse = TWSEOpenData()
-        # days=1 拿最新一個交易日（內部有 fallback 找最近成功的日子）
-        batch = twse.get_institutional_batch(days=1)
-    except Exception as e:
-        logger.warning("fetch_inst_today failed: %s", e)
-        return {}
+def fetch_inst_for_date(ref_date: str) -> dict[str, int]:
+    """ticker -> ref_date 三大法人合計買賣超 (張). TWSE T86 + TPEX 各一個 batch call."""
+    from datetime import datetime
+    dt = datetime.strptime(ref_date, "%Y-%m-%d")
+    out: dict[str, int] = {}
 
-    today_map: dict[str, int] = {}
-    for sid, df in batch.items():
+    try:
+        from tools.chip_history_dl import (
+            _fetch_institutional_twse_one_day,
+            _fetch_institutional_tpex_one_day,
+        )
+    except Exception as e:
+        logger.warning("chip_history_dl import failed: %s", e)
+        return out
+
+    for fetcher, label in (
+        (_fetch_institutional_twse_one_day, "TWSE T86"),
+        (_fetch_institutional_tpex_one_day, "TPEX 3insti"),
+    ):
         try:
-            if df is None or df.empty:
-                continue
-            # 取最新一筆 '合計' 欄位 (股數) → 轉張 (/1000，四捨五入)
-            latest = df.sort_values("date").iloc[-1]
-            shares = int(latest.get("合計", 0))
-            today_map[str(sid)] = round(shares / 1000)
-        except Exception:
-            continue
-    logger.info("fetch_inst_today: %d tickers", len(today_map))
-    return today_map
+            recs = fetcher(dt)
+            for r in recs:
+                sid = str(r.get("stock_id"))
+                # total_net 單位「股」÷1000 → 張
+                out[sid] = round(int(r.get("total_net", 0)) / 1000)
+        except Exception as e:
+            logger.warning("inst %s fetch failed for %s: %s", label, ref_date, e)
+    logger.info("fetch_inst_for_date(%s): %d tickers", ref_date, len(out))
+    return out
 
 
 # ============================================================
@@ -545,26 +538,43 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[INFO] Loaded {len(results)} momentum results (scan_date={momentum.get('scan_date')})")
 
     sector_idx = load_sector_index()
-    inst_today = {} if args.skip_inst else fetch_inst_today()
 
-    # Chip data: only fetch for the actual top-N tickers (avoid wasting FinMind quota
-    # on full universe). Build buckets first to know the target tickers.
+    # ----- Strict date alignment: detect ref_date from OHLCV cache consensus -----
+    prelim_buckets = bucket_and_topn(results, args.top_n)
+    target_tickers = [
+        r["stock_id"] for r in prelim_buckets["twse"] + prelim_buckets["tpex"]
+    ]
+    tpex_targets = {r["stock_id"] for r in prelim_buckets["tpex"]}
+
+    ref_date, mismatches = detect_ref_date(prelim_buckets["twse"] + prelim_buckets["tpex"])
+    if ref_date is None:
+        print("[ERROR] Cannot determine ref_date from OHLCV cache (no top-N tickers have cache).",
+              file=sys.stderr)
+        return 1
+    print(f"[INFO] ref_date = {ref_date} (OHLCV cache consensus across top {len(target_tickers)})")
+    if mismatches:
+        print(f"[ERROR] OHLCV ref_date mismatch ({len(mismatches)}/{len(target_tickers)} tickers off):",
+              file=sys.stderr)
+        for sid, d in mismatches[:10]:
+            print(f"  {sid}: {d} (expected {ref_date})", file=sys.stderr)
+        print("[ERROR] Refusing to proceed - run scanner first to refresh OHLCV cache, "
+              "or pass --allow-mismatch (not implemented).", file=sys.stderr)
+        return 2
+
+    # ----- Fetch chip data strictly for ref_date -----
+    inst_today = {} if args.skip_inst else fetch_inst_for_date(ref_date)
     margin_today: dict[str, int] = {}
     sbl_today: dict[str, int] = {}
     day_trade_today: dict[str, float] = {}
     if not args.skip_chip:
-        # Pre-bucket pass: pick top-N candidates to know which tickers need chip data.
-        prelim_buckets = bucket_and_topn(results, args.top_n)
-        target_tickers = [
-            r["stock_id"] for r in prelim_buckets["twse"] + prelim_buckets["tpex"]
-        ]
-        tpex_targets = {r["stock_id"] for r in prelim_buckets["tpex"]}
-        print(f"[INFO] Fetching chip data for {len(target_tickers)} target tickers...")
-        margin_today = fetch_margin_today(tpex_targets)
-        sbl_today = fetch_sbl_today(tpex_targets)
-        day_trade_today = fetch_day_trade_today(target_tickers)
+        print(f"[INFO] Fetching chip data for {len(target_tickers)} target tickers on {ref_date}...")
+        margin_today = fetch_margin_for_date(tpex_targets, ref_date)
+        sbl_today = fetch_sbl_for_date(tpex_targets, ref_date)
+        day_trade_today = fetch_day_trade_for_date(target_tickers, ref_date)
         print(
-            f"[INFO] Chip coverage: margin={sum(1 for t in target_tickers if t in margin_today)}/{len(target_tickers)}, "
+            f"[INFO] Chip coverage on {ref_date}: "
+            f"inst={sum(1 for t in target_tickers if t in inst_today)}/{len(target_tickers)}, "
+            f"margin={sum(1 for t in target_tickers if t in margin_today)}/{len(target_tickers)}, "
             f"sbl={sum(1 for t in target_tickers if t in sbl_today)}/{len(target_tickers)}, "
             f"day_trade={sum(1 for t in target_tickers if t in day_trade_today)}/{len(target_tickers)}"
         )
@@ -579,10 +589,11 @@ def main(argv: list[str] | None = None) -> int:
     buckets = bucket_and_topn(results, args.top_n)
 
     out = {
-        "schema_version": 1,
+        "schema_version": 2,  # 2 = ref_date alignment enforced
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "scan_date": momentum.get("scan_date"),
         "scan_time": momentum.get("scan_time"),
+        "ref_date": ref_date,  # 所有資料對齊的交易日 (OHLCV cache consensus)
         "abnormal_vol_threshold": args.abnormal_vol_threshold,
         "top_n_per_market": args.top_n,
         "twse_top": buckets["twse"],
