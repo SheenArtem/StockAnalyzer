@@ -390,6 +390,38 @@ class FinMindRateLimitError(Exception):
     pass
 
 
+def _try_intraday_quote_as_today_bar(raw_input):
+    """盤中時段嘗試從 mis.twse 拿即時報價，組成 OHLCV today partial bar。
+    僅針對純數字 ticker (台股)；非交易時段 / 美股 / mis.twse 失敗都回 None。
+    回傳的 df 不該被寫入 disk cache（partial bar 還會變動，污染收盤資料）。"""
+    if not raw_input.isdigit():
+        return None
+    try:
+        from mis_twse_client import is_tw_trading_hours, get_quote as mis_get_quote
+        if not is_tw_trading_hours():
+            return None
+        q = mis_get_quote(raw_input)
+        if q is None:
+            return None
+        price = q['price']
+        idx = pd.Timestamp(q['date'])
+        row = {
+            'Open': q['open'] if q['open'] is not None else price,
+            'High': q['high'] if q['high'] is not None else price,
+            'Low': q['low'] if q['low'] is not None else price,
+            'Close': price,
+            'Volume': q['volume'] if q['volume'] is not None else 0,
+        }
+        logger.info(
+            "mis.twse intraday partial bar for %s: %s @ %s (src=%s, vol=%s)",
+            raw_input, price, q['time'], q['price_source'], row['Volume']
+        )
+        return pd.DataFrame([row], index=[idx])
+    except Exception as e:
+        logger.warning("mis.twse intraday fallback failed for %s: %s", raw_input, e)
+        return None
+
+
 def fetch_from_finmind(stock_id, start_date=None, max_retries=3):
     """
     從 FinMind 抓取台股股價資料 (含 retry backoff)
@@ -538,11 +570,21 @@ def load_and_resample(source, force_update=False):
                  # Save merged Cache
                  cm.save_cache(raw_input, df_day, 'price')
             else:
-                 # No new data found (maybe holiday), trust cache
-                 logger.debug("No new data (likely holiday), using cached")
-                 df_day = cached_df
-                 ticker_name = raw_input
-                 stock_meta = get_stock_info_smart(ticker_name)
+                 # FinMind/yfinance 都沒有 new bar — 盤中嘗試從 mis.twse 拼 today partial
+                 today_bar = _try_intraday_quote_as_today_bar(raw_input)
+                 if today_bar is not None and not today_bar.empty:
+                     df_day = pd.concat([cached_df, today_bar])
+                     df_day = df_day[~df_day.index.duplicated(keep='last')]
+                     df_day.sort_index(inplace=True)
+                     ticker_name = raw_input
+                     stock_meta = get_stock_info_smart(ticker_name)
+                     # 注意：mis.twse partial bar 不寫 disk cache (盤中還會變)
+                 else:
+                     # No new data found (maybe holiday / 美股 / mis.twse miss), trust cache
+                     logger.debug("No new data (likely holiday), using cached")
+                     df_day = cached_df
+                     ticker_name = raw_input
+                     stock_meta = get_stock_info_smart(ticker_name)
                  
         if df_day.empty: # Either status="miss" or partial failed catastrophically
             # Cache Miss - Start Download

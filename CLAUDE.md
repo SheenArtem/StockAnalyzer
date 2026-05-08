@@ -71,6 +71,7 @@ All features MUST follow the same priority to avoid data drift:
 |---|---|---|---|
 | Institutional buy/sell | TWSE/TPEX official | FinMind | Unified at ChipAnalyzer layer |
 | OHLCV daily | Disk cache | FinMind → yfinance | `load_and_resample()` |
+| OHLCV intraday (盤中 today bar) | mis.twse 即時 JSON | FinMind/yfinance daily fallback | TW only, 9:00-13:30；`mis_twse_client.get_quote()`；單檔/banner 用，**禁批次掃**（社群實測 5sec/3req 上限）|
 | Fundamentals (PE/PB) | yfinance + FinMind | TradingView fill | `get_fundamentals()` |
 | Margin/ROE/ROA | TradingView Screener | — | TW + US unified |
 | Margin trading / day trade / holdings | FinMind | — | No alternative |

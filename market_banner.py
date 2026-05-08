@@ -209,6 +209,28 @@ def _fetch_index_metrics(ticker, name):
         result['k'] = round(float(k.iloc[-1]), 1)
         result['d'] = round(float(d.iloc[-1]), 1)
 
+        # 盤中 override (僅限台股加權指數)：用 mis.twse 即時點位蓋掉 yfinance close。
+        # yfinance ^TWII 在盤中 today bar 由 Yahoo 後端隨機生成，常常停在昨日收盤。
+        # ma20/ma60/KD 維持用 yfinance daily close 算（盤中一根 partial bar 不影響）。
+        # change_pct 改用 mis.twse prev_close 算（避免 yfinance 昨日 vs 前日的時序錯位）。
+        if ticker == '^TWII':
+            try:
+                from mis_twse_client import is_tw_trading_hours, get_quote
+                if is_tw_trading_hours():
+                    q = get_quote('t00')
+                    if q is not None:
+                        result['price'] = round(q['price'], 2)
+                        prev = q.get('prev_close')
+                        if prev and prev > 0:
+                            result['change_pct'] = round((q['price'] / prev - 1) * 100, 2)
+                        result['intraday_source'] = 'mis.twse'
+                        result['intraday_time'] = q.get('time')
+                        # 盤中 partial bar: data_date 維持 yfinance 那筆 (= 上交易日)，
+                        # 讓 _compute_expiry 走 5min retry path 而非「cache 到隔天 14:00」
+                        logger.debug("^TWII intraday override: %s @ %s", q['price'], q.get('time'))
+            except Exception as e:
+                logger.debug("mis.twse ^TWII override failed: %s", e)
+
     except Exception as e:
         logger.warning("Failed to fetch index %s: %s", ticker, e)
         result['error'] = str(e)
