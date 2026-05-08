@@ -1,152 +1,251 @@
-# Cross-Asset Crash Predictor (Route A) — Spec
+# Crash Prediction System — Two-Stage Plan (v2)
 
 **Date drafted**: 2026-05-08
-**Status**: 規劃中（user 拍板「下次 session 動工」）
-**Dependency**: B+E informational dashboard 已完工（commits 272446e + 4bed849 + d612b7c）
+**Status**: 規劃中（user 拍板 「下次 session 動工」+ 「優先 System 2 後 System 1」）
+**Dependency**: B+E informational dashboard 已完工（commits 272446e + 4bed849 + d612b7c + c963378）
+**前一版**: 2026-05-08 早版只含 System 1 cross-asset stack；user reframe 後加 System 2 為優先
 
 ---
 
-## 為什麼還要做 A 路線
+## User 真正的需求（reframe 自原對話）
 
-B+E 整合完成後，banner 已能顯示綜合風險指標 (composite=72.2 → Orange)，但這是 **coincident composite** 不是 leading predictor — 即 banner 告訴使用者「**現在處於高風險區**」，不是「**未來會回檔**」。
+> **「主要目標還是放在一個夠準的預測系統，甚至在崩盤的前段 5% 的時候能有更高度的肯定是小回檔還是大崩盤」**
 
-要真正做出「預警」，必須突破純台股 N=29 events 的數學限制。Cross-asset stack 是唯一未試過的可行路徑（B+E 用台股本地訊號，A 借用美股 macro 因子的長歷史 + 學界已驗證的 lead time）。
+拆解兩層：
+1. **「夠準的預測系統」** — 要 leading predictor，不是 informational coincident（B+E 沒滿足）
+2. **「-5% 時區分小回 vs 大崩」** — conditional classifier（事件中段分流）
 
-### A 路線的核心 framing
+技術上是 **兩個獨立系統**，原 spec 只解第 1 層（System 1），漏了第 2 層（System 2）。
 
-不是「合併台美事件數」，是「**用對的因子（全球 macro）預測對的事件（台股 risk-off）**」。
+修正後架構：
 
-理論基礎：
-- 台股 ≥10% 回檔本質不是「純台股事件」 — 過去 5 大 crash（2000 dotcom / 2008 GFC / 2015 China dev / 2020 COVID / 2022 Fed）全是全球 risk-off 同步發生
-- 台股是 SPX 衛星市場（correlation 70-80%）
-- HY OAS spread / yield curve / MOVE 對 SPX 已有實證 lead time（HY OAS 中位數 7 個月）— 對台股應該也有 lead time
+```
+事件 timeline:    [t-60d 危險區開始]  ...  [t=0 -5% 觸發]  ...  [t+60d 結束]
+                  ──────System 1 fire ─────▶
+                                              ──────System 2 fire ─────▶
+                  Leading predictor             Conditional classifier
+                  「接下來 60d 可能 ≥10%」       「已 -5%，最終是小回或大崩」
+```
 
----
-
-## Phase 1: FRED 資料撈取 + SPX panel 建構（5-7h）
-
-### Phase 1.A: FRED API 接入（2-3h）
-
-需要 FRED API key（free，註冊 5 min）。
-
-| Series | FRED ID | 起點 | 用途 |
-|---|---|---|---|
-| HY OAS spread | `BAMLH0A0HYM2` | 1996-12 | 信用壓力，最強 single signal |
-| 3M-10Y yield curve | `T10Y3M` | 1982-01 | 利率倒掛，12-18mo lead |
-| 10Y Treasury yield | `DGS10` | 1962-01 | 利率水位 |
-| Fed Funds rate | `DFF` | 1954-07 | 流動性 |
-| SOFR rate | `SOFR` | 2018-04 | repo / funding stress |
-| Trade-weighted USD | `DTWEXBGS` | 2006-01 | FX 壓力 |
-
-**寫入**: `data/macro/fred_panel.parquet` daily index 對齊 NYSE 交易日
-
-**Tool**: 擴 `tools/fred_fetcher.py`（既有，2026-04-29 用 yfinance proxy；改用真 FRED API）。
-
-### Phase 1.B: 美股波動率指標（1h）
-
-從 yfinance 撈：
-- `^VIX` (1990-) — 短期 vol
-- `^VIX3M` (2007-) — 3 個月 vol
-- `^VVIX` (2007-) — vol of vol
-- `^MOVE` (2003-) — rates vol（現有可能不齊）
-
-寫入: `data/macro/vol_panel.parquet`
-
-### Phase 1.C: SPX panel + cross-asset label（2-3h）
-
-撈 SPX OHLCV 1990-2026（既有 `data_cache/backtest/ohlcv_us.parquet` 可能有部分）。
-
-建構 dual-target panel:
-- TWII forward 60d MDD ≥10% / ≥20% (已有 `crash_predictor_tw_panel.parquet`)
-- SPX forward 60d MDD ≥10% / ≥20% (新)
-- 兩 target 各對應 cross-asset features
-
-**事件統計目標**:
-- SPX 1990-2026 估 ~25 個 ≥10% events
-- TWII 1999-2026 既有 29 個
-- **不合併事件**，而是 dual model：用同一組 features 分別預測 SPX 跟 TWII，看訊號是否 transfer
+兩者都 fire → 高度肯定 risk-off
+僅 System 1 fire → 早期警告（System 2 在 -5% 觸發後再給）
+僅 System 2 fire → System 1 漏抓但事件中段補救
 
 ---
 
-## Phase 2: Univariate AUC + Cross-Asset Transfer Learning（4-6h）
+## System 2: Drawdown Regime Classifier (優先做)
 
-### Phase 2.A: Univariate per-feature lift10 + lead time（2-3h）
+### 為什麼 System 2 比 System 1 容易（且應該先做）
 
-對每個 macro feature 跑：
-- AUC-ROC vs SPX label_10pct
-- AUC-ROC vs TWII label_10pct
-- **strict-preceding lead time**（SOP-11，fire 必須在 event_start 前 5d + forward 5d return < -1%）
-- xcorr lag classification（SOP-13，lag<3d coincident / 3-15d mixed / >15d leading）
+| | System 1 | System 2 |
+|---|---|---|
+| 樣本量 | 29 events / 27 年 | **~100+ events**（每次 -5% 都算）|
+| Imbalance | 19% baseline | **~40% baseline**（-5% 後進入大跌的比例） |
+| Lead time 要求 | 必須 leading 60d 前 | 不需要（已在事件中）|
+| Distinguishing 訊號 | 學界普遍 weak | **學界 well-studied**（reflexivity vs mean reversion 有 distinct fingerprints）|
+| SOP-14 約束 | N≤30 informational only | **N>30 可能進 portfolio gating** |
 
-**SOP gate**: 任何 feature 必須對至少一個 target 的 lift10 > 1.2 + 至少 leading classification + 通過 portfolio gating sim 才算通過 univariate filter。
+### Phase 2.1: 事件偵測 + 三類 label（4-6h）
 
-### Phase 2.B: Transfer learning sanity（1-2h）
+#### 事件偵測
 
-關鍵 question: 用 SPX-trained model 預測 TWII 跟 用 TWII-trained model 預測 TWII 哪個 OOS AUC 較高？
+對 ^TWII 1999-2026：
+- 從 60d rolling high 算 drawdown
+- 第一天觸 -5% 為 event start
+- 之後 60d 內最低點 = trough
+- final_drawdown = (trough - peak) / peak
 
-如果 SPX-trained > TWII-trained → 證明 macro 訊號對台股有 transfer learning 價值
-如果 TWII-trained > SPX-trained → 純台股 model 仍勝，A 路線假設破產
+如果一個 event 還在 60d window 內又進入新 -5% 事件 → 視為同一個 event 延伸（不重複計）。
 
-### Phase 2.C: Cluster correlation + composite weight（1h）
+預期：1999-2026 約 100-150 個 -5% events。
 
-仿 B+E v3 calibration 流程：
-- 各 feature lift10 normalize → weight
-- Cluster: 信用 (HY OAS) / 利率 (T10Y3M, DGS10) / 波動 (VIX/VXV/MOVE) / FX (DTWEXBGS)
-- 4-cluster z-score 平均成 4 個 composite features
+#### 三類 label
 
----
+| Label | 條件 | 預期樣本 |
+|---|---|---|
+| **Class A 小回** | final_drawdown 在 [-5%, -10%) | ~60% (60-90 events) |
+| **Class B 中度** | final_drawdown 在 [-10%, -20%) | ~25% (25-37 events) |
+| **Class C 大崩** | final_drawdown ≤ -20% | ~15% (15-22 events) |
 
-## Phase 3: Portfolio Gating Sim + Final Verdict（4-6h）
+額外 label 欄：
+- `time_to_trough`: -5% 觸發到 trough 的天數
+- `recovery_speed`: trough 後 30d 回到 -5% 起點的比例
 
-仿 `tools/audit_crash_predictor_expected_value.py` 的 portfolio simulator：
+### Phase 2.2: Feature Engineering（3-4h）
 
-對每個 strategy 跑 2002-2026 daily allocation sim（B&H + best-single + composite 對比）：
-- B&H TWII baseline
-- 最佳 single feature gating TWII
-- 4-cluster composite gating TWII
-- 4-cluster composite gating SPX
+關鍵 distinguishing features（學界 + 實務經驗）— 在 -5% 觸發日當下計算：
 
-**SOP-12 gate**: 上線必須 composite Sharpe > best-single Sharpe + composite > B&H Sharpe（避免 cash drag artifact）
+#### 跨資產 risk-off 同步度（最有分量）
 
-**SOP-14 gate**: 即使過 SOP-12，如果 N_events < 30 仍降 informational tier，不接 portfolio rebalance。但因為 SPX+TWII dual model + 26 年期間，N 應該 ~50+ 過 SOP-14。
+| Feature | 大崩 fingerprint | 計算 |
+|---|---|---|
+| HY OAS spread Δ in -5% week | 跳升 ≥50bp | 從 FRED `BAMLH0A0HYM2` 算 5d Δ |
+| MOVE index Δ | 同步飆升 ≥20% | yfinance `^MOVE` 5d % change |
+| VIX term structure | 翹尾 (front > back) | yfinance `^VIX/^VIX3M` ratio |
+| DXY Δ | risk-off 時 USD 走強 | FRED `DTWEXBGS` 5d Δ |
 
-### Phase 3.B: Banner UI 整合 v4（如果過 gate, 2-3h）
+#### 內部 reflexivity 訊號
 
-如果通過：
-- banner 加第 3 個 row「全球 macro 訊號」(只在橘/紅燈 fire)
-- 文案保持 SOP-14：「歷史此狀態下 60d 內 ≥10% drawdown 同期 X% / 平均 lead Y 天」
-- 仍不接 portfolio rebalance
+| Feature | 大崩 fingerprint | 計算 |
+|---|---|---|
+| 5d 跌幅速度 | 越快越大崩 | (current - peak) / time_elapsed |
+| Volume vs prior 20d avg | 爆量 = panic | 當日成交量 / 20d avg |
+| Breadth (跌停家數比) | extreme negative | 從 TWSE bulk 撈每日漲跌 |
+| 三大法人 5d 累積買賣超 | derisk 加速 | 既有 chip data |
+| 融資維持率 | 跌破危險線 → margin call cascade | 從 chip_history/margin |
+| 大盤 RSI(14) | 越極端越可能反彈 | 從 close 算 |
 
-如果不過：
-- 寫 verdict 報告封桃，跟 crash predictor 同等待遇歸 archive
-- 教訓：「macro 訊號對台股 alpha 不存在 / 或僅 informational」
+#### 政策/外部催化（binary flags）
 
----
-
-## 預估總工時
-
-| Phase | 工時 |
+| Flag | 計算方法 |
 |---|---|
-| 1.A FRED API 接入 | 2-3h |
-| 1.B 美股 vol panel | 1h |
-| 1.C SPX panel + dual label | 2-3h |
-| 2.A Univariate AUC + lead | 2-3h |
-| 2.B Transfer learning sanity | 1-2h |
-| 2.C Cluster composite | 1h |
-| 3.A Portfolio gating sim | 3-4h |
-| 3.B (條件式) banner v4 整合 | 2-3h |
-| **總計** | **15-22h（不含 3.B）** |
+| Fed FOMC week | 從 FRED 政策日歷對照 |
+| 新台幣急貶 5d > 1.5% | TWD/USD 5d Δ |
+| 全球 risk event proxy | VIX > 30 等 |
+
+預期最終 features ~12-15 個（要過 univariate filter）。
+
+### Phase 2.3: Univariate per-feature lift（2h）
+
+對每個 feature 跑 conditional univariate：
+- 給定 -5% 事件已觸發
+- P(大崩 | feature in danger zone) vs P(大崩 | feature 不 in danger zone)
+- AUC vs Class C label
+- precision@top-20% / lead time
+
+篩選 lift > 1.3 才入選（比 System 1 嚴格因樣本充足）。
+
+### Phase 2.4: Model（2-3h）
+
+樣本 ~100+ 跨 5 個 crisis regime → **logistic regression with L2** 是合理選擇（避免 GBM overfit）。
+
+也試 **multinomial logistic** 直接預測三類（小回/中度/大崩）：
+- 給 user **三類 probability distribution** 而非 binary
+- 例：「-5% 觸發，目前 readings 顯示：小回 25% / 中度 35% / 大崩 40%」
+
+訓練：
+- Walk-forward expanding window（仿前面 cf）
+- CPCV + embargo
+- block bootstrap CI
+- SOP-13 xcorr classification
+
+### Phase 2.5: Portfolio gating sim（2-3h）
+
+仿 `tools/audit_crash_predictor_expected_value.py`：
+- baseline: -5% 觸發後一律減倉到 50%
+- 用 System 2: P(大崩) ≥ 60% → 全現金 / 30-60% → 50% / <30% → 不調倉
+- 對比 11 年 portfolio MDD / Sharpe / CAGR
+
+**SOP-12**: 必須 multinomial 分流 outperform 單純 -5% 觸發減倉（否則 fallback 到 binary）。
+
+### System 2 預期 verdict
+
+| Verdict | 機率 | 內容 |
+|---|---|---|
+| **過 SOP-10+12** | 50-60% | banner v4 加「事件中段分流燈」+ Discord push -5% 後立即推 P(大崩) |
+| **AUC > 0.7 但 portfolio fail** | 25-30% | 進 informational tier (SOP-14) — 顯三類機率但不接 rebalance |
+| **AUC < 0.6 全 fail** | 10-15% | 封桃，但累積的 conditional sample (100+) 仍有研究價值 |
+
+**比 System 1 樂觀很多** — 樣本充足 + 學界基礎穩 + framing 對。
 
 ---
 
-## SOP 守則（從 R3 教訓繼承）
+## System 1: Cross-Asset Leading Predictor (後續)
 
-1. **SOP-10 Portfolio gating sim 強制 gate** — 任何 composite 上線必跑 daily-allocation sim，AUC 高不能上線
-2. **SOP-11 Strict-preceding lead-time only** — 用 `event_start - first_fire_date ≥ 5d AND forward_5d_ret(fire) < -1%`
-3. **SOP-12 Composite must beat best-single** — portfolio Sharpe 不只 lift
-4. **SOP-13 xcorr lag classification + cash drag** — coincident vs leading 必標
-5. **SOP-14 N>30 才能進 portfolio gating，N≤30 informational only**
-6. **Council Portfolio Backtest Auditor mandatory role**（如果 verdict 前要 council）
+延用前一版 spec 內容，**System 2 落地後再做**。
+
+### Phase 1.1: FRED 資料撈取（5-7h）
+
+| Series | FRED ID | 用途 |
+|---|---|---|
+| HY OAS | `BAMLH0A0HYM2` | 信用壓力 |
+| 3M-10Y yield curve | `T10Y3M` | 12-18mo lead |
+| 10Y Treasury | `DGS10` | 利率水位 |
+| Fed Funds | `DFF` | 流動性 |
+| SOFR | `SOFR` | repo |
+| Trade-weighted USD | `DTWEXBGS` | FX 壓力 |
+
+### Phase 1.2: SPX panel + dual target（4-5h）
+
+- TWII forward 60d MDD ≥10%/≥20%（已有）
+- SPX forward 60d MDD ≥10%/≥20%（新）
+- Cross-asset features 對兩 target 跑 transfer learning
+
+### Phase 1.3: Univariate AUC + cluster + composite（3-4h）
+
+仿 B+E v3 calibration：strict-preceding lead time / xcorr lag classification / cluster z-score 平均
+
+### Phase 1.4: Portfolio gating sim（3-4h）
+
+仿 audit_crash_predictor_expected_value.py — best-single + composite vs B&H
+
+System 1 預期 verdict（前版未變）：
+- 30-40% 通過（真 leading alpha）
+- 40-50% informational only
+- 15-25% 封桃
+
+---
+
+## Integration: Banner v4 + Discord（System 1+2 都過後 2-3h）
+
+### Banner row 結構
+
+```
+Row 0:  [System 1 leading]  [HMM regime]
+Row 0.5: [System 2 conditional] (只在 -5% 觸發時 fire)
+Row 1:   [B+E coincident]  (現有 row)
+Row 2:   [4 columns 加權/FGI/SPX/CNN] (現有)
+```
+
+### Discord push triggers
+
+- System 1 升黃/橘 → push 一次（轉燈時觸發）
+- **System 2 fire when -5% 剛觸發** → push 一次「-5% 觸發，P(大崩) = X%」
+- 兩者都 fire → 高優先 push（reaction emoji + @user）
+
+### 文案守則
+
+仍守 SOP-14：
+- System 1: 「歷史此狀態下 60d 內 ≥10% 同期重合率 X%」
+- System 2: 「-5% 觸發時 P(大崩) = 40%（baseline 15%）」— 用 absolute probability 不用 lift（-5% 後使用者要直接 actionable）
+
+---
+
+## 總工時 + 排程
+
+| 階段 | 工時 | Cumulative |
+|---|---|---|
+| Phase 2.1 事件偵測 + label | 4-6h | 4-6h |
+| Phase 2.2 Feature engineering | 3-4h | 7-10h |
+| Phase 2.3 Univariate filter | 2h | 9-12h |
+| Phase 2.4 Multinomial model | 2-3h | 11-15h |
+| Phase 2.5 Portfolio gating sim | 2-3h | **13-18h（System 2 完成）** |
+| Phase 1.1 FRED 撈取 | 5-7h | 18-25h |
+| Phase 1.2 SPX panel + dual target | 4-5h | 22-30h |
+| Phase 1.3 Univariate + cluster | 3-4h | 25-34h |
+| Phase 1.4 Portfolio gating sim | 3-4h | **28-38h（System 1 完成）** |
+| Integration banner v4 + Discord | 2-3h | **30-41h（兩系統整合）** |
+
+實務排程建議：
+- **Session 1（5-6h）**: Phase 2.1+2.2 — 事件偵測 + feature engineering 完成 → user 看 sample 確認 design
+- **Session 2（5-6h）**: Phase 2.3+2.4+2.5 — System 2 上線 verdict
+- **Session 3-4**: System 1（如果 user 仍要做）
+- **Session 5**: Integration + Discord
+
+---
+
+## SOP 守則繼承（從 R3）
+
+1. **SOP-10** Portfolio gating sim 強制 gate
+2. **SOP-11** Strict-preceding lead-time（System 1 用；System 2 不需要因為已在事件中）
+3. **SOP-12** Composite / multinomial must beat baseline
+4. **SOP-13** xcorr lag classification（System 1 用）+ cash drag 鑑別
+5. **SOP-14** N>30 才能進 portfolio gating
+   - System 2 N≈100 → 過閘
+   - System 1 N≈50 (transfer learning) → 邊緣，要嚴格驗證
+6. **Council Portfolio Backtest Auditor** mandatory role
+7. **不允許 GBM/XGBoost** 在 N<200 樣本（D R2 建議）
+8. **strict-preceding 要求 fire 在 event_start 之前 + forward 5d return < -1%**（System 1）
 
 ---
 
@@ -154,30 +253,53 @@ B+E 整合完成後，banner 已能顯示綜合風險指標 (composite=72.2 → 
 
 下次 session 動工前確認：
 
-1. ✅ B+E informational dashboard 已通過實際使用一段時間（≥1 週），確認當前 banner 沒被使用者誤解為「預警」
-2. ✅ 沒有更高 ROI 的功能搶資源（沒新 user request / 沒大維護需求）
-3. ✅ FRED API key 申請好（user 自行）
-4. ✅ Working tree clean（沒在中途 refactor）
+1. ✅ B+E informational dashboard 在 banner 上跑一段時間（最少 1 週）user 確認沒被誤解
+2. ✅ FRED API key 申請好（System 1 階段才需要，System 2 純用 yfinance + 既有 cache）
+3. ✅ 沒有 active production bug 搶資源
+4. ✅ Working tree clean
 
 ---
 
-## 終局期望
+## 預期最終樣態（兩系統都過閘）
 
-走完 A 路線後，可能三種 verdict：
+User 看 banner 時：
 
-**Verdict A1 - 通過 (預期機率 30-40%)**: cross-asset macro composite 對台股 ≥10% 回檔 AUC 0.65+ / strict-preceding lead time ≥ 30d / 過 SOP-12 portfolio gating。Banner v4 加「全球 macro 訊號」row，informational/leading 並存。
+**情境 1 — 平靜時**:
+```
+Row 0: System 1 綠燈 (清晰) | HMM neutral
+Row 0.5: (隱藏，未 fire)
+Row 1: B+E 綠燈 (35) — 同期重合率 17%
+```
 
-**Verdict A2 - Informational only (預期機率 40-50%)**: AUC 過 SOP-14 但 portfolio gating 不過。視為「macro 訊號對台股有 statistical signal 但 portfolio cost 過高」，加進 banner informational tier 跟 B+E 並列，不接 rebalance。
+**情境 2 — System 1 開始警示**:
+```
+Row 0: System 1 黃燈 — HY OAS Δ 升 / VIX 升 / 歷史此狀態下 60d 內 ≥10% 重合率 X%
+Row 0.5: (隱藏)
+Row 1: B+E 黃燈 (60) — 同期重合率 33%
+Discord push: System 1 升黃燈，建議審視持倉
+```
 
-**Verdict A3 - 封桃 (預期機率 15-25%)**: macro 訊號對台股 transfer learning 失效（TWII-trained 仍勝 SPX-trained），證明全球 macro 對台股 alpha 不存在。寫 verdict 報告歸 `reports/_history/` 永久封桃。
+**情境 3 — 已 -5% 觸發**:
+```
+Row 0: System 1 橘燈 (確認 leading 在前)
+Row 0.5: System 2 fire — 「-5% 觸發 P(小回 25% / 中度 35% / 大崩 40%) — 大崩 baseline 15%」
+Row 1: B+E 橘燈 (75)
+Discord push @user: 「-5% 觸發，conditional 大崩機率 40%（baseline 15%），建議減倉到 50%」
+```
 
-無論哪個 verdict，**SOP-10~14 都會被嚴格執行 + Council Portfolio Backtest Auditor mandatory** — 不會再踩第 3 次「proxy ≠ portfolio simulator」坑。
+**情境 4 — 大崩確認**:
+```
+Row 0.5: System 2 fire — 「P(大崩 70%)」
+Discord push: 「大崩 conditional 機率 70%，全現金建議」
+```
+
+跟 R3 的「informational lagging signal」相比，**有了 directional probability quantification**，使用者真有 actionable info。
 
 ---
 
 ## 跨 session handoff 必讀
 
 1. `~/.claude/.../memory/project_validation_bias_warning.md` — SOP 1-14 全文
-2. `reports/_history/2026_05_crash_predictor_closed/crash_predictor_methodology_audit.md` — R3 council + smoking gun
-3. `reports/banner_risk_score_calibration_v2.md` — B+E v3 calibration（A 的 baseline）
-4. 本檔 — A 路線 spec
+2. `reports/_history/2026_05_crash_predictor_closed/crash_predictor_methodology_audit.md` — R3 council
+3. `reports/banner_risk_score_calibration_v2.md` — B+E v3 calibration
+4. **本檔** — Two-stage spec
