@@ -285,9 +285,10 @@ def _compute_expiry(indicator, data_date, now):
         否則 → 30 分鐘後重試
       - us_index：盤中 5 分鐘；閉市 → 下次開盤
       - cnn_fgi：盤中 1h；閉市 4h
+      - risk_score / regime: 跟 tw_index 同步刷新
     """
     # 台股 14:00 類
-    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio'):
+    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio', 'risk_score', 'regime'):
         expected = _expected_tw_date(_TW_14_CUTOFF, now)
         if data_date == expected:
             return _next_tw_refresh_at(_TW_14_CUTOFF, now).timestamp()
@@ -367,6 +368,8 @@ _OUT_TO_CACHE = {
     'atm_put': 'atm_put',
     'mtx_ratio': 'mtx_ratio',
     'opt_inst': 'opt_inst',
+    'risk_score': 'risk_score',
+    'regime': 'regime',
 }
 
 
@@ -404,9 +407,127 @@ def _pure_fetch(cache_key):
             return _read_sentiment_parquet('minifutures_ratio')
         if cache_key == 'opt_inst':
             return _read_sentiment_parquet('options_institutional')
+        if cache_key == 'risk_score':
+            return _fetch_risk_score()
+        if cache_key == 'regime':
+            return _fetch_regime()
     except Exception as e:
         logger.debug("Banner fetch %s failed: %s", cache_key, e)
     return None
+
+
+def _fetch_risk_score():
+    """Compute today's banner risk score (composite of m1b/rv10/rv30/pcr/fgi).
+
+    SOP-14 informational tier — co-occurrence rate based, NOT predictive.
+    Returns dict with composite/zone/breakdown OR None on failure.
+    """
+    try:
+        import banner_risk_score as brs
+        # Today's signals
+        today = {}
+        # FGI score (live)
+        try:
+            from taifex_data import TaiwanFearGreedIndex
+            fgi = TaiwanFearGreedIndex().calculate()
+            if fgi.get('score') is not None:
+                today['fgi_score'] = float(fgi['score'])
+        except Exception as e:
+            logger.debug("FGI fetch for risk_score failed: %s", e)
+        # PCR OI (live, from TAIFEX)
+        try:
+            from taifex_data import TAIFEXData
+            pcr = TAIFEXData().get_put_call_ratio()
+            if pcr.get('pc_ratio') and pcr['pc_ratio'] > 0:
+                today['pcr_oi'] = float(pcr['pc_ratio'])
+        except Exception as e:
+            logger.debug("PCR_oi fetch for risk_score failed: %s", e)
+        # PCR volume (from history parquet latest)
+        try:
+            if brs.PCR_HISTORY.exists():
+                df = pd.read_parquet(brs.PCR_HISTORY)
+                if 'pc_ratio_volume' in df.columns and not df.empty:
+                    today['pcr_volume'] = float(df['pc_ratio_volume'].dropna().iloc[-1])
+        except Exception as e:
+            logger.debug("PCR_volume from history failed: %s", e)
+        # m1b
+        try:
+            from money_supply import compute_m1b_ratio
+            m1b = compute_m1b_ratio()
+            if m1b and m1b.get('ratio_pct') is not None:
+                today['m1b_ratio'] = float(m1b['ratio_pct'])
+        except Exception as e:
+            logger.debug("m1b for risk_score failed: %s", e)
+        # rv10/rv30 from ^TWII
+        try:
+            import yfinance as yf
+            df = yf.Ticker('^TWII').history(period='3mo')
+            if not df.empty and len(df) >= 30:
+                close = df['Close']
+                log_ret = np.log(close / close.shift(1))
+                today['rv10'] = float(log_ret.iloc[-10:].std() * np.sqrt(252))
+                today['rv30'] = float(log_ret.iloc[-30:].std() * np.sqrt(252))
+        except Exception as e:
+            logger.debug("rv compute for risk_score failed: %s", e)
+
+        panel_hist = brs.get_panel_history()
+        result = brs.compute_risk_score(today, panel_history=panel_hist)
+        result['data_date'] = ddate.today()  # 計算當下視為 today
+        return result
+    except Exception as e:
+        logger.warning("risk_score fetch failed: %s", e)
+        return None
+
+
+def _fetch_regime():
+    """Read latest HMM regime from data/tracking/regime_log.jsonl.
+
+    Returns dict with regime/regime_label/evidence/data_date OR None.
+    """
+    log_path = REPO / 'data' / 'tracking' / 'regime_log.jsonl'
+    if not log_path.exists():
+        return None
+    try:
+        import json
+        last = None
+        with log_path.open('r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    last = line
+        if not last:
+            return None
+        rec = json.loads(last)
+        regime = rec.get('regime', 'unknown')
+        # VF-G4 evidence: only_volatile Sharpe 0.208 vs baseline 0.117
+        evidence_map = {
+            'volatile': '歷史此狀態下 entry-side Sharpe 0.208（baseline 0.117）',
+            'trending': '歷史此狀態下 11/11 年負報酬偏多 (-0.46%/年)',
+            'ranging': '歷史此狀態下 mean fwd_20d +0.75%',
+            'neutral': '歷史此狀態下 mean fwd_20d +0.54%',
+        }
+        # Color
+        color_map = {
+            'volatile': '#FF8800',  # orange (entry alpha 但 vol 高)
+            'trending': '#FF4444',  # red (歷史虧損偏多)
+            'ranging': '#FFD700',   # yellow
+            'neutral': '#888888',   # gray
+        }
+        date_str = rec.get('date')
+        try:
+            data_date = ddate.fromisoformat(date_str) if date_str else None
+        except Exception:
+            data_date = None
+        return {
+            'regime': regime,
+            'regime_label': {'volatile': '震盪', 'trending': '趨勢', 'ranging': '盤整', 'neutral': '中性'}.get(regime, regime),
+            'evidence': evidence_map.get(regime, ''),
+            'color': color_map.get(regime, '#888888'),
+            'data_date': data_date,
+        }
+    except Exception as e:
+        logger.debug("regime fetch failed: %s", e)
+        return None
 
 
 # ============================================================
@@ -494,6 +615,118 @@ def _bias_delta_color(bias):
     return f"{bias:+.2f}%", "normal"
 
 
+def _render_risk_row(risk, regime):
+    """Render 綜合風險指標 + HMM 市場狀態 row.
+
+    SOP-14 informational tier 文案守則：
+      - 禁: 「預警 / 預測 / 領先 / 即將 / 接下來會」
+      - OK: 「同期重合率 / 歷史此狀態下 / 當前 readings 落在 / informational」
+    """
+    risk = risk or {}
+    regime = regime or {}
+
+    composite = risk.get('composite')
+    zone = risk.get('zone', 'unknown')
+    zone_color = risk.get('zone_color', '#888888')
+    breakdown = risk.get('breakdown', {})
+    zone_stats = risk.get('zone_stats', {})
+    baseline = risk.get('baseline_10pct', 19.2)
+
+    # 綜合風險 + regime 並排
+    rc1, rc2 = st.columns([3, 2])
+
+    with rc1:
+        if composite is not None:
+            zone_emoji = {'green': '🟢', 'yellow': '🟡', 'orange': '🟠', 'unknown': '⚪'}.get(zone, '⚪')
+            zone_label_zh = {'green': '綠', 'yellow': '黃', 'orange': '橘', 'unknown': '資料不足'}.get(zone, '資料不足')
+
+            co10 = zone_stats.get('co10')
+            co5 = zone_stats.get('co5')
+            ann = zone_stats.get('ann_days')
+            mdd = zone_stats.get('mdd_median')
+
+            # SOP-14 文案：強調「同期重合率」+ baseline
+            zone_text = (
+                f'歷史此區間 60d 內 ≥10% 回檔同期重合率 <b>{co10:.0f}%</b> '
+                f'（baseline {baseline:.0f}%；≥5% 為 {co5:.0f}%；MDD 中位數 {mdd:.0f}%；年化 {ann} 天）'
+                if co10 is not None else '資料不足'
+            )
+
+            # breakdown bullets
+            sig_short = {
+                'm1b_ratio': 'M1B', 'rv10': 'RV10', 'rv30': 'RV30',
+                'pcr_volume': 'PCR量', 'pcr_oi': 'PCR倉', 'fgi_score': 'FGI',
+            }
+            parts = []
+            for sig, info in breakdown.items():
+                rank = info.get('rank')
+                weight = info.get('weight', 0.0)
+                short = sig_short.get(sig, sig)
+                if rank is None:
+                    parts.append(f'<span style="color:#aaa">{short} N/A</span>')
+                else:
+                    rc = '#FF4444' if rank >= 85 else '#FF8800' if rank >= 65 else '#888888'
+                    tip_w = f'weight {weight:.2f}'
+                    parts.append(
+                        f'<span title="{tip_w}">{short} '
+                        f'<span style="color:{rc};font-weight:bold">{rank:.0f}</span></span>'
+                    )
+            breakdown_html = ' &nbsp;|&nbsp; '.join(parts)
+
+            tip = ('SOP-14 informational tier — 此分數為「同期重合率」非預測機率；'
+                   '禁用於 portfolio 自動調整；3 級 Orange ≥70.7 / Yellow ≥55.2 / Green <55.2；'
+                   '6 訊號 lift-based weighted（v3 calibration 2002-2026 N=5906）')
+
+            st.markdown(
+                f'<div style="font-size:1.0rem;line-height:1.7" title="{tip}">'
+                f'<b>綜合風險指標</b> '
+                f'<span style="color:{zone_color};font-size:1.4rem;font-weight:bold">'
+                f'{zone_emoji} {composite:.0f}</span> '
+                f'<span style="color:{zone_color};font-weight:bold">{zone_label_zh}燈</span> '
+                f'<span style="font-size:0.85rem;color:#666">— {zone_text}</span>'
+                f'</div>'
+                f'<div style="font-size:0.85rem;line-height:1.5;margin-top:4px">'
+                f'{breakdown_html}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div style="font-size:0.95rem;color:#888">'
+                '綜合風險指標：資料不足（需 6 訊號中 ≥3 個有效）'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
+    with rc2:
+        regime_label = regime.get('regime_label')
+        regime_color = regime.get('color', '#888888')
+        evidence = regime.get('evidence', '')
+        if regime_label:
+            tip2 = ('HMM regime（VF-G4 entry-gate 用），'
+                    f'{evidence}；資料源 data/tracking/regime_log.jsonl')
+            st.markdown(
+                f'<div style="font-size:1.0rem;line-height:1.7" title="{tip2}">'
+                f'<b>市場狀態 (HMM)</b> '
+                f'<span style="color:{regime_color};font-size:1.2rem;font-weight:bold">'
+                f'{regime_label}</span>'
+                f'<span style="font-size:0.8rem;color:#666"> ({regime.get("regime", "")})</span>'
+                f'</div>'
+                f'<div style="font-size:0.8rem;color:#888;line-height:1.4">'
+                f'{evidence}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div style="font-size:0.9rem;color:#888">市場狀態 (HMM)：資料不足</div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown('<hr style="margin:8px 0 12px;border:0;border-top:1px solid #eee">',
+                unsafe_allow_html=True)
+
+
 def _render_index_card(col, data):
     """在 st.column 內渲染一個指數卡片。"""
     name = data['name']
@@ -549,6 +782,9 @@ def render_market_banner():
         us = data.get('us', {})
         tw_fgi = data.get('tw_fgi') or {}
         cnn_fgi = data.get('cnn_fgi') or {}
+
+        # ── Row 0: 綜合風險指標 + HMM 市場狀態（informational tier, SOP-14） ──
+        _render_risk_row(data.get('risk_score'), data.get('regime'))
 
         # 單排 4 欄：所有內容垂直堆疊在各欄內，無 Row 2 間距
         c1, c2, c3, c4 = st.columns(4)
