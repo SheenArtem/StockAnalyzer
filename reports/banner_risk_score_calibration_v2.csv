@@ -1,0 +1,7 @@
+signal,col,direction,status,n_valid,date_start,danger_zone,n_danger_days,baseline_10pct,co10,lift10,baseline_5pct,co5,lift5,n_events_10,weight
+m1b_ratio,m1b_ratio_pct,+1 (high=danger),INCLUDED,6710,1999-01-05,>= P85 (36.4265),1007,0.3007,0.578,1.9217,0.53,0.7478,1.411,582,0.1923
+rv10,rv10,+1 (high=danger),INCLUDED,6709,1999-01-05,>= P85 (0.2832),1007,0.3008,0.5174,1.7201,0.53,0.6763,1.2759,521,0.1721
+rv30,rv30,+1 (high=danger),INCLUDED,6699,1999-01-05,>= P85 (0.2824),1005,0.3012,0.5085,1.6879,0.5308,0.6517,1.2278,511,0.1689
+pcr_volume,pc_ratio_volume,+1 (high=danger),INCLUDED,5933,2010-01-04,>= P85 (1.3257),890,0.2604,0.4348,1.6698,0.4991,0.6494,1.3013,387,0.1671
+pcr_oi,pc_ratio_oi,+1 (high=danger),INCLUDED,5933,2010-01-04,>= P85 (1.2755),890,0.2604,0.3944,1.5145,0.4991,0.5663,1.1347,351,0.1516
+fgi_score,fgi_score,-1 (low=danger),INCLUDED,6627,1999-01-05,<= P15 (34.8000),998,0.2995,0.4429,1.4786,0.5293,0.5832,1.1017,442,0.148

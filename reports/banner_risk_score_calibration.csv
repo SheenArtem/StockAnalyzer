@@ -1,0 +1,11 @@
+signal,status,n_valid,date_start,date_end,danger_zone,p_threshold,n_danger_days,baseline_10pct,co10,lift10,baseline_5pct,co5,lift5,n_events,weight,reason
+tw_fgi,EXCLUDED,,,,,,,,,,,,,,0.0,No historical archive; live calculate() only
+cnn_fgi,EXCLUDED,,,,,,,,,,,,,,0.0,No historical archive; live get_index() only
+pcr_put_call,EXCLUDED,,,,,,,,,,,,,,0.0,No local TAIFEX PCR history found
+atm_put_z,EXCLUDED,,,,,,,,,,,,,,0.0,4 rows only 2026-05-05..08; snapshot insufficient
+mtx_txf_ratio,EXCLUDED,,,,,,,,,,,,,,0.0,4 rows only 2026-05-05..08; snapshot insufficient
+inst_pc_skew,EXCLUDED,,,,,,,,,,,,,,0.0,4 rows only 2026-05-05..08; snapshot insufficient
+hmm_regime,EXCLUDED (borderline),3596.0,2011-05-13,2026-05-08,volatile,categorical,1222.0,0.193,0.2021,1.0473,0.4488,0.4787,1.0666,247.0,0.0,Categorical; lift10=1.047 marginal; not normalizable to composite scale
+m1b_ratio,INCLUDED,6699.0,1999-01-05,2026-01-29,>= P85 (36.46),0.85,1005.0,0.3012,0.5791,1.9224,0.5308,0.7493,1.4115,582.0,0.3606,Passes lift10 > 1.0; included in composite
+rv10,INCLUDED,6699.0,1999-01-05,2026-01-29,>= P85 (0.28),0.85,1005.0,0.3012,0.5184,1.7209,0.5308,0.6776,1.2765,521.0,0.3227,Passes lift10 > 1.0; included in composite
+rv30,INCLUDED,6699.0,1999-01-05,2026-01-29,>= P85 (0.28),0.85,1005.0,0.3012,0.5085,1.6879,0.5308,0.6517,1.2278,511.0,0.3167,Passes lift10 > 1.0; included in composite
