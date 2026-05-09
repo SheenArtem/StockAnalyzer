@@ -202,8 +202,10 @@ def _render_compass_card(compass: dict):
 
     bullets_html = ''.join(
         f'<li style="font-size:0.9rem;margin-bottom:2px">{s}</li>' for s in top
-    ) if top else '<li style="color:#888">無顯著訊號</li>'
+    ) if top else '<li style="opacity:0.6">無顯著訊號</li>'
 
+    # 顏色策略：標題用 zone color (紅/黃/綠語意必要)；body 文字不寫死顏色，
+    # 讓 Streamlit theme 自動適配 (light/dark mode)；muted 用 opacity。
     st.markdown(
         f'''
         <div style="border:2px solid {color};border-radius:12px;padding:16px;
@@ -213,16 +215,16 @@ def _render_compass_card(compass: dict):
             <div style="font-size:1.6rem;font-weight:bold;color:{color}">
               {emoji} 總風向：{label_zh}
             </div>
-            <div style="font-size:0.85rem;color:#666">
+            <div style="font-size:0.85rem;opacity:0.65">
               SOP-14 informational tier；非 portfolio rebalance gate
             </div>
           </div>
-          <div style="font-size:1.05rem;margin-top:6px;color:#222">
+          <div style="font-size:1.05rem;margin-top:6px">
             {verdict}
           </div>
           <div style="margin-top:8px">
-            <div style="font-size:0.85rem;color:#666;margin-bottom:4px">主導訊號</div>
-            <ul style="margin:0;padding-left:20px;color:#333">
+            <div style="font-size:0.85rem;opacity:0.65;margin-bottom:4px">主導訊號</div>
+            <ul style="margin:0;padding-left:20px">
               {bullets_html}
             </ul>
           </div>

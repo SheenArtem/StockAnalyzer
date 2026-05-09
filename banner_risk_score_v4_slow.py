@@ -216,7 +216,7 @@ def render(score: dict):
     label_zh = {'green': '安全', 'yellow': '留意', 'orange': '警戒', 'unknown': '資料不足'}.get(zone, '?')
     emoji = {'green': '🟢', 'yellow': '🟡', 'orange': '🟠', 'unknown': '⚪'}.get(zone, '⚪')
 
-    # 主分數 + 燈號 + 警語
+    # 主分數 + 燈號 + 警語（body 不寫死顏色，讓 Streamlit theme 自動適配 dark mode）
     st.markdown(
         f'''
         <div style="border:2px solid {color};border-radius:12px;padding:14px;
@@ -227,9 +227,9 @@ def render(score: dict):
               {emoji} Slow Track 60d : <span style="font-size:1.6rem">{composite:.1f}</span>
               <span style="margin-left:10px">{label_zh}</span>
             </div>
-            <div style="font-size:0.78rem;color:#666">資料日期 {as_of}</div>
+            <div style="font-size:0.78rem;opacity:0.65">資料日期 {as_of}</div>
           </div>
-          <div style="font-size:0.82rem;color:#666;margin-top:4px">
+          <div style="font-size:0.82rem;opacity:0.7;margin-top:4px">
             6 leading features (lag 1-21d) IC-weighted composite．informational tier (SOP-14)，
             <strong>不接 portfolio rebalance</strong>．composite 60d IC=-0.402 marginally pass SOP-12
           </div>
