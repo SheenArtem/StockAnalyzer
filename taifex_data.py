@@ -689,7 +689,7 @@ class TAIFEXData:
         return result
 
     # ------------------------------------------------------------------
-    # 三大法人 TXO 買賣權未平倉淨額 (callsAndPutsDate)
+    # 三大法人 TXO 買賣權未平倉淨額 (FinMind, 2026-05-09 從 callsAndPutsDate 換)
     # ------------------------------------------------------------------
     def get_options_institutional(self) -> Dict[str, Any]:
         """

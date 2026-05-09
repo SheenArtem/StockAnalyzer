@@ -135,10 +135,11 @@ echo [%date% %time%] Minifutures ratio archive done >> scanner.log
 
 REM ------------------------------------------------------------
 REM Options institutional OI archiver (TXO 3-institution call/put OI).
-REM Added 2026-05-05: foreign/trust/dealer x call/put net OI from
-REM TAIFEX callsAndPutsDate. Writes 1 row/day to
-REM data/sentiment/options_institutional.parquet for inst_pc_oi_skew
-REM baseline (need >= 30 trading days for z-score) and IC validation.
+REM Added 2026-05-05: foreign/trust/dealer x call/put net OI.
+REM Source switched 2026-05-09: FinMind TaiwanOptionInstitutionalInvestors
+REM (TAIFEX callsAndPutsDate GET ignored date param + only kept ~2yr).
+REM Writes 1 row/day to data/sentiment/options_institutional.parquet
+REM for inst_pc_oi_skew baseline (>= 30 trading days for z-score).
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
 echo [%date% %time%] Options institutional archive starting >> scanner.log
