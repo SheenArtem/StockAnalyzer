@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 REPO = Path(__file__).resolve().parent.parent
 MACRO = REPO / "data" / "macro"
 BREADTH = REPO / "data" / "breadth"
-OUT_REPORT = REPO / "reports" / "macro_panel_ic_validation_2026-05-09.md"
+OUT_REPORT = REPO / "reports" / "macro_panel_ic_validation_2026-05-09_v2.md"
 OUT_REPORT.parent.mkdir(parents=True, exist_ok=True)
 
 
@@ -71,6 +71,15 @@ def load_all_panels() -> pd.DataFrame:
     etf = etf.set_index('date').select_dtypes(include=[np.number])
     logger.info("ETF Flows: %d rows, %d cols", len(etf), len(etf.columns))
     dfs.append(etf)
+
+    # Phase 3-C 新增：institutional total
+    inst_path = MACRO / "institutional_total.parquet"
+    if inst_path.exists():
+        inst = pd.read_parquet(inst_path)
+        inst['date'] = pd.to_datetime(inst['date'])
+        inst = inst.set_index('date').select_dtypes(include=[np.number])
+        logger.info("Institutional Total: %d rows, %d cols", len(inst), len(inst.columns))
+        dfs.append(inst)
 
     panel = pd.concat(dfs, axis=1).sort_index()
     # rename duplicates: pandas auto-suffixes, but our columns shouldn't overlap; verify
@@ -348,8 +357,8 @@ def main():
     logger.info("Report saved -> %s", OUT_REPORT)
 
     # Also save IC csv for downstream use
-    ic_df.to_csv(REPO / "reports" / "macro_panel_ic_2026-05-09.csv", index=False)
-    logger.info("IC table saved -> reports/macro_panel_ic_2026-05-09.csv")
+    ic_df.to_csv(REPO / "reports" / "macro_panel_ic_2026-05-09_v2.csv", index=False)
+    logger.info("IC table saved -> reports/macro_panel_ic_2026-05-09_v2.csv")
 
 
 if __name__ == '__main__':
