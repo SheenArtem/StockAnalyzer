@@ -46,6 +46,10 @@ def taifex_with_mock_basis():
         'basis': -10.0, 'futures_price': 21000.0, 'spot_price': 21010.0,
         'basis_pct': -0.05, 'data_date': None,
     })
+    # Force date-aligned reference path to fallback (測試環境隔離 yfinance)；
+    # 1-day-off bug fix (2026-05-09) 在 prod 會 fetch 真 ^TWII，測試讓它回 0
+    # → 觸發 fallback 用 get_futures_basis spot_price 21010.0
+    td._get_taiex_close_for_date = MagicMock(return_value=0.0)
     return td
 
 

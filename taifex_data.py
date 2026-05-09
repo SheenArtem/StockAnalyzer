@@ -408,6 +408,18 @@ class TAIFEXData:
                 if not near_records:
                     continue
 
+                # 4a. 對齊 reference 到 matched_date (修 1-day-off bug, 2026-05-09)
+                #     原 reference 是「當下」TWII spot；若 d != today (e.g. archiver
+                #     跑 T+1 早上拿到 T 日 TXO CSV)，reference 會比 PUT 資料晚 1 天，
+                #     ATM strike 算錯。改 fetch d 當天 ^TWII close 重新對齊。
+                aligned_ref = self._get_taiex_close_for_date(d.date())
+                if aligned_ref > 0:
+                    reference = aligned_ref
+                else:
+                    logger.warning(
+                        "ATM PUT: failed to align reference to %s, "
+                        "fallback current spot %.2f", d.date(), reference)
+
                 # 5. ATM = 履約價最接近 reference; OTM5 = 最接近 reference * 0.95
                 atm_record = min(near_records, key=lambda r: abs(r[1] - reference))
                 otm5_target = reference * 0.95
@@ -682,20 +694,24 @@ class TAIFEXData:
     def get_options_institutional(self) -> Dict[str, Any]:
         """
         Fetch institutional investors' TXO (台指選擇權) call/put open interest
-        net positions.
+        net positions, **via FinMind** (TaiwanOptionInstitutionalInvestors).
 
         三大法人選擇權持倉解讀:
           - foreign_call_net > 0 + foreign_put_net > 0 = 外資雙邊做多 (高勝率多頭訊號)
           - foreign_put_net 大幅增加 = 外資加碼避險 (大盤恐將回檔)
           - dealer_call_net 多頭 + foreign_put_net 多頭 = 自營做多但外資避險 (背離警訊)
 
-        Endpoint: GET /cht/3/callsAndPutsDate (HTML, ~322KB)
-        Filter: 只取「臺指選擇權」(TXO), 略過 電子/金融/股票/ETF 選擇權.
+        Data source switch (2026-05-09):
+          原本 GET /cht/3/callsAndPutsDate HTML 端點實測**完全忽略 date 參數**，
+          所有 query 都回傳當前最新一筆 (322032 bytes 固定)；同日跑「最新 = 今日」
+          剛好正確不會炸但本質脆弱。改走 FinMind dataset
+          TaiwanOptionInstitutionalInvestors，date param 真實有效，且歷史可回 2018-12+
+          (見 backfill_taifex_signals_history.py)。FinMind 與 TAIFEX HTML 數值
+          已交叉驗證 2026-05-08 完全一致 (foreign_call_net=1770/foreign_put_net=3551 等).
 
-        Table column layout after stripping prefix cells (序號/商品/權別/身份別):
-          [0]交易買口 [1]買金 [2]賣口 [3]賣金 [4]差額口 [5]差額金
-          [6]OI買口  [7]OI買金 [8]OI賣口 [9]OI賣金 [10]OI差額口 [11]OI差額金
-        Returns nums[10] = OI 差額口 (net OI in lots).
+        Schema mapping:
+          net_oi = long_open_interest_balance_volume - short_open_interest_balance_volume
+          每日 6 row (3 inst × 2 cp)
 
         Returns:
             dict with keys:
@@ -721,116 +737,115 @@ class TAIFEXData:
             'inst_pc_oi_skew': 0,
         }
 
-        institution_map = {
-            '外資': 'foreign',
-            '外國機構投資人': 'foreign',
-            '投信': 'trust',
-            '自營商': 'dealer',
-            '自營': 'dealer',
-        }
-
         try:
-            today = datetime.now()
-            for delta in range(5):
-                d = today - timedelta(days=delta)
-                date_str = d.strftime('%Y/%m/%d')
-                url = 'https://www.taifex.com.tw/cht/3/callsAndPutsDate'
-                params = {'queryStartDate': date_str, 'queryEndDate': date_str}
+            token = self._get_finmind_token()
+            if not token:
+                logger.warning(
+                    "FINMIND token not found in env or local/.env; "
+                    "options institutional fetch skipped")
+                return result
+
+            # 撈最近 ~10 個日曆日 (~7 個交易日)，找最新一個 6 inst-cp combos 齊全的日子
+            end = datetime.now().date()
+            start = end - timedelta(days=10)
+            params = {
+                'dataset': 'TaiwanOptionInstitutionalInvestors',
+                'data_id': 'TXO',
+                'start_date': start.isoformat(),
+                'end_date': end.isoformat(),
+                'token': token,
+            }
+            r = requests.get(
+                'https://api.finmindtrade.com/api/v4/data',
+                params=params, timeout=REQUEST_TIMEOUT, verify=False,
+            )
+            r.raise_for_status()
+            raw = r.json().get('data', [])
+            if not raw:
+                logger.warning("FinMind options institutional empty response (%s ~ %s)",
+                               start, end)
+                return result
+
+            inst_map = {'外資': 'foreign', '投信': 'trust', '自營商': 'dealer'}
+            by_date: Dict[str, Dict[Tuple[str, str], int]] = {}
+            for row in raw:
+                d_iso = row.get('date')
+                inst_key = inst_map.get(row.get('institutional_investors', ''))
+                cp_str = row.get('call_put', '')
+                cp_key = ('call' if cp_str == '買權'
+                          else ('put' if cp_str == '賣權' else None))
+                if not d_iso or not inst_key or not cp_key:
+                    continue
                 try:
-                    resp = self._session.get(url, params=params, timeout=REQUEST_TIMEOUT)
-                    resp.raise_for_status()
-                except requests.RequestException as e:
-                    logger.debug("Options institutional fetch %s err: %s", date_str, e)
+                    long_oi = int(row.get('long_open_interest_balance_volume', 0))
+                    short_oi = int(row.get('short_open_interest_balance_volume', 0))
+                except (TypeError, ValueError):
                     continue
-                if len(resp.text) < 5000:
-                    continue
+                by_date.setdefault(d_iso, {})[(inst_key, cp_key)] = long_oi - short_oi
 
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                tables = soup.find_all('table', class_='table_f')
-                if not tables:
-                    continue
-                table = tables[0]
-                rows = table.find_all('tr')
+            # 取最新有 6 combos 齊全的日子
+            latest_d = None
+            for d_iso in sorted(by_date.keys(), reverse=True):
+                if len(by_date[d_iso]) >= 6:
+                    latest_d = d_iso
+                    break
+            if not latest_d:
+                logger.warning("No FinMind day with all 6 inst-cp combos in last 10d")
+                return result
 
-                current_product = None
-                current_cp = None
-                parsed = {}  # (institution, cp) -> oi_net
-                for row in rows:
-                    cells = row.find_all('td')
-                    n = len(cells)
-                    if n == 16:
-                        # [序號, 商品, 權別, 身份別, ...12 nums]
-                        current_product = cells[1].get_text(strip=True)
-                        current_cp = cells[2].get_text(strip=True)
-                        identity = cells[3].get_text(strip=True)
-                        num_cells = cells[4:]
-                    elif n == 14:
-                        # [權別, 身份別, ...12 nums] (same product, switch CP)
-                        current_cp = cells[0].get_text(strip=True)
-                        identity = cells[1].get_text(strip=True)
-                        num_cells = cells[2:]
-                    elif n == 13:
-                        # [身份別, ...12 nums] (same product+CP, next institution)
-                        identity = cells[0].get_text(strip=True)
-                        num_cells = cells[1:]
-                    else:
-                        continue
+            parsed = by_date[latest_d]
+            fc = parsed.get(('foreign', 'call'), 0)
+            fp = parsed.get(('foreign', 'put'), 0)
+            tc = parsed.get(('trust', 'call'), 0)
+            tp = parsed.get(('trust', 'put'), 0)
+            dc = parsed.get(('dealer', 'call'), 0)
+            dp = parsed.get(('dealer', 'put'), 0)
+            call_total = fc + tc + dc
+            put_total = fp + tp + dp
 
-                    if current_product != '臺指選擇權':
-                        continue
-
-                    inst_key = institution_map.get(identity)
-                    cp_key = 'call' if current_cp == '買權' else ('put' if current_cp == '賣權' else None)
-                    if not inst_key or not cp_key:
-                        continue
-
-                    nums = []
-                    for c in num_cells:
-                        cleaned = c.get_text(strip=True).replace(',', '')
-                        try:
-                            nums.append(int(cleaned))
-                        except ValueError:
-                            nums.append(None)
-                    if len(nums) < 11 or nums[10] is None:
-                        continue
-                    parsed[(inst_key, cp_key)] = nums[10]
-
-                if len(parsed) < 6:
-                    # Need all 3 institutions x 2 CPs to be a valid day
-                    continue
-
-                fc = parsed.get(('foreign', 'call'), 0)
-                fp = parsed.get(('foreign', 'put'), 0)
-                tc = parsed.get(('trust', 'call'), 0)
-                tp = parsed.get(('trust', 'put'), 0)
-                dc = parsed.get(('dealer', 'call'), 0)
-                dp = parsed.get(('dealer', 'put'), 0)
-                call_total = fc + tc + dc
-                put_total = fp + tp + dp
-
-                result = {
-                    'data_date': d.date(),
-                    'foreign_call_net': fc, 'foreign_put_net': fp,
-                    'trust_call_net': tc, 'trust_put_net': tp,
-                    'dealer_call_net': dc, 'dealer_put_net': dp,
-                    'inst_call_net_total': call_total,
-                    'inst_put_net_total': put_total,
-                    'inst_pc_oi_skew': put_total - call_total,
-                }
-                self._cache.set('options_institutional', result)
-                logger.info(
-                    "TXO institutional OI net: foreign C/P=%d/%d trust C/P=%d/%d "
-                    "dealer C/P=%d/%d skew=%d",
-                    fc, fp, tc, tp, dc, dp, result['inst_pc_oi_skew'],
-                )
-                break
+            from datetime import date as _date
+            result = {
+                'data_date': _date.fromisoformat(latest_d),
+                'foreign_call_net': fc, 'foreign_put_net': fp,
+                'trust_call_net': tc, 'trust_put_net': tp,
+                'dealer_call_net': dc, 'dealer_put_net': dp,
+                'inst_call_net_total': call_total,
+                'inst_put_net_total': put_total,
+                'inst_pc_oi_skew': put_total - call_total,
+            }
+            self._cache.set('options_institutional', result)
+            logger.info(
+                "TXO institutional OI net (FinMind %s): foreign C/P=%d/%d "
+                "trust C/P=%d/%d dealer C/P=%d/%d skew=%d",
+                latest_d, fc, fp, tc, tp, dc, dp, result['inst_pc_oi_skew'],
+            )
 
         except requests.RequestException as e:
-            logger.warning("Failed to fetch TXO institutional (network): %s", e)
+            logger.warning("Failed to fetch TXO institutional (FinMind network): %s", e)
         except Exception as e:
             logger.error("Failed to fetch TXO institutional: %s", e, exc_info=True)
 
         return result
+
+    @staticmethod
+    def _get_finmind_token() -> str:
+        """讀取 FinMind API token (env 或 local/.env)."""
+        import os
+        from pathlib import Path as _Path
+        tok = (os.environ.get('FINMIND_TOKEN', '')
+               or os.environ.get('FINMIND_API_TOKEN', ''))
+        if tok:
+            return tok
+        env_path = _Path(__file__).resolve().parent / 'local' / '.env'
+        if not env_path.exists():
+            return ''
+        try:
+            for line in env_path.read_text(encoding='utf-8').splitlines():
+                if 'FINMIND' in line and '=' in line:
+                    return line.split('=', 1)[1].strip().strip('"').strip("'")
+        except Exception:
+            pass
+        return ''
 
     # ------------------------------------------------------------------
     # 大額交易人未沖銷部位
@@ -916,6 +931,38 @@ class TAIFEXData:
             logger.error("Failed to fetch large trader positions: %s", e, exc_info=True)
 
         return result
+
+    # ------------------------------------------------------------------
+    # 內部輔助 -- 取得指定交易日 TWII 收盤 (用於 atm_put 對齊 1-day-off fix)
+    # ------------------------------------------------------------------
+    def _get_taiex_close_for_date(self, target_date) -> float:
+        """Fetch ^TWII close for a specific trading date via yfinance.
+
+        Returns 0.0 if unavailable (e.g. holiday, network error). Caller should
+        fallback to alternative reference price.
+        """
+        try:
+            import yfinance as yf
+            from datetime import timedelta as _td
+            twii = yf.Ticker('^TWII')
+            hist = twii.history(
+                start=target_date.isoformat(),
+                end=(target_date + _td(days=1)).isoformat(),
+                auto_adjust=False,
+            )
+            if hist.empty:
+                # 假日或非交易日：取 <= target_date 最近一筆收盤
+                hist = twii.history(
+                    start=(target_date - _td(days=7)).isoformat(),
+                    end=(target_date + _td(days=1)).isoformat(),
+                    auto_adjust=False,
+                )
+                if hist.empty:
+                    return 0.0
+            return float(hist['Close'].iloc[-1])
+        except Exception as e:
+            logger.debug("_get_taiex_close_for_date(%s) failed: %s", target_date, e)
+            return 0.0
 
     # ------------------------------------------------------------------
     # 內部輔助 -- 取得加權指數現貨價
