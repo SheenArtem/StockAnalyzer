@@ -47,17 +47,27 @@ REPO = Path(__file__).resolve().parent
 MACRO = REPO / "data" / "macro"
 BREADTH = REPO / "data" / "breadth"
 
-# IC validation 通過的 6 leading features (2026-05-09 V1 N=42 SOP-12 PASS marginal；
-# V2 N=89 panel 後 SOP-12 FAIL，需 Phase 4 lag-aware composite refactor；
-# 但這 6 個 features 各自 IC 都通過 |IC|>0.15 + lag>=1 真 lead 條件保留)
+# IC validation V3 (commit cf74765 跑出 dedup_top8) — SOP-12 ✅ PASS at all horizons
+#   60d IC=-0.422 / 40d=-0.348 / 20d=-0.246 (vs best single buffett_us -0.371)
+# Top-8 features after Pearson>0.75 dedup (砍掉 buffett 高度相關 11+ features)
+# Lag-weighted: 真 lead (1-30d)=1.0 / coincident (0)=0.7 / slow (>30d)=0.5
 SLOW_FEATURES = {
-    'tlt_spy_ratio':           {'weight': 0.317, 'high_is_danger': True,  'panel': 'etf_flows'},
-    'us_durable_yoy':          {'weight': 0.274, 'high_is_danger': False, 'panel': 'fred_panel'},
-    'buffett_indicator_us':    {'weight': 0.371, 'high_is_danger': True,  'panel': 'valuation_panel'},
-    'st_louis_fsi':            {'weight': 0.229, 'high_is_danger': True,  'panel': 'fred_panel'},
-    'margin_ratio_z_252d':     {'weight': 0.158, 'high_is_danger': True,  'panel': 'systemic_chip'},
-    'foreign_holding_chg_4w':  {'weight': 0.183, 'high_is_danger': True,  'panel': 'systemic_chip'},
-    'buffett_rank_us':         {'weight': 0.165, 'high_is_danger': True,  'panel': 'valuation_panel'},
+    # rank 1 (lag 10, real lead, weight 1.0)
+    'buffett_indicator_us':    {'weight': 0.371, 'high_is_danger': True,  'panel': 'valuation_panel', 'lag_factor': 1.0},
+    # rank 7 (lag 0 coincident, weight 0.7)
+    'us_buffett_strict_rank':  {'weight': 0.289 * 0.7, 'high_is_danger': False, 'panel': 'fred_panel', 'lag_factor': 0.7},
+    # rank 8 (lag 1, real lead, weight 1.0)
+    'us_durable_yoy':          {'weight': 0.274, 'high_is_danger': False, 'panel': 'fred_panel', 'lag_factor': 1.0},
+    # rank 10 (lag 60, slow, weight 0.5)
+    'fed_bs_trillion':         {'weight': 0.230 * 0.5, 'high_is_danger': True,  'panel': 'fred_panel', 'lag_factor': 0.5},
+    # rank 11 (lag 12, real lead, weight 1.0)
+    'st_louis_fsi':            {'weight': 0.229, 'high_is_danger': True,  'panel': 'fred_panel', 'lag_factor': 1.0},
+    # rank 12 (lag 60, slow, weight 0.5)
+    'buffett_rank_tw':         {'weight': 0.221 * 0.5, 'high_is_danger': True,  'panel': 'valuation_panel', 'lag_factor': 0.5},
+    # rank 13 (lag 0 coincident, weight 0.7)
+    'hyg_dollar_flow':         {'weight': 0.218 * 0.7, 'high_is_danger': False, 'panel': 'etf_flows', 'lag_factor': 0.7},
+    # rank 14 (lag 16, real lead, weight 1.0) — NEW from Phase 3-C
+    'usdjpy_close':            {'weight': 0.206, 'high_is_danger': False, 'panel': 'fred_panel', 'lag_factor': 1.0},
 }
 
 # Zone thresholds (P85 / P65 vs in-sample)
@@ -126,6 +136,7 @@ def compute_slow_track_score() -> dict:
 
     # Cache panels to avoid re-load
     panels = {}
+    target_total_w = sum(c['weight'] for c in SLOW_FEATURES.values())
 
     for feat, conf in SLOW_FEATURES.items():
         panel_name = conf['panel']
@@ -143,7 +154,9 @@ def compute_slow_track_score() -> dict:
         if rank is None:
             breakdown[feat] = {
                 'value': value, 'rank': None,
-                'weight': conf['weight'], 'contribution': None,
+                'weight': conf['weight'],
+                'lag_factor': conf.get('lag_factor', 1.0),
+                'contribution': None,
                 'panel': panel_name, 'missing': True,
             }
             continue
@@ -151,13 +164,15 @@ def compute_slow_track_score() -> dict:
         contribution = rank * conf['weight']
         breakdown[feat] = {
             'value': value, 'rank': rank,
-            'weight': conf['weight'], 'contribution': contribution,
+            'weight': conf['weight'],
+            'lag_factor': conf.get('lag_factor', 1.0),
+            'contribution': contribution,
             'panel': panel_name, 'missing': False,
         }
         weighted_sum += contribution
         total_weight_used += conf['weight']
 
-    if total_weight_used >= 0.5 * sum(c['weight'] for c in SLOW_FEATURES.values()):
+    if total_weight_used >= 0.5 * target_total_w:
         composite = weighted_sum / total_weight_used
     else:
         composite = None
@@ -178,9 +193,9 @@ def compute_slow_track_score() -> dict:
         'breakdown': breakdown,
         'as_of': last_date.strftime('%Y-%m-%d') if last_date is not None else None,
         'horizon': '60d MDD (informational only, SOP-14)',
-        'sop12_verdict': ('V1 42-feat PASS marginal (composite -0.402 > best -0.371); '
-                          'V2 89-feat FAIL (composite -0.293, slow features 稀釋); '
-                          'Phase 4 lag-aware composite refactor 待做'),
+        'sop12_verdict': ('V3 dedup_top8 ✅ PASS — '
+                          '60d IC=-0.422 / 40d=-0.348 / 20d=-0.246 vs best single -0.371; '
+                          'lag-weighted + Pearson>0.75 dedup 移除 buffett 系列 11 個冗餘 features'),
     }
 
 
