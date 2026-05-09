@@ -84,19 +84,42 @@ def aggregate_margin() -> pd.DataFrame:
 
 
 def aggregate_foreign_holding() -> pd.Series:
-    """外資持股率市場平均（每日 mean across stocks）。"""
+    """外資持股率市場 median（per-stock 樣本一致版）。
+
+    Bug fix 2026-05-09: 原版每天 mean across 103 stocks 但 stocks 不一致
+    (e.g. 新股加入或下市)，造成 4w chg 突然 +12pp 偽訊號。新版：
+      1. pivot 成 date × ticker matrix
+      2. ffill 每檔股票 (handles 缺值)
+      3. 只取連續 252 天都有資料的 stocks 子集做 median
+      4. median 比 mean 更 robust to outliers
+    """
     files = sorted(CACHE.glob("*_shareholding_chip.csv"))
     logger.info("Aggregating foreign holding from %d files", len(files))
-    daily_values = {}  # date → list of holdings
+
+    series_list = []
     for f in files:
         df = _safe_read_csv(f)
         if df is None or 'ForeignHoldingRatio' not in df.columns:
             continue
+        ticker = f.stem.replace('_shareholding_chip', '')
         s = pd.to_numeric(df['ForeignHoldingRatio'], errors='coerce').dropna()
-        for d, v in s.items():
-            daily_values.setdefault(d, []).append(v)
-    avg = {d: float(np.mean(vs)) for d, vs in daily_values.items() if vs}
-    return pd.Series(avg, name='foreign_holding_avg').sort_index()
+        if len(s) < 100:
+            continue
+        s.name = ticker
+        series_list.append(s)
+
+    wide = pd.concat(series_list, axis=1).sort_index()
+    wide = wide.ffill(limit=10)  # ffill up to 10 days
+
+    # 對每天計算 median，但要求該檔股票過去 252 天有 ≥ 200 個非 NaN
+    has_data_252d = wide.rolling(252, min_periods=200).count() >= 200
+    valid = wide.where(has_data_252d)
+    median_series = valid.median(axis=1)
+
+    median_series.name = 'foreign_holding_median'
+    logger.info("Median panel: %d days, sample stocks last day = %d",
+                len(median_series), int(has_data_252d.iloc[-1].sum()))
+    return median_series
 
 
 def load_pcr_history() -> pd.DataFrame:
@@ -119,6 +142,7 @@ def build_panel() -> pd.DataFrame:
     panel = pd.DataFrame(index=sbl.index)
     panel['sbl_total'] = sbl
     panel = panel.join(margin, how='outer')
+    # 注意：欄名保留 foreign_holding_avg 但實際是 stable-sample median (2026-05-09 fix)
     panel['foreign_holding_avg'] = foreign
     panel = panel.sort_index()
 
