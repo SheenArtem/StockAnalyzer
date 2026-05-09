@@ -6,11 +6,15 @@ fetch_fred_macro.py -- FRED macro series 抓取 + panel 建立
   HYIOAS    BofA US HY Index OAS (daily, 1996+)         — 信用利差，1-3mo lead
   T10Y2Y    10Y-2Y Treasury Spread (daily, 1976+)       — 殖利率曲線
   T10Y3M    10Y-3M Treasury Spread (daily, 1982+)       — 殖利率曲線
-  DTWEXBGS  Nominal Broad USD Index (daily, 2006+)      — 美元指數
   VIXCLS    CBOE Volatility Index (daily, 1990+)        — 同步波動
   WALCL     Fed Total Assets (weekly, 2002+)            — 流動性
+  ...其餘 Tier 1 / Phase 3-C 擴充見下
 
-無需 API key（用 fredgraph.csv 公開端點）。
+DXY (美元指數) 改抓 yfinance ICE DXY (DX-Y.NYB)，與 Yahoo / TradingView 一致；
+   先前用 FRED DTWEXBGS (Trade-Weighted Broad，~120 區間，26 國貨幣) 與一般人看到的
+   ICE DXY (~100 區間，6 國 EUR-heavy) 數值差 ~20-30 點，造成混淆，2026-05-09 換掉。
+
+無需 API key（FRED 用 fredgraph.csv 公開端點，DXY 用 yfinance）。
 
 執行：
   python tools/fetch_fred_macro.py [--from-year YYYY]
@@ -46,7 +50,8 @@ SERIES = {
     'BAMLH0A0HYM2': 'hy_oas',                # ICE BofA US HY OAS (1996+)
     'T10Y2Y':       'yield_curve_10y_2y',    # 10Y-2Y Treasury Spread
     'T10Y3M':       'yield_curve_10y_3m',    # 10Y-3M Treasury Spread
-    'DTWEXBGS':     'dxy_close',             # Nominal Broad USD Index
+    # DXY 改走 yfinance ICE DXY，見 fetch_dxy_yfinance() — 不放 SERIES dict 內
+    'DTWEXBGS':     'dxy_broad_close',       # Nominal Broad USD Index (留作 backup，非主 DXY)
     'VIXCLS':       'vix_close',             # CBOE VIX
     'WALCL':        'fed_bs_million_usd',    # Fed Balance Sheet (weekly)
     # Tier 1 擴充 (2026-05-09)
@@ -90,8 +95,32 @@ def fetch_one(series_id: str, start: str) -> pd.DataFrame:
                 raise
 
 
+def fetch_dxy_yfinance(start: str) -> pd.DataFrame:
+    """從 yfinance 抓 ICE DXY (DX-Y.NYB)，回傳 (date, dxy_close) df。
+
+    DX-Y.NYB = ICE U.S. Dollar Index (NYBOT)，6 國貨幣加權 (EUR 57.6% / JPY 13.6%
+    / GBP 11.9% / CAD 9.1% / SEK 4.2% / CHF 3.6%)，是一般財經網站講的 "DXY"。
+    歷史可回 1985+。
+    """
+    import yfinance as yf
+    ticker = yf.Ticker('DX-Y.NYB')
+    end = datetime.now().strftime('%Y-%m-%d')
+    hist = ticker.history(start=start, end=end, auto_adjust=False)
+    if hist.empty:
+        logger.warning("yfinance DX-Y.NYB returned empty for start=%s", start)
+        return pd.DataFrame(columns=['date', 'dxy_close'])
+    df = pd.DataFrame({
+        'date': pd.to_datetime(hist.index.date),
+        'dxy_close': hist['Close'].astype(float).values,
+    })
+    df = df.dropna(subset=['dxy_close']).sort_values('date').reset_index(drop=True)
+    logger.info("ICE DXY (DX-Y.NYB) fetched: %d rows %s ~ %s",
+                len(df), df['date'].min().date(), df['date'].max().date())
+    return df
+
+
 def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
-    """抓 6 序列、merge 成日頻 panel、補 derived columns。"""
+    """抓所有序列、merge 成日頻 panel、補 derived columns。"""
     panel = None
     for sid, _col in SERIES.items():
         try:
@@ -106,6 +135,14 @@ def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
 
     if panel is None or panel.empty:
         raise RuntimeError("All FRED series failed")
+
+    # 加 ICE DXY (yfinance)，與 FRED 序列 outer-merge
+    try:
+        dxy_df = fetch_dxy_yfinance(start)
+        if not dxy_df.empty:
+            panel = panel.merge(dxy_df, on='date', how='outer')
+    except Exception as e:
+        logger.error("DXY yfinance fetch failed: %s", e)
 
     panel = panel.sort_values('date').reset_index(drop=True)
 

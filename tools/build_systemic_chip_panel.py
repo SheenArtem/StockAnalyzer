@@ -43,42 +43,62 @@ def _safe_read_csv(path: Path, parse_dates: bool = True) -> pd.DataFrame | None:
         return None
 
 
-def aggregate_sbl() -> pd.Series:
-    """合併所有股票 SBL 借券賣出餘額 → 大盤總額。"""
-    files = sorted(CACHE.glob("*_sbl_chip.csv"))
-    logger.info("Aggregating SBL from %d files", len(files))
-    daily_sum = {}
+def _aggregate_consistent_sample(
+    glob_pattern: str, col_name: str, file_suffix: str,
+) -> pd.Series:
+    """通用：合併所有股票某欄位的市場總和，用 stable-sample 防漂移。
+
+    Bug fix 2026-05-09 (sbl + margin)：原版每天簡單 sum 但 ticker 集合不一致，
+    任何一檔當天沒更新就把 total 拉低，造成 sbl_total 5/4 591M → 5/8 5.4M
+    -99% 偽訊號。新版同 aggregate_foreign_holding：
+      1. pivot 成 date × ticker matrix
+      2. ffill 每檔股票（補單日缺值，limit=10）
+      3. 只 sum 過去 252 天 ≥ 200 個交易日有資料的 ticker 子集（穩定樣本）
+    """
+    files = sorted(CACHE.glob(glob_pattern))
+    logger.info("Aggregating %s from %d files", col_name, len(files))
+    series_list = []
     for f in files:
         df = _safe_read_csv(f)
-        if df is None or '借券賣出餘額' not in df.columns:
+        if df is None or col_name not in df.columns:
             continue
-        s = pd.to_numeric(df['借券賣出餘額'], errors='coerce').dropna()
-        for d, v in s.items():
-            daily_sum[d] = daily_sum.get(d, 0) + v
-    return pd.Series(daily_sum, name='sbl_total').sort_index()
+        ticker = f.stem.replace(file_suffix, '')
+        s = pd.to_numeric(df[col_name], errors='coerce').dropna()
+        if len(s) < 100:
+            continue
+        s.name = ticker
+        series_list.append(s)
+    if not series_list:
+        return pd.Series(dtype=float)
+
+    wide = pd.concat(series_list, axis=1).sort_index()
+    wide = wide.ffill(limit=10)
+
+    # 穩定樣本：過去 252d 至少 200 天有資料才納入該日總和
+    has_data_252d = wide.rolling(252, min_periods=200).count() >= 200
+    valid = wide.where(has_data_252d)
+    total = valid.sum(axis=1, min_count=1)  # min_count=1 避免空 row 變 0
+
+    sample_size_last = int(has_data_252d.iloc[-1].sum())
+    logger.info("  %s: %d days, sample stocks last day = %d",
+                col_name, len(total), sample_size_last)
+    return total
+
+
+def aggregate_sbl() -> pd.Series:
+    """SBL 借券賣出餘額大盤總額（穩定樣本版，2026-05-09 fix）。"""
+    s = _aggregate_consistent_sample('*_sbl_chip.csv', '借券賣出餘額', '_sbl_chip')
+    s.name = 'sbl_total'
+    return s
 
 
 def aggregate_margin() -> pd.DataFrame:
-    """合併所有股票 融資/融券餘額 → 大盤總額。"""
-    files = sorted(CACHE.glob("*_margin_chip.csv"))
-    logger.info("Aggregating margin from %d files", len(files))
-    long_sum = {}
-    short_sum = {}
-    for f in files:
-        df = _safe_read_csv(f)
-        if df is None:
-            continue
-        if '融資餘額' in df.columns:
-            s = pd.to_numeric(df['融資餘額'], errors='coerce').dropna()
-            for d, v in s.items():
-                long_sum[d] = long_sum.get(d, 0) + v
-        if '融券餘額' in df.columns:
-            s = pd.to_numeric(df['融券餘額'], errors='coerce').dropna()
-            for d, v in s.items():
-                short_sum[d] = short_sum.get(d, 0) + v
+    """融資/融券餘額大盤總額（穩定樣本版，2026-05-09 fix）。"""
+    long_total = _aggregate_consistent_sample('*_margin_chip.csv', '融資餘額', '_margin_chip')
+    short_total = _aggregate_consistent_sample('*_margin_chip.csv', '融券餘額', '_margin_chip')
     df = pd.DataFrame({
-        'margin_long_total': pd.Series(long_sum),
-        'margin_short_total': pd.Series(short_sum),
+        'margin_long_total': long_total,
+        'margin_short_total': short_total,
     }).sort_index()
     return df
 

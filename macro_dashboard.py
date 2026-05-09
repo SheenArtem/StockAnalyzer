@@ -620,33 +620,38 @@ def _render_valuation(val: dict):
     if tw_yield is not None:
         cols[1].metric("台股殖利率", f"{tw_yield:.2f}%")
 
-    # 巴菲特指標 (TW)
-    buffett_tw = val.get('buffett_indicator_tw')
+    # 台股市值 rank (TWII proxy)
+    # 註：valuation_panel.buffett_indicator_tw 公式 = TWII close（缺 TW market
+    # cap 公開資料），數值本身沒意義，只看 rank。原 label "巴菲特指標 (TW)"
+    # 顯示 41603% 會誤導，2026-05-09 改成只顯示 rank。
     buffett_rank = val.get('buffett_rank_tw')
-    if buffett_tw is not None:
+    if buffett_rank is not None:
         c = _color_rank(buffett_rank, hi_is_bad=True)
-        rank_str = f"rank {buffett_rank:.0f}" if buffett_rank is not None else ""
         cols[2].markdown(
-            f'<div style="font-size:0.9rem">巴菲特指標 (TW)</div>'
-            f'<div style="font-size:1.5rem;color:{c};font-weight:bold">{buffett_tw:.0f}%</div>'
-            f'<div style="font-size:0.8rem;color:#888">{rank_str}</div>',
+            f'<div style="font-size:0.9rem">台股市值 rank (proxy)</div>'
+            f'<div style="font-size:1.5rem;color:{c};font-weight:bold">{buffett_rank:.0f}</div>'
+            f'<div style="font-size:0.75rem;opacity:0.65">10yr 百分位（TWII 替代，缺 TW 市值資料）</div>',
             unsafe_allow_html=True,
         )
 
-    # 巴菲特指標 (US, Wilshire / GDP)
-    buffett_us = val.get('buffett_indicator_us')
-    buffett_us_rank = val.get('buffett_rank_us')
-    if buffett_us is not None:
-        c = _color_rank(buffett_us_rank, hi_is_bad=True)
-        rank_str = f"rank {buffett_us_rank:.0f}" if buffett_us_rank is not None else ""
+    # 美股 Buffett 用 fred_panel.us_buffett_strict (Nonfin Corp Equity / GDP，
+    # 真正定義 ~200% 區間)；valuation_panel.buffett_indicator_us 是 sp500/gdp
+    # 比例 ~23%，rank 跟 strict 高度相關但數值會誤導，2026-05-09 改顯示 strict。
+    macro_ctx = _load_macro()
+    buffett_strict = macro_ctx.get('us_buffett_strict')
+    buffett_strict_rank = macro_ctx.get('us_buffett_strict_rank')
+    if buffett_strict is not None:
+        c = _color_rank(buffett_strict_rank, hi_is_bad=True)
+        rank_str = (f"rank {buffett_strict_rank:.0f}"
+                    if buffett_strict_rank is not None else "")
         cols[3].markdown(
             f'<div style="font-size:0.9rem">巴菲特指標 (US)</div>'
-            f'<div style="font-size:1.5rem;color:{c};font-weight:bold">{buffett_us:.0f}%</div>'
-            f'<div style="font-size:0.8rem;color:#888">{rank_str}</div>',
+            f'<div style="font-size:1.5rem;color:{c};font-weight:bold">{buffett_strict:.0f}%</div>'
+            f'<div style="font-size:0.75rem;opacity:0.65">{rank_str}・Nonfin Eq / GDP (FRED)</div>',
             unsafe_allow_html=True,
         )
 
-    if not any([tw_pe, tw_yield, buffett_tw, buffett_us]):
+    if not any([tw_pe, tw_yield, buffett_rank, buffett_strict]):
         st.info("⏳ 估值面板資料尚未建立，請執行 `python tools/build_valuation_panel.py`")
 
 
