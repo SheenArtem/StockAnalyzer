@@ -72,7 +72,7 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.05.09.1")
+    st.caption("Version: v2026.05.09.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
@@ -113,13 +113,14 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Mode toggle: 個股分析 / 自動選股 / 市場掃描 / AI 報告 / 強勢股日報
-    _mode_options = ['individual', 'screener', 'market_scan', 'ai_reports', 'strong_stocks']
+    # Mode toggle: 個股分析 / 自動選股 / 市場掃描 / AI 報告 / 強勢股日報 / 總經大盤風向
+    _mode_options = ['individual', 'screener', 'market_scan', 'ai_reports', 'strong_stocks', 'macro']
     _mode_labels = {'individual': '📈 個股分析', 'screener': '🔍 自動選股',
                     'market_scan': '📡 市場掃描', 'ai_reports': '📝 AI 報告',
-                    'strong_stocks': '📰 強勢股日報'}
+                    'strong_stocks': '📰 強勢股日報', 'macro': '🧭 總經大盤風向'}
     _current_mode = st.session_state.get('app_mode', 'analysis')
-    _mode_idx_map = {'screener': 1, 'market_scan': 2, 'ai_reports': 3, 'strong_stocks': 4}
+    _mode_idx_map = {'screener': 1, 'market_scan': 2, 'ai_reports': 3,
+                     'strong_stocks': 4, 'macro': 5}
     _mode_idx = _mode_idx_map.get(_current_mode, 0)
     app_mode = st.radio(
         "功能模式",
@@ -137,6 +138,8 @@ with st.sidebar:
         st.session_state['app_mode'] = 'ai_reports'
     elif app_mode == 'strong_stocks':
         st.session_state['app_mode'] = 'strong_stocks'
+    elif app_mode == 'macro':
+        st.session_state['app_mode'] = 'macro'
     else:
         st.session_state['app_mode'] = 'analysis'
 
@@ -279,6 +282,10 @@ elif st.session_state.get('app_mode') == 'strong_stocks':
     from strong_stocks_view import render_strong_stocks
     render_strong_stocks()
 
+elif st.session_state.get('app_mode') == 'macro':
+    from macro_dashboard import render_macro_dashboard
+    render_macro_dashboard()
+
 elif st.session_state.get('analysis_active', False):
     from individual_view import render_individual
     render_individual(target_ticker)
@@ -290,12 +297,22 @@ else:
 # ====================================================================
 #  填入大盤儀表板 Banner（延後渲染，讓主內容先顯示）
 #  放檔案最尾端：主內容全部 render 完才執行，fetch 卡住也不阻塞頁面
-#  注意：若上方分支觸發 st.stop()，此段不會執行 → banner 在錯誤頁不顯示（可接受）
+#
+#  分流規則 (2026-05-09)：
+#    - macro tab: 不渲染（總經大盤風向 內部已 call 完整 banner）
+#    - individual analysis: 完整 banner（個股分析需要大盤背景）
+#    - 其他 (screener / scan / ai_reports / strong_stocks): 不渲染，避免卡 fetch
 # ====================================================================
-try:
-    from market_banner import render_market_banner
-    with _banner_slot.container():
-        render_market_banner()
-except Exception as _banner_err:
-    logger.debug("Market banner failed: %s", _banner_err)
+_mode_now = st.session_state.get('app_mode')
+_should_render_banner = (
+    _mode_now == 'analysis' or
+    (_mode_now is None and st.session_state.get('analysis_active', False))
+)
+if _should_render_banner:
+    try:
+        from market_banner import render_market_banner
+        with _banner_slot.container():
+            render_market_banner()
+    except Exception as _banner_err:
+        logger.debug("Market banner failed: %s", _banner_err)
 
