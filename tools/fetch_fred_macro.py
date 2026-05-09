@@ -49,6 +49,18 @@ SERIES = {
     'DTWEXBGS':     'dxy_close',             # Nominal Broad USD Index
     'VIXCLS':       'vix_close',             # CBOE VIX
     'WALCL':        'fed_bs_million_usd',    # Fed Balance Sheet (weekly)
+    # Tier 1 擴充 (2026-05-09)
+    'UNRATE':       'us_unemployment_rate',  # 美國失業率 (月)
+    'ICSA':         'us_initial_claims',     # 初請失業金 (週)
+    'UMCSENT':      'us_consumer_sentiment', # 密西根消費者信心 (月)
+    'DGORDER':      'us_durable_goods_orders', # 耐久財新訂單 (月)
+    'NCBEILQ027S':  'us_nonfin_corp_equity', # 非金融企業股權市值 (季) - 嚴格 Buffett 用
+    'GDP':          'us_gdp_billion',        # 美國 GDP (季)
+    'SP500':        'sp500_close',           # S&P500 (日)
+    # AAII proxy 替代 (AAII 直接抓被 robot block)
+    'STLFSI4':      'st_louis_fsi',          # St. Louis Fed Financial Stress Index (週)
+    'NFCI':         'chicago_nfci',          # Chicago Fed National Financial Conditions (週)
+    'ANFCI':        'chicago_anfci',         # Adjusted NFCI (週)
 }
 
 
@@ -121,6 +133,28 @@ def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
         panel['yield_curve_10y_2y_inverted'] = (panel['yield_curve_10y_2y'] < 0).astype(int)
     if 'yield_curve_10y_3m' in panel.columns:
         panel['yield_curve_10y_3m_inverted'] = (panel['yield_curve_10y_3m'] < 0).astype(int)
+
+    # Tier 1 derived (2026-05-09)
+    # 失業率變化 (3m / 12m)
+    if 'us_unemployment_rate' in panel.columns:
+        panel['us_unemp_chg_3m'] = panel['us_unemployment_rate'].diff(63)  # 3m ≈ 63 trading days
+        panel['us_unemp_chg_12m'] = panel['us_unemployment_rate'].diff(252)
+    # 初請失業金 4w MA + YoY
+    if 'us_initial_claims' in panel.columns:
+        panel['us_claims_ma4'] = panel['us_initial_claims'].rolling(20).mean()
+        panel['us_claims_yoy'] = panel['us_initial_claims'].pct_change(252) * 100
+    # 消費者信心 YoY
+    if 'us_consumer_sentiment' in panel.columns:
+        panel['us_sent_yoy'] = panel['us_consumer_sentiment'].pct_change(252) * 100
+    # 耐久財訂單 YoY
+    if 'us_durable_goods_orders' in panel.columns:
+        panel['us_durable_yoy'] = panel['us_durable_goods_orders'].pct_change(252) * 100
+    # 嚴格 Buffett (Nonfin Corp Equity / GDP)
+    if 'us_nonfin_corp_equity' in panel.columns and 'us_gdp_billion' in panel.columns:
+        panel['us_buffett_strict'] = panel['us_nonfin_corp_equity'] / 1000 / panel['us_gdp_billion'] * 100  # NCBEILQ 是 millions, GDP 是 billions
+        panel['us_buffett_strict_rank'] = (
+            panel['us_buffett_strict'].rolling(2520, min_periods=252).rank(pct=True) * 100
+        )
 
     return panel
 

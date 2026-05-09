@@ -429,10 +429,14 @@ def _render_liquidity(macro: dict, banner_data: dict):
         cols[1].metric("DXY (美元指數)", f"{dxy:.2f}",
                        delta=f"{dxy_chg:+.2f}% (4w)" if dxy_chg is not None else None)
 
-    # USD/TWD
-    usdtwd = macro.get('usdtwd_close')
-    if usdtwd is not None:
-        cols[2].metric("USD/TWD", f"{usdtwd:.2f}")
+    # NFCI Chicago Fed (取代 USDTWD 因為更高訊號)
+    nfci = macro.get('chicago_nfci')
+    if nfci is not None:
+        c_nfci = '#FF4444' if nfci > 0.5 else '#FF8800' if nfci > 0 else '#00AA00'
+        cols[2].metric("Chicago NFCI", f"{nfci:+.2f}",
+                       delta='收緊' if nfci > 0 else '寬鬆',
+                       delta_color="inverse" if nfci > 0 else "normal",
+                       help="Chicago Fed National Financial Conditions Index — 105 個市場指標複合，>0=收緊 <0=寬鬆")
 
     # Fed Balance Sheet (WALCL)
     walcl = macro.get('fed_bs_trillion')
@@ -441,7 +445,41 @@ def _render_liquidity(macro: dict, banner_data: dict):
         cols[3].metric("Fed BS", f"${walcl:.2f}T",
                        delta=f"{walcl_chg:+.2f}% (4w)" if walcl_chg is not None else None)
 
-    if not any([r, dxy, usdtwd, walcl]):
+    # Tier 1 ETF flows (HYG/JNK/TLT/SPY)
+    etf = _safe_read_parquet(MACRO_DIR / "etf_flows.parquet")
+    if etf is not None and not etf.empty:
+        st.markdown("##### 🏦 風險偏好 ETF 流動 (Tier 1, 信用避險 proxy)")
+        last = etf.iloc[-1]
+        f_cols = st.columns(4)
+
+        hyg_chg = last.get('hyg_chg_4w')
+        if hyg_chg is not None and not pd.isna(hyg_chg):
+            c = '#FF4444' if hyg_chg < -3 else '#00AA00' if hyg_chg > 0 else '#888'
+            f_cols[0].metric("HYG 4w", f"{hyg_chg:+.2f}%",
+                             delta='避險' if hyg_chg < -1 else '冒險',
+                             help="iShares HY Bond 4w 變化；負值大 = 信用避險升溫")
+
+        hyg_lqd = last.get('hyg_to_lqd_ratio')
+        hyg_lqd_chg = last.get('hyg_to_lqd_chg_4w')
+        if hyg_lqd is not None and not pd.isna(hyg_lqd):
+            f_cols[1].metric("HYG/LQD 比", f"{hyg_lqd:.4f}",
+                             delta=f"{hyg_lqd_chg:+.2f}% 4w" if hyg_lqd_chg is not None and not pd.isna(hyg_lqd_chg) else None,
+                             help="HY/IG 相對表現；下跌 = HY 弱於 IG = 信用避險")
+
+        tlt_spy = last.get('tlt_spy_ratio')
+        tlt_spy_chg = last.get('tlt_spy_chg_4w')
+        if tlt_spy is not None and not pd.isna(tlt_spy):
+            f_cols[2].metric("TLT/SPY 比", f"{tlt_spy:.4f}",
+                             delta=f"{tlt_spy_chg:+.2f}% 4w" if tlt_spy_chg is not None and not pd.isna(tlt_spy_chg) else None,
+                             help="長債/股票相對；上升 = risk-off")
+
+        hyg_vol_z = last.get('hyg_volume_z_252d')
+        if hyg_vol_z is not None and not pd.isna(hyg_vol_z):
+            c = '#FF4444' if abs(hyg_vol_z) > 2 else '#888'
+            f_cols[3].metric("HYG 量 z-score", f"{hyg_vol_z:+.2f}",
+                             help="HYG 成交量相對 252 日 z-score；極端值 = 流動性事件")
+
+    if not any([r, dxy, walcl]):
         st.info("⏳ 流動性面板資料尚未建立，請執行 `python tools/fetch_fred_macro.py`")
 
 
@@ -490,12 +528,49 @@ def _render_credit_cycle(macro: dict):
             unsafe_allow_html=True,
         )
 
-    # ISM 新訂單
-    ism = macro.get('ism_new_orders')
-    if ism is not None:
-        c = '#FF4444' if ism < 45 else '#FF8800' if ism < 50 else '#00AA00'
-        label = '收縮' if ism < 50 else '擴張'
-        cols[3].metric("ISM 新訂單", f"{ism:.1f}", delta=label)
+    # FSI (取代 ISM 新訂單，因 NAPMNOI FRED 已下架)
+    fsi = macro.get('st_louis_fsi')
+    if fsi is not None:
+        c = '#FF4444' if fsi > 1 else '#FF8800' if fsi > 0 else '#00AA00'
+        label = '高壓力' if fsi > 1 else '中度' if fsi > 0 else '低壓力'
+        cols[3].metric("STL FSI 金融壓力", f"{fsi:+.2f}", delta=label,
+                       help="St. Louis Fed Financial Stress Index — 18 個市場指標複合，0 = 歷史均值")
+
+    # Tier 1 (2026-05-09) 補充：失業/初請/消費者信心/嚴格 Buffett
+    st.markdown("##### 🇺🇸 美國經濟先行 (Tier 1, 2026-05-09 added)")
+    e_cols = st.columns(5)
+
+    unemp = macro.get('us_unemployment_rate')
+    unemp_chg = macro.get('us_unemp_chg_3m')
+    if unemp is not None:
+        c = '#FF4444' if unemp_chg and unemp_chg > 0.3 else '#FF8800' if unemp_chg and unemp_chg > 0.1 else '#00AA00'
+        e_cols[0].metric("失業率", f"{unemp:.1f}%",
+                         delta=f"{unemp_chg:+.2f}pp 3m" if unemp_chg is not None else None,
+                         delta_color="inverse")
+
+    claims_yoy = macro.get('us_claims_yoy')
+    if claims_yoy is not None:
+        e_cols[1].metric("初請失業金 YoY", f"{claims_yoy:+.1f}%", delta_color="inverse")
+
+    sent_yoy = macro.get('us_sent_yoy')
+    if sent_yoy is not None:
+        c = '#FF4444' if sent_yoy < -10 else '#FF8800' if sent_yoy < 0 else '#00AA00'
+        e_cols[2].metric("消費信心 YoY", f"{sent_yoy:+.1f}%")
+
+    durable_yoy = macro.get('us_durable_yoy')
+    if durable_yoy is not None:
+        e_cols[3].metric("耐久財訂單 YoY", f"{durable_yoy:+.1f}%")
+
+    buffett_strict = macro.get('us_buffett_strict')
+    buffett_strict_rank = macro.get('us_buffett_strict_rank')
+    if buffett_strict is not None:
+        c = _color_rank(buffett_strict_rank, hi_is_bad=True)
+        e_cols[4].markdown(
+            f'<div style="font-size:0.85rem">嚴格 Buffett (Nonfin Eq/GDP)</div>'
+            f'<div style="font-size:1.3rem;color:{c};font-weight:bold">{buffett_strict:.0f}%</div>'
+            f'<div style="font-size:0.75rem;color:#888">rank {buffett_strict_rank:.0f}</div>',
+            unsafe_allow_html=True,
+        )
 
     # TW LEI
     df_tw = _safe_read_parquet(MACRO_DIR / "tw_business_cycle.parquet")
