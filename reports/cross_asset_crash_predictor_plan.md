@@ -95,7 +95,7 @@ SOP-12: 1) Sharpe(C2) > B ✅ +0.132 / 2) MDD(C2) > B ✅ +18.64pp / 3) Sharpe(C
 | HY OAS spread Δ in -5% week | 跳升 ≥50bp | 從 FRED `BAMLH0A0HYM2` 算 5d Δ | ❌ FRED 只 2023+ |
 | MOVE index Δ | 同步飆升 ≥20% | yfinance `^MOVE` 5d % change | ⏸ deferred |
 | VIX term structure | 翹尾 (front > back) | yfinance `^VIX/^VIX3M` ratio | ⏸ deferred |
-| DXY Δ | risk-off 時 USD 走強 | FRED `DTWEXBGS` 5d Δ | ⏸ deferred |
+| DXY Δ | risk-off 時 USD 走強 | yfinance `DX-Y.NYB` (ICE DXY) 5d Δ | ⏸ deferred |
 
 #### 內部 reflexivity 訊號
 
@@ -176,7 +176,8 @@ SOP-12: 1) Sharpe(C2) > B ✅ +0.132 / 2) MDD(C2) > B ✅ +18.64pp / 3) Sharpe(C
 | 10Y Treasury | `DGS10` | 利率水位 |
 | Fed Funds | `DFF` | 流動性 |
 | SOFR | `SOFR` | repo |
-| Trade-weighted USD | `DTWEXBGS` | FX 壓力 |
+| ICE DXY | yfinance `DX-Y.NYB` | FX 壓力（一般財經網站口徑）|
+| Trade-weighted USD (備援) | FRED `DTWEXBGS` | broad 26 國加權版本 |
 
 ### Phase 1.2: SPX panel + dual target（4-5h）
 
