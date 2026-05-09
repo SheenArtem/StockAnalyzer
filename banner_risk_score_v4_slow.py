@@ -7,7 +7,9 @@ informational tier slow-track score。
 設計理念：
   - 既有 v3 banner (m1b/rv10/rv30/pcr_v/pcr_oi/fgi) 是 fast track，0-1 週 lead
   - v4 slow track 補 1-3 週 lead 缺口（macro/credit/外資撤退）
-  - 兩 track 並列顯示，**不合併**避免 horizon mismatch (composite IC 60d=-0.402 但 20d=-0.035)
+  - 兩 track 並列顯示，**不合併**避免 horizon mismatch
+    (V1 42-feat composite 60d=-0.402 PASS；V2 89-feat composite=-0.293 FAIL；
+     20d 一直在 noise level)
 
 過 IC gate 的 6 leading features (per `reports/macro_panel_ic_validation_2026-05-09.md`):
 
@@ -45,7 +47,9 @@ REPO = Path(__file__).resolve().parent
 MACRO = REPO / "data" / "macro"
 BREADTH = REPO / "data" / "breadth"
 
-# IC validation 通過的 6 leading features (2026-05-09 SOP-12 PASS)
+# IC validation 通過的 6 leading features (2026-05-09 V1 N=42 SOP-12 PASS marginal；
+# V2 N=89 panel 後 SOP-12 FAIL，需 Phase 4 lag-aware composite refactor；
+# 但這 6 個 features 各自 IC 都通過 |IC|>0.15 + lag>=1 真 lead 條件保留)
 SLOW_FEATURES = {
     'tlt_spy_ratio':           {'weight': 0.317, 'high_is_danger': True,  'panel': 'etf_flows'},
     'us_durable_yoy':          {'weight': 0.274, 'high_is_danger': False, 'panel': 'fred_panel'},
@@ -174,7 +178,9 @@ def compute_slow_track_score() -> dict:
         'breakdown': breakdown,
         'as_of': last_date.strftime('%Y-%m-%d') if last_date is not None else None,
         'horizon': '60d MDD (informational only, SOP-14)',
-        'sop12_verdict': 'PASS marginally (composite IC -0.402 vs best single -0.371)',
+        'sop12_verdict': ('V1 42-feat PASS marginal (composite -0.402 > best -0.371); '
+                          'V2 89-feat FAIL (composite -0.293, slow features 稀釋); '
+                          'Phase 4 lag-aware composite refactor 待做'),
     }
 
 
