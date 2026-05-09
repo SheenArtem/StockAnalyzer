@@ -109,6 +109,16 @@ def compute_breadth(close_df: pd.DataFrame, vol_df: pd.DataFrame) -> pd.DataFram
     new_lows = (close_df <= rolling_min).sum(axis=1)
     new_high_minus_low = new_highs - new_lows
 
+    # P1-4: % Above 50DMA / 200DMA (中期結構廣度，AI 報告 2026-05-09 建議)
+    logger.info("Computing % above 50/200 DMA...")
+    ma50 = close_df.rolling(50, min_periods=20).mean()
+    ma200 = close_df.rolling(200, min_periods=60).mean()
+    valid_count = close_df.notna().sum(axis=1)
+    above_50dma_count = (close_df > ma50).sum(axis=1)
+    above_200dma_count = (close_df > ma200).sum(axis=1)
+    pct_above_50dma = above_50dma_count / valid_count.replace(0, np.nan) * 100
+    pct_above_200dma = above_200dma_count / valid_count.replace(0, np.nan) * 100
+
     out = pd.DataFrame({
         'date': close_df.index,
         'advances': advances.values,
@@ -123,6 +133,8 @@ def compute_breadth(close_df: pd.DataFrame, vol_df: pd.DataFrame) -> pd.DataFram
         'new_highs_52w': new_highs.values,
         'new_lows_52w': new_lows.values,
         'new_high_minus_low': new_high_minus_low.values,
+        'pct_above_50dma': pct_above_50dma.values,
+        'pct_above_200dma': pct_above_200dma.values,
     })
 
     return out

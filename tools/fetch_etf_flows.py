@@ -30,7 +30,12 @@ REPO = Path(__file__).resolve().parent.parent
 OUT = REPO / "data" / "macro" / "etf_flows.parquet"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
-TICKERS = ['HYG', 'JNK', 'LQD', 'TLT', 'SPY', '^MOVE']
+TICKERS = ['HYG', 'JNK', 'LQD', 'TLT', 'SPY', '^MOVE',
+           # P2-8 (AI 報告 2026-05-09 建議): 新興市場資金流
+           'EEM',   # iShares MSCI Emerging Markets ETF
+           'EMB',   # iShares JPM USD EM Bond ETF
+           'FXI',   # iShares China Large-Cap ETF (中國)
+           'EWJ']   # iShares MSCI Japan ETF (日股)
 
 
 def fetch_one(ticker: str) -> pd.DataFrame:
@@ -115,6 +120,24 @@ def main():
             (panel['move_close'] - panel['move_close'].rolling(252).mean()) /
             panel['move_close'].rolling(252).std()
         )
+
+    # P2-8 EM 資金流 (2026-05-09 AI 報告建議：外資對台買賣超是 EM allocation 子集)
+    if 'eem_close' in panel.columns:
+        panel['eem_chg_4w'] = panel['eem_close'].pct_change(20) * 100
+        if 'eem_volume' in panel.columns:
+            panel['eem_dollar_flow'] = panel['eem_close'] * panel['eem_volume']
+            panel['eem_dollar_flow_z_252d'] = (
+                (panel['eem_dollar_flow'] - panel['eem_dollar_flow'].rolling(252).mean()) /
+                panel['eem_dollar_flow'].rolling(252).std()
+            )
+
+    if 'emb_close' in panel.columns:
+        panel['emb_chg_4w'] = panel['emb_close'].pct_change(20) * 100
+
+    # SPY 相對 EEM (US 相對 EM 表現)，下跌 = EM weak / US flight to quality
+    if 'spy_close' in panel.columns and 'eem_close' in panel.columns:
+        panel['eem_to_spy_ratio'] = panel['eem_close'] / panel['spy_close']
+        panel['eem_to_spy_chg_4w'] = panel['eem_to_spy_ratio'].pct_change(20) * 100
 
     logger.info("Panel rows=%d cols=%d", len(panel), len(panel.columns))
     logger.info("Last row keys: %s", list(panel.iloc[-1].dropna().keys())[:15])
