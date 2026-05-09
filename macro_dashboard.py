@@ -728,6 +728,15 @@ def render_macro_dashboard():
     compass = _compute_compass_verdict(banner_data, sys_chip, breadth, macro, valuation)
     _render_compass_card(compass)
 
+    # Section 0.5: Slow Track 60d composite (Banner v4，IC-validated leading features)
+    try:
+        from banner_risk_score_v4_slow import compute_slow_track_score, render as render_slow
+        st.markdown("### 🐢 Slow Track Composite (60d 區間警示, IC-validated)")
+        slow_score = compute_slow_track_score()
+        render_slow(slow_score)
+    except Exception as e:
+        logger.warning("Slow track render failed: %s", e)
+
     # AI 報告（緊接總風向卡片）
     _render_ai_report_section()
 
