@@ -61,6 +61,9 @@ SERIES = {
     'STLFSI4':      'st_louis_fsi',          # St. Louis Fed Financial Stress Index (週)
     'NFCI':         'chicago_nfci',          # Chicago Fed National Financial Conditions (週)
     'ANFCI':        'chicago_anfci',         # Adjusted NFCI (週)
+    # Phase 3-C P1 (2026-05-09 AI 報告建議)
+    'DEXJPUS':      'usdjpy_close',          # USD/JPY exchange rate (日) - carry trade 風向
+    'DEXTAUS':      'usdtwd_close',          # USD/TWD exchange rate (日) - 台幣
 }
 
 
@@ -155,6 +158,11 @@ def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
         panel['us_buffett_strict_rank'] = (
             panel['us_buffett_strict'].rolling(2520, min_periods=252).rank(pct=True) * 100
         )
+
+    # USDJPY carry trade (Phase 3-C P1)
+    if 'usdjpy_close' in panel.columns:
+        panel['usdjpy_chg_4w'] = panel['usdjpy_close'].pct_change(20) * 100
+        panel['usdjpy_chg_2w'] = panel['usdjpy_close'].pct_change(10) * 100
 
     return panel
 

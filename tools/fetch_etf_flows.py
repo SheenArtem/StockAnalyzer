@@ -30,7 +30,7 @@ REPO = Path(__file__).resolve().parent.parent
 OUT = REPO / "data" / "macro" / "etf_flows.parquet"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
-TICKERS = ['HYG', 'JNK', 'LQD', 'TLT', 'SPY']
+TICKERS = ['HYG', 'JNK', 'LQD', 'TLT', 'SPY', '^MOVE']
 
 
 def fetch_one(ticker: str) -> pd.DataFrame:
@@ -41,9 +41,14 @@ def fetch_one(ticker: str) -> pd.DataFrame:
         return pd.DataFrame()
     df = df.reset_index()
     df['date'] = pd.to_datetime(df['Date'].dt.date) if 'Date' in df.columns else pd.to_datetime(df.index.date)
-    return df[['date', 'Close', 'Volume']].rename(
-        columns={'Close': f'{ticker.lower()}_close', 'Volume': f'{ticker.lower()}_volume'}
-    )
+    # ^MOVE 沒有有意義的 volume，用 close
+    safe_ticker = ticker.lstrip('^').lower()
+    cols = ['date', 'Close']
+    rename = {'Close': f'{safe_ticker}_close'}
+    if 'Volume' in df.columns and df['Volume'].sum() > 0:
+        cols.append('Volume')
+        rename['Volume'] = f'{safe_ticker}_volume'
+    return df[cols].rename(columns=rename)
 
 
 def main():
@@ -86,6 +91,30 @@ def main():
 
     if 'hyg_close' in panel.columns:
         panel['hyg_chg_4w'] = panel['hyg_close'].pct_change(20) * 100
+
+    # P0-3 HY ETF dollar volume flow (price × volume), 4w MA + z-score
+    if 'hyg_close' in panel.columns and 'hyg_volume' in panel.columns:
+        panel['hyg_dollar_flow'] = panel['hyg_close'] * panel['hyg_volume']
+        panel['hyg_dollar_flow_ma20'] = panel['hyg_dollar_flow'].rolling(20).mean()
+        panel['hyg_dollar_flow_z_252d'] = (
+            (panel['hyg_dollar_flow'] - panel['hyg_dollar_flow'].rolling(252).mean()) /
+            panel['hyg_dollar_flow'].rolling(252).std()
+        )
+    if 'jnk_close' in panel.columns and 'jnk_volume' in panel.columns:
+        panel['jnk_dollar_flow'] = panel['jnk_close'] * panel['jnk_volume']
+        panel['jnk_dollar_flow_z_252d'] = (
+            (panel['jnk_dollar_flow'] - panel['jnk_dollar_flow'].rolling(252).mean()) /
+            panel['jnk_dollar_flow'].rolling(252).std()
+        )
+
+    # P0-2 MOVE Index 變化率（高 = 美債波動 = 5-15d crash lead per AI 報告）
+    if 'move_close' in panel.columns:
+        panel['move_chg_2w'] = panel['move_close'].pct_change(10) * 100
+        panel['move_chg_4w'] = panel['move_close'].pct_change(20) * 100
+        panel['move_z_252d'] = (
+            (panel['move_close'] - panel['move_close'].rolling(252).mean()) /
+            panel['move_close'].rolling(252).std()
+        )
 
     logger.info("Panel rows=%d cols=%d", len(panel), len(panel.columns))
     logger.info("Last row keys: %s", list(panel.iloc[-1].dropna().keys())[:15])
