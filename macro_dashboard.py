@@ -34,6 +34,7 @@ DATA = REPO / "data"
 MACRO_DIR = DATA / "macro"
 BREADTH_DIR = DATA / "breadth"
 SENT_DIR = DATA / "sentiment"
+REPORTS_DIR = DATA / "macro_reports"
 
 # ============================================================
 #  資料載入 helpers
@@ -576,6 +577,60 @@ def _render_valuation(val: dict):
 #  主入口
 # ============================================================
 
+def _render_ai_report_section():
+    """AI 風向研究報告 — 雙 LLM (Claude Opus + Gemini 3.1 Pro) + Sonnet council。"""
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    with st.expander("🤖 AI 風向研究報告 (Claude Opus + Gemini 雙視角)", expanded=False):
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            if st.button("🚀 產生新報告", type="primary",
+                         help="呼叫 Claude Opus + Gemini 3.1 Pro，再用 Sonnet council 統整。約 5-15 分鐘。"):
+                _run_ai_report_async()
+
+        with col2:
+            # 顯示最新報告 metadata
+            metas = sorted(REPORTS_DIR.glob("*.meta.json"))
+            if metas:
+                import json
+                latest_meta = json.loads(metas[-1].read_text(encoding='utf-8'))
+                st.caption(
+                    f"最新報告：{latest_meta.get('datetime', 'N/A')[:19]} | "
+                    f"Claude: {'✅' if latest_meta.get('claude_ok') else '❌'} "
+                    f"Gemini: {'✅' if latest_meta.get('gemini_ok') else '❌'} "
+                    f"Council: {'✅' if latest_meta.get('council_ok') else '❌'}"
+                )
+            else:
+                st.caption("尚無報告。點選左方「產生新報告」啟動 5-15 分鐘的雙 LLM 分析。")
+
+        # 報告選單
+        htmls = sorted(REPORTS_DIR.glob("*.html"), reverse=True)
+        htmls = [h for h in htmls if h.name != 'latest.html']
+        if htmls:
+            options = ['(最新)'] + [h.stem for h in htmls[:20]]
+            sel = st.selectbox("查看歷史報告", options=options, index=0)
+            target = REPORTS_DIR / "latest.html" if sel == '(最新)' else REPORTS_DIR / f"{sel}.html"
+            if target.exists():
+                html = target.read_text(encoding='utf-8')
+                st.components.v1.html(html, height=900, scrolling=True)
+
+
+def _run_ai_report_async():
+    """背景呼叫 macro_compass_report.py，通過 session_state 顯示進度。"""
+    import subprocess
+    import sys as _sys
+
+    cmd = [_sys.executable, str(REPO / "tools" / "macro_compass_report.py")]
+    st.info(f"🔄 已啟動報告產生器（{datetime.now().strftime('%H:%M:%S')}）。"
+            "預計 5-15 分鐘，請保持頁面開啟，完成後重新整理本 expander 即可看到。")
+
+    # 用 Popen 不阻塞 UI
+    log_path = REPO / "macro_compass_report.log"
+    with open(log_path, 'w', encoding='utf-8') as f:
+        subprocess.Popen(cmd, stdout=f, stderr=subprocess.STDOUT, cwd=str(REPO))
+    st.caption(f"日誌：{log_path}")
+
+
 def render_macro_dashboard():
     """總經大盤風向 tab 主入口。"""
     st.markdown("# 🧭 總經大盤風向 (Macro Compass)")
@@ -597,6 +652,9 @@ def render_macro_dashboard():
     # Section 0: 總風向
     compass = _compute_compass_verdict(banner_data, sys_chip, breadth, macro, valuation)
     _render_compass_card(compass)
+
+    # AI 報告（緊接總風向卡片）
+    _render_ai_report_section()
 
     # Section 1: 機構撤退
     _render_systemic_chip(sys_chip)
