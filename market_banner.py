@@ -288,7 +288,7 @@ def _compute_expiry(indicator, data_date, now):
       - risk_score / regime: 跟 tw_index 同步刷新
     """
     # 台股 14:00 類
-    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio', 'risk_score', 'regime'):
+    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio', 'risk_score', 'regime', 'regime_ext'):
         expected = _expected_tw_date(_TW_14_CUTOFF, now)
         if data_date == expected:
             return _next_tw_refresh_at(_TW_14_CUTOFF, now).timestamp()
@@ -370,6 +370,7 @@ _OUT_TO_CACHE = {
     'opt_inst': 'opt_inst',
     'risk_score': 'risk_score',
     'regime': 'regime',
+    'regime_ext': 'regime_ext',
 }
 
 
@@ -411,6 +412,8 @@ def _pure_fetch(cache_key):
             return _fetch_risk_score()
         if cache_key == 'regime':
             return _fetch_regime()
+        if cache_key == 'regime_ext':
+            return _fetch_regime_extension()
     except Exception as e:
         logger.debug("Banner fetch %s failed: %s", cache_key, e)
     return None
@@ -530,6 +533,27 @@ def _fetch_regime():
         return None
 
 
+def _fetch_regime_extension():
+    """Read TAIEX, compute today's ma_dist_60 rolling 252d rank.
+
+    Returns dict with rank/level/color/data_date OR None.
+    Source: regime_extension.compute_extension_signal (TAIEX 1999+).
+    """
+    try:
+        import regime_extension as re_mod
+        result = re_mod.compute_extension_signal()
+        if result.get("rank") is None:
+            return None
+        # data_date already a Timestamp; normalize to date for cache compare
+        dd = result.get("data_date")
+        if hasattr(dd, "date"):
+            result["data_date"] = dd.date()
+        return result
+    except Exception as e:
+        logger.debug("regime_extension fetch failed: %s", e)
+        return None
+
+
 # ============================================================
 #  主入口
 # ============================================================
@@ -615,8 +639,8 @@ def _bias_delta_color(bias):
     return f"{bias:+.2f}%", "normal"
 
 
-def _render_risk_row(risk, regime):
-    """Render 綜合風險指標 + HMM 市場狀態 row.
+def _render_risk_row(risk, regime, regime_ext=None):
+    """Render 綜合風險指標 + HMM 市場狀態 + 跌深 regime 延伸 row.
 
     SOP-14 informational tier 文案守則：
       - 禁: 「預警 / 預測 / 領先 / 即將 / 接下來會」
@@ -624,6 +648,7 @@ def _render_risk_row(risk, regime):
     """
     risk = risk or {}
     regime = regime or {}
+    regime_ext = regime_ext or {}
 
     composite = risk.get('composite')
     zone = risk.get('zone', 'unknown')
@@ -632,8 +657,8 @@ def _render_risk_row(risk, regime):
     zone_stats = risk.get('zone_stats', {})
     baseline = risk.get('baseline_10pct', 19.2)
 
-    # 綜合風險 + regime 並排
-    rc1, rc2 = st.columns([3, 2])
+    # 綜合風險 + HMM regime + 跌深延伸 三欄並排
+    rc1, rc2, rc3 = st.columns([3, 2, 2])
 
     with rc1:
         if composite is not None:
@@ -723,6 +748,42 @@ def _render_risk_row(risk, regime):
                 unsafe_allow_html=True,
             )
 
+    with rc3:
+        ext_rank = regime_ext.get('rank')
+        ext_level = regime_ext.get('level', 'unknown')
+        ext_color = regime_ext.get('color', '#888888')
+        ext_stats = regime_ext.get('stats', {})
+        ext_ma_dist = regime_ext.get('ma_dist_60')
+        ext_baseline = regime_ext.get('baseline_10pct', 23.5)
+
+        if ext_rank is not None:
+            level_emoji = {'green': '🟢', 'yellow': '🟡', 'orange': '🟠', 'red': '🔴'}.get(ext_level, '⚪')
+            level_label_zh = {'green': '正常', 'yellow': '注意', 'orange': '偏高', 'red': '極端'}.get(ext_level, '?')
+            co10 = ext_stats.get('co10')
+            mdd_med = ext_stats.get('mdd_median')
+            tip3 = (
+                f'跌深 regime 延伸訊號（System 2 Phase 2.5 D 政策；ma_dist_60 rolling 252d rank）。'
+                f'歷史此 rank 區間 60d 內 ≥10% 回檔同期重合率 {co10:.0f}%（baseline {ext_baseline:.0f}%；'
+                f'此區間 MDD 中位數 {mdd_med:.1f}%）。SOP-14 informational tier — 禁用於自動調倉。'
+            )
+            st.markdown(
+                f'<div style="font-size:1.0rem;line-height:1.7" title="{tip3}">'
+                f'<b>跌深延伸 (D)</b> '
+                f'<span style="color:{ext_color};font-size:1.2rem;font-weight:bold">'
+                f'{level_emoji} {ext_rank*100:.0f}</span>'
+                f'<span style="font-size:0.8rem;color:#666"> ({level_label_zh})</span>'
+                f'</div>'
+                f'<div style="font-size:0.8rem;color:#888;line-height:1.4">'
+                f'ma_dist_60 = {ext_ma_dist*100:+.1f}%；歷史 60d 內 ≥10% 回檔同期 {co10:.0f}%（baseline {ext_baseline:.0f}%）'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div style="font-size:0.9rem;color:#888">跌深延伸 (D)：資料不足</div>',
+                unsafe_allow_html=True,
+            )
+
     st.markdown('<hr style="margin:8px 0 12px;border:0;border-top:1px solid #eee">',
                 unsafe_allow_html=True)
 
@@ -783,8 +844,8 @@ def render_market_banner():
         tw_fgi = data.get('tw_fgi') or {}
         cnn_fgi = data.get('cnn_fgi') or {}
 
-        # ── Row 0: 綜合風險指標 + HMM 市場狀態（informational tier, SOP-14） ──
-        _render_risk_row(data.get('risk_score'), data.get('regime'))
+        # ── Row 0: 綜合風險指標 + HMM 市場狀態 + 跌深延伸 D（informational tier, SOP-14） ──
+        _render_risk_row(data.get('risk_score'), data.get('regime'), data.get('regime_ext'))
 
         # 單排 4 欄：所有內容垂直堆疊在各欄內，無 Row 2 間距
         c1, c2, c3, c4 = st.columns(4)
