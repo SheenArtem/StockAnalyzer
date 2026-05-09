@@ -68,6 +68,9 @@ python tools\fetch_options_institutional.py >> taifex_afterclose.log 2>&1
 echo [%date% %time%] [stage]Daily PCR + FGI append (BL-5 Part 2) >> taifex_afterclose.log
 python tools\append_today_pcr_fgi.py >> taifex_afterclose.log 2>&1
 
+echo [%date% %time%] [stage]System 2 daily check (informational tier) >> taifex_afterclose.log
+python tools\system2_daily_check.py >> taifex_afterclose.log 2>&1
+
 echo [%date% %time%] TAIFEX afterclose archive done >> taifex_afterclose.log
 
 REM Best-effort: failures do not fail the task. The 00:00 scanner run is

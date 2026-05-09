@@ -1,9 +1,22 @@
 # Crash Prediction System — Two-Stage Plan (v2)
 
 **Date drafted**: 2026-05-08
-**Status**: 規劃中（user 拍板 「下次 session 動工」+ 「優先 System 2 後 System 1」）
+**Status**: System 2 Phase 2.1-2.5 完工 2026-05-09 → **verdict PARTIAL** → **SOP-14 informational tier** (Discord push 不接 portfolio rebalance)
 **Dependency**: B+E informational dashboard 已完工（commits 272446e + 4bed849 + d612b7c + c963378）
 **前一版**: 2026-05-08 早版只含 System 1 cross-asset stack；user reframe 後加 System 2 為優先
+
+**Route 決策 2026-05-09**: 走 **Route B (純 internal reflexivity)** — FRED HY OAS (`BAMLH0A0HYM2`) 因 ICE/BofA 改授權只能 redistribute 最近 3 年 (2023-05+)，無法 backtest 1999-2026 全 events。Cross-asset features (HY OAS / DXY / VIX term) 全 deferred；改用台股 internal reflexivity (價量 regime) 作 sole input，N=77 events 全用不切割。
+
+**Phase 2.1-2.4 OOS verdict (commit `09ddbc4`)**: 4/17 features 過 univariate filter → 砍至 2 個 final (ma_dist_60 + rv_20d, 砍 rv_10d/range_5d 因 Pearson > 0.80)；multinomial logistic L2 walk-forward CV (OOS=46) 三閘門 PASS — log-loss 0.947 < prior 1.106 / macro F1 0.425 vs majority 0.303 / AUC C_crash 0.733；C_crash precision 60% (vs 26% baseline, lift 2.3×)。OOS 涵蓋 2008/2011/2015/2020/2022/2025 全主要 crash。
+
+**Phase 2.5 portfolio sim verdict 2026-05-09**: **PARTIAL**。11yr backtest (2008-05→2026-05, 6 policies) 結論：
+- best variant **C2 (argmax gating)**: CAGR 8.81% / Sharpe 0.623 / **MDD -30.22%** / Calmar 0.292
+- baseline B (-5%→50%): Sharpe 0.491 / MDD -48.86%
+- D (single feat ma_dist_60 rank≥0.95→cash): Sharpe 0.729 / MDD -54.14%
+
+SOP-12: 1) Sharpe(C2) > B ✅ +0.132 / 2) MDD(C2) > B ✅ +18.64pp / 3) Sharpe(C2) > D ❌ -0.107 → **PARTIAL**。Multinomial 沒比單一 feature 多賺 Sharpe alpha；模型價值在 MDD reduction 而非 Sharpe。
+
+**User 拍板 2026-05-09 走 SOP-14 informational tier**：`tools/system2_daily_check.py` + `run_taifex_signals_afterclose.bat` 第 5 stage 自動跑（TUE-SAT 14:35/15:30/16:30）；觸發 -5% 後 Discord push P(A)/P(B)/P(C) 但 **不接 portfolio rebalance**。6-12 月累積 events 後重訓 reopen。
 
 ---
 
@@ -75,14 +88,14 @@
 
 關鍵 distinguishing features（學界 + 實務經驗）— 在 -5% 觸發日當下計算：
 
-#### 跨資產 risk-off 同步度（最有分量）
+#### 跨資產 risk-off 同步度（**deferred per Route B 2026-05-09** — FRED HY OAS 3yr 限制 + user 拍板純 internal）
 
-| Feature | 大崩 fingerprint | 計算 |
-|---|---|---|
-| HY OAS spread Δ in -5% week | 跳升 ≥50bp | 從 FRED `BAMLH0A0HYM2` 算 5d Δ |
-| MOVE index Δ | 同步飆升 ≥20% | yfinance `^MOVE` 5d % change |
-| VIX term structure | 翹尾 (front > back) | yfinance `^VIX/^VIX3M` ratio |
-| DXY Δ | risk-off 時 USD 走強 | FRED `DTWEXBGS` 5d Δ |
+| Feature | 大崩 fingerprint | 計算 | 狀態 |
+|---|---|---|---|
+| HY OAS spread Δ in -5% week | 跳升 ≥50bp | 從 FRED `BAMLH0A0HYM2` 算 5d Δ | ❌ FRED 只 2023+ |
+| MOVE index Δ | 同步飆升 ≥20% | yfinance `^MOVE` 5d % change | ⏸ deferred |
+| VIX term structure | 翹尾 (front > back) | yfinance `^VIX/^VIX3M` ratio | ⏸ deferred |
+| DXY Δ | risk-off 時 USD 走強 | FRED `DTWEXBGS` 5d Δ | ⏸ deferred |
 
 #### 內部 reflexivity 訊號
 
