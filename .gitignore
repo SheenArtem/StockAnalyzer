@@ -15,6 +15,10 @@ tools/screenshots_*/
 
 # 一次性 UI smoke test 腳本
 tools/ui_test_*.py
+tools/*_smoke_test.py
+
+# 一次性 audit 腳本（驗證後丟，結論寫進 memory）
+tools/audit_*.py
 
 # Tools 暫存區（smoke test / batch staging / ad-hoc）
 tools/tmp/
@@ -52,6 +56,15 @@ Desktop.ini
 
 # AI 報告輸出（使用者生成，不納入版控）
 data/ai_reports/
+data/macro_reports/
+
+# Macro / banner UI smoke test screenshots（reports/screenshots/banner_regime_ext_* 仍 commit）
+reports/screenshots/macro_*
+reports/screenshots/banner_full_page_*
+reports/screenshots/banner_phase_*
+
+# Root-level scratch (PDF dump etc.)
+/temp_*.txt
 
 # POC 抽樣資料
 reports/mops_poc_samples/
