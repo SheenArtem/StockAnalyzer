@@ -35,6 +35,10 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from regime_extension import LEVEL_STATS, BASELINE_10PCT, BASELINE_5PCT, LEAD_RECALL  # noqa: E402
+
 TAIEX_PATH = ROOT / "data_cache" / "TAIEX_price.parquet"
 STATE_PATH = ROOT / "data" / "sentiment" / "system3_last_alert.json"
 ENV_FILE = ROOT / "local" / ".env"
@@ -167,18 +171,11 @@ def format_alert(state: dict) -> str:
     level_emoji = {"yellow": "[!] YELLOW", "orange": "[!!] ORANGE", "red": "[!!!] RED"}[level]
     level_zh = {"yellow": "黃燈 注意", "orange": "橘燈 偏高", "red": "紅燈 極端"}[level]
 
-    co_rates = {
-        "yellow": (29.2, 46.8, -4.30),
-        "orange": (35.3, 62.0, -7.54),
-        "red":    (35.6, 58.0, -6.30),
-    }
-    co10, co5, mdd_med = co_rates[level]
-
-    lead_recall = {
-        "yellow": "59% (41/70)",
-        "orange": "~48%",
-        "red":    "36% (25/70)",
-    }[level]
+    s = LEVEL_STATS[level]
+    co10 = s["co10"]
+    co5 = s["co5"]
+    mdd_med = s["mdd_median"]
+    lead_recall = LEAD_RECALL[level]
 
     return (
         f"[System 3] 跌深延伸 (D) {level_emoji} - {state['today'].date()}\n"
@@ -187,8 +184,8 @@ def format_alert(state: dict) -> str:
         f"  rolling-252d rank: {rank_pct:.0f}%  (level: {level_zh})\n"
         f"\n"
         f"Historical co-occurrence (TAIEX 1999-2026):\n"
-        f"  60d MDD <=-10% : {co10:.0f}% (baseline 23.5%)\n"
-        f"  60d MDD <=-5%  : {co5:.0f}% (baseline 43.4%)\n"
+        f"  60d MDD <=-10% : {co10:.0f}% (baseline {BASELINE_10PCT:.0f}%)\n"
+        f"  60d MDD <=-5%  : {co5:.0f}% (baseline {BASELINE_5PCT:.0f}%)\n"
         f"  MDD median     : {mdd_med:.1f}%\n"
         f"\n"
         f"Lead time stats: this signal historically precedes\n"

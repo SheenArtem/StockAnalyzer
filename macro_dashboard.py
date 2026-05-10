@@ -239,7 +239,16 @@ def _render_compass_card(compass: dict):
 # ============================================================
 
 def _load_systemic_chip() -> dict:
-    """讀 data/macro/systemic_chip.parquet（若已建立）。"""
+    """讀 data/macro/systemic_chip.parquet（若已建立）。
+
+    Schema sync 2026-05-10 (S2 5 組全實做後)：
+      Group A: foreign_holding_chg_4w (0050 fixed universe) / sbl_change_4w_pct
+               + foreign_fut_net_chg_4w (futures_institutional)
+      Group B: margin_ratio_z_252d / short_to_long_ratio
+      Group C: trust_buy_streak / trust_5d_zscore (institutional_total)
+      Group D: pcr_oi (rename fix) / option_top1_concentration
+      Group E: hyg_volume_z_252d / tlt_spy_chg_4w
+    """
     df = _safe_read_parquet(MACRO_DIR / "systemic_chip.parquet")
     if df is None or df.empty:
         return {}
@@ -247,31 +256,35 @@ def _load_systemic_chip() -> dict:
     return {
         'as_of': last.get('date'),
         'group_a': {  # 外資撤退
-            'foreign_streak': last.get('foreign_sell_streak'),
-            'sbl_change_4w': last.get('sbl_change_4w_pct'),
-            'foreign_fut_oi': last.get('foreign_fut_net_oi'),
+            'foreign_holding_chg_4w_pp': last.get('foreign_holding_chg_4w'),
+            'sbl_change_4w_pct': last.get('sbl_change_4w_pct'),
+            'foreign_fut_net_chg_4w': last.get('foreign_fut_net_chg_4w'),
             'flag': last.get('group_a_flag', 'low'),
             'reason': last.get('group_a_reason', ''),
         },
         'group_b': {  # 籌碼鬆動
-            'tdcc_chunky_change': last.get('tdcc_chunky_change_4w'),
-            'margin_ratio': last.get('margin_to_index_ratio'),
-            'short_ratio': last.get('short_to_long_ratio'),
+            'margin_ratio_z_252d': last.get('margin_ratio_z_252d'),
+            'short_to_long_ratio': last.get('short_to_long_ratio'),
             'flag': last.get('group_b_flag', 'low'),
             'reason': last.get('group_b_reason', ''),
         },
         'group_c': {  # 投信動能
-            'trust_streak': last.get('trust_buy_streak'),
+            'trust_buy_streak': last.get('trust_buy_streak'),
+            'trust_5d_zscore': last.get('trust_5d_zscore'),
             'flag': last.get('group_c_flag', 'low'),
+            'reason': last.get('group_c_reason', ''),
         },
         'group_d': {  # 期權對沖
             'pcr_oi': last.get('pcr_oi'),
-            'top5_top10_diff': last.get('top5_top10_oi_diff'),
+            'option_top1_concentration': last.get('option_top1_concentration'),
             'flag': last.get('group_d_flag', 'low'),
+            'reason': last.get('group_d_reason', ''),
         },
         'group_e': {  # ETF 流動
-            'etf_redemption': last.get('etf_redemption_streak'),
+            'hyg_volume_z_252d': last.get('hyg_volume_z_252d'),
+            'tlt_spy_chg_4w_pct': last.get('tlt_spy_chg_4w'),
             'flag': last.get('group_e_flag', 'low'),
+            'reason': last.get('group_e_reason', ''),
         },
     }
 
@@ -574,23 +587,62 @@ def _render_credit_cycle(macro: dict):
             unsafe_allow_html=True,
         )
 
-    # TW LEI
-    df_tw = _safe_read_parquet(MACRO_DIR / "tw_business_cycle.parquet")
+    # TW LEI 7 components (NDC private JSON API, 2026-05-10 commit f95ae52)
+    df_tw = _safe_read_parquet(MACRO_DIR / "tw_lei_panel.parquet")
     if df_tw is not None and not df_tw.empty:
+        st.markdown("##### 🇹🇼 TW 景氣領先指標 7 components (NDC, 月頻)")
+        # 確保 date 是 index
+        if 'date' in df_tw.columns:
+            df_tw = df_tw.set_index('date')
+        df_tw = df_tw.sort_index()
         last_tw = df_tw.iloc[-1]
-        tw_lei_yoy = last_tw.get('tw_lei_yoy')
-        export_diffusion = last_tw.get('export_diffusion')
-        if tw_lei_yoy is not None or export_diffusion is not None:
-            tw_cols = st.columns(3)
-            if tw_lei_yoy is not None:
-                c = '#FF4444' if tw_lei_yoy < 0 else '#00AA00'
-                tw_cols[0].metric("TW 景氣領先 YoY", f"{tw_lei_yoy:+.2f}%",
-                                  delta="衰退" if tw_lei_yoy < 0 else "擴張")
-            if export_diffusion is not None:
-                c = '#FF4444' if export_diffusion < 50 else '#00AA00'
-                tw_cols[1].metric("出口訂單擴散", f"{export_diffusion:.1f}",
-                                  delta="收縮" if export_diffusion < 50 else "擴張")
-            tw_cols[2].caption(f"資料日期：{_fmt_date(last_tw.get('date'))}")
+        last_dt = df_tw.index[-1]
+
+        # composite YoY 12 個月
+        if 'lei_composite' in df_tw.columns and len(df_tw) >= 13:
+            yoy = (last_tw['lei_composite'] / df_tw['lei_composite'].iloc[-13] - 1) * 100
+            mom = (last_tw['lei_composite'] / df_tw['lei_composite'].iloc[-2] - 1) * 100
+        else:
+            yoy = mom = None
+
+        tw_cols = st.columns(3)
+        if yoy is not None:
+            c = '#FF4444' if yoy < 0 else '#00AA00'
+            tw_cols[0].metric("LEI Composite YoY", f"{yoy:+.2f}%",
+                              delta="衰退" if yoy < 0 else "擴張")
+        if mom is not None:
+            tw_cols[1].metric("LEI Composite MoM", f"{mom:+.2f}%",
+                              delta="加速" if mom > 0 else "減速")
+        tw_cols[2].caption(f"資料日期：{_fmt_date(last_dt)}")
+
+        with st.expander("LEI 7 components 詳細數據"):
+            comp_labels = {
+                'leading_export_order_idx': '外銷訂單動向指數',
+                'leading_m1b': '貨幣總計數 M1B',
+                'leading_stock_price_idx': '股價指數',
+                'leading_employee_entry_rt': '員工淨進入率',
+                'leading_building_area': '建築開工樓地板面積',
+                'leading_semi_equip_import': '半導體設備進口值',
+                'leading_mfg_climate': '製造業營業氣候測驗點',
+            }
+            rows = []
+            for k, name in comp_labels.items():
+                v = last_tw.get(k)
+                if v is None or pd.isna(v):
+                    continue
+                if len(df_tw) >= 13 and k in df_tw.columns:
+                    prev = df_tw[k].iloc[-13]
+                    yoy_c = (v / prev - 1) * 100 if prev and prev != 0 else None
+                else:
+                    yoy_c = None
+                rows.append({
+                    "components": name,
+                    "value": round(float(v), 2),
+                    "YoY %": f"{yoy_c:+.2f}" if yoy_c is not None else "n/a",
+                })
+            if rows:
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.caption("資料源：國發會 (NDC) `index.ndc.gov.tw` private JSON API；歷史 1967-01+，all-7 from 2013-07")
 
 
 # ============================================================

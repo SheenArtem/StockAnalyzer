@@ -5,6 +5,18 @@
 **Dependency**: B+E informational dashboard 已完工（commits 272446e + 4bed849 + d612b7c + c963378）
 **前一版**: 2026-05-08 早版只含 System 1 cross-asset stack；user reframe 後加 System 2 為優先
 
+> ⚠️ **2026-05-10 update — 本 spec 範圍只含 System 1 + 2，System 3 以後 stages 由獨立 commits 落地，未在此 spec 內描述**：
+>
+> **System 3 (1w-1mo crash early-warning，commit pending)** — `tools/system3_daily_check.py` 第 6 stage of `run_taifex_signals_afterclose.bat`。Single feature `ma_dist_60` rolling-252d rank，Sharpe 0.898 / MDD -19.5% (vs B&H -31.6%)；recall 59% lead 22-30d。Verdict: 4 levels green/yellow/orange/red + 60d cooldown。詳 `reports/system3_phase34_portfolio.md`。
+>
+> **System 3-a (^MOVE shock，commit `d173a66`)** — `tools/system3_move_check.py` 第 7 stage。^MOVE 5d Δ z-score on 252d rolling baseline，verdict MARGINAL → SOP-14 informational。Conditional lift z>=3 → fwd_20d hit -10% 機率 31% (3.43x baseline)。Threshold z>=1.5/2.5/3.0 三層，60d cooldown，OR-union with ma_dist_60 yellow。詳 `reports/system3_move5d_ic_validation_2026-05-09.md`。
+>
+> **System 3-b (SPX 1d shock，commit `e5c92f1`)** — `tools/system3_spx_check.py` 第 8 stage。SPX 1d return threshold -1.5%/-2.5%/-3% 三層，3d cooldown (concurrent shock chain real signal)。Conditional lift @ <=-3% → fwd_20d hit -10% 機率 38% (8.45x baseline)；P(TWII gap-down <=-1%) = 54% (vs baseline 2.5%, 22x lift)。獨立性 vs S3-a Jaccard=0.060。詳 `reports/system3_spx_gap_ic_validation_2026-05-09.md`。
+>
+> **System 3-c (news LLM extreme negative sentiment，D-archived `e5c92f1`)** — articles_recent.parquet rolling 15-day window 不是 archive，N=9 跑 SOP-12 沒統計力。重啟條件: archive ≥ 180 天 (~2026-11+)。既有 sentiment/tone 100% 已填，重啟成本只是工程不是 LLM quota。詳 `reports/system3_news_sentiment_ic_validation_2026-05-10.md`。
+>
+> **完整 5 層風險預警 (afterclose bat stages 4-8)**: ATM PUT/Minifut/Options/PCR+FGI archive (4-7 raw data) + System 2 conditional drawdown (5) + System 3 ma_dist_60 (6) + System 3 MOVE (7) + System 3 SPX (8)。全 SOP-14 informational tier，不接 auto-rebalance。
+
 **Route 決策 2026-05-09**: 走 **Route B (純 internal reflexivity)** — FRED HY OAS (`BAMLH0A0HYM2`) 因 ICE/BofA 改授權只能 redistribute 最近 3 年 (2023-05+)，無法 backtest 1999-2026 全 events。Cross-asset features (HY OAS / DXY / VIX term) 全 deferred；改用台股 internal reflexivity (價量 regime) 作 sole input，N=77 events 全用不切割。
 
 **Phase 2.1-2.4 OOS verdict (commit `09ddbc4`)**: 4/17 features 過 univariate filter → 砍至 2 個 final (ma_dist_60 + rv_20d, 砍 rv_10d/range_5d 因 Pearson > 0.80)；multinomial logistic L2 walk-forward CV (OOS=46) 三閘門 PASS — log-loss 0.947 < prior 1.106 / macro F1 0.425 vs majority 0.303 / AUC C_crash 0.733；C_crash precision 60% (vs 26% baseline, lift 2.3×)。OOS 涵蓋 2008/2011/2015/2020/2022/2025 全主要 crash。

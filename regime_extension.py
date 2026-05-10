@@ -50,6 +50,13 @@ LEVEL_STATS = {
 BASELINE_10PCT = 23.5  # baseline % all days P(60d MDD <= -10%)
 BASELINE_5PCT = 43.4
 
+# Lead recall stats from Phase 3.4 audit (70 events 1999-2026)
+LEAD_RECALL = {
+    "yellow": "59% (41/70)",
+    "orange": "~48%",
+    "red":    "36% (25/70)",
+}
+
 LEVEL_COLORS = {
     "green":  "#00CC44",
     "yellow": "#FFD700",
