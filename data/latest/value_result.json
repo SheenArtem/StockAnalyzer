@@ -1,12 +1,12 @@
 {
-  "scan_date": "2026-05-10",
-  "scan_time": "00:43",
+  "scan_date": "2026-05-11",
+  "scan_time": "00:34",
   "scan_type": "value",
   "market": "tw",
-  "total_scanned": 1943,
+  "total_scanned": 1942,
   "passed_initial": 119,
   "scored_count": 20,
-  "elapsed_seconds": 213.8,
+  "elapsed_seconds": 227.4,
   "failures": [],
   "config": {
     "max_pe": 30,
@@ -123,7 +123,7 @@
         "quality": 70,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 40,
         "gm_qoq": 50
       },
       "details": [
@@ -135,6 +135,7 @@
         "Z-Score=14.3 [資訊]",
         "ROE=20.7% 高 (+5) [TV]",
         "營收正驚喜 +30.2% (+12)",
+        "法人近 5 日淨賣 -201,183 (-10)",
         "GM QoQ Δ=-0.6pp (50.1%→49.5%) (+0) [F2 A 級]",
         "周轉率=1.05% Q5 (volatile regime +5)"
       ],
@@ -213,7 +214,7 @@
         "quality": 68,
         "revenue": 50,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 40,
         "gm_qoq": 60
       },
       "details": [
@@ -225,6 +226,7 @@
         "Z-Score=1.2 危險區 (破產風險) (-20)",
         "FCF Yield=40.3% 高 (+8)",
         "連續 4 季獲利 (+5)",
+        "法人近 5 日淨賣 -3,080,497 (-10)",
         "GM QoQ Δ=+1.3pp (32.5%→33.9%) (+10) [F2 A 級]",
         "周轉率=1.82% Q5 (volatile regime +5)"
       ],
@@ -303,7 +305,7 @@
         "quality": 88,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 60,
         "gm_qoq": 50
       },
       "details": [
@@ -316,6 +318,7 @@
         "Z-Score=2.7 [資訊]",
         "FCF Yield=11.9% 高 (+8)",
         "營收正驚喜 +39.6% (+12)",
+        "法人近 5 日淨買 +1,305,347 (+10)",
         "GM QoQ Δ=+0.3pp (33.0%→33.3%) (+0) [F2 A 級]",
         "周轉率=0.60% [mid quintile, volatile regime +0]"
       ],
@@ -394,7 +397,7 @@
         "quality": 93,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 62,
+        "smart_money": 72,
         "gm_qoq": 70
       },
       "details": [
@@ -406,6 +409,7 @@
         "營益率=35.5% 優 (+5) [TV]",
         "營收正驚喜 +134.3% (+12)",
         "ETF 買超 2 檔 (+12)",
+        "法人近 5 日淨買 +100,433,930 (+10)",
         "GM QoQ Δ=+30.6pp (18.4%→49.0%) (+20) [F2 A 級]",
         "周轉率=3.37% Q5 (volatile regime +5)"
       ],
@@ -484,7 +488,7 @@
         "quality": 83,
         "revenue": 50,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 60,
         "gm_qoq": 50
       },
       "details": [
@@ -496,6 +500,7 @@
         "FCF Yield=26.3% 高 (+8)",
         "連續 4 季獲利 (+5)",
         "營益率=22.7% 優 (+5) [TV]",
+        "法人近 5 日淨買 +304,535 (+10)",
         "GM QoQ Δ=-0.7pp (44.5%→43.9%) (+0) [F2 A 級]",
         "周轉率=0.98% Q5 (volatile regime +5)"
       ],
@@ -574,7 +579,7 @@
         "quality": 93,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 60,
         "gm_qoq": 50
       },
       "details": [
@@ -587,6 +592,7 @@
         "FCF Yield=22.6% 高 (+8)",
         "連續 4 季獲利 (+5)",
         "營收正驚喜 +48.4% (+12)",
+        "法人近 5 日淨買 +882,492 (+10)",
         "GM QoQ Δ=+0.1pp (18.1%→18.2%) (+0) [F2 A 級]",
         "周轉率=0.34% [mid quintile, volatile regime +0]"
       ],
@@ -665,7 +671,7 @@
         "quality": 68,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 60,
         "gm_qoq": 40
       },
       "details": [
@@ -678,6 +684,7 @@
         "FCF Yield=259.9% 高 (+8)",
         "連續 4 季獲利 (+5)",
         "營收正驚喜 +101.6% (+12)",
+        "法人近 5 日淨買 +518,831 (+10)",
         "GM QoQ Δ=-1.9pp (28.4%→26.5%) (-10) [F2 A 級]",
         "周轉率=0.38% [mid quintile, volatile regime +0]"
       ],
@@ -756,7 +763,7 @@
         "quality": 78,
         "revenue": 50,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 60,
         "gm_qoq": 70
       },
       "details": [
@@ -769,6 +776,7 @@
         "FCF Yield=85.4% 高 (+8)",
         "營益率=22.2% 優 (+5) [TV]",
         "ROE=20.7% 高 (+5) [TV]",
+        "法人近 5 日淨買 +850,395 (+10)",
         "GM QoQ Δ=+3.2pp (25.0%→28.2%) (+20) [F2 A 級]",
         "周轉率=0.46% [mid quintile, volatile regime +0]"
       ],
@@ -847,7 +855,7 @@
         "quality": 40,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 60,
         "gm_qoq": 50
       },
       "details": [
@@ -860,6 +868,7 @@
         "連續 4 季獲利 (+5)",
         "ROE=26.9% 高 (+5) [TV]",
         "營收正驚喜 +31.0% (+12)",
+        "法人近 5 日淨買 +2,802,149 (+10)",
         "GM QoQ Δ=-0.0pp (9.2%→9.2%) (+0) [F2 A 級]",
         "周轉率=0.92% Q5 (volatile regime +5)"
       ],
@@ -938,7 +947,7 @@
         "quality": 88,
         "revenue": 50,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 40,
         "gm_qoq": 40
       },
       "details": [
@@ -951,6 +960,7 @@
         "連續 4 季獲利 (+5)",
         "營益率=52.5% 優 (+5) [TV]",
         "ROE=33.4% 高 (+5) [TV]",
+        "法人近 5 日淨賣 -4,786,631 (-10)",
         "GM QoQ Δ=-2.5pp (60.3%→57.8%) (-10) [F2 A 級]",
         "周轉率=0.74% [mid quintile, volatile regime +0]"
       ],
@@ -1029,7 +1039,7 @@
         "quality": 68,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 62,
+        "smart_money": 72,
         "gm_qoq": 60
       },
       "details": [
@@ -1042,6 +1052,7 @@
         "連續 4 季獲利 (+5)",
         "營收正驚喜 +32.8% (+12)",
         "ETF 買超 2 檔 (+12)",
+        "法人近 5 日淨買 +4,083,393 (+10)",
         "GM QoQ Δ=+1.6pp (14.3%→15.9%) (+10) [F2 A 級]",
         "周轉率=0.54% [mid quintile, volatile regime +0]"
       ],
@@ -1120,7 +1131,7 @@
         "quality": 78,
         "revenue": 50,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 60,
         "gm_qoq": 70
       },
       "details": [
@@ -1133,6 +1144,7 @@
         "Z-Score=3.3 [資訊]",
         "FCF Yield=37.2% 高 (+8)",
         "連續 4 季獲利 (+5)",
+        "法人近 5 日淨買 +2,131,167 (+10)",
         "GM QoQ Δ=+3.2pp (13.4%→16.5%) (+20) [F2 A 級]",
         "周轉率=0.26% [mid quintile, volatile regime +0]"
       ],
@@ -1211,7 +1223,7 @@
         "quality": 62,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 60,
         "gm_qoq": 70
       },
       "details": [
@@ -1223,7 +1235,8 @@
         "連續 4 季獲利 (+5)",
         "營益率=-13.2% 虧損 (-8) [TV]",
         "ROE=21.6% 高 (+5) [TV]",
-        "營收正驚喜 +26.3% (+12)",
+        "營收正驚喜 +32.4% (+12)",
+        "法人近 5 日淨買 +747,021 (+10)",
         "GM QoQ Δ=+6.0pp (-0.3%→5.7%) (+20) [F2 A 級]",
         "周轉率=3.99% Q5 (volatile regime +5)"
       ],
@@ -1302,7 +1315,7 @@
         "quality": 68,
         "revenue": 50,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 40,
         "gm_qoq": 50
       },
       "details": [
@@ -1314,6 +1327,7 @@
         "Z-Score=0.6 危險區 (破產風險) (-20)",
         "FCF Yield=1549.1% 高 (+8)",
         "連續 4 季獲利 (+5)",
+        "法人近 5 日淨賣 -1,554,222 (-10)",
         "GM QoQ Δ=+0.3pp (22.6%→22.9%) (+0) [F2 A 級]",
         "周轉率=0.42% [mid quintile, volatile regime +0]"
       ],
@@ -1392,7 +1406,7 @@
         "quality": 70,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 40,
         "gm_qoq": 50
       },
       "details": [
@@ -1404,6 +1418,7 @@
         "Z-Score=4.2 [資訊]",
         "營益率=23.1% 優 (+5) [TV]",
         "營收正驚喜 +28.2% (+12)",
+        "法人近 5 日淨賣 -404,187 (-10)",
         "GM QoQ Δ=-0.6pp (39.8%→39.2%) (+0) [F2 A 級]",
         "周轉率=0.24% [mid quintile, volatile regime +0]"
       ],
@@ -1482,7 +1497,7 @@
         "quality": 60,
         "revenue": 50,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 60,
         "gm_qoq": 60
       },
       "details": [
@@ -1495,6 +1510,7 @@
         "Z-Score=0.3 危險區 (破產風險) (-20)",
         "FCF Yield=2662.3% 高 (+8)",
         "連續 4 季獲利 (+5)",
+        "法人近 5 日淨買 +1,423,861 (+10)",
         "GM QoQ Δ=+1.9pp (16.2%→18.1%) (+10) [F2 A 級]",
         "周轉率=0.37% [mid quintile, volatile regime +0]"
       ],
@@ -1573,7 +1589,7 @@
         "quality": 62,
         "revenue": 42,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 40,
         "gm_qoq": 50
       },
       "details": [
@@ -1589,6 +1605,7 @@
         "營益率=-14.4% 虧損 (-8) [TV]",
         "ROE=28.8% 高 (+5) [TV]",
         "營收負驚喜 -71.1% (-8)",
+        "法人近 5 日淨賣 -63,872 (-10)",
         "周轉率=1.15% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "",
@@ -1666,7 +1683,7 @@
         "quality": 53,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 40,
         "gm_qoq": 50
       },
       "details": [
@@ -1677,6 +1694,7 @@
         "FCF Yield=1004.1% 高 (+8)",
         "連續 4 季獲利 (+5)",
         "營收正驚喜 +43.3% (+12)",
+        "法人近 5 日淨賣 -1,060,565 (-10)",
         "GM QoQ Δ=+0.1pp (5.7%→5.8%) (+0) [F2 A 級]",
         "周轉率=1.14% Q5 (volatile regime +5)"
       ],
@@ -1755,7 +1773,7 @@
         "quality": 53,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 50,
+        "smart_money": 40,
         "gm_qoq": 70
       },
       "details": [
@@ -1768,6 +1786,7 @@
         "FCF Yield=47.4% 高 (+8)",
         "連續 4 季獲利 (+5)",
         "營收正驚喜 +49.9% (+12)",
+        "法人近 5 日淨賣 -97,965 (-10)",
         "GM QoQ Δ=+5.8pp (16.9%→22.6%) (+20) [F2 A 級]",
         "周轉率=0.28% [mid quintile, volatile regime +0]"
       ],

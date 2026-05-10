@@ -1,7 +1,7 @@
 {
   "scan_type": "convergence",
-  "scan_date": "2026-05-10",
-  "scan_time": "00:43",
+  "scan_date": "2026-05-11",
+  "scan_time": "00:34",
   "market": "tw",
   "total_found": 1,
   "results": [
@@ -149,7 +149,7 @@
         "quality": 93,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 62,
+        "smart_money": 72,
         "gm_qoq": 70
       },
       "PE": 24.53,
