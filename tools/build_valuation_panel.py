@@ -2,11 +2,12 @@
 build_valuation_panel.py -- 估值面板 (TWSE PE/PB/Yield + 巴菲特指標)
 
 來源：
-  - TWSE 大盤 PE/PB/yield 月資料：BWIBBU_d (日資料) 太多，改抓月報
-    https://www.twse.com.tw/exchangeReport/BWIBBU_d?response=json&date=YYYYMMDD
-  - 巴菲特指標 US：Wilshire 5000 (FRED WILL5000PR / 2009+) / US GDP (FRED GDP / 季資料)
-  - 巴菲特指標 TW：TWSE 上市總市值 / TW GDP（主計處）
-    簡化版：用 TWSE 加權指數市值 (FMTQIK) 對 TW GDP 抓 quarterly average
+  - TWSE 大盤 PE/PB/yield 月資料：staticFiles ZIP（官方市值加權月報，2010-01+）
+    https://www.twse.com.tw/staticFiles/inspection/inspection/04/001/YYYYMM_C04001.zip
+    內含 Big5 XLS, Sheet 0 'new' R5: col 5=PE, col 7=Yield(%), col 9=PBR
+    跟 macromicro.me 同來源（2026-05-10 reverse-engineering 確認）
+  - 巴菲特指標 US：SP500 (FRED) / US GDP (FRED, 季資料) — rank-based proxy
+  - 巴菲特指標 TW：簡化版用 ^TWII rank 作 buffett proxy
 
 輸出：data/macro/valuation_panel.parquet
 欄位：
@@ -20,13 +21,15 @@ from __future__ import annotations
 
 import logging
 import time
+import zipfile
 from datetime import datetime, timedelta
-from io import StringIO
+from io import BytesIO, StringIO
 from pathlib import Path
 
 import pandas as pd
 import requests
 import urllib3
+import xlrd
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
@@ -77,80 +80,83 @@ def build_buffett_us() -> pd.DataFrame:
                               'buffett_indicator_us', 'buffett_rank_us']]
 
 
-def fetch_twse_market_pe(year: int) -> pd.DataFrame:
-    """抓 TWSE 月報「大盤本益比、殖利率、股價淨值比」一年的資料。
+TWSE_PE_ZIP_BASE = (
+    "https://www.twse.com.tw/staticFiles/inspection/inspection/04/001/{ym}_C04001.zip"
+)
 
-    TWSE: BWIBBU_d 是日資料；月報用 BWIBBU 路徑。
-    不過實務上 BWIBBU_d response=json&date=YYYYMM01 會回該月的資料。
+
+def fetch_twse_market_pe_official(year_month: str) -> dict | None:
+    """抓 TWSE 大盤本益比月報 ZIP（官方市值加權，2010-01+ schema 穩定）。
+
+    來源：staticFiles ZIP 內含 Big5 XLS, Sheet 0 'new' R5:
+      col 5 = 大盤 PE / col 7 = Yield(%) / col 9 = PBR
+    跟 macromicro.me 同來源（2026-05-10 reverse-engineering 確認）。
+
+    Args:
+        year_month: 'YYYYMM' e.g. '202601'
+
+    Returns:
+        dict {date, tw_market_pe, tw_market_pb, tw_market_yield} or None
     """
+    url = TWSE_PE_ZIP_BASE.format(ym=year_month)
+    try:
+        r = requests.get(url, timeout=20, verify=False)
+        if r.status_code != 200:
+            return None
+        with zipfile.ZipFile(BytesIO(r.content)) as z:
+            xls_name = z.namelist()[0]
+            with z.open(xls_name) as f:
+                wb = xlrd.open_workbook(file_contents=f.read())
+        sh = wb.sheet_by_index(0)
+        # R5 schema: col 5 PE / col 7 Yield / col 9 PBR (2010-01+ 一致)
+        pe = sh.cell_value(5, 5)
+        yld = sh.cell_value(5, 7)
+        pbr = sh.cell_value(5, 9)
+        yyyy = int(year_month[:4])
+        mm = int(year_month[4:])
+        date = pd.Timestamp(yyyy, mm, 1) + pd.offsets.MonthEnd(0)
+        return {
+            'date': date,
+            'tw_market_pe': float(pe) if pe not in ('', None) else None,
+            'tw_market_pb': float(pbr) if pbr not in ('', None) else None,
+            'tw_market_yield': float(yld) if yld not in ('', None) else None,
+        }
+    except Exception as e:
+        logger.warning("TWSE PE %s failed: %s", year_month, e)
+        return None
+
+
+def build_twse_market_pe_history(
+    start_year: int = 2010,
+    end_year: int | None = None,
+) -> pd.DataFrame:
+    """Backfill TWSE 大盤 PE/PB/Yield 月歷史（官方市值加權）。
+
+    起點 2010-01 — 2009 以前 XLS schema 不同（cols=21 / 個股式），不處理。
+    """
+    if end_year is None:
+        end_year = datetime.now().year
     rows = []
-    for month in range(1, 13):
-        date_str = f"{year}{month:02d}01"
-        url = f"https://www.twse.com.tw/exchangeReport/BWIBBU_d?response=json&date={date_str}"
-        try:
-            r = requests.get(url, timeout=20, verify=False)
-            if r.status_code != 200:
-                continue
-            data = r.json()
-            if data.get('stat') != 'OK':
-                continue
-            fields = data.get('fields', [])
-            for row in data.get('data', []):
-                rec = dict(zip(fields, row))
+    now_ts = pd.Timestamp.now()
+    for y in range(start_year, end_year + 1):
+        for m in range(1, 13):
+            if pd.Timestamp(y, m, 1) > now_ts:
+                break
+            ym = f"{y:04d}{m:02d}"
+            rec = fetch_twse_market_pe_official(ym)
+            if rec:
                 rows.append(rec)
+                if m == 1 or m == 7:  # 半年 log 一次
+                    logger.info("TWSE PE %s: pe=%.2f pb=%.2f yld=%.2f",
+                                ym, rec.get('tw_market_pe') or 0,
+                                rec.get('tw_market_pb') or 0,
+                                rec.get('tw_market_yield') or 0)
             time.sleep(1.5)  # TWSE rate limit
-        except Exception as e:
-            logger.warning("TWSE PE %s%02d failed: %s", year, month, e)
-            continue
-    return pd.DataFrame(rows)
-
-
-def build_twse_pe(start_year: int = 2014) -> pd.DataFrame:
-    """整合多年的 TWSE 大盤 PE/PB/Yield 月歷史。"""
-    cur_year = datetime.now().year
-    all_rows = []
-    for y in range(start_year, cur_year + 1):
-        logger.info("Fetching TWSE BWIBBU year=%d", y)
-        df = fetch_twse_market_pe(y)
-        if not df.empty:
-            all_rows.append(df)
-    if not all_rows:
+    if not rows:
         logger.warning("No TWSE PE data fetched")
         return pd.DataFrame()
-
-    df = pd.concat(all_rows, ignore_index=True)
-    # 欄位中文，要 normalize
-    # 常見：日期 / 殖利率(%) / 股價淨值比 / 本益比
-    rename = {
-        '日期': 'date_str',
-        '殖利率(%)': 'tw_market_yield',
-        '股價淨值比': 'tw_market_pb',
-        '本益比': 'tw_market_pe',
-        # 也可能有 'Date', 'Yield', 'PBR', 'PER' 英文版
-    }
-    df = df.rename(columns=rename)
-
-    # 處理日期 (民國年)
-    if 'date_str' in df.columns:
-        def _parse_roc(s):
-            try:
-                parts = s.split('/')
-                roc_year = int(parts[0])
-                return pd.Timestamp(roc_year + 1911, int(parts[1]), int(parts[2]))
-            except Exception:
-                return pd.NaT
-        df['date'] = df['date_str'].apply(_parse_roc)
-    elif 'Date' in df.columns:
-        df['date'] = pd.to_datetime(df['Date'])
-
-    df = df.dropna(subset=['date'])
-    for col in ['tw_market_yield', 'tw_market_pb', 'tw_market_pe']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-    df = df.sort_values('date').drop_duplicates('date', keep='last').reset_index(drop=True)
-    cols = ['date'] + [c for c in ['tw_market_pe', 'tw_market_pb', 'tw_market_yield']
-                       if c in df.columns]
-    return df[cols]
+    df = pd.DataFrame(rows).sort_values('date').reset_index(drop=True)
+    return df
 
 
 def build_buffett_tw(twii_close: pd.Series, gdp_tw_quarterly: pd.DataFrame) -> pd.DataFrame:
@@ -181,8 +187,19 @@ def build_panel():
         logger.error("US Buffett failed: %s", e)
         us = pd.DataFrame()
 
-    # 2. TWSE 大盤 PE/PB/Yield (BWIBBU_d 是 per-stock，不是大盤；defer Phase 3)
-    tw_pe = pd.DataFrame()  # placeholder — TWSE 大盤統計 endpoint 待解析，先用空
+    # 2. TWSE 大盤 PE/PB/Yield (官方 staticFiles ZIP，2010-01+ 市值加權)
+    try:
+        tw_pe = build_twse_market_pe_history(start_year=2010)
+        if not tw_pe.empty:
+            last = tw_pe.iloc[-1]
+            logger.info("TWSE market PE: %d months, last %s pe=%.2f pb=%.2f yld=%.2f",
+                        len(tw_pe), last['date'].strftime('%Y-%m'),
+                        last.get('tw_market_pe') or 0,
+                        last.get('tw_market_pb') or 0,
+                        last.get('tw_market_yield') or 0)
+    except Exception as e:
+        logger.error("TWSE market PE failed: %s", e)
+        tw_pe = pd.DataFrame()
 
     # 3. TW Buffett (簡化版)
     try:
