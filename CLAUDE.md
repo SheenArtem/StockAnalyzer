@@ -40,26 +40,11 @@ Before any commit (new feature / bug fix / refactor / docs), do AT LEAST ONE of:
 
 ## ⚠️ BAT files: ASCII-only hard rule
 
-**All `.bat` files MUST contain only ASCII (0x00-0x7F). Chinese REM, echo, full-width chars all forbidden.**
-(CP950 codepage misparses UTF-8 BAT → silent scheduler failures; see memory for past incidents)
+**所有 `.bat` 必須純 ASCII (0x00-0x7F)** — CP950 codepage 解析 UTF-8 BAT 會 silent scheduler failure，Chinese REM / echo / full-width 全禁。
 
-### Substitutions
+替代：`—`→`--` / `→`→`->` / `✓✗⚠`→`[OK][FAIL][WARN]` / Chinese REM/echo → English 或刪
 
-`—` → `--` / `→` → `->` / `✓✗⚠` → `[OK][FAIL][WARN]` / Chinese REM/echo → English or delete
-
-### Exemptions: NONE
-
-All **scheduled BATs (`run_*.bat`)**, **tool BATs (`tools/*.bat`)**, **manual launcher BATs (`run_app.bat`)** are pure ASCII. pre-commit hook blocks violations.
-
-Manual check:
-
-```bash
-PYTHONIOENCODING=utf-8 python -c "
-import glob
-for p in glob.glob('**/*.bat', recursive=True):
-    n = sum(1 for b in open(p,'rb').read() if b > 127)
-    if n > 0: print(f'{p}: {n} non-ASCII')"
-```
+範圍：scheduled `run_*.bat` / 工具 `tools/*.bat` / launcher `run_app.bat` 一律 ASCII 無例外，pre-commit hook 自動擋違規。
 
 ---
 
@@ -81,40 +66,13 @@ All features MUST follow the same priority to avoid data drift:
 
 ## Data Source Discovery SOP — 不公開 / 改版後 endpoint 失蹤
 
-**觸發**：宣告「No API available」/ 走 LLM HTML parse / 自加權 proxy / 自寫 scraper 之前，**必先跑下列 3 步**。
+**觸發**：宣告「No API」/ 走 LLM HTML parse / 自加權 proxy / 自寫 scraper 之前，**必跑 3 步**。
 
-### Step 1 — 第三方逆推（最便宜，先做）
+1. **第三方逆推（先做）** — macromicro / cnyes / Goodinfo / TradingView 圖表標「資料來源: X」就代表 X 真有，繼續挖；沒標或「整理計算」→ 第三方也 proxy
+2. **試檔案下載** — JSON/CSV API 死掉後試 `staticFiles/*.zip` / `download?type=...` / `pdf/xlsx`；政府機構改版後新 URL 不在 sitemap / OpenAPI swagger / Google，用 DevTools Network tab 點 download 按鈕看真 XHR
+3. **猜 path pattern** — TWSE 慣例 `/staticFiles/inspection/inspection/{type}/{subtype}/YYYYMM_C{type}{subtype}.zip`
 
-去 **macromicro / cnyes / Goodinfo / TradingView** 等台股入口找同樣 chart/數據：
-
-- 圖表底下標「資料來源: 官方機構X」→ 證明 X 真有，繼續挖
-- 沒標 source / 標「整理計算」→ X 可能也是 proxy，回頭考慮 LLM/proxy 路線
-
-### Step 2 — JSON API 死掉試檔案下載
-
-JSON / CSV API 全 404 後**必試**（順序）：
-
-1. `staticFiles/.../*.zip`（Excel / HTML zipped reports）
-2. `download?type=...&subType=...&date=...`（download button 觸發 XHR）
-3. `pdf/...` / `xlsx/...`（PDF / Excel reports）
-
-政府機構改版後新 URL 通常**不在** sitemap / OpenAPI swagger / robots.txt / Google index。用 browser DevTools Network tab 點 download 按鈕看真實 XHR。
-
-### Step 3 — 猜 path pattern
-
-TWSE 統計類報告慣例：
-
-```
-/staticFiles/inspection/inspection/{type}/{subtype}/YYYYMM_C{type}{subtype}.zip
-```
-
-`type` / `subtype` 在 statisticsList?type=XX&subType=YY URL 可看出。
-
-### Why（2026-05-10 TWSE 大盤 PE 教訓）
-
-前兩輪 agent 試 11 個 JSON endpoint 全 404 / per-stock，差點走 LLM HTML parse 或 4hr 自加權 proxy。第三輪逆推 macromicro 才找到隱藏 ZIP path（commit `2cf8796` 落地 196 月）。
-
-**Reference**: `memory/reference_twse_endpoints.md`（具體 URL / xlrd 解析範例 / SSL note）
+**Why**: 2026-05-10 TWSE 大盤 PE 教訓 — 11 endpoint 全 404，逆推 macromicro 才找 ZIP path (`2cf8796`)。**Reference**: `memory/reference_twse_endpoints.md`
 
 ## Development Rules
 
@@ -170,13 +128,10 @@ Weight values + IC report: see source + `reports/chip_ic_matrix.csv`.
 
 ## Notes
 
-- **pytest** — `tests/` 66 tests all green (piotroski 20 / pattern_detection 15 / scenario_engine 18 / post_validate_numbers 13), 0.7s. Next batch: cover `addon_factors` / `cache_manager` pure functions, see `tests/README.md`
-- **analysis_engine.py** — 2026-04-23 M2 refactor 2281→937 lines (-59%), regression via `tools/snapshot_run_analysis.py` byte-for-byte
-- **FinMind free quota** — 600 req/hr, easy to exceed. Institutional already switched to TWSE/TPEX primary
-- **No .env** — FinMind token in `local/.env`, other settings hardcoded + session state + JSON
-- **Windows platform** — `.bat` launchers, path handling needs Windows compatibility
-- **Task Scheduler** — main chain `run_scanner.bat` (TUE-SAT 00:00) + bulk revenue / TDCC / C1 / MOPS probe; see memory `reference_scanner_all.md`
-- **AI Report** — Claude CLI `claude -p --model opus --allowedTools "*"` (Team Plan quota, see LLM Rules at top)
+- **pytest** `tests/` 全綠（regression via `tools/snapshot_run_analysis.py` byte-for-byte）；新 case 接 `addon_factors` / `cache_manager`
+- **FinMind free quota** 600 req/hr 易爆，法人已切 TWSE/TPEX primary
+- **環境**：FinMind token 在 `local/.env`；Windows `.bat` launcher；Task Scheduler 主鏈見 `reference_scanner_all.md`
+- **AI Report**：Claude CLI Team Plan quota（model 設定見頂部 LLM Rules）
 
 ## Tech debt resolved as "won't fix" (don't re-debate)
 
