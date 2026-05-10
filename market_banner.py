@@ -152,16 +152,17 @@ def _next_us_open_at(now=None):
 
 def _fetch_index_metrics(ticker, name):
     """
-    抓指數 OHLCV 並計算月線/季線乖離率 + KD。
+    抓指數 OHLCV 並計算月線/季線乖離率 + KD + rv10/rv30（年化波動）。
 
     Returns
     -------
-    dict: price, ma20_bias, ma60_bias, k, d, change_pct, data_date
+    dict: price, ma20_bias, ma60_bias, k, d, change_pct, data_date, rv10, rv30
     """
     result = {
         'name': name, 'price': None, 'change_pct': None,
         'ma20_bias': None, 'ma60_bias': None,
         'k': None, 'd': None, 'error': None, 'data_date': None,
+        'rv10': None, 'rv30': None,
     }
     try:
         import yfinance as yf
@@ -208,6 +209,13 @@ def _fetch_index_metrics(ticker, name):
         d = k.ewm(com=2, adjust=False).mean()
         result['k'] = round(float(k.iloc[-1]), 1)
         result['d'] = round(float(d.iloc[-1]), 1)
+
+        # rv10 / rv30 (年化已實現波動 = log return std × √252)
+        # 順手算出，給 risk_score compose 用，避免重抓 yfinance 一次
+        if len(close) >= 30:
+            log_ret = np.log(close / close.shift(1))
+            result['rv10'] = float(log_ret.iloc[-10:].std() * np.sqrt(252))
+            result['rv30'] = float(log_ret.iloc[-30:].std() * np.sqrt(252))
 
         # 盤中 override (僅限台股加權指數)：用 mis.twse 即時點位蓋掉 yfinance close。
         # yfinance ^TWII 在盤中 today bar 由 Yahoo 後端隨機生成，常常停在昨日收盤。
@@ -356,6 +364,57 @@ def _read_sentiment_parquet(name: str) -> dict | None:
     return row
 
 
+def _read_risk_score_parquet() -> dict | None:
+    """讀 data/sentiment/risk_score_history.parquet 最後一筆 + reconstruct nested dict.
+
+    Schema 來自 tools/archive_risk_score.py 的 _flatten_for_parquet：
+    flat composite/zone/zone_xxx/<sig>_value/<sig>_rank + breakdown_json (full breakdown dict).
+    Renderer (_render_risk_row) 期望 nested {composite, zone, breakdown:{...}, zone_stats:{...}}.
+    """
+    p = SENTIMENT_DIR / "risk_score_history.parquet"
+    if not p.exists():
+        return None
+    try:
+        df = pd.read_parquet(p)
+    except Exception as e:
+        logger.warning("Read risk_score parquet failed: %s", e)
+        return None
+    if df.empty:
+        return None
+    row = df.iloc[-1].to_dict()
+
+    import json
+    try:
+        breakdown = json.loads(row.get('breakdown_json') or '{}')
+    except Exception:
+        breakdown = {}
+
+    # date 還原（archiver 存 pd.Timestamp）
+    data_date = None
+    raw_date = row.get('date')
+    if raw_date is not None:
+        try:
+            data_date = pd.to_datetime(raw_date).date()
+        except Exception:
+            pass
+
+    return {
+        'composite': row.get('composite'),
+        'zone': row.get('zone'),
+        'zone_color': row.get('zone_color'),
+        'breakdown': breakdown,
+        'total_weight_used': row.get('total_weight_used'),
+        'baseline_10pct': row.get('baseline_10pct'),
+        'zone_stats': {
+            'co10': row.get('zone_co10'),
+            'co5': row.get('zone_co5'),
+            'mdd_median': row.get('zone_mdd_median'),
+            'ann_days': row.get('zone_ann_days'),
+        },
+        'data_date': data_date,
+    }
+
+
 # Banner 輸出 key -> session_state 快取 key
 _OUT_TO_CACHE = {
     'tw': 'tw_index',
@@ -409,7 +468,10 @@ def _pure_fetch(cache_key):
         if cache_key == 'opt_inst':
             return _read_sentiment_parquet('options_institutional')
         if cache_key == 'risk_score':
-            return _fetch_risk_score()
+            # 讀 archive parquet（archiver = run_taifex_signals_afterclose.bat
+            # 第 5 stage / scanner 00:00 後 stage）。零 network，cold load <50ms。
+            # 6 訊號全日頻收盤後算，盤中重算只是用昨日值再壓一次無意義。
+            return _read_risk_score_parquet()
         if cache_key == 'regime':
             return _fetch_regime()
         if cache_key == 'regime_ext':
@@ -417,69 +479,6 @@ def _pure_fetch(cache_key):
     except Exception as e:
         logger.debug("Banner fetch %s failed: %s", cache_key, e)
     return None
-
-
-def _fetch_risk_score():
-    """Compute today's banner risk score (composite of m1b/rv10/rv30/pcr/fgi).
-
-    SOP-14 informational tier — co-occurrence rate based, NOT predictive.
-    Returns dict with composite/zone/breakdown OR None on failure.
-    """
-    try:
-        import banner_risk_score as brs
-        # Today's signals
-        today = {}
-        # FGI score (live)
-        try:
-            from taifex_data import TaiwanFearGreedIndex
-            fgi = TaiwanFearGreedIndex().calculate()
-            if fgi.get('score') is not None:
-                today['fgi_score'] = float(fgi['score'])
-        except Exception as e:
-            logger.debug("FGI fetch for risk_score failed: %s", e)
-        # PCR OI (live, from TAIFEX)
-        try:
-            from taifex_data import TAIFEXData
-            pcr = TAIFEXData().get_put_call_ratio()
-            if pcr.get('pc_ratio') and pcr['pc_ratio'] > 0:
-                today['pcr_oi'] = float(pcr['pc_ratio'])
-        except Exception as e:
-            logger.debug("PCR_oi fetch for risk_score failed: %s", e)
-        # PCR volume (from history parquet latest)
-        try:
-            if brs.PCR_HISTORY.exists():
-                df = pd.read_parquet(brs.PCR_HISTORY)
-                if 'pc_ratio_volume' in df.columns and not df.empty:
-                    today['pcr_volume'] = float(df['pc_ratio_volume'].dropna().iloc[-1])
-        except Exception as e:
-            logger.debug("PCR_volume from history failed: %s", e)
-        # m1b
-        try:
-            from money_supply import compute_m1b_ratio
-            m1b = compute_m1b_ratio()
-            if m1b and m1b.get('ratio_pct') is not None:
-                today['m1b_ratio'] = float(m1b['ratio_pct'])
-        except Exception as e:
-            logger.debug("m1b for risk_score failed: %s", e)
-        # rv10/rv30 from ^TWII
-        try:
-            import yfinance as yf
-            df = yf.Ticker('^TWII').history(period='3mo')
-            if not df.empty and len(df) >= 30:
-                close = df['Close']
-                log_ret = np.log(close / close.shift(1))
-                today['rv10'] = float(log_ret.iloc[-10:].std() * np.sqrt(252))
-                today['rv30'] = float(log_ret.iloc[-30:].std() * np.sqrt(252))
-        except Exception as e:
-            logger.debug("rv compute for risk_score failed: %s", e)
-
-        panel_hist = brs.get_panel_history()
-        result = brs.compute_risk_score(today, panel_history=panel_hist)
-        result['data_date'] = ddate.today()  # 計算當下視為 today
-        return result
-    except Exception as e:
-        logger.warning("risk_score fetch failed: %s", e)
-        return None
 
 
 def _fetch_regime():
