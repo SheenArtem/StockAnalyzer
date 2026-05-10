@@ -74,6 +74,9 @@ python tools\system2_daily_check.py >> taifex_afterclose.log 2>&1
 echo [%date% %time%] [stage]System 3 daily check (1w-1mo early warning) >> taifex_afterclose.log
 python tools\system3_daily_check.py >> taifex_afterclose.log 2>&1
 
+echo [%date% %time%] [stage]System 3 MOVE shock alert (S3-a, SOP-14 informational) >> taifex_afterclose.log
+python tools\system3_move_check.py >> taifex_afterclose.log 2>&1
+
 echo [%date% %time%] TAIFEX afterclose archive done >> taifex_afterclose.log
 
 REM Best-effort: failures do not fail the task. The 00:00 scanner run is

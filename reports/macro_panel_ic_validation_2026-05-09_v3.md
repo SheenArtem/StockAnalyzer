@@ -4,6 +4,12 @@
 **Panel**: 6130 rows × 75 features
 **Outcome**: future 60d/40d/20d MDD
 
+> ⚠️ **Errata 2026-05-10**: 本報告 dedup_top8 IC 數字 (-0.422 / -0.348 / -0.246) 已不可重現。
+> commit `3a1d741` (DXY 來源換 ICE + SBL/margin stable-sample helper) 後 panel input 已修正，
+> 重跑 V3 dedup_top8 IC 為 **-0.329 / -0.275 / -0.194**。Composite 仍 ≥ best single (`buffett_indicator_us` -0.371) 嗎？**否**，新 baseline 下 SOP-12 FAIL，建議 banner v4 預期 IC 改成 -0.33（不是原 -0.42）。
+> 詳細對照與 V4 verdict 見 `macro_panel_ic_validation_2026-05-09_v4.md`。
+> 本報告 body 保留為 commit `3f2dd3d` 當時 verdict 歷史記錄。
+
 ## Composite Comparison (4 variants vs best single)
 
 | Variant | IC 60d | IC 40d | IC 20d | SOP-12 (60d) |
