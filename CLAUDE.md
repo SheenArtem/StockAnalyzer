@@ -79,6 +79,43 @@ All features MUST follow the same priority to avoid data drift:
 | Analyst consensus | yfinance | — | Target price / Forward EPS / rating |
 | Peer comparison | TWSE/TPEX PER + FinMind industry tag | — | `peer_comparison.py` |
 
+## Data Source Discovery SOP — 不公開 / 改版後 endpoint 失蹤
+
+**觸發**：宣告「No API available」/ 走 LLM HTML parse / 自加權 proxy / 自寫 scraper 之前，**必先跑下列 3 步**。
+
+### Step 1 — 第三方逆推（最便宜，先做）
+
+去 **macromicro / cnyes / Goodinfo / TradingView** 等台股入口找同樣 chart/數據：
+
+- 圖表底下標「資料來源: 官方機構X」→ 證明 X 真有，繼續挖
+- 沒標 source / 標「整理計算」→ X 可能也是 proxy，回頭考慮 LLM/proxy 路線
+
+### Step 2 — JSON API 死掉試檔案下載
+
+JSON / CSV API 全 404 後**必試**（順序）：
+
+1. `staticFiles/.../*.zip`（Excel / HTML zipped reports）
+2. `download?type=...&subType=...&date=...`（download button 觸發 XHR）
+3. `pdf/...` / `xlsx/...`（PDF / Excel reports）
+
+政府機構改版後新 URL 通常**不在** sitemap / OpenAPI swagger / robots.txt / Google index。用 browser DevTools Network tab 點 download 按鈕看真實 XHR。
+
+### Step 3 — 猜 path pattern
+
+TWSE 統計類報告慣例：
+
+```
+/staticFiles/inspection/inspection/{type}/{subtype}/YYYYMM_C{type}{subtype}.zip
+```
+
+`type` / `subtype` 在 statisticsList?type=XX&subType=YY URL 可看出。
+
+### Why（2026-05-10 TWSE 大盤 PE 教訓）
+
+前兩輪 agent 試 11 個 JSON endpoint 全 404 / per-stock，差點走 LLM HTML parse 或 4hr 自加權 proxy。第三輪逆推 macromicro 才找到隱藏 ZIP path（commit `2cf8796` 落地 196 月）。
+
+**Reference**: `memory/reference_twse_endpoints.md`（具體 URL / xlrd 解析範例 / SSL note）
+
 ## Development Rules
 
 ### Avoid rework & duplicate fetching (⚠️ MOST IMPORTANT)
