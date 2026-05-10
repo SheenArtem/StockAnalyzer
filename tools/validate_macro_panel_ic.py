@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 REPO = Path(__file__).resolve().parent.parent
 MACRO = REPO / "data" / "macro"
 BREADTH = REPO / "data" / "breadth"
+SENTIMENT = REPO / "data" / "sentiment"
 OUT_REPORT = REPO / "reports" / "macro_panel_ic_validation_2026-05-09_v2.md"
 OUT_REPORT.parent.mkdir(parents=True, exist_ok=True)
 
@@ -80,6 +81,23 @@ def load_all_panels() -> pd.DataFrame:
         inst = inst.set_index('date').select_dtypes(include=[np.number])
         logger.info("Institutional Total: %d rows, %d cols", len(inst), len(inst.columns))
         dfs.append(inst)
+
+    # 2026-05-10 新增：AAII Sentiment (週頻 1987+) + CNN FGI (日頻 2011+)
+    aaii_path = MACRO / "aaii_sentiment.parquet"
+    if aaii_path.exists():
+        aaii = pd.read_parquet(aaii_path)
+        aaii['date'] = pd.to_datetime(aaii['date'])
+        aaii = aaii.set_index('date').select_dtypes(include=[np.number])
+        logger.info("AAII Sentiment: %d rows, %d cols", len(aaii), len(aaii.columns))
+        dfs.append(aaii)
+
+    cnn_fgi_path = SENTIMENT / "cnn_fgi_history.parquet"
+    if cnn_fgi_path.exists():
+        cnn_fgi = pd.read_parquet(cnn_fgi_path)
+        cnn_fgi['date'] = pd.to_datetime(cnn_fgi['date'])
+        cnn_fgi = cnn_fgi.set_index('date').select_dtypes(include=[np.number])
+        logger.info("CNN FGI: %d rows, %d cols", len(cnn_fgi), len(cnn_fgi.columns))
+        dfs.append(cnn_fgi)
 
     panel = pd.concat(dfs, axis=1).sort_index()
     # rename duplicates: pandas auto-suffixes, but our columns shouldn't overlap; verify

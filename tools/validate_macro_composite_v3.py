@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 REPO = Path(__file__).resolve().parent.parent
 MACRO = REPO / "data" / "macro"
 BREADTH = REPO / "data" / "breadth"
+SENTIMENT = REPO / "data" / "sentiment"
 OUT_REPORT = REPO / "reports" / "macro_panel_ic_validation_2026-05-09_v3.md"
 
 
@@ -43,6 +44,8 @@ def load_all_panels() -> pd.DataFrame:
         (MACRO / "valuation_panel.parquet", "Valuation"),
         (MACRO / "etf_flows.parquet", "ETF Flows"),
         (MACRO / "institutional_total.parquet", "Inst Total"),
+        (MACRO / "aaii_sentiment.parquet", "AAII Sentiment"),
+        (SENTIMENT / "cnn_fgi_history.parquet", "CNN FGI"),
     ]:
         if not path.exists():
             continue
