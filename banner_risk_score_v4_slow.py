@@ -189,6 +189,25 @@ def compute_slow_track_score() -> dict:
     else:
         zone, color = 'green', '#00AA44'
 
+    # Best-single primary metric (per 2026-05-10 strategic decision (c)):
+    # buffett_indicator_us 三 horizon IC 全勝 composite (60d=-0.371 / 40d=-0.329 / 20d=-0.281)
+    # Single 為主 trigger，composite 為 sanity check / confirmation
+    single_rank = breakdown.get('buffett_indicator_us', {}).get('rank')
+    if single_rank is None:
+        single_zone, single_color = 'unknown', '#888888'
+    elif single_rank >= ORANGE_THRESH:
+        single_zone, single_color = 'orange', '#FF6600'
+    elif single_rank >= YELLOW_THRESH:
+        single_zone, single_color = 'yellow', '#FFAA00'
+    else:
+        single_zone, single_color = 'green', '#00AA44'
+
+    # Disagreement: |single - composite| > 15 points 視為 confirm 不一致
+    if single_rank is not None and composite is not None:
+        disagree = abs(single_rank - composite) > 15
+    else:
+        disagree = False
+
     return {
         'composite': composite,
         'zone': zone,
@@ -199,6 +218,13 @@ def compute_slow_track_score() -> dict:
         'sop12_verdict': ('V3 dedup_top8 (top-8 list 仍最強) — '
                           '60d IC=-0.33 / 40d=-0.28 / 20d=-0.19 (post 3a1d741 panel fix); '
                           'lag-weighted + Pearson>0.75 dedup 移除 buffett 系列 11 個冗餘 features'),
+        # Strategic (c): single 主 + composite sanity (2026-05-10)
+        'single': single_rank,
+        'single_zone': single_zone,
+        'single_color': single_color,
+        'single_feature': 'buffett_indicator_us',
+        'single_ic_60d': -0.371,
+        'disagree': disagree,
     }
 
 
@@ -216,25 +242,45 @@ def render(score: dict):
     bk = score.get('breakdown', {})
     as_of = score.get('as_of', 'N/A')
 
-    label_zh = {'green': '安全', 'yellow': '留意', 'orange': '警戒', 'unknown': '資料不足'}.get(zone, '?')
-    emoji = {'green': '🟢', 'yellow': '🟡', 'orange': '🟠', 'unknown': '⚪'}.get(zone, '⚪')
+    # Strategic (c) 2026-05-10: single 主 + composite sanity check
+    single = score.get('single')
+    single_color = score.get('single_color', '#888888')
+    single_zone = score.get('single_zone', 'unknown')
+    disagree = score.get('disagree', False)
 
-    # 主分數 + 燈號 + 警語（body 不寫死顏色，讓 Streamlit theme 自動適配 dark mode）
+    label_zh = {'green': '安全', 'yellow': '留意', 'orange': '警戒', 'unknown': '資料不足'}.get(zone, '?')
+    label_zh_s = {'green': '安全', 'yellow': '留意', 'orange': '警戒', 'unknown': '資料不足'}.get(single_zone, '?')
+    emoji = {'green': '🟢', 'yellow': '🟡', 'orange': '🟠', 'unknown': '⚪'}.get(zone, '⚪')
+    emoji_s = {'green': '🟢', 'yellow': '🟡', 'orange': '🟠', 'unknown': '⚪'}.get(single_zone, '⚪')
+
+    # 主 metric: best single (buffett_indicator_us, IC=-0.371 三 horizon 全最強)
+    # 副 metric: composite (8-feature dedup_top8, 為 sanity check / confirmation)
+    single_str = f"{single:.1f}" if single is not None else "N/A"
+    disagree_badge = (' <span style="background:#FF6600;color:white;padding:2px 8px;'
+                      'border-radius:4px;font-size:0.7rem;margin-left:8px">⚠️ DISAGREE</span>'
+                      ) if disagree else ''
     st.markdown(
         f'''
-        <div style="border:2px solid {color};border-radius:12px;padding:14px;
-                    background:linear-gradient(135deg, {color}11, {color}22);
+        <div style="border:2px solid {single_color};border-radius:12px;padding:14px;
+                    background:linear-gradient(135deg, {single_color}11, {single_color}22);
                     margin-bottom:12px">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <div style="font-size:1.3rem;font-weight:bold;color:{color}">
-              {emoji} Slow Track 60d : <span style="font-size:1.6rem">{composite:.1f}</span>
-              <span style="margin-left:10px">{label_zh}</span>
+            <div style="font-size:1.3rem;font-weight:bold;color:{single_color}">
+              {emoji_s} Slow Track (主) : <span style="font-size:1.7rem">{single_str}</span>
+              <span style="margin-left:10px">{label_zh_s}</span>
+              {disagree_badge}
             </div>
             <div style="font-size:0.78rem;opacity:0.65">資料日期 {as_of}</div>
           </div>
-          <div style="font-size:0.82rem;opacity:0.7;margin-top:4px">
-            6 leading features (lag 1-21d) IC-weighted composite．informational tier (SOP-14)，
-            <strong>不接 portfolio rebalance</strong>．composite 60d IC=-0.402 marginally pass SOP-12
+          <div style="font-size:0.78rem;opacity:0.6;margin-top:6px;
+                      border-top:1px solid {single_color}44;padding-top:6px">
+            <span style="color:{color};font-weight:bold">{emoji} Composite (sanity)：{composite:.1f} {label_zh}</span>
+            <span style="margin-left:12px;opacity:0.7">8-feature dedup_top8 confirmation</span>
+          </div>
+          <div style="font-size:0.78rem;opacity:0.65;margin-top:4px">
+            <strong>主</strong>=buffett_indicator_us rank (IC 60d=-0.371 三 horizon 全最強)，
+            <strong>副</strong>=composite 8-feature 互補 confirmation．
+            informational tier (SOP-14)，<strong>不接 portfolio rebalance</strong>
           </div>
         </div>
         ''',
