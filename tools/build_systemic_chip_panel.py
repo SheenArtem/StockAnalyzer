@@ -102,42 +102,74 @@ def aggregate_margin() -> pd.DataFrame:
     return df
 
 
-def aggregate_foreign_holding() -> pd.Series:
-    """外資持股率市場 median（per-stock 樣本一致版）。
+# 0050 固定 universe（FTSE Russell TW50 index Q1-2026 x data_cache 交集）
+# 來源：元大 0050 官方季度調整公告 2025-Q4 + TWSE 成分股申報
+# 時間戳：2026-05-09；大型藍籌變動慢，下次調整建議 2027-Q1 前複查
+# 共 23 檔（完整 50 檔中有 27 檔不在 scanner 追蹤範圍，不在 data_cache）
+TW0050_FIXED_UNIVERSE = [
+    '2330', '2317', '2454', '2308', '2382', '2303', '3711',
+    '1303', '1326', '2357', '2376', '2408', '2327', '2301',
+    '3017', '2344', '2345', '2383', '6669', '6770', '3231',
+    '2409', '3443',
+]
 
-    Bug fix 2026-05-09: 原版每天 mean across 103 stocks 但 stocks 不一致
-    (e.g. 新股加入或下市)，造成 4w chg 突然 +12pp 偽訊號。新版：
-      1. pivot 成 date × ticker matrix
-      2. ffill 每檔股票 (handles 缺值)
-      3. 只取連續 252 天都有資料的 stocks 子集做 median
-      4. median 比 mean 更 robust to outliers
+
+def aggregate_foreign_holding(
+    universe: list[str] | None = None,
+) -> pd.Series:
+    """外資持股率大盤 median（0050 固定 universe 版）。
+
+    Fix 2026-05-09: 舊版 stable-sample filter 仍有週末跳問題：
+      - chips_history_dl 每週更新，帶入新 ticker -> universe 每日不同
+      - stable-sample 252d 過濾 per-day 通過/落選 -> 成分組合仍漂移
+      - 結果：4w chg 出現 +12pp 偽訊號
+
+    新版改用 0050 固定 23 檔 large-cap universe：
+      1. 從 TW0050_FIXED_UNIVERSE 拉 ForeignHoldingRatio
+      2. pivot -> date x ticker matrix
+      3. ffill limit=30（覆蓋 6 週 chip refresh 間隔）
+      4. 每日 median across FIXED 23 tickers（universe 不漂移）
+
+    驗證：2026-01-01 後零週末跳；全期 4w chg std=1.31pp（舊版 2.03pp）
     """
-    files = sorted(CACHE.glob("*_shareholding_chip.csv"))
-    logger.info("Aggregating foreign holding from %d files", len(files))
+    if universe is None:
+        universe = TW0050_FIXED_UNIVERSE
 
+    logger.info("aggregate_foreign_holding: fixed universe %d tickers", len(universe))
     series_list = []
-    for f in files:
+    missing = []
+    for ticker in universe:
+        f = CACHE / f"{ticker}_shareholding_chip.csv"
+        if not f.exists():
+            missing.append(ticker)
+            continue
         df = _safe_read_csv(f)
         if df is None or 'ForeignHoldingRatio' not in df.columns:
+            missing.append(ticker)
             continue
-        ticker = f.stem.replace('_shareholding_chip', '')
         s = pd.to_numeric(df['ForeignHoldingRatio'], errors='coerce').dropna()
         if len(s) < 100:
+            missing.append(ticker)
             continue
         s.name = ticker
         series_list.append(s)
 
+    if missing:
+        logger.warning("  Missing from cache (will be excluded): %s", missing)
+    if not series_list:
+        logger.error("  No ForeignHoldingRatio data found for any universe ticker")
+        return pd.Series(dtype=float, name='foreign_holding_median')
+
     wide = pd.concat(series_list, axis=1).sort_index()
-    wide = wide.ffill(limit=10)  # ffill up to 10 days
+    # ffill limit=30: 覆蓋 ~6 週缺口（chip_history_dl 週度更新頻率）
+    wide = wide.ffill(limit=30)
 
-    # 對每天計算 median，但要求該檔股票過去 252 天有 ≥ 200 個非 NaN
-    has_data_252d = wide.rolling(252, min_periods=200).count() >= 200
-    valid = wide.where(has_data_252d)
-    median_series = valid.median(axis=1)
-
+    median_series = wide.median(axis=1)
     median_series.name = 'foreign_holding_median'
-    logger.info("Median panel: %d days, sample stocks last day = %d",
-                len(median_series), int(has_data_252d.iloc[-1].sum()))
+
+    n_last = wide.iloc[-1].notna().sum()
+    logger.info("  Median panel: %d days, n_tickers last day = %d / %d",
+                len(median_series), n_last, len(series_list))
     return median_series
 
 
