@@ -364,6 +364,84 @@ def _read_sentiment_parquet(name: str) -> dict | None:
     return row
 
 
+def _read_tw_fgi_parquet() -> dict | None:
+    """讀 data/sentiment/tw_fgi_history.parquet 最後一筆 + 還原 components dict.
+
+    Schema 來自 tools/archive_tw_fgi.py: 平面 score/label/data_date + components_json.
+    Renderer 期望 nested {score, label, components:{...}, data_date}.
+    """
+    p = SENTIMENT_DIR / "tw_fgi_history.parquet"
+    if not p.exists():
+        return None
+    try:
+        df = pd.read_parquet(p)
+    except Exception as e:
+        logger.warning("Read tw_fgi parquet failed: %s", e)
+        return None
+    if df.empty:
+        return None
+    row = df.iloc[-1].to_dict()
+
+    import json
+    try:
+        components = json.loads(row.get('components_json') or '{}')
+    except Exception:
+        components = {}
+
+    data_date = None
+    raw = row.get('data_date')
+    if isinstance(raw, str) and raw:
+        try:
+            data_date = ddate.fromisoformat(raw)
+        except ValueError:
+            pass
+
+    return {
+        'score': row.get('score'),
+        'label': row.get('label', ''),
+        'components': components,
+        'data_date': data_date,
+    }
+
+
+def _read_m1b_ratio_parquet() -> dict | None:
+    """讀 data/sentiment/m1b_ratio_history.parquet 最後一筆.
+
+    Schema 來自 tools/archive_m1b_ratio.py: 純 flat，跟 compute_m1b_ratio 回傳對齊。
+    """
+    p = SENTIMENT_DIR / "m1b_ratio_history.parquet"
+    if not p.exists():
+        return None
+    try:
+        df = pd.read_parquet(p)
+    except Exception as e:
+        logger.warning("Read m1b_ratio parquet failed: %s", e)
+        return None
+    if df.empty:
+        return None
+    row = df.iloc[-1].to_dict()
+
+    data_date = None
+    raw = row.get('data_date')
+    if isinstance(raw, str) and raw:
+        try:
+            data_date = ddate.fromisoformat(raw)
+        except ValueError:
+            pass
+
+    return {
+        'ratio_pct': row.get('ratio_pct'),
+        'm1b_period': row.get('m1b_period', ''),
+        'm1b_mil_twd': row.get('m1b_mil_twd'),
+        'trading_value_twd': row.get('trading_value_twd'),
+        'n_days': int(row.get('n_days') or 0),
+        'end_date': data_date,
+        'data_date': data_date,
+        'label': row.get('label', ''),
+        'color': row.get('color', ''),
+    }
+
+
 def _read_risk_score_parquet() -> dict | None:
     """讀 data/sentiment/risk_score_history.parquet 最後一筆 + reconstruct nested dict.
 
@@ -445,8 +523,11 @@ def _pure_fetch(cache_key):
         if cache_key == 'us_index':
             return _fetch_index_metrics('^GSPC', 'S&P 500')
         if cache_key == 'tw_fgi':
-            from taifex_data import TaiwanFearGreedIndex
-            return TaiwanFearGreedIndex().calculate()
+            # 讀 archive parquet（archiver = run_taifex_signals_afterclose.bat
+            # 第 5 stage / scanner 00:00 後 stage）。零 network，cold load <50ms。
+            # 5 子分數 (momentum/breadth/PCR/vol/margin) 全日頻收盤後算，
+            # 盤中重算只是用昨日值再壓一次無意義（margin 20:00 才更新）。
+            return _read_tw_fgi_parquet()
         if cache_key == 'cnn_fgi':
             from cnn_fear_greed import CNNFearGreedIndex
             return CNNFearGreedIndex().get_index()
@@ -457,8 +538,9 @@ def _pure_fetch(cache_key):
             from taifex_data import TAIFEXData
             return TAIFEXData().get_put_call_ratio()
         if cache_key == 'm1b_ratio':
-            from money_supply import compute_m1b_ratio
-            return compute_m1b_ratio()
+            # 讀 archive parquet。M1B 央行月底發布 + FMTQIK 收盤後固定，
+            # 盤中重算意義為 0；archiver 跑 1 次省 3.1s cold load。
+            return _read_m1b_ratio_parquet()
         # 期權避險訊號改讀 archive parquet (archiver TUE-SAT 14:35 + scanner 00:00 寫)
         # 避免 banner intraday 反覆打 TAIFEX 浪費請求
         if cache_key == 'atm_put':

@@ -71,6 +71,12 @@ python tools\append_today_pcr_fgi.py >> taifex_afterclose.log 2>&1
 echo [%date% %time%] [stage]Banner Risk Score archive (depends on PCR/FGI above) >> taifex_afterclose.log
 python tools\archive_risk_score.py >> taifex_afterclose.log 2>&1
 
+echo [%date% %time%] [stage]Banner TW FGI archive (5 sub-scores snapshot) >> taifex_afterclose.log
+python tools\archive_tw_fgi.py >> taifex_afterclose.log 2>&1
+
+echo [%date% %time%] [stage]Banner M1B ratio archive (CBC + TWSE FMTQIK) >> taifex_afterclose.log
+python tools\archive_m1b_ratio.py >> taifex_afterclose.log 2>&1
+
 echo [%date% %time%] [stage]System 2 daily check (informational tier) >> taifex_afterclose.log
 python tools\system2_daily_check.py >> taifex_afterclose.log 2>&1
 
