@@ -47,8 +47,11 @@ REPO = Path(__file__).resolve().parent
 MACRO = REPO / "data" / "macro"
 BREADTH = REPO / "data" / "breadth"
 
-# IC validation V3 (commit cf74765 跑出 dedup_top8) — SOP-12 ✅ PASS at all horizons
-#   60d IC=-0.422 / 40d=-0.348 / 20d=-0.246 (vs best single buffett_us -0.371)
+# IC validation V3 (commit cf74765 跑出 dedup_top8) -- top-8 list 仍是當前最強 composite。
+#   原 V3 報告: 60d IC=-0.422 / 40d=-0.348 / 20d=-0.246 (vs best single buffett_us -0.371)
+#   2026-05-10 V4 audit: panel input 漂移 (commit 3a1d741 修了 DXY 來源 + SBL/margin
+#   stable-sample) 後 V3 重跑 IC = -0.329 / -0.275 / -0.194 vs single -0.371。
+#   Top-8 list 沒變，但「預期 IC」應改 -0.33 (不是 -0.42)。詳見 V4 報告對照表。
 # Top-8 features after Pearson>0.75 dedup (砍掉 buffett 高度相關 11+ features)
 # Lag-weighted: 真 lead (1-30d)=1.0 / coincident (0)=0.7 / slow (>30d)=0.5
 SLOW_FEATURES = {
@@ -193,8 +196,8 @@ def compute_slow_track_score() -> dict:
         'breakdown': breakdown,
         'as_of': last_date.strftime('%Y-%m-%d') if last_date is not None else None,
         'horizon': '60d MDD (informational only, SOP-14)',
-        'sop12_verdict': ('V3 dedup_top8 ✅ PASS — '
-                          '60d IC=-0.422 / 40d=-0.348 / 20d=-0.246 vs best single -0.371; '
+        'sop12_verdict': ('V3 dedup_top8 (top-8 list 仍最強) — '
+                          '60d IC=-0.33 / 40d=-0.28 / 20d=-0.19 (post 3a1d741 panel fix); '
                           'lag-weighted + Pearson>0.75 dedup 移除 buffett 系列 11 個冗餘 features'),
     }
 

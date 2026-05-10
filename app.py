@@ -72,7 +72,7 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 # 側邊欄
 with st.sidebar:
     st.header("⚙️ 設定面板")
-    st.caption("Version: v2026.05.10.1")
+    st.caption("Version: v2026.05.10.2")
     
     # input_method = "股票代號 (Ticker)" # Default, hidden
     
