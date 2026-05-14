@@ -6,7 +6,7 @@ Any code calling Claude CLI / Gemini CLI / LLM SDK MUST follow:
 
 | Module | LLM | model flag | extra flag | timeout |
 |---|---|---|---|---|
-| **AI Report** (`ai_report.py` / `ai_report_pipeline.py`) | Claude | `--model opus` | `--allowedTools "*"` | 600s |
+| **AI Report** (`ai_report.py` / `ai_report_pipeline.py` / `strong_stocks_ai_analysis.py`) | Claude | `--model opus` | `--allowedTools "*"` | 600s |
 | **News / short-form / metadata extract** | Claude | `--model sonnet` | (optional) `--allowedTools` | 600s |
 | **Calendar / structured table extract** | Claude | `--model haiku` | — | 600s |
 | **Sector tag extract (YT VTT / batch)** | Claude(primary) / Gemini(backup) | `sonnet` / `gemini-3.1-pro-preview` | — | 600s / 900s |

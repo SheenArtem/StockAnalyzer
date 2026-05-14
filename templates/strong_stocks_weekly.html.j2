@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>台股強勢股日報 {{ scan_date_roc }}</title>
+  <title>台股強勢股週報 {{ week_label }}</title>
   <style>
     /* 明確固定白底深字，避免被 Streamlit dark mode iframe 穿透 */
     html, body {
@@ -49,6 +49,17 @@
       font-size: 13px;
       margin-top: -4px;
     }
+    .info-banner {
+      background: #fff3cd;
+      border-left: 5px solid #d97706;
+      color: #6e4a00;
+      padding: 12px 16px;
+      margin: 18px 0 28px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      border-radius: 3px;
+    }
+    .info-banner strong { color: #b45309; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -72,7 +83,8 @@
     .col-sector { color: #b0b0b0; font-size: 12px; }
     .col-up { color: #c93030; font-weight: 600; }
     .col-volratio { color: #444; }
-    .col-abnvol { color: #999; font-size: 11.5px; margin-left: 6px; }
+    .col-flag-yes { color: #c93030; font-weight: 600; }
+    .col-flag-no { color: #aaa; }
     .col-inst-pos { color: #c93030; font-weight: 500; }
     .col-inst-zero { color: #888; }
     .col-inst-neg { color: #2c7a2c; font-weight: 500; }
@@ -111,22 +123,16 @@
       color: #c93030;
       font-weight: 600;
     }
-    .warn-block {
+    .warn-block, .watch-block {
       margin: 12px 0 12px 14px;
     }
-    .warn-block .warn-title {
+    .warn-block .warn-title, .watch-block .watch-title {
       font-weight: 600;
     }
     .warn-block .warn-flag {
       color: #c93030;
       font-size: 12px;
       margin-left: 8px;
-    }
-    .watch-block {
-      margin: 12px 0 12px 14px;
-    }
-    .watch-block .watch-title {
-      font-weight: 600;
     }
     .watch-block .watch-flag {
       color: #888;
@@ -144,19 +150,29 @@
 </head>
 <body>
 
-<h1>[台股強勢股日報] {{ ref_date_roc or scan_date_roc }} ({{ ref_date or scan_date }})</h1>
+<h1>[台股強勢股週報] {{ week_label }} ({{ week_start }} - {{ week_end }})</h1>
 <p class="subtitle">
   報告產生時間：{{ generated_at }}
-  {%- if ref_date and scan_date and ref_date != scan_date %}
-  <span style="color:#888;">（資料日 {{ ref_date }} / 掃描日 {{ scan_date }}）</span>
-  {%- endif %}
+  &nbsp;|&nbsp; Universe: {{ universe_size }} 檔
 </p>
+
+<div class="info-banner">
+  <strong>⚠️ 探索功能 — informational tier</strong><br>
+  週度 scoring 尚未經 IC 驗證，僅供盤勢回顧探索。
+  不接 paper_trade / step_a_engine 出場邏輯。
+  累積 3-6 個月後（≥ 13 週數據）將補 IC 驗證。
+</div>
 
 {% macro signed_shares(v) %}
 {% if v is none %}<span class="col-inst-zero">N/A</span>
 {%- elif v > 0 %}<span class="col-inst-pos">+{{ "{:,}".format(v) }}張</span>
 {%- elif v < 0 %}<span class="col-inst-neg">{{ "{:,}".format(v) }}張</span>
 {%- else %}<span class="col-inst-zero">0張</span>{% endif -%}
+{% endmacro %}
+
+{% macro yn_flag(v) %}
+{% if v %}<span class="col-flag-yes">Y</span>
+{%- else %}<span class="col-flag-no">N</span>{% endif -%}
 {% endmacro %}
 
 {% macro render_table(rows) %}
@@ -166,15 +182,16 @@
       <th>代號</th>
       <th>名稱</th>
       <th>族群</th>
-      <th>收盤</th>
-      <th>漲幅</th>
-      <th>量比</th>
-      <th>近5日</th>
-      <th>法人</th>
-      <th>融資增減</th>
-      <th>當沖%</th>
-      <th>借券賣</th>
-      <th>評分</th>
+      <th>週收</th>
+      <th>週漲幅</th>
+      <th>5週量比</th>
+      <th>13週累積</th>
+      <th>52週新高</th>
+      <th>站MA20W</th>
+      <th>5日法人</th>
+      <th>5日融資</th>
+      <th>5日借券賣</th>
+      <th>週評分</th>
     </tr>
   </thead>
   <tbody>
@@ -183,70 +200,65 @@
       <td class="col-id">{{ r.stock_id }}</td>
       <td class="col-name">{{ r.name }}</td>
       <td class="col-sector">{{ r.primary_sector or '' }}</td>
-      <td>{{ "%.2f"|format(r.price) }}</td>
-      <td class="col-up">{{ "%+.1f"|format(r.change_pct) }}%</td>
+      <td>{{ "%.2f"|format(r.week_close or 0) }}</td>
+      <td class="col-up">{{ "%+.1f"|format(r.weekly_change_pct or 0) }}%</td>
       <td class="col-volratio">
-        {% if r.volume_ratio_5d is not none %}{{ r.volume_ratio_5d }}x{% else %}-{% endif %}
-        {% if r.is_abnormal_volume %}<span class="col-abnvol">爆量</span>{% endif %}
+        {% if r.volume_ratio_5w is not none %}{{ r.volume_ratio_5w }}x{% else %}-{% endif %}
       </td>
-      <td>{% if r.change_pct_5d is not none %}{{ "%+.1f"|format(r.change_pct_5d) }}%{% else %}-{% endif %}</td>
-      <td>{{ signed_shares(r.inst_net_buy_today_shares) }}</td>
-      <td>{{ signed_shares(r.margin_net_today_shares) }}</td>
+      <td>{% if r.change_pct_13w is not none %}{{ "%+.1f"|format(r.change_pct_13w) }}%{% else %}-{% endif %}</td>
+      <td>{{ yn_flag(r.is_52w_high) }}</td>
+      <td>{{ yn_flag(r.above_ma20w) }}</td>
+      <td>{{ signed_shares(r.inst_net_5d_shares) }}</td>
+      <td>{{ signed_shares(r.margin_net_5d_shares) }}</td>
       <td>
-        {% if r.day_trade_pct is not none %}
-          {% if r.day_trade_pct >= 50 %}<span class="col-warn">{{ r.day_trade_pct }}%</span>
-          {%- else %}{{ r.day_trade_pct }}%{% endif %}
-        {%- else %}-{% endif %}
+        {% if r.sbl_sell_5d_shares is none %}-
+        {%- elif r.sbl_sell_5d_shares >= 500 %}<span class="col-warn">{{ "{:,}".format(r.sbl_sell_5d_shares) }}張</span>
+        {%- else %}{{ "{:,}".format(r.sbl_sell_5d_shares) }}張{% endif %}
       </td>
-      <td>
-        {% if r.sbl_sell_today_shares is none %}-
-        {%- elif r.sbl_sell_today_shares >= 100 %}<span class="col-warn">{{ "{:,}".format(r.sbl_sell_today_shares) }}張</span>
-        {%- else %}{{ "{:,}".format(r.sbl_sell_today_shares) }}張{% endif %}
-      </td>
-      <td class="col-score">{{ r.trigger_score }}</td>
+      <td class="col-score">{{ r.weekly_trigger_score }}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
 {% endmacro %}
 
-<h2>上市強勢股 Top {{ twse_top|length }}</h2>
+<h2>本週上市強勢股 Top {{ twse_top|length }}</h2>
 {{ render_table(twse_top) }}
 
-<h2>上櫃強勢股 Top {{ tpex_top|length }}</h2>
+<h2>本週上櫃強勢股 Top {{ tpex_top|length }}</h2>
 {{ render_table(tpex_top) }}
 
 {% if ai_analysis %}
-<h2>AI 盤後分析（Claude Opus + WebSearch）</h2>
+<h2>AI 週度盤後分析（Claude Opus + WebSearch）</h2>
 
-<h3>一、資金熱點總結</h3>
+<h3>一、本週資金熱點與下週觀察</h3>
 <blockquote>{{ ai_analysis.market_summary }}</blockquote>
 
-<h3>二、族群行情判斷</h3>
+<h3>二、族群週度行情判斷</h3>
 {% for sec in ai_analysis.sector_analysis %}
   <h4>{{ sec.sector_emoji }} {{ sec.sector_name }}</h4>
   {% for s in sec.stocks %}
     <div class="stock-block">
       <div>
         <span class="stock-title">{{ s.name }} ({{ s.stock_id }})</span>
-        <span class="stock-flag">族群行情啟動</span>
+        <span class="stock-flag">本週強勢族群</span>
       </div>
       <ul>
-        <li><span class="label-driver">驅動原因：</span> {{ s.driver }}</li>
-        <li><span class="label-news">新聞利多催化劑：</span> {{ s.news_catalyst }}</li>
+        <li><span class="label-driver">週度驅動：</span> {{ s.driver }}</li>
+        <li><span class="label-news">新聞催化劑：</span> {{ s.news_catalyst }}</li>
       </ul>
     </div>
   {% endfor %}
 {% endfor %}
 
-<h3>三、追高風險提示</h3>
-<blockquote>在市場情緒亢奮環境下，部分股價已出現過度樂觀和短期投機跡象，投資人必須警惕「追高陷阱」。</blockquote>
+<h3>三、週度追高風險提示</h3>
+<blockquote>本週週漲幅異常、量能爆發、13 週累積背離本週、5 日融資爆增、5 日借券賣大的個股，列為週度追高警示。</blockquote>
 {% for w in ai_analysis.chase_warnings %}
   <div class="warn-block">
     <div>
       <span class="warn-title">
         {{ w.stock_id }} {{ w.name }}
-        {% if w.change_pct is not none %}（漲幅 {{ "%+.1f"|format(w.change_pct) }}%）{% endif %}
+        {% if w.change_pct is not none %}（週漲幅 {{ "%+.1f"|format(w.change_pct) }}%）{% endif %}
       </span>
       <span class="warn-flag">不宜追價</span>
     </div>
@@ -256,12 +268,12 @@
   </div>
 {% endfor %}
 
-<h3>四、潛力觀察名單</h3>
+<h3>四、週度潛力觀察名單</h3>
 {% for w in ai_analysis.watchlist %}
   <div class="watch-block">
     <div>
       <span class="watch-title">{{ w.stock_id }} {{ w.name }}</span>
-      <span class="watch-flag">潛力觀察</span>
+      <span class="watch-flag">週度潛力觀察</span>
     </div>
     <ul>
       <li><span class="label-driver">推薦邏輯：</span> {{ w.reason }}</li>
@@ -269,11 +281,13 @@
   </div>
 {% endfor %}
 
-<h3>五、整體風險提醒</h3>
+<h3>五、下週整體風險提醒</h3>
 <blockquote>{{ ai_analysis.overall_risk }}</blockquote>
 {% endif %}
 
-<div class="footer">本報告由 AI 自動產生，僅供參考，不構成投資建議。</div>
+<div class="footer">
+  本週報由 AI 自動產生，僅供參考，不構成投資建議。週度 scoring 屬探索性質、未經 IC 驗證。
+</div>
 
 </body>
 </html>

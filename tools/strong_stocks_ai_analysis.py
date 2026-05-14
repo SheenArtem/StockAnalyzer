@@ -1,14 +1,19 @@
 """
-強勢股日報 AI 盤後分析 — Phase 3
+強勢股日報 AI 盤後分析 — Phase 3 (Opus + 本地新聞注入, 2026-05-14)
 
-讀 data/latest/strong_stocks_daily.json，呼叫 Claude Sonnet 產 5 段論述：
+讀 data/latest/strong_stocks_daily.json，呼叫 Claude Opus 產 5 段論述：
   1. market_summary       - 資金熱點總結
   2. sector_analysis      - 族群行情判斷 (含個股驅動原因 + 新聞催化劑)
   3. chase_warnings       - 追高風險提示
   4. watchlist            - 潛力觀察名單
   5. overall_risk         - 整體風險提醒
 
-LLM 規範 (CLAUDE.md): claude --model sonnet, timeout 600s
+LLM 規範 (CLAUDE.md): claude --model opus --allowedTools "*", timeout 600s
+  (與 ai_report.py / ai_report_pipeline.py 同屬 AI Report tier)
+
+新聞注入 (2026-05-14 加):
+  - 本地: data/news/articles_recent.parquet 近 5 天 top 30 stocks 文章
+  - WebSearch: Opus 可選用 (--allowedTools "*" 開啟)
 
 輸出: data/latest/strong_stocks_daily.json (in-place 加 'ai_analysis' field)
 
@@ -34,12 +39,17 @@ sys.path.insert(0, str(REPO))
 logger = logging.getLogger(__name__)
 
 INPUT_PATH = REPO / "data" / "latest" / "strong_stocks_daily.json"
+WEEKLY_INPUT_PATH = REPO / "data" / "latest" / "strong_stocks_weekly.json"
 _CLAUDE_CLI = shutil.which("claude") or "claude"
 CLAUDE_TIMEOUT = 600
 
+# News injection lookback
+DAILY_NEWS_LOOKBACK_DAYS = 5
+WEEKLY_NEWS_LOOKBACK_DAYS = 14
+
 
 # ============================================================
-# Build prompt
+# Build prompt (daily mode)
 # ============================================================
 def _format_row(r: dict[str, Any]) -> str:
     sid = r.get("stock_id", "")
@@ -69,7 +79,29 @@ def _format_row(r: dict[str, Any]) -> str:
     )
 
 
-def build_prompt(daily: dict[str, Any]) -> str:
+def _build_news_section(news_ctx: dict[str, Any] | None) -> str:
+    """組裝 prompt 新聞注入區塊. news_ctx 為空時退化為「無近期新聞」提示."""
+    if not news_ctx or not news_ctx.get("articles"):
+        return (
+            "## 近期新聞參考\n"
+            "(本地新聞資料缺失或本期無相關新聞 — driver / news_catalyst 可主動用 WebSearch 補)"
+        )
+    from tools.strong_stocks_news_builder import format_articles_as_table, format_themes_as_table
+    n_articles = news_ctx.get("total_articles", 0)
+    n_themes = len(news_ctx.get("themes", []))
+    lookback = news_ctx.get("lookback_days", 5)
+    articles_tbl = format_articles_as_table(news_ctx.get("articles", []))
+    themes_tbl = format_themes_as_table(news_ctx.get("themes", []))
+    return f"""## 近 {lookback} 天本地新聞參考 ({n_articles} 篇 / {n_themes} 個 ticker-theme)
+
+{articles_tbl}
+
+## 主題聚合 (近 {lookback} 天)
+
+{themes_tbl}"""
+
+
+def build_prompt(daily: dict[str, Any], news_ctx: dict[str, Any] | None = None) -> str:
     twse_top = daily.get("twse_top", [])
     tpex_top = daily.get("tpex_top", [])
     scan_date = daily.get("scan_date", "?")
@@ -83,6 +115,9 @@ def build_prompt(daily: dict[str, Any]) -> str:
     # 收集所有合法 stock_id 給 validator
     all_ids = sorted({str(r["stock_id"]) for r in twse_top + tpex_top})
 
+    # 新聞注入 (2026-05-14 加) — 若 news_ctx 為 None / 空, 區塊改寫提示「無近期新聞」
+    news_section = _build_news_section(news_ctx)
+
     prompt = f"""你是台股盤後分析師。以下是 {scan_date} 的強勢股 Top 15 上市 + Top 15 上櫃。請產出結構化 JSON 五段論述。
 
 ## 上市強勢股 Top 15
@@ -90,6 +125,8 @@ def build_prompt(daily: dict[str, Any]) -> str:
 
 ## 上櫃強勢股 Top 15
 {tpex_table}
+
+{news_section}
 
 ---
 
@@ -158,7 +195,11 @@ def build_prompt(daily: dict[str, Any]) -> str:
    - (b) 量比 1.2-2.0x（健康放量、非異常爆量）且當沖 < 40%
    - (c) 評分 ≥ 80 且借券賣 < 50 張（無顯著空方押寶）
 7. **driver / news_catalyst / reason 必須引用具體籌碼數字**：例如「法人買超 +21,107 張為全場最大」「融資增 +8,998 張籌碼鬆動」「借券賣 977 張機構押寶下跌」「當沖 58% 投機度高」。
-8. **新聞催化劑**：若不確定具體新聞，寫「籌碼面 / 法人加碼 / 題材熱度」即可，不准編造未發生事件。
+8. **新聞催化劑來源優先順序** (2026-05-14 升 Opus + 新聞注入):
+   - (a) 先用「近期新聞參考」表內列出的本地文章 title / theme / material_event_type / forward_eps_change / forward_revenue_guidance 拼裝具體事件 (如「Q1 EPS 15.38 元 + 122.8% YoY」「擴產 ABF 載板」)。
+   - (b) 本地表內無相關新聞時，**可用 WebSearch 補近 1 週新聞** (限 site:cnyes.com 或 site:money.udn.com)；只引用搜到的具體標題 / 數字。
+   - (c) 兩者皆無 → 寫「籌碼面 / 法人加碼 / 題材熱度」即可。
+   - **嚴禁編造未發生事件** (即便升 Opus + WebSearch 也一樣)。
 9. **語言**：繁體中文。
 10. **格式**：純 JSON，不要 ```json fence、不要前後解釋。
 
@@ -168,11 +209,159 @@ def build_prompt(daily: dict[str, Any]) -> str:
 
 
 # ============================================================
-# Claude Sonnet call
+# Build prompt (weekly mode, 2026-05-14 Phase 2)
 # ============================================================
-def call_claude_sonnet(prompt: str) -> tuple[str, str | None]:
-    """同 tools/news_theme_extract.py 的呼叫慣例。"""
-    cmd = [_CLAUDE_CLI, "-p", "--model", "sonnet", "--output-format", "json"]
+def _format_row_weekly(r: dict[str, Any]) -> str:
+    """週報欄位格式. 注意 schema 與 daily 不同 (weekly_* / 5d aggregates)."""
+    sid = r.get("stock_id", "")
+    name = r.get("name", "")
+    sector = r.get("primary_sector") or "-"
+    wk_chg = r.get("weekly_change_pct", 0) or 0
+    vol5w = r.get("volume_ratio_5w")
+    chg13w = r.get("change_pct_13w")
+    is52wh = "Y" if r.get("is_52w_high") else "N"
+    ma20w = "Y" if r.get("above_ma20w") else "N"
+    inst5d = r.get("inst_net_5d_shares")
+    margin5d = r.get("margin_net_5d_shares")
+    sbl5d = r.get("sbl_sell_5d_shares")
+    score = r.get("weekly_trigger_score", 0)
+
+    vol5w_s = f"{vol5w}x" if vol5w is not None else "-"
+    chg13w_s = f"{chg13w:+.1f}%" if chg13w is not None else "-"
+    inst_s = f"{inst5d:+,}張" if inst5d is not None else "N/A"
+    margin_s = f"{margin5d:+,}張" if margin5d is not None else "N/A"
+    sbl_s = f"{sbl5d:,}張" if sbl5d is not None else "N/A"
+
+    return (
+        f"| {sid} | {name} | {sector} | {wk_chg:+.1f}% | "
+        f"{vol5w_s} | {chg13w_s} | {is52wh} | {ma20w} | "
+        f"{inst_s} | {margin_s} | {sbl_s} | {score} |"
+    )
+
+
+def build_weekly_prompt(weekly: dict[str, Any], news_ctx: dict[str, Any] | None = None) -> str:
+    twse_top = weekly.get("twse_top", [])
+    tpex_top = weekly.get("tpex_top", [])
+    week_label = weekly.get("week_label", "?")
+    week_start = weekly.get("week_start", "?")
+    week_end = weekly.get("week_end", "?")
+
+    header = ("| 代號 | 名稱 | 族群 | 週漲幅 | 5週量比 | 13週累積 | 52週新高 | 站MA20W "
+              "| 5日法人(張) | 5日融資(張) | 5日借券賣(張) | 週評分 |")
+    sep = "|---|---|---|---|---|---|---|---|---|---|---|---|"
+    twse_table = "\n".join([header, sep] + [_format_row_weekly(r) for r in twse_top])
+    tpex_table = "\n".join([header, sep] + [_format_row_weekly(r) for r in tpex_top])
+
+    all_ids = sorted({str(r["stock_id"]) for r in twse_top + tpex_top})
+    news_section = _build_news_section(news_ctx)
+
+    prompt = f"""你是台股盤後週報分析師。以下是 {week_label} ({week_start} ~ {week_end}) 的本週強勢股 Top 15 上市 + Top 15 上櫃。
+請以「週度視角」產出結構化 JSON 五段論述。
+
+⚠️ 此週度 scoring 尚未經 IC 驗證，僅供盤勢回顧探索，不作下單依據。
+
+## 本週上市強勢股 Top 15
+{twse_table}
+
+## 本週上櫃強勢股 Top 15
+{tpex_table}
+
+{news_section}
+
+---
+
+## 任務
+
+產出以下 JSON schema（只回傳 JSON，不要前後說明文字、不要 markdown fence）：
+
+```json
+{{
+  "market_summary": "500-700 字，週度回顧：本週主流題材、族群輪動 vs 上週、量價齊揚 vs 短線反彈、法人累積態度、下週觀察重點與潛在風險。",
+  "sector_analysis": [
+    {{
+      "sector_emoji": "🚀",
+      "sector_name": "族群名（例如「AI 伺服器算力」、「矽光子 / CPO」）",
+      "stocks": [
+        {{
+          "stock_id": "2330",
+          "name": "台積電",
+          "driver": "本週週度驅動 (週漲幅 / 5週量能 / 13週累積 / 52週新高 / 站上 MA20W)，1-2 句",
+          "news_catalyst": "本週 / 近 14 天具體新聞催化劑，引用日期 + 具體事件"
+        }}
+      ]
+    }}
+  ],
+  "chase_warnings": [
+    {{
+      "stock_id": "3485",
+      "name": "敘豐",
+      "change_pct": 35.0,
+      "reason": "週度追高風險 (週漲幅 ≥ 30% / 5週量比 ≥ 2.5x / 13週累積背離本週、借券賣大、小型股流動性)"
+    }}
+  ],
+  "watchlist": [
+    {{
+      "stock_id": "2327",
+      "name": "國巨",
+      "reason": "週度潛力觀察 (站穩 MA20W / 13週累積健康 / 法人累積買超 / 題材護城河)"
+    }}
+  ],
+  "overall_risk": "150-250 字，提醒下週主要風險：利率 / 地緣 / 國際盤 / 個股短期獲利了結 / 操作心法。"
+}}
+```
+
+## 週度欄位解讀指引（重要）
+
+- **週漲幅**：本週週五收盤 vs 上週週五收盤的 % 變化。≥ 30% 過熱、20-30% 強勢、10-20% 中強、< 10% 普通。
+- **5週量比**：本週均量 / 前 4 週均量。≥ 2.5x = 量能爆發、1.5-2.5x = 健康放量、< 1.0x = 量縮。
+- **13週累積**：13 週累積漲幅 (約 3 個月 momentum 強度)。≥ 50% = 主升段、20-50% = 確立趨勢、< 20% = 整理或起步。
+- **52週新高 (Y/N)**：本週是否創 52 週新高。Y 代表突破歷史壓力，動能延續性高。
+- **站MA20W (Y/N)**：週收盤是否站上 20 週均線。Y 代表中期趨勢偏多。
+- **5日法人 (張)**：本週 5 個交易日三大法人合計買賣超累計。正值大 = 機構持續加碼；負值大 = 機構出脫。
+- **5日融資 (張)**：本週融資餘額累計增減。**正值 ≥ 5000 張 = 散戶槓桿追高 (週度過熱訊號)**。
+- **5日借券賣 (張)**：本週累計借券賣出量。**≥ 500 張 = 機構押寶下跌** (週度空頭力道警示)。
+
+## 約束 (重要)
+
+1. **數字一致性**：所有 stock_id, weekly_change_pct, volume_ratio_5w, change_pct_13w, 5日法人/融資/借券賣 數字必須與表格完全一致；不准編造。
+2. **合法 stock_id 集**：只能引用以下檔之一 → {",".join(all_ids)}
+3. **族群判斷**：依表格 "族群" 欄位 + 你對台股題材的認知歸納 3-5 大族群；族群名稱要中文且具體。
+4. **每族群 2-3 檔**：sector_analysis 每族群挑代表性最強 2-3 檔，總計 8-12 檔。
+5. **追高風險 4-6 檔**：優先挑符合下列任一週度警訊的個股：
+   - 週漲幅 ≥ 30% 暴漲
+   - 5週量比 ≥ 2.5x 量能異常
+   - 13週累積背離本週週漲幅 (高低分歧)
+   - 5日融資爆增 ≥ 5000 張 (散戶追高陷阱)
+   - 5日借券賣 ≥ 500 張 (機構押下跌)
+6. **潛力觀察 4-6 檔**：須符合下列至少一條：
+   - (a) 5日法人買超累計 ≥ 1000 張 且 5日融資不過熱
+   - (b) 站上 MA20W + 13週累積健康 (20-50%) + 5週量比 1.2-2.0x (健康放量)
+   - (c) 52週新高 + 評分 ≥ 80 + 5日借券賣 < 200 張
+7. **driver / news_catalyst / reason 必須引用具體週度數字 + 具體事件**：例如「週漲幅 +36.7% 量能 3.74x 創 52 週新高」「5/12 公告 Q1 EPS 15.38 元年增 122.8%」「5日法人累計買超 +21,107 張」。
+8. **新聞催化劑來源優先順序** (升級 2026-05-14: Opus + 本地新聞 14 天 + WebSearch):
+   - (a) 先用「近期新聞參考」表內列出的本地文章 (近 14 天) 拼裝具體事件。
+   - (b) 本地表內無相關新聞時，**可用 WebSearch 補近 1-2 週新聞** (限 site:cnyes.com 或 site:money.udn.com)。
+   - (c) 兩者皆無 → 寫「籌碼面 / 法人累積 / 題材熱度」即可。
+   - **嚴禁編造未發生事件**。
+9. **語言**：繁體中文。
+10. **格式**：純 JSON，不要 ```json fence、不要前後解釋。
+
+立即產出 JSON。
+"""
+    return prompt
+
+
+# ============================================================
+# Claude Opus call (升級 2026-05-14: Sonnet -> Opus + WebSearch)
+# ============================================================
+def call_claude_opus(prompt: str) -> tuple[str, str | None]:
+    """同 ai_report.py 的呼叫慣例 (Opus + --allowedTools "*")."""
+    cmd = [
+        _CLAUDE_CLI, "-p",
+        "--model", "opus",
+        "--allowedTools", "*",
+        "--output-format", "json",
+    ]
     try:
         result = subprocess.run(
             cmd,
@@ -336,7 +525,10 @@ def validate_ai_output(
 # ============================================================
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=INPUT_PATH)
+    parser.add_argument("--input", type=Path, default=None,
+                        help="輸入 JSON; --weekly 預設 strong_stocks_weekly.json, 否則 strong_stocks_daily.json")
+    parser.add_argument("--weekly", action="store_true",
+                        help="週報模式 (lookback 14d, 週度 prompt, in-place write weekly JSON)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print prompt only, do not call LLM")
     args = parser.parse_args(argv)
@@ -346,25 +538,53 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
+    # Mode-specific defaults
+    if args.weekly:
+        if args.input is None:
+            args.input = WEEKLY_INPUT_PATH
+        lookback_days = WEEKLY_NEWS_LOOKBACK_DAYS
+        mode_label = "weekly"
+        prompt_builder = build_weekly_prompt
+    else:
+        if args.input is None:
+            args.input = INPUT_PATH
+        lookback_days = DAILY_NEWS_LOOKBACK_DAYS
+        mode_label = "daily"
+        prompt_builder = build_prompt
+
     if not args.input.exists():
-        print(f"[ERROR] {args.input} not found. Run strong_stocks_daily.py first.",
+        upstream = "strong_stocks_weekly_screener.py" if args.weekly else "strong_stocks_daily.py"
+        print(f"[ERROR] {args.input} not found. Run {upstream} first.",
               file=sys.stderr)
         return 1
 
     with args.input.open("r", encoding="utf-8") as f:
         daily = json.load(f)
 
-    prompt = build_prompt(daily)
-    print(f"[INFO] Prompt {len(prompt)} chars, scan_date={daily.get('scan_date')}")
+    # News context (本地新聞 + themes 注入)
+    try:
+        from tools.strong_stocks_news_builder import build_news_context
+        news_ctx = build_news_context(daily, lookback_days=lookback_days)
+        n_arts = news_ctx.get("total_articles", 0)
+        n_themes = len(news_ctx.get("themes", []))
+        print(f"[INFO] News context: {n_arts} articles, {n_themes} themes "
+              f"(mode={mode_label}, lookback {lookback_days}d)")
+    except Exception as e:
+        logger.warning("news context build failed (%s); proceeding without news", e)
+        news_ctx = None
+
+    prompt = prompt_builder(daily, news_ctx=news_ctx)
+    print(f"[INFO] Prompt {len(prompt)} chars, mode={mode_label}, "
+          f"scan_date={daily.get('scan_date') or daily.get('week_label', '?')}")
 
     if args.dry_run:
-        debug_path = args.input.parent / "strong_stocks_ai_prompt.txt"
+        debug_path = args.input.parent / f"strong_stocks_ai_prompt_{mode_label}.txt"
         debug_path.write_text(prompt, encoding="utf-8")
         print(f"[DRY-RUN] Prompt saved to {debug_path}")
         return 0
 
-    print("[INFO] Calling Claude Sonnet (timeout 600s)...")
-    output, err = call_claude_sonnet(prompt)
+    print("[INFO] Calling Claude Opus + WebSearch (timeout 600s)...")
+    output, err = call_claude_opus(prompt)
     if err:
         print(f"[ERROR] Claude call failed: {err}", file=sys.stderr)
         return 2
@@ -390,7 +610,11 @@ def main(argv: list[str] | None = None) -> int:
     daily["ai_analysis"] = cleaned
     daily["ai_analysis_meta"] = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "model": "claude sonnet",
+        "model": "claude opus",
+        "allowed_tools": "*",
+        "mode": mode_label,
+        "news_lookback_days": lookback_days,
+        "news_articles_injected": news_ctx.get("total_articles", 0) if news_ctx else 0,
         "validation_warnings": warnings,
     }
     with args.input.open("w", encoding="utf-8") as f:
