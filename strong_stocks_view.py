@@ -172,7 +172,7 @@ def render_strong_stocks() -> None:
         if report_type == "weekly":
             st.caption("週報由排程於週日 12:00 自動產出")
         else:
-            st.caption("日報由排程於 TUE-SAT 00:00 自動產出")
+            st.caption("日報由排程於每天 00:00 自動產出")
 
     selected_html = REPORTS_DIR / f"{selected_label}.html"
     selected_pdf = REPORTS_DIR / f"{selected_label}.pdf"

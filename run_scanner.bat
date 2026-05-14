@@ -206,7 +206,7 @@ REM ------------------------------------------------------------
 REM Strong stocks daily report (PDF mimicking the user-supplied template).
 REM Added 2026-05-07: 3-stage pipeline using qm_result.json as source.
 REM   1. strong_stocks_daily.py    -- enrich + bucket (Top 15 twse / Top 15 tpex)
-REM   2. strong_stocks_ai_analysis.py -- Claude Sonnet 5-section analysis
+REM   2. strong_stocks_ai_analysis.py -- Claude Opus + 5d local news + WebSearch (2026-05-14)
 REM   3. strong_stocks_render.py   -- Jinja2 HTML + Playwright PDF
 REM Output: data\strong_stocks_reports\YYYY-MM-DD.{html,pdf}
 REM Best-effort: failures do not affect scanner exit.

@@ -1,6 +1,6 @@
 # StockAnalyzer
 
-台股 / 美股 交易分析系統。Streamlit UI + 排程 scanner + AI 報告 + 強勢股日報 PDF。
+台股 / 美股 交易分析系統。Streamlit UI + 排程 scanner + AI 報告 + 強勢股報告 PDF。
 
 ---
 
@@ -19,7 +19,7 @@ git clone https://github.com/SheenArtem/StockAnalyzer.git
 cd StockAnalyzer
 
 pip install -r requirements.txt
-playwright install chromium      # 強勢股日報 PDF 印出用
+playwright install chromium      # 強勢股報告 PDF 印出用
 ```
 
 ### 3. 建立 `local/.env`
@@ -59,7 +59,7 @@ python -m streamlit run app.py
 | Value 選股 | `scanner_job.py --mode value` | 5 因子組合 |
 | Momentum 選股 | `scanner_job.py --mode momentum` | 全市場掃描 trigger_score |
 | AI 報告 | `tools/auto_ai_reports.py` | Claude Opus 深度分析 |
-| 強勢股日報 PDF | `tools/strong_stocks_daily.py` + `_ai_analysis.py` + `_render.py` | 仿 LINE 群分發格式，12 欄含籌碼 + AI 五段論述 |
+| 強勢股報告 PDF | `tools/strong_stocks_daily.py` (日) / `_weekly_screener.py` (週) + `_ai_analysis.py` + `_render.py` | 日報 12 欄含籌碼 + AI 五段論述；週報 13 欄含 5 日累計 + 週度 5-signal scoring (informational tier) |
 | 新聞題材 | `tools/news_theme_extract.py` | UDN + cnyes RSS → Claude Sonnet 萃取 |
 | 籌碼面 | `chip_analysis.py` / `chip_history_dl.py` | 三大法人 / 融資融券 / 借券 / 當沖 / TDCC |
 
@@ -69,13 +69,13 @@ python -m streamlit run app.py
 
 ## Windows Task Scheduler 排程
 
-`run_scanner.bat` 是主排程鏈：**TUE-SAT 00:00**（盤後資料齊全）。
+`run_scanner.bat` 是主排程鏈：**Daily 00:00**（每天午夜跑，盤後資料齊全）。
 
 ### 設定步驟
 
 1. `Win+R` → `taskschd.msc`
 2. 建立基本工作 → 名稱 `StockAnalyzer Scanner`
-3. **觸發**：每週 TUE-SAT, 00:00
+3. **觸發**：每天 00:00
 4. **動作**：啟動程式
    - 程式：`C:\GIT\StockAnalyzer\run_scanner.bat`
    - 起始位置：`C:\GIT\StockAnalyzer`
@@ -89,7 +89,7 @@ YT 影片同步 → News 題材萃取 → 量價情緒指標 (PUT/小台/期權)
 → Cache consistency check → Market regime 紀錄
 → QM 選股 → Value 選股
 → Step-A engine → Paper trade engine
-→ 強勢股日報 (enrich + AI Sonnet + HTML+PDF)
+→ 強勢股日報 (enrich + AI Opus + 5d 本地新聞 + HTML+PDF)
 → Substack 同步 → 籌碼歷史 resume
 → 法說會行事曆 fetch
 → verify_scan_stages 驗證
@@ -100,6 +100,7 @@ YT 影片同步 → News 題材萃取 → 量價情緒指標 (PUT/小台/期權)
 | BAT | 排程 | 用途 |
 |---|---|---|
 | `run_app.bat` | 手動 | 啟動 Streamlit UI |
+| `run_scanner_weekly.bat` | **週日 12:00** | 強勢股週報 (週度 scoring + Opus + 14d 新聞 + PDF) |
 | `run_bulk_revenue_monthly.bat` | 月初 | 月營收下載 |
 | `run_c1_monthly.bat` | 月初 | C1 regime tilt 拐點偵測 |
 | `run_tdcc_weekly.bat` | 週六 08:00 | TDCC 集保 + 籌碼 margin/short_sale 補抓 |
@@ -114,8 +115,8 @@ YT 影片同步 → News 題材萃取 → 量價情緒指標 (PUT/小台/期權)
 - **Robustness First**：commit 前必須 end-to-end 跑過、grep caller 確認、fail loud（不要 try/except pass）
 - **資料源優先順序**：見 `CLAUDE.md` Data Source Priority 表（避免重複拉同一資料）
 - **LLM 規範（鎖定 2026-05-01）**：
-  - AI Report → Claude Opus + `--allowedTools "*"` + 600s
-  - News / 分析 → Claude Sonnet + 600s
+  - AI Report (個股 / 強勢股日週報) → Claude Opus + `--allowedTools "*"` + 600s
+  - News / 短文 / metadata 抽取 → Claude Sonnet + 600s
   - Calendar / 表格萃取 → Claude Haiku
   - Gemini → `gemini-3.1-pro-preview` + 900s
 - **代碼註解**：繁中 + 英文混用（`.bat` 例外，必須 ASCII）
@@ -125,9 +126,9 @@ YT 影片同步 → News 題材萃取 → 量價情緒指標 (PUT/小台/期權)
 
 ---
 
-## 強勢股日報範例
+## 強勢股報告範例 (日報 + 週報)
 
-每天排程跑完後產出：
+### 日報 (每天 00:00 自動產出)
 
 ```
 data/strong_stocks_reports/YYYY-MM-DD.html   # YYYY-MM-DD = 資料日 (ref_date), 不是 scan run 日
@@ -140,13 +141,33 @@ data/strong_stocks_reports/YYYY-MM-DD.pdf
 
 族群 3 層 fallback：manual themes → YT dynamic tags → TradingView industry。
 
-**網頁查看**：Streamlit UI sidebar → 切「📰 強勢股日報」mode → 日期下拉選歷史報告 + 直接 inline 渲染 + 一鍵下載 PDF。
+### 週報 (週日 12:00 自動產出, 2026-05-14 新增)
 
-**手動產出**：
+```
+data/strong_stocks_reports/YYYY-Www.html     # ISO 週次, 例 2026-W20
+data/strong_stocks_reports/YYYY-Www.pdf
+```
+
+13 欄表格（代號 / 名稱 / 族群 / 週收 / 週漲幅 / 5週量比 / 13週累積 / 52週新高 / 站MA20W / 5日法人 / 5日融資 / 5日借券賣 / 週評分）+ AI 週度 5 段論述。
+
+⚠️ **週度 scoring informational tier**: 未經 IC 驗證，僅供盤勢回顧，**不接 paper_trade / 出場邏輯**。Universe scoring 公式：週漲幅 30% + 5週量比 20% + 13週累積 20% + 52週新高 15% + 站MA20W 15%。
+
+### 網頁查看
+
+Streamlit UI sidebar → 切「🌟 強勢股報告」mode → 上方 **📅 日報 / 📊 週報** radio 切換 → 日期/週次下拉選歷史報告 + 直接 inline 渲染 + 一鍵下載 PDF。
+
+### 手動產出
+
 ```bash
+# 日報
 python tools/strong_stocks_daily.py        # enrich + bucket
-python tools/strong_stocks_ai_analysis.py  # Sonnet 5 段論述
+python tools/strong_stocks_ai_analysis.py  # Opus 5 段論述 + 5d 本地新聞 + WebSearch
 python tools/strong_stocks_render.py       # HTML + PDF
+
+# 週報
+python tools/strong_stocks_weekly_screener.py       # 週度 5-signal scoring
+python tools/strong_stocks_ai_analysis.py --weekly  # Opus 5 段 + 14d 新聞
+python tools/strong_stocks_render.py --weekly       # HTML + PDF
 ```
 
 ---
