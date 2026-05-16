@@ -32,6 +32,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -62,6 +63,22 @@ SCENARIOS = {
     "Base": {"g1": 0.06, "g_term": 0.03},
     "Bear": {"g1": 0.00, "g_term": 0.02},
 }
+
+# 產業分組 g1 預設（2026-05-16 加，原本一刀切 12/6/0% 對半導體保守對傳產過熱）
+# (g1, g_term) per scenario per sector
+SECTOR_SCENARIOS = {
+    "semi":       {"Bull": (0.18, 0.04), "Base": (0.10, 0.03),  "Bear": (0.02,  0.02)},
+    "tech":       {"Bull": (0.14, 0.04), "Base": (0.07, 0.03),  "Bear": (0.00,  0.02)},
+    "biotech":    {"Bull": (0.12, 0.03), "Base": (0.06, 0.025), "Bear": (-0.02, 0.02)},
+    "consumer":   {"Bull": (0.08, 0.03), "Base": (0.04, 0.025), "Bear": (0.00,  0.02)},
+    "industrial": {"Bull": (0.08, 0.03), "Base": (0.04, 0.025), "Bear": (-0.02, 0.02)},
+    "financial":  {"Bull": (0.06, 0.03), "Base": (0.03, 0.025), "Bear": (0.00,  0.02)},
+    "utility":    {"Bull": (0.04, 0.025), "Base": (0.02, 0.02), "Bear": (-0.02, 0.015)},
+    "default":    {"Bull": (0.12, 0.04), "Base": (0.06, 0.03),  "Bear": (0.00,  0.02)},  # 同舊行為
+}
+
+STOCK_INFO_CACHE_PATH = REPO / "data_cache" / "tw_stock_info.parquet"
+STOCK_INFO_TTL_DAYS = 7
 
 
 # ============================================================
@@ -251,17 +268,22 @@ def project_dcf(fcf_base: float, g1: float, g_term: float, wacc: float, years: i
     }
 
 
-def run_scenarios(snap: Snapshot, wacc: float) -> pd.DataFrame:
+def run_scenarios(snap: Snapshot, wacc: float, sector_key: str = "default") -> pd.DataFrame:
+    table = SECTOR_SCENARIOS.get(sector_key, SECTOR_SCENARIOS["default"])
+    # 護欄：g_term 必須 ≤ WACC - 4pp 否則 TV 爆炸 (1/小分母)
+    g_term_ceiling = max(wacc - 0.04, -0.01)
     rows = []
-    for name, p in SCENARIOS.items():
-        out = project_dcf(snap.fcf_base, p["g1"], p["g_term"], wacc)
+    for name in ("Bull", "Base", "Bear"):
+        g1, g_term = table[name]
+        g_term = min(g_term, g_term_ceiling)
+        out = project_dcf(snap.fcf_base, g1, g_term, wacc)
         ev = out["fair_ev"]
         equity_val = ev - snap.net_debt
         per_share = equity_val / snap.shares if snap.shares > 0 else float("nan")
         mos = (per_share / snap.close_price - 1) if snap.close_price > 0 else float("nan")
         rows.append({
             "scenario": name,
-            "g1": p["g1"], "g_term": p["g_term"],
+            "g1": g1, "g_term": g_term,
             "EV_bn": ev / 1e9, "PV_explicit_bn": out["pv_explicit"] / 1e9,
             "PV_terminal_bn": out["pv_terminal"] / 1e9,
             "EquityValue_bn": equity_val / 1e9,
@@ -305,6 +327,113 @@ def _write_cache(path: Path, panel: dict) -> None:
         logger.warning("dcf cache write failed %s: %s", path.name, e)
 
 
+_STOCK_INFO_MEM: Optional[dict] = None  # session-level in-memory map
+
+
+def _load_stock_info() -> dict:
+    """回 {stock_id: industry_category}。優先讀 7 天 disk cache，過期才打 FinMind。
+    Session 內 in-memory hit 不再 file IO。"""
+    global _STOCK_INFO_MEM
+    if _STOCK_INFO_MEM is not None:
+        return _STOCK_INFO_MEM
+    # 嘗試 disk cache
+    if STOCK_INFO_CACHE_PATH.exists():
+        age_days = (time.time() - STOCK_INFO_CACHE_PATH.stat().st_mtime) / 86400
+        if age_days <= STOCK_INFO_TTL_DAYS:
+            try:
+                df = pd.read_parquet(STOCK_INFO_CACHE_PATH)
+                _STOCK_INFO_MEM = dict(zip(df["stock_id"], df["industry_category"]))
+                logger.debug("tw_stock_info disk HIT (%d entries, age %.1fd)", len(_STOCK_INFO_MEM), age_days)
+                return _STOCK_INFO_MEM
+            except Exception as e:
+                logger.warning("tw_stock_info disk read failed: %s", e)
+    # Fresh fetch
+    try:
+        params = {"dataset": "TaiwanStockInfo"}
+        if TOKEN:
+            params["token"] = TOKEN
+        r = requests.get(FINMIND_URL, params=params, timeout=30)
+        r.raise_for_status()
+        df = pd.DataFrame(r.json().get("data", []))
+        if df.empty:
+            _STOCK_INFO_MEM = {}
+            return _STOCK_INFO_MEM
+        df = df.sort_values("date").drop_duplicates("stock_id", keep="last")
+        try:
+            STOCK_INFO_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            df[["stock_id", "industry_category"]].to_parquet(STOCK_INFO_CACHE_PATH)
+        except Exception as e:
+            logger.warning("tw_stock_info disk write failed: %s", e)
+        _STOCK_INFO_MEM = dict(zip(df["stock_id"], df["industry_category"]))
+        return _STOCK_INFO_MEM
+    except Exception as e:
+        logger.warning("TaiwanStockInfo fetch failed: %s", e)
+        _STOCK_INFO_MEM = {}
+        return _STOCK_INFO_MEM
+
+
+def _classify_sector(industry: str) -> str:
+    """將 FinMind industry_category 中文映射到 SECTOR_SCENARIOS key"""
+    if not industry:
+        return "default"
+    if "半導體" in industry:
+        return "semi"
+    if any(k in industry for k in ["電子", "電腦", "通信", "光電", "資訊服務"]):
+        return "tech"
+    if any(k in industry for k in ["生技", "醫療"]):
+        return "biotech"
+    if any(k in industry for k in ["食品", "紡織", "運輸", "觀光", "貿易", "百貨", "汽車", "居家"]):
+        return "consumer"
+    if any(k in industry for k in ["鋼鐵", "塑膠", "化學", "建材", "營造", "橡膠",
+                                    "水泥", "玻璃", "造紙", "電機", "電器", "機電"]):
+        return "industrial"
+    if any(k in industry for k in ["金融", "保險", "銀行", "證券"]):
+        return "financial"
+    if any(k in industry for k in ["油電", "燃氣", "公用"]):
+        return "utility"
+    return "default"
+
+
+def get_sector_for(stock_id: str) -> tuple[str, str]:
+    """回 (industry_chinese, sector_key)。失敗回 ('', 'default')"""
+    info = _load_stock_info()
+    industry = info.get(stock_id, "")
+    return industry, _classify_sector(industry)
+
+
+def _refresh_spot(panel: dict, stock_id: str) -> dict:
+    """Cache hit 時拉最新 spot 重算 MOS。fair_value/WACC/FCF 維持 cached
+    （那些錨定年報，盤中不變）。只動 spot + market_cap + scenarios.MOS_vs_spot。
+
+    失敗時回 cached panel 不 raise — spot refresh 是 best-effort optimization。
+    """
+    try:
+        start = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
+        px = fetch("TaiwanStockPrice", stock_id, start=start)
+        if px.empty:
+            return panel
+        px = px.sort_values("date")
+        new_spot = float(px.iloc[-1]["close"])
+        if new_spot <= 0 or abs(new_spot - panel["spot"]) < 0.01:
+            return panel
+        refreshed = dict(panel)
+        refreshed["spot"] = new_spot
+        refreshed["market_cap_bn"] = panel["shares_b"] * new_spot
+        new_scenarios = []
+        for s in panel["scenarios"]:
+            s_new = dict(s)
+            fv = s_new.get("FairValue_per_share")
+            if fv is not None and fv == fv:  # NaN-safe
+                s_new["MOS_vs_spot"] = fv / new_spot - 1
+            new_scenarios.append(s_new)
+        refreshed["scenarios"] = new_scenarios
+        refreshed["_spot_refreshed"] = True  # debug 訊息，format_panel_text 不顯示
+        return refreshed
+    except Exception as e:
+        logger.warning("spot refresh failed for %s: %s", stock_id, e)
+        return panel
+
+
 # ============================================================
 # Public API (供 ai_report.py 等呼叫)
 # ============================================================
@@ -336,6 +465,10 @@ def compute_panel(stock_id: str, *, rf: float = DEFAULT_RF, erp: float = DEFAULT
         cached = _read_cache(cache_path)
         if cached is not None:
             logger.debug("dcf cache HIT %s", cache_path.name)
+            # spot refresh：cache 鎖住 spot 會讓 MOS 落後實際走勢，每次 hit 拉最新收盤
+            # 只 1 個 FinMind call（相比 cold 的 5 個），仍保留 80% 配額節省
+            if cached.get("ok"):
+                cached = _refresh_spot(cached, stock_id)
             return cached
 
     try:
@@ -344,12 +477,23 @@ def compute_panel(stock_id: str, *, rf: float = DEFAULT_RF, erp: float = DEFAULT
             return {"ok": False, "reason": f"無流通股數 (OrdinaryShare=0 @ {snap.fy_end})"}
         if snap.fcf_base <= 0:
             return {"ok": False, "reason": f"近 3 年 FCF 全為負 (history={[round(f/1e9,1) for f in snap.fcf_history]})"}
+        industry, sector_key = get_sector_for(stock_id)
+        # 金融/公用：經典 DCF 不適用（金融持投資組合 + 保險準備金 / 公用受費率管制 FCF 非自由）
+        if sector_key in ("financial", "utility"):
+            return {"ok": False, "reason": f"sector={sector_key} ({industry}) DCF 不適用；請改看 P/B / DDM / 殖利率"}
         wacc_info = compute_wacc(snap, rf=rf, erp=erp, rd=rd)
-        scenarios_df = run_scenarios(snap, wacc=wacc_info["WACC"])
+        # 護欄：WACC - g_term 太接近會讓 TV 爆炸 (1/分母)。觀察 1101 案例 β=0.43 → WACC=3.2%
+        # 跟 g_term=3% 只差 0.2pp → fair value 失真。強制 g_term ≤ WACC - 4pp
+        if wacc_info["WACC"] - 0.04 < 0.02:
+            return {"ok": False, "reason": f"WACC={wacc_info['WACC']*100:.2f}% 過低 (β={snap.beta:.2f})，"
+                                            "DCF terminal value 不穩定；考慮 Re/Rd 假設後再用"}
+        scenarios_df = run_scenarios(snap, wacc=wacc_info["WACC"], sector_key=sector_key)
         panel = {
             "ok": True,
             "stock_id": snap.stock_id,
             "fy_end": snap.fy_end,
+            "industry": industry,
+            "sector_key": sector_key,
             "spot": snap.close_price,
             "shares_b": snap.shares / 1e9,
             "market_cap_bn": snap.market_cap / 1e9,
@@ -380,7 +524,10 @@ def format_panel_text(panel: dict) -> str:
     sc = panel["scenarios"]
 
     lines = []
-    lines.append(f"FY base: {panel['fy_end']} | Spot: {panel['spot']:.1f} | "
+    sector_key = panel.get("sector_key", "default")
+    industry = panel.get("industry", "")
+    sector_disp = f"{sector_key} (industry={industry})" if industry else sector_key
+    lines.append(f"FY base: {panel['fy_end']} | Sector: {sector_disp} | Spot: {panel['spot']:.1f} | "
                  f"Shares: {panel['shares_b']:.2f}B | MktCap: {panel['market_cap_bn']:,.0f}億")
     lines.append(f"Debt: ST={d['ST']:.0f}億 LT={d['LT']:.0f}億 Bond={d['Bond']:.0f}億 "
                  f"(Total={d['Total']:.0f}億) | Cash={d['Cash']:.0f}億 | NetDebt={d['Net']:.0f}億")
@@ -399,7 +546,8 @@ def format_panel_text(panel: dict) -> str:
     lines.append("")
     lines.append("用法 (給 LLM 的 anchor)：")
     lines.append("  - 上方是 deterministic 兩階段 DCF，**請以此為 thesis 內的 DCF 數字基準**，不要自行腦補")
-    lines.append("  - Bull/Base/Bear 對應 g1=12/6/0%, g_term=4/3/2% (Stage-1 5 年, Stage-2 永續)")
+    lines.append(f"  - g1/g_term 按 sector={sector_key} 套用 (semi 較高, financial/utility 較低)，"
+                 "Stage-1 5 年, Stage-2 永續")
     lines.append("  - WACC=10% 等量級在台股大型股是合理區間；MOS>+20% 視為深度低估, <-20% 視為高估")
     lines.append("  - 敏感度排序：terminal g > Stage-1 g > WACC，narrative 中可指出哪個假設最影響結論")
     return "\n".join(lines)
