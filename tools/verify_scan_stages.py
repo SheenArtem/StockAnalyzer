@@ -53,6 +53,7 @@ REQUIRED_STAGES = [
     ('Options institutional archive done', r'\] Options institutional archive done'),
     ('Earnings calendar fetch done', r'\] Earnings calendar fetch done'),
     ('Whale picks done', r'\] Whale picks done'),
+    ('Whale picks alerts done', r'\] Whale picks alerts done'),
     ('Scanner finished (exit=0)', r'\] Scanner finished \(exit=0\)'),
 ]
 

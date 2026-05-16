@@ -247,6 +247,13 @@ echo [%date% %time%] Whale picks selector starting >> scanner.log
 python tools\whale_picks_screener.py --silent --push-if-month-end >> scanner.log 2>&1
 echo [%date% %time%] Whale picks done >> scanner.log
 
+REM Whale picks daily alerts (early-entry + trailing-stop).
+REM Detects rapid rank rises (outside top-100 -> top-30 in 7d) + active
+REM holdings drop >= 15%% from month-end rebalance close. Best-effort.
+echo [%date% %time%] Whale picks alerts starting >> scanner.log
+python tools\whale_picks_alerts.py >> scanner.log 2>&1
+echo [%date% %time%] Whale picks alerts done >> scanner.log
+
 REM ------------------------------------------------------------
 REM Substack sync: download new songfen articles + detect pending INDEX updates.
 REM Added 2026-04-23. Best-effort: failures do not affect scanner exit code.
