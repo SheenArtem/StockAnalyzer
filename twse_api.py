@@ -1408,6 +1408,36 @@ class TWSEOpenData:
             logger.warning("Failed to fetch TW disposition: %s", e)
             return set()
 
+    def get_tpex_disposition_stocks(self):
+        """取得當前 TPEX 上櫃普通股處置代號 set —— 目前 PLACEHOLDER 回空 set。
+
+        2026-05-16 探查 TPEX 公開 API 未果：
+          - `/openapi/v1/announce_dispose` 等多個候選 URL 全回 HTML（SPA 渲染）
+          - 沒有像 TWSE `announcement/punish` 的直接 JSON endpoint
+          - TPEX 處置股需從 https://www.tpex.org.tw/zh-tw/announce/notice/info.html
+            HTML SPA 解析或走 Selenium / Playwright
+
+        Known gap：所有 4 條 picks line (Whale / Strong / QM / Value) 對 TPEX 處置股
+        全線漏排，可能讓被處置中的 TPEX 股票進 picks list。
+        修法 TODO：考慮 Playwright 抓 HTML SPA 或 FinMind/MOPS 替代資料源。
+
+        Returns:
+            set[str]: 空 set (placeholder)；未來實作後回 active TPEX disposed stocks。
+        """
+        logger.debug("get_tpex_disposition_stocks: PLACEHOLDER returning empty set "
+                     "(known gap, see method docstring)")
+        return set()
+
+    def get_all_disposition_stocks(self):
+        """取得當前所有處置股（TWSE + TPEX）合併 set。
+
+        2026-05-16 加：TWSE 已實作、TPEX 目前 placeholder。callers 改呼叫此方法可
+        在 TPEX 補實作後自動受惠不需改各 callers。
+        """
+        tw = self.get_tw_disposition_stocks()
+        tpex = self.get_tpex_disposition_stocks()
+        return tw | tpex
+
     @staticmethod
     def _normalize_roc(roc_str):
         """將 "115/4/2" / "115/04/02" 標準化為 "115/04/02"（方便字串比較）。"""

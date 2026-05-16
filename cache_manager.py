@@ -689,8 +689,17 @@ class CacheManager:
             if last_date:
                 from tw_calendar import expected_tw_data_date
                 from datetime import time as _dtime
-                # price: 13:30 收盤後資料定案；chip: 21:00 後 margin/day_trading 發布
-                cutoff = _dtime(13, 30) if data_type == 'price' else _dtime(21, 0)
+                # 2026-05-16 修：chip 按 sub-type 分流 cutoff
+                # - price: 13:30 收盤後資料定案
+                # - inst (三大法人): 17:00 公告
+                # - margin / day_trading / sbl / shareholding: 21:00 後發布
+                # 原版一律 21:00 → 17-21 點 ad-hoc query 法人資料失準
+                if data_type == 'price':
+                    cutoff = _dtime(13, 30)
+                elif '_inst' in ticker:
+                    cutoff = _dtime(17, 0)
+                else:
+                    cutoff = _dtime(21, 0)
                 expected = expected_tw_data_date(cutoff, now)
                 if last_date.date() < expected:
                     return df, "partial", last_date

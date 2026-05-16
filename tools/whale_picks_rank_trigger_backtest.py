@@ -122,11 +122,18 @@ def run_state_machine(feat: pd.DataFrame) -> pd.DataFrame:
     """For each stock, iterate daily and apply BUY/SELL state machine.
 
     State: 'out' or 'in'
-      out -> in:  rank <= BUY_RANK
-      in -> out:  rank > SELL_RANK OR drawdown <= STOP_LOSS
+      out -> in:  yesterday's rank <= BUY_RANK (today's close as entry)
+      in -> out:  yesterday's rank > SELL_RANK OR drawdown <= STOP_LOSS (today's close as exit)
+
+    2026-05-16 修：原版用「同日 rank + 同日 close」進出場 — 但 rank 是用 EOD 13:30+chip 17:00
+    資料算的，物理上不可能在同日 close 成交。改用 rank.shift(1) 隔日決策，今日 close 成交。
+    這仍是「當日收盤可成交」假設，但 rank 計算為昨日 EOD 完整資料 → PIT-合法。
     """
     positions: List[Dict] = []
     feat = feat.sort_values(['stock_id', 'date']).reset_index(drop=True)
+
+    # PIT fix: rank 用昨日資料（在每個 stock_id group 內 shift(1)）
+    feat['rank_pit'] = feat.groupby('stock_id', sort=False)['rank'].shift(1)
 
     for sid, grp in feat.groupby('stock_id', sort=False):
         state = 'out'
@@ -134,7 +141,7 @@ def run_state_machine(feat: pd.DataFrame) -> pd.DataFrame:
         entry_price = None
         entry_rank = None
 
-        rows = grp[['date', 'Close', 'rank']].values
+        rows = grp[['date', 'Close', 'rank_pit']].values
         for date, close, rank in rows:
             if state == 'out':
                 if pd.notna(rank) and rank <= BUY_RANK and pd.notna(close):

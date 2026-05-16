@@ -162,7 +162,10 @@ def load_financials_panel(start: str, end: str) -> pd.DataFrame:
     int_exp_ttm = _col('InterestExpense_ttm')
 
     fin['cfo_to_revenue'] = cfo_ttm / rev_ttm
-    fin['cfo_to_ni'] = cfo_ttm / ni_ttm
+    # cfo_to_ni — undefined for loss-makers (NI ≤ 0)。
+    # 2026-05-16 修：原 cfo_ttm / ni_ttm 在 NI<0 時 sign-flip（23% universe rows），
+    # cash-conversion ratio 對虧損公司語義上 undefined → 用 NaN 排除而非 abs() 灌正
+    fin['cfo_to_ni'] = np.where(ni_ttm > 0, cfo_ttm / ni_ttm, np.nan)
     fin['fcf_ttm'] = cfo_ttm + capex_ttm  # capex 已是負數 → 加法
     fin['fcf_to_revenue'] = fin['fcf_ttm'] / rev_ttm
     fin['capex_intensity'] = capex_ttm.abs() / total_assets

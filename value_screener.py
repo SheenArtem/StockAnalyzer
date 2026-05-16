@@ -380,8 +380,12 @@ class ValueScreener:
         if market_df.empty:
             return pd.DataFrame()
 
-        # 排除 ETF (台股 ETF 以 "00" 開頭，如 0050/0056/0061)
-        market_df = market_df[~market_df['stock_id'].str.startswith('00')].copy()
+        # 排除 ETF (00 開頭) / 特別股 (4 位數+字母如 2881A) / 權證 (5-6 位數字) / 興櫃 (3 位數)
+        # 2026-05-16 修：原版只排 ETF，特別股 2881A/2882A 可進 Graham Value screener Top 50
+        _sid_str = market_df['stock_id'].astype(str)
+        market_df = market_df[
+            _sid_str.str.match(r'^[1-9]\d{3}$')  # 嚴格 4 位數字、不以 0 開頭
+        ].copy()
 
         # 排除處置股（TWSE 上市；TPEX 尚未實作）
         try:
