@@ -1445,6 +1445,95 @@ def render_individual():
                              margin=dict(l=20, r=20, t=50, b=60)
                          )
                          st.plotly_chart(fig_margin, width='stretch')
+
+                 # G. DCF Two-stage 估值面板 (2026-05-16 加)
+                 st.markdown("---")
+                 st.markdown("#### 💰 DCF 兩階段估值面板 (Bull / Base / Bear)")
+                 try:
+                     from tools.dcf_calculator import compute_panel
+                     with st.spinner("計算 DCF (warm 0.7s / cold 2.4s)..."):
+                         _panel = compute_panel(stock_id_pure)
+                 except Exception as e:
+                     _panel = {"ok": False, "reason": f"DCF 計算失敗: {type(e).__name__}: {e}"}
+
+                 if not _panel.get("ok"):
+                     st.info(f"⚠️ {_panel.get('reason', 'DCF 不可用')}")
+                 else:
+                     _w = _panel["wacc"]
+                     _d = _panel["debt_bn"]
+                     # Header metrics
+                     _c1, _c2, _c3, _c4 = st.columns(4)
+                     _c1.metric("現價", f"{_panel['spot']:.1f}")
+                     _c2.metric("Sector", _panel["sector_key"],
+                                help=f"industry: {_panel.get('industry', 'N/A')}")
+                     _c3.metric("WACC", f"{_w['WACC']*100:.2f}%",
+                                help=f"β={_w['beta']:.2f} Re={_w['Re']*100:.2f}% Rd={_w['Rd']*100:.2f}%")
+                     _c4.metric("Base FCF (3yr avg)", f"{_panel['fcf_base_bn']:.0f}億",
+                                help=f"FY ref: {_panel['fy_end']}")
+
+                     # Scenario table 含色彩標示
+                     _sc = pd.DataFrame(_panel["scenarios"])[
+                         ["scenario", "g1", "g_term", "FairValue_per_share", "MOS_vs_spot"]
+                     ].copy()
+                     _sc["g1"] = (_sc["g1"] * 100).map("{:.0f}%".format)
+                     _sc["g_term"] = (_sc["g_term"] * 100).map("{:.0f}%".format)
+                     _sc["FairValue_per_share"] = _sc["FairValue_per_share"].map("{:,.1f}".format)
+                     _sc["MOS_vs_spot"] = _sc["MOS_vs_spot"].map("{:+.1%}".format)
+                     _sc.columns = ["情境", "g1 (5yr)", "g_term (永續)", "Fair Value", "MOS vs Spot"]
+
+                     def _color_mos(v):
+                         try:
+                             pct = float(v.rstrip("%")) / 100
+                         except Exception:
+                             return ""
+                         if pct > 0.20:
+                             return "background-color:#d4edda; color:#155724; font-weight:bold"
+                         if pct < -0.20:
+                             return "background-color:#f8d7da; color:#721c24; font-weight:bold"
+                         return ""
+
+                     st.dataframe(
+                         _sc.style.map(_color_mos, subset=["MOS vs Spot"]),
+                         width='stretch', hide_index=True,
+                     )
+
+                     # WACC + FCF history expander
+                     with st.expander("📐 WACC 拆解 + FCF history 細節", expanded=False):
+                         st.write(
+                             f"**Re** (CAPM) = Rf {_w['rf']*100:.2f}% + β {_w['beta']:.2f} × ERP "
+                             f"{_w['erp']*100:.2f}% = **{_w['Re']*100:.2f}%**"
+                         )
+                         st.write(
+                             f"**Rd** {_w['Rd']*100:.2f}% | **ETR** {_w['ETR']*100:.1f}% | "
+                             f"**E/V** {_w['E/V']*100:.0f}% | **D/V** {_w['D/V']*100:.0f}%"
+                         )
+                         st.write(
+                             f"**有息負債**：ST {_d['ST']:.0f}億 + LT {_d['LT']:.0f}億 + "
+                             f"Bond {_d['Bond']:.0f}億 = **{_d['Total']:.0f}億** | "
+                             f"Cash {_d['Cash']:.0f}億 | Net Debt {_d['Net']:.0f}億"
+                         )
+                         _fcf = pd.DataFrame(_panel["fcf_history_bn"], columns=["year", "fcf_bn"])
+                         _fcf["year"] = _fcf["year"].astype(str)
+                         _fig_fcf = go.Figure()
+                         _fig_fcf.add_trace(go.Bar(
+                             x=_fcf["year"], y=_fcf["fcf_bn"],
+                             name="Annual FCF (億)", marker_color="#5cb85c",
+                         ))
+                         _fig_fcf.add_hline(
+                             y=_panel["fcf_base_bn"], line_dash="dash", line_color="gray",
+                             annotation_text=f"Base 3yr avg {_panel['fcf_base_bn']:.0f}億",
+                         )
+                         _fig_fcf.update_layout(
+                             height=250, yaxis_title="FCF (億)", hovermode="x",
+                             margin=dict(l=20, r=20, t=30, b=20),
+                         )
+                         st.plotly_chart(_fig_fcf, width='stretch')
+
+                     st.caption(
+                         "ℹ️ MOS = (Fair Value / Spot − 1); 綠色=深度低估 (>+20%), 紅色=高估 (<-20%). "
+                         "敏感度：terminal g > Stage-1 g > WACC; 改 g1 1pp 估值約 ±8-12%. "
+                         "金融/公用/低 β 股 DCF 不適用，此區會顯示 N/A 訊息."
+                     )
              else:
                 st.info("💡 歷史基本面圖表僅支援台股代號")
 
