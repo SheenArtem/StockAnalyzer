@@ -1,0 +1,119 @@
+# Whale Picks Phase 2 — IC Backtest Report (v2 with Stage 7+8)
+
+**Universe**: TW 1943 stocks / **Period**: 2021-01-01 ~ 2025-12-31 / **Pipeline**: stages 3-8 (full minus extensions)
+
+**Methodology**: per docs/whale_picks_spec.md v0.2 council verdict
+
+## Stage 4+5+6 — Univariate selection + Decile kill + FDR
+
+| Feature | N | IC_60d | IC_120d | p_value | FDR ✓ | P@10 | P@20 | base | Q10-Q1 | Mono | Kill ✓ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| low52w_prox_adj | 57 | -0.0668 | -0.0703 | 0.0001 | ✓ | 0.354 | 0.368 | 0.173 | 0.0081 | 0.636 | ✗ |
+| dist_52w_high | 51 | -0.0702 | -0.0847 | 0.0004 | ✓ | 0.288 | 0.283 | 0.173 | -0.0332 | -0.976 | ✓ |
+| rsi_14 | 57 | -0.0124 | 0.0073 | 0.2250 | ✗ | 0.260 | 0.254 | 0.173 | 0.0093 | 0.806 | ✗ |
+| rvol_20 | 57 | -0.0010 | -0.0017 | 0.8764 | ✗ | 0.240 | 0.248 | 0.173 | -0.0004 | 0.030 | ✗ |
+| turnover_log | 57 | -0.0812 | -0.0952 | 0.0004 | ✓ | 0.204 | 0.260 | 0.173 | -0.0263 | -0.903 | ✓ |
+| close_to_ma60 | 56 | -0.0097 | 0.0041 | 0.4908 | ✗ | 0.386 | 0.396 | 0.173 | 0.0216 | 0.939 | ✗ |
+| close_to_ma240 | 51 | -0.0103 | -0.0017 | 0.5365 | ✗ | 0.373 | 0.394 | 0.173 | 0.0199 | 0.855 | ✗ |
+| atr_ratio_20_60 | 56 | -0.0148 | -0.0132 | 0.0965 | ✗ | 0.286 | 0.289 | 0.173 | 0.0124 | 0.818 | ✗ |
+| foreign_pct | 53 | -0.0064 | 0.0058 | 0.3375 | ✗ | 0.128 | 0.124 | 0.173 | 0.0017 | 0.164 | ✗ |
+| total_pct | 53 | -0.0086 | 0.0015 | 0.2278 | ✗ | 0.121 | 0.122 | 0.173 | -0.0011 | -0.006 | ✗ |
+| foreign_net_pressure | 53 | -0.0061 | 0.0061 | 0.3557 | ✗ | 0.128 | 0.123 | 0.173 | 0.0012 | 0.261 | ✗ |
+| trust_net_pressure | 53 | -0.0074 | -0.0046 | 0.1270 | ✗ | 0.087 | 0.084 | 0.173 | nan | nan | ✗ |
+| total_net_pressure | 53 | -0.0084 | 0.0018 | 0.2373 | ✗ | 0.117 | 0.125 | 0.173 | -0.0003 | 0.115 | ✗ |
+| f_score | 55 | 0.0860 | 0.0760 | 0.0000 | ✓ | 0.160 | 0.195 | 0.173 | nan | nan | ✗ |
+| z_score | 55 | -0.0040 | -0.0099 | 0.5310 | ✗ | 0.160 | 0.190 | 0.173 | -0.0047 | -0.236 | ✗ |
+| foreign_pct_4w_delta | 52 | 0.0022 | 0.0021 | 0.7335 | ✗ | 0.112 | 0.127 | 0.173 | -0.0007 | -0.212 | ✗ |
+| foreign_pct_8w_delta | 51 | -0.0111 | -0.0075 | 0.0513 | ✗ | 0.120 | 0.126 | 0.173 | 0.0018 | -0.127 | ✗ |
+| total_pct_4w_delta | 52 | -0.0014 | -0.0012 | 0.8397 | ✗ | 0.121 | 0.130 | 0.173 | -0.0014 | -0.248 | ✗ |
+| total_pct_8w_delta | 51 | -0.0128 | -0.0100 | 0.0251 | ✓ | 0.116 | 0.129 | 0.173 | -0.0008 | -0.479 | ✗ |
+| trust_pct_4w_delta | 52 | -0.0064 | -0.0090 | 0.2129 | ✗ | 0.088 | 0.097 | 0.173 | nan | nan | ✗ |
+| foreign_net_5d_4w_sum | 53 | -0.0003 | 0.0102 | 0.9684 | ✗ | 0.126 | 0.118 | 0.173 | 0.0082 | 0.394 | ✗ |
+| foreign_net_5d_52w_z | 47 | -0.0011 | 0.0092 | 0.8613 | ✗ | 0.294 | 0.276 | 0.173 | 0.0066 | 0.261 | ✗ |
+| trust_net_5d_4w_sum | 53 | -0.0091 | -0.0073 | 0.0353 | ✓ | 0.123 | 0.117 | 0.173 | nan | nan | ✗ |
+| trust_net_5d_52w_z | 47 | -0.0054 | -0.0033 | 0.5619 | ✗ | 0.200 | 0.193 | 0.173 | -0.0054 | -0.382 | ✗ |
+| vol_compression_60_252 | 51 | -0.0230 | -0.0120 | 0.0578 | ✗ | 0.310 | 0.283 | 0.173 | 0.0063 | 0.685 | ✗ |
+| price_stability_60_252 | 51 | -0.0376 | -0.0245 | 0.0012 | ✓ | 0.220 | 0.219 | 0.173 | -0.0088 | -0.236 | ✗ |
+| vol_price_divergence | 56 | -0.0107 | -0.0258 | 0.2171 | ✗ | 0.125 | 0.137 | 0.173 | -0.0199 | -0.952 | ✗ |
+| ma60_slope_20d | 55 | 0.0039 | 0.0137 | 0.7593 | ✗ | 0.342 | 0.362 | 0.173 | 0.0219 | 0.891 | ✗ |
+| body_strength_20d | 57 | -0.0060 | -0.0046 | 0.3467 | ✗ | 0.246 | 0.242 | 0.173 | -0.0060 | -0.370 | ✗ |
+| upper_half_close_20d_pct | 57 | 0.0392 | 0.0458 | 0.0000 | ✓ | 0.082 | 0.108 | 0.173 | 0.0019 | -0.297 | ✗ |
+| stealth_volume_20d | 57 | 0.0422 | 0.0445 | 0.0002 | ✓ | 0.198 | 0.187 | 0.173 | 0.0089 | 0.879 | ✓ |
+| revenue_score | 57 | 0.0339 | 0.0283 | 0.0000 | ✓ | 0.153 | 0.158 | 0.173 | nan | nan | ✗ |
+| revenue_score_3m_delta | 57 | 0.0233 | 0.0212 | 0.0000 | ✓ | 0.146 | 0.149 | 0.173 | nan | nan | ✗ |
+| revenue_score_6m_delta | 57 | 0.0305 | 0.0454 | 0.0000 | ✓ | 0.140 | 0.155 | 0.173 | nan | nan | ✗ |
+| composite_score | 57 | 0.1406 | 0.1494 | 0.0000 | ✓ | 0.118 | 0.121 | 0.173 | 0.0476 | 0.976 | ✓ |
+| composite_wf_score | 57 | 0.0004 | 0.0013 | 0.9396 | ✗ | 0.193 | 0.192 | 0.173 | 0.0011 | -0.127 | ✗ |
+
+## Stage 7 — Walk-forward + LOOY + Cross-regime (top features)
+
+| Feature | WF IC mean | WF pos% | N wins | LOOY min | LOOY max | LOOY range | Bull IC | Bear IC | Sideways IC |
+|---|---|---|---|---|---|---|---|---|---|
+| composite_score | 0.1012 | 0.67 | 6 | 0.1309 | 0.1539 | 0.0230 | 0.1674 | 0.1564 | 0.1009 |
+| f_score | 0.0998 | 1.00 | 6 | 0.0790 | 0.0924 | 0.0133 | 0.0701 | 0.0727 | 0.1101 |
+| turnover_log | -0.0258 | 0.50 | 6 | -0.1025 | -0.0670 | 0.0355 | -0.1210 | -0.1346 | -0.0053 |
+| dist_52w_high | -0.0525 | 0.33 | 6 | -0.0823 | -0.0557 | 0.0265 | -0.0726 | -0.0617 | -0.0731 |
+| close_to_ma60 | -0.0131 | 0.33 | 6 | -0.0210 | 0.0041 | 0.0251 | -0.0331 | -0.0052 | 0.0135 |
+| close_to_ma240 | -0.0088 | 0.33 | 6 | -0.0349 | 0.0046 | 0.0394 | -0.0584 | -0.0052 | 0.0280 |
+| low52w_prox_adj | -0.0358 | 0.50 | 6 | -0.0873 | -0.0555 | 0.0318 | -0.1040 | -0.0873 | -0.0125 |
+| ma60_slope_20d | -0.0001 | 0.50 | 6 | -0.0071 | 0.0136 | 0.0207 | -0.0175 | 0.0132 | 0.0211 |
+| composite_wf_score | 0.0070 | 0.67 | 6 | -0.0014 | 0.0046 | 0.0060 | -0.0059 | 0.0069 | 0.0038 |
+
+## Stage 8 — Portfolio simulator (top-K equal weight monthly, fwd_20d hold)
+
+
+**B&H TWII baseline**: CAGR 8.68% / Sharpe 0.64 / MDD -28.92%
+
+| Strategy | N periods | Total ret | CAGR | Vol | Sharpe | MDD | Win rate |
+|---|---|---|---|---|---|---|---|
+| B&H TWII | 77 | 70.56% | 8.68% | 14.62% | 0.64 | -28.92% | 55.84% |
+| top-10 composite_score | 57 | 111.73% | 17.11% | 10.69% | 1.54 | -9.04% | 64.91% |
+| top-10 f_score | 55 | 129.30% | 19.85% | 18.44% | 1.08 | -15.69% | 61.82% |
+| top-10 turnover_log | 57 | 113.09% | 17.27% | 28.70% | 0.70 | -43.71% | 56.14% |
+| top-10 dist_52w_high | 51 | 9.30% | 2.11% | 30.20% | 0.21 | -41.78% | 49.02% |
+| top-10 close_to_ma60 | 56 | 67.41% | 11.67% | 46.57% | 0.46 | -47.29% | 50.00% |
+| top-10 close_to_ma240 | 51 | 9.78% | 2.22% | 37.25% | 0.24 | -46.48% | 49.02% |
+| top-10 low52w_prox_adj | 57 | 82.66% | 13.52% | 39.65% | 0.51 | -62.53% | 56.14% |
+| top-10 ma60_slope_20d | 55 | 5.81% | 1.24% | 41.54% | 0.24 | -33.69% | 49.09% |
+| top-10 composite_wf_score | 57 | 5.21% | 1.07% | 22.69% | 0.16 | -29.08% | 50.88% |
+| top-20 composite_score | 57 | 140.82% | 20.33% | 9.66% | 1.98 | -7.97% | 63.16% |
+| top-20 f_score | 55 | 203.73% | 27.43% | 18.61% | 1.41 | -17.35% | 67.27% |
+| top-20 turnover_log | 57 | 93.40% | 14.90% | 29.23% | 0.62 | -46.03% | 56.14% |
+| top-20 dist_52w_high | 51 | 28.71% | 6.12% | 27.30% | 0.34 | -35.49% | 49.02% |
+| top-20 close_to_ma60 | 56 | 91.28% | 14.91% | 39.35% | 0.54 | -37.76% | 58.93% |
+| top-20 close_to_ma240 | 51 | 86.07% | 15.73% | 32.83% | 0.61 | -30.27% | 52.94% |
+| top-20 low52w_prox_adj | 57 | 123.75% | 18.48% | 32.06% | 0.69 | -46.98% | 59.65% |
+| top-20 ma60_slope_20d | 55 | 24.46% | 4.89% | 36.41% | 0.31 | -26.65% | 49.09% |
+| top-20 composite_wf_score | 57 | 45.18% | 8.17% | 20.37% | 0.49 | -25.77% | 57.89% |
+
+## Kill criteria recap
+- Decile monotonicity |Spearman| ≥ 0.5 ✓
+- Decile spread (Q10-Q1) sign matches IC sign ✓
+- |IC_60d| ≥ 0.03
+- BH-FDR alpha=0.10 ✓
+
+## Final Verdict
+
+- Univariate kill + FDR passed: **4/36 features**
+- Stage 8 portfolio sim beat B&H (CAGR > 8.68%) AND Sharpe > 0.3: **11/18 strategies**
+
+**Phase 2 Verdict: PROMISING** — 11 strategies pass SOP-10 portfolio gate
+
+Winners:
+- top-10 composite_score: CAGR 17.11% / Sharpe 1.54 / MDD -9.04%
+- top-10 f_score: CAGR 19.85% / Sharpe 1.08 / MDD -15.69%
+- top-10 turnover_log: CAGR 17.27% / Sharpe 0.70 / MDD -43.71%
+- top-10 close_to_ma60: CAGR 11.67% / Sharpe 0.46 / MDD -47.29%
+- top-10 low52w_prox_adj: CAGR 13.52% / Sharpe 0.51 / MDD -62.53%
+- top-20 composite_score: CAGR 20.33% / Sharpe 1.98 / MDD -7.97%
+- top-20 f_score: CAGR 27.43% / Sharpe 1.41 / MDD -17.35%
+- top-20 turnover_log: CAGR 14.90% / Sharpe 0.62 / MDD -46.03%
+- top-20 close_to_ma60: CAGR 14.91% / Sharpe 0.54 / MDD -37.76%
+- top-20 close_to_ma240: CAGR 15.73% / Sharpe 0.61 / MDD -30.27%
+- top-20 low52w_prox_adj: CAGR 18.48% / Sharpe 0.69 / MDD -46.98%
+
+## Caveats
+- Stage 8 uses fwd_20d hold-to-month-end as simple proxy. Realistic exit (trailing stop / take profit) not modeled.
+- Survivorship: universe_tw 1972 excludes 下市 stocks → over-states alpha.
+- 4/5 years bullish (2021/2023/2024/2025 vs 2022) → cross-regime split essential to detect time-period dependency.
+- TDCC 集中度 Δ features absent (deferred to Phase 3 per SPEC §5).
