@@ -83,8 +83,9 @@ def score_universe(asof: date, lookback_days: int = LOOKBACK_DAYS) -> pd.DataFra
     universe_industry = load_universe_industry()
 
     # Use empty fwd_returns (not needed for selector)
-    fwd_returns = pd.DataFrame(columns=['stock_id', 'date', 'fwd_20d', 'fwd_60d',
-                                         'fwd_120d', 'fwd_60d_max', 'fwd_60d_min'])
+    fwd_returns = pd.DataFrame(columns=['stock_id', 'date', 'fwd_5d', 'fwd_10d',
+                                         'fwd_20d', 'fwd_60d', 'fwd_120d',
+                                         'fwd_60d_max', 'fwd_60d_min'])
 
     log.info("Building feature panel...")
     feat = build_feature_panel(indicators, smart_money, fwd_returns, quality,
@@ -253,12 +254,29 @@ def push_discord(text: str) -> bool:
     return True
 
 
+def _is_last_business_day_of_month(d: date) -> bool:
+    """Check if d is the last trading day of its month (rough: last weekday)."""
+    import calendar
+    year, month = d.year, d.month
+    # Last day of month
+    _, last = calendar.monthrange(year, month)
+    last_dt = date(year, month, last)
+    # Walk backward from last day to find last weekday
+    while last_dt.weekday() >= 5:  # 5=Sat, 6=Sun
+        from datetime import timedelta
+        last_dt = last_dt - timedelta(days=1)
+    return d == last_dt
+
+
 def main():
     parser = argparse.ArgumentParser(description="Whale Picks production selector")
     parser.add_argument('--asof', default=date.today().isoformat(),
                         help='Snapshot date YYYY-MM-DD (default today)')
     parser.add_argument('--k', type=int, default=K_DEFAULT, help='Top-K (default 20)')
-    parser.add_argument('--push', action='store_true', help='Push top-K to Discord')
+    parser.add_argument('--push', action='store_true', help='Push top-K to Discord (unconditional)')
+    parser.add_argument('--push-if-month-end', action='store_true',
+                        help='Push only on last trading day of month (daily scan compatible)')
+    parser.add_argument('--silent', action='store_true', help='Suppress top-K stdout print (for cron use)')
     args = parser.parse_args()
 
     asof = date.fromisoformat(args.asof)
@@ -271,10 +289,16 @@ def main():
 
     paths = save_outputs(top, scored, asof)
 
-    log.info("Top-%d picks:", len(top))
-    print(top.to_string(index=False))
+    if not args.silent:
+        log.info("Top-%d picks:", len(top))
+        print(top.to_string(index=False))
 
-    if args.push:
+    # Decide push: explicit --push always, --push-if-month-end conditional
+    should_push = args.push
+    if args.push_if_month_end and _is_last_business_day_of_month(asof):
+        should_push = True
+        log.info("Today (%s) is last business day of month → enabling Discord push", asof)
+    if should_push:
         msg = format_discord_message(top, asof)
         push_discord(msg)
 

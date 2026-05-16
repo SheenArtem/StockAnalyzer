@@ -236,6 +236,18 @@ echo [%date% %time%] Discord daily summary done >> scanner.log
 :skip_discord_summary
 
 REM ------------------------------------------------------------
+REM Whale Picks selector (daily silent compute + month-end Discord push).
+REM Added 2026-05-16: composite_parsi 8-factor + industry-neutral + K=20
+REM (per docs/whale_picks_spec.md v0.5).
+REM Daily compute keeps UI fresh (4/8 factors update daily: price/volume).
+REM Push only on last business day of month (matches backtest monthly rebal).
+REM Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+echo [%date% %time%] Whale picks selector starting >> scanner.log
+python tools\whale_picks_screener.py --silent --push-if-month-end >> scanner.log 2>&1
+echo [%date% %time%] Whale picks done >> scanner.log
+
+REM ------------------------------------------------------------
 REM Substack sync: download new songfen articles + detect pending INDEX updates.
 REM Added 2026-04-23. Best-effort: failures do not affect scanner exit code.
 REM ------------------------------------------------------------

@@ -419,8 +419,8 @@ def build_feature_panel(
 
     # Merge fwd_returns (exact join on stock_id+date)
     log.info("Stage 2 — Merging fwd_returns...")
-    fr = fwd_returns[['stock_id', 'date', 'fwd_20d', 'fwd_60d', 'fwd_120d',
-                       'fwd_60d_max', 'fwd_60d_min']].copy()
+    fr = fwd_returns[['stock_id', 'date', 'fwd_5d', 'fwd_10d', 'fwd_20d', 'fwd_60d',
+                       'fwd_120d', 'fwd_60d_max', 'fwd_60d_min']].copy()
     feat = feat.merge(fr, on=['stock_id', 'date'], how='left', suffixes=('', '_fr'))
 
     log.info("Feature panel: %d rows, %d cols", len(feat), len(feat.columns))
@@ -715,7 +715,8 @@ def portfolio_topk_returns(df: pd.DataFrame, feature: str, K: int, holding_perio
     Returns a pd.Series indexed by rebalance date with portfolio return.
     """
     # Map holding period to fwd column
-    fwd_col = {'M': 'fwd_20d', 'Q': 'fwd_60d', '60d': 'fwd_60d', '120d': 'fwd_120d'}.get(holding_period, 'fwd_20d')
+    fwd_col = {'M': 'fwd_20d', 'Q': 'fwd_60d', 'W': 'fwd_5d',
+                '60d': 'fwd_60d', '120d': 'fwd_120d'}.get(holding_period, 'fwd_20d')
     if fwd_col not in df.columns:
         log.warning("No %s in df, falling back to fwd_60d", fwd_col)
         fwd_col = 'fwd_60d'

@@ -111,19 +111,45 @@ def render_whale_picks() -> None:
         )
         st.caption("詳見 `docs/whale_picks_spec.md` §13 + `reports/whale_picks_phase2_v11_ind_kgrid/report_v2.md`")
 
-    # Historical snapshot picker
+    # Historical snapshots + entry/exit diff
     snapshots = _list_snapshots()
     if len(snapshots) > 1:
-        with st.expander("📅 歷史快照"):
-            picked = st.selectbox("查看歷史日期", snapshots)
+        with st.expander("📅 歷史快照 + Entry/Exit diff", expanded=True):
+            colA, colB = st.columns(2)
+            with colA:
+                pick_a = st.selectbox("基準日 (A)", snapshots, index=min(1, len(snapshots) - 1), key='whale_diff_a')
+            with colB:
+                pick_b = st.selectbox("對照日 (B)", snapshots, index=0, key='whale_diff_b')
+
             try:
-                snap_df = pd.read_parquet(SNAPSHOT_DIR / f"{picked}.parquet")
-                snap_top = snap_df.dropna(subset=['composite_parsi']).nlargest(20, 'composite_parsi')
-                cols = [c for c in show_cols if c in snap_top.columns]
-                st.dataframe(snap_top[cols].reset_index(drop=True), use_container_width=True)
+                snap_a = pd.read_parquet(SNAPSHOT_DIR / f"{pick_a}.parquet")
+                snap_b = pd.read_parquet(SNAPSHOT_DIR / f"{pick_b}.parquet")
+                top_a = set(snap_a.dropna(subset=['composite_parsi']).nlargest(20, 'composite_parsi')['stock_id'].tolist())
+                top_b = set(snap_b.dropna(subset=['composite_parsi']).nlargest(20, 'composite_parsi')['stock_id'].tolist())
+                entered = top_b - top_a
+                exited = top_a - top_b
+                kept = top_a & top_b
+
+                col_in, col_out, col_keep = st.columns(3)
+                col_in.metric("📈 新進", len(entered))
+                col_out.metric("📉 掉出", len(exited))
+                col_keep.metric("➖ 維持", len(kept))
+
+                if entered or exited:
+                    name_lookup = snap_b.drop_duplicates('stock_id').set_index('stock_id')['stock_name'].to_dict()
+                    name_lookup_a = snap_a.drop_duplicates('stock_id').set_index('stock_id')['stock_name'].to_dict()
+
+                    if entered:
+                        st.markdown(f"**📈 新進 (A→B, {len(entered)})** — 主力剛發動候選")
+                        rows_in = [{'stock_id': s, 'stock_name': name_lookup.get(s, '?')} for s in sorted(entered)]
+                        st.dataframe(pd.DataFrame(rows_in), use_container_width=True, hide_index=True)
+                    if exited:
+                        st.markdown(f"**📉 掉出 (A→B, {len(exited)})** — 觀察是否需出場")
+                        rows_out = [{'stock_id': s, 'stock_name': name_lookup_a.get(s, '?')} for s in sorted(exited)]
+                        st.dataframe(pd.DataFrame(rows_out), use_container_width=True, hide_index=True)
             except Exception as e:
-                st.error(f"快照載入失敗: {e}")
+                st.error(f"diff 計算失敗: {e}")
 
     st.caption(
-        f"資料生成於 {obj.get('asof', '?')}。下次更新：每月最末交易日（依 Task Scheduler 設定）。"
+        f"資料生成於 {obj.get('asof', '?')}。**每日自動更新**（接進 run_scanner.bat），月底自動 Discord push。"
     )
