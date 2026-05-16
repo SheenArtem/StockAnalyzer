@@ -77,8 +77,14 @@ def _render_today_signals(obj: dict) -> None:
         try:
             snap_now = pd.read_parquet(SNAPSHOT_DIR / f"{latest_d}.parquet")
             snap_prev = pd.read_parquet(SNAPSHOT_DIR / f"{prev_d}.parquet")
-            top_now = snap_now.dropna(subset=['composite_score']).nlargest(20, 'composite_score')
-            top_prev = snap_prev.dropna(subset=['composite_score']).nlargest(20, 'composite_score')
+            # 2026-05-16: composite_score 切為 default，但舊 snapshot (5e10f6e 前)
+            # 只有 composite_parsi。各 snapshot 各自選可用的 score column 排序。
+            def _pick_score_col(snap):
+                return 'composite_score' if 'composite_score' in snap.columns else 'composite_parsi'
+            score_now = _pick_score_col(snap_now)
+            score_prev = _pick_score_col(snap_prev)
+            top_now = snap_now.dropna(subset=[score_now]).nlargest(20, score_now)
+            top_prev = snap_prev.dropna(subset=[score_prev]).nlargest(20, score_prev)
             ids_now = set(top_now['stock_id'])
             ids_prev = set(top_prev['stock_id'])
             buys = ids_now - ids_prev
@@ -94,8 +100,8 @@ def _render_today_signals(obj: dict) -> None:
                 buy_rows = top_now[top_now['stock_id'].isin(buys)].copy()
                 buy_rows['信號類型'] = '🟢 BUY (新進 top-20)'
                 buy_rows = buy_rows[['信號類型', 'stock_id', 'stock_name',
-                                      'industry_category', 'composite_score', 'Close']].rename(
-                    columns={'industry_category': '產業', 'composite_score': '分數', 'Close': '當前收盤'}
+                                      'industry_category', score_now, 'Close']].rename(
+                    columns={'industry_category': '產業', score_now: '分數', 'Close': '當前收盤'}
                 )
                 buy_rows['分數'] = buy_rows['分數'].apply(lambda v: f"{v:+.2f}" if pd.notna(v) else "n/a")
                 buy_rows['當前收盤'] = buy_rows['當前收盤'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "n/a")
@@ -113,7 +119,7 @@ def _render_today_signals(obj: dict) -> None:
                             'stock_id': sid,
                             'stock_name': r.get('stock_name', '?'),
                             '產業': r.get('industry_category', ''),
-                            '前次分數': f"{r['composite_score']:+.2f}" if pd.notna(r.get('composite_score')) else "n/a",
+                            '前次分數': f"{r[score_prev]:+.2f}" if pd.notna(r.get(score_prev)) else "n/a",
                             '前次收盤': f"{r['Close']:.2f}" if pd.notna(r.get('Close')) else "n/a",
                         })
                 if sell_data:
@@ -320,8 +326,11 @@ def _render_history_diff() -> None:
         try:
             snap_a = pd.read_parquet(SNAPSHOT_DIR / f"{pick_a}.parquet")
             snap_b = pd.read_parquet(SNAPSHOT_DIR / f"{pick_b}.parquet")
-            top_a = set(snap_a.dropna(subset=['composite_score']).nlargest(20, 'composite_score')['stock_id'].tolist())
-            top_b = set(snap_b.dropna(subset=['composite_score']).nlargest(20, 'composite_score')['stock_id'].tolist())
+            # 舊 snapshot fallback：composite_score 不存在則用 composite_parsi
+            col_a = 'composite_score' if 'composite_score' in snap_a.columns else 'composite_parsi'
+            col_b = 'composite_score' if 'composite_score' in snap_b.columns else 'composite_parsi'
+            top_a = set(snap_a.dropna(subset=[col_a]).nlargest(20, col_a)['stock_id'].tolist())
+            top_b = set(snap_b.dropna(subset=[col_b]).nlargest(20, col_b)['stock_id'].tolist())
             entered = top_b - top_a
             exited = top_a - top_b
             kept = top_a & top_b
@@ -375,7 +384,7 @@ def render_whale_picks() -> None:
 
     st.warning(
         "⚠️ **SPEC §13 紅線**: 訊號為「下單參考」，**永不接自動下單**。"
-        "live 績效預期低於 backtest 誠實 Sharpe 1.01 (composite_score) / 1.49 (composite_score)，"
+        "live 績效預期低於 backtest 誠實 Sharpe 1.49 (composite_score, production default) / 1.01 (composite_parsi, backup)，"
         "建議當 Mode D 觀察候選池。"
     )
 
