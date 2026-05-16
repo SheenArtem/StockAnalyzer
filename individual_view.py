@@ -7,9 +7,9 @@
 - 基本面 (Fundamental)
 - 除息/營收 (Dividend/Revenue calendar)
 
-設計原則: 整 block 內容 wrap 進單一 render_individual(target_ticker) 函式，
-target_ticker 從 sidebar 經 arg 傳入 (sidebar 內 module-level binding)，
-維持 function-scope closure 語義不變。
+設計原則: 整 block 內容 wrap 進單一 render_individual() 函式 (no args)。
+target_ticker 從 view 頂部 3 欄輸入表單寫入 st.session_state['ticker_input']，
+本函式從 session_state 讀取；analysis_active=False 時只 render 輸入表單後 return。
 """
 
 import logging
