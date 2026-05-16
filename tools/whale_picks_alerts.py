@@ -1,17 +1,22 @@
 """
-Whale Picks Alerts — early-entry signal + trailing stop / early exit warning.
+Whale Picks Alerts — early-entry / trailing stop / mid-month BUY 三層 overlay.
 
 Runs daily after whale_picks_screener.py (in run_scanner.bat).
 
-Two alert types:
+Three alert types (2026-05-16 後從原 2 種擴充為 3 種):
 
 (A) Early-entry signal — rapid rank rise:
-    A ticker whose composite_parsi rank moved from >100 (7d ago)
+    A ticker whose composite_score rank moved from >100 (7d ago)
     to ≤30 (today) → 主力剛發動候選 → Discord push.
 
 (B) Trailing stop / early exit:
     Active holdings (last month-end's top-20) that dropped ≥ 15% from
     rebalance-day close → 不等月底才出 → Discord push.
+
+(C) Mid-month BUY 候選 (2bfacf9 新加):
+    Rank by composite_score 在 (20, 30] + 5d return ≥ 15% + 不在當前 holdings
+    → monthly rebalance 漏抓的 mid-month 爆發股 (e.g., 2344 case) → Discord push.
+    不自動進場、僅手動評估提醒。
 
 Outputs:
 - data/whale_picks/_active_holdings.json — refreshed each month-end
