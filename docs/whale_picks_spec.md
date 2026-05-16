@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.8 (production composite_score default — post 4-blocker fix 誠實 baseline) |
+| Version | 0.9 (production K=10 — K-grid 顯示 K=10 全面勝 K=20) |
 | Status | Phase 1 selector (daily scan integrated) + UI tab + Entry/Exit diff — production ready |
 | Created | 2026-05-16 |
 | Goal | 提前預測主力會選哪些股票，跟主力一起進場，瞄準 30~100% 波段獲利 |
-| Promotion gate | ✅ PASS — composite_score 7-feature industry-neutral monthly K=20 with liquidity filter **誠實 Sharpe 1.49** / MDD -12% (composite_parsi 1.01 backup) |
+| Promotion gate | ✅ PASS — composite_score 7-feature industry-neutral monthly K=10 with liquidity filter **誠實 Sharpe 1.52 / MDD -9%** (K=20 1.46/-12.7% / composite_parsi K=20 1.01 backup) |
 
 ---
 
@@ -22,6 +22,7 @@
 | 0.6 | 2026-05-16 | v13.1 eps_yoy sign-flip bug fix (commit 02f682f)：`pct_change(4)` 在 EPS 4 季前為負時翻轉符號，universe 27% 股票 yoy 被誤判（半導體 / 面板 / 鋼鐵 等 turnaround stock 系統性低估）。改 `(new - old) / |old|` 後 walk-forward 重驗：Sharpe **1.52→1.70 (+12%)**, CAGR **30.5%→41.5% (+11pp)**, MDD -12.4→-15.1% (-2.7pp trade-off)。⚠️ **後續 v13.2 audit 證實 Sharpe 1.70 仍含 look-ahead+survivor leak**，真實值見 v0.7。 |
 | 0.7 | 2026-05-16 | **v13.2 4-blocker hidden bug fix (commit aa045f6)**：4 平行 agent audit 揪出 10 bug，修 4 條 Blocker：(1) `cache_manager` 改公告窗邏輯 + USE_MOPS=false default path 接通 calendar-aware（解 user 5/5 提前公告 case）(2)(3) `whale_picks_phase2` financials/quality merge_asof 加 +45d publication delay（杜絕 45 天 fundamental look-ahead）(4) `load_universe_industry()` 切到 PIT universe 3610 檔（含 1483 已下市，修 survivor bias）。**真誠實 Sharpe**：top-20 composite_parsi **1.01** (CAGR 20.9% / MDD -20.0%)、top-20 composite_score **1.49** (CAGR 19.5% / MDD -12.3%) — 之前宣稱的 1.70 約 0.7 Sharpe 是 look-ahead+survivor 假 alpha。composite_score 抗 leak 表現遠勝 composite_parsi，建議切換 production target。 |
 | 0.8 | 2026-05-16 | **Production 切換 composite_parsi → composite_score (commit 5e10f6e)**：`whale_picks_screener.py` 加 COMPOSITE_SCORE 7-feature 權重（low52w_prox_adj / dist_52w_high / f_score / z_score / upper_half_close_20d_pct / revenue_score_6m_delta / debt_ratio），`--composite` 預設 composite_score。風格從「F+EPS 翻轉中小型」改成「pre-explosion + 估值合理 + 大型穩定」。對 2344 (4/24-5/14 +55%) 排名 (composite_parsi rank 254/855 top 30% / composite_score rank 734/856 top 86%) — 2344 已過 picks sweet spot，不入榜屬正確行為。下次 monthly rebalance (6/16) 自動受惠。BAT 排程無需改 (default 切換)。|
+| 0.9 | 2026-05-16 | **K=20 → K=10 K-grid 驗證後切換 (commit c3ff065)**：首次嚴謹 K-grid 在誠實 baseline 跑：K=10 在 4/4 metrics 全面勝 K=20 (Sharpe 1.52 vs 1.46 / MDD -9% vs -12.7% / CAGR 21.7% vs 19.3% / Win 72% vs 63%)。反直覺：通常 K 大 MDD 小，但 composite_score K=10 MDD 反而最小（top-10 是真正高品質 + K 大會稀釋）。同 commit 同步：whale_picks_alerts.py PRODUCTION_K=10 + MID_RANK_LOW/HIGH 10/20、whale_picks_view.py 全 'top-20' → 'top-10' + nlargest(20) → nlargest(10)、whale_picks_phase2.py --k-grid 加 K=25 + composite_score 那組。 |
 
 ---
 
@@ -376,15 +377,25 @@ PARSIMONIOUS_COMPOSITE = {
 
 | Setting | Value | Reason |
 |---|---|---|
-| Composite | 8-factor pre-registered (above) | Pre-registered = no IS fitting leak |
+| Composite | **7-feature composite_score primary** + 8-factor composite_parsi backup | 5e10f6e: composite_score 抗 leak Sharpe 1.49 vs parsi 1.01 |
 | Standardization | **Industry-neutral** by date×industry (Stage 3) | v11 +0.11 Sharpe vs universe-wide |
-| Rebalance | **Monthly** (month-end snapshot) | Quarterly Sharpe -49% inferior |
-| K (portfolio size) | **15-20** (or 30 for stability) | K=15 Sharpe 1.63 best, K=20 1.52, K=30 1.61 (post-liquidity) |
+| Rebalance | **Monthly** (month-end snapshot) | Quarterly Sharpe -49% inferior，bi-weekly fee-adjusted 反輸 |
+| K (portfolio size) | **K=10** (post c3ff065 K-grid) | composite_score K=10 全面勝 K=20: Sharpe 1.52 vs 1.46, MDD -9% vs -12.7% |
 | Hold | fwd_20d (one month) | Match rebalance period |
-| Universe | TW 1972 filtered to **885 liquid stocks** (avg_tv ≥ 10M TWD + Vol ≥ 300 lots) | v13 — exclude illiquid noise + manipulation risk |
+| Universe | TW 3610 PIT (含已下市) filtered to **~885 liquid stocks** (avg_tv ≥ 10M TWD + Vol ≥ 300 lots) | aa045f6 — PIT 避免 survivor bias + exclude illiquid noise |
 | Liquidity hard filter | **avg_tv_60d ≥ 10M TWD AND latest Vol ≥ 300 lots** | v13 (SPEC §3 C5 落地) — production-actionable |
 
-### Performance (v13 production top-20, 2021-2025 with liquidity filter)
+### Performance (v13.4 production K=10, 2021-2025 with liquidity filter, 誠實 baseline)
+
+**composite_score K=10** (production primary):
+- Sharpe **1.52** / CAGR **21.7%** / MDD **-9.0%** / Win rate **72%**
+- 對照 K=20: Sharpe 1.46 / MDD -12.7% / Win rate 63% — K=10 strict dominance
+
+**composite_parsi K=25-30** (backup, K-grid optimum):
+- Sharpe ~1.22 / CAGR 23.4-24.6% / MDD -15.2-15.9% / Win 58-63%
+- 對照 K=20: Sharpe 1.02
+
+### 歷史 v13 production top-20 數字 (OLD eps_yoy bug 下)
 
 | Metric | composite_parsi v13 | composite_parsi v11 (illiquid noise) | f_score (single) | B&H TWII |
 |---|---|---|---|---|

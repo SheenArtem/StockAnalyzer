@@ -384,7 +384,7 @@ def render_whale_picks() -> None:
 
     st.warning(
         "⚠️ **SPEC §13 紅線**: 訊號為「下單參考」，**永不接自動下單**。"
-        "live 績效預期低於 backtest 誠實 Sharpe 1.49 (composite_score, production default) / 1.01 (composite_parsi, backup)，"
+        "live 績效預期低於 backtest 誠實 Sharpe 1.52 (K=10 composite_score, production default) / 1.46 (K=20 對照)，"
         "建議當 Mode D 觀察候選池。"
     )
 
