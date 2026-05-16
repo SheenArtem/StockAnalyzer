@@ -65,12 +65,30 @@ COMPOSITE_PARSI = {
     'stealth_volume_20d':     +1.0,
     'capex_intensity':        -1.0,
 }
+
+# 2026-05-16 加：composite_score 用 v13.2 blocker_fix walk-forward 7-feature top-IC 權重
+# 誠實 Sharpe 1.49 (top-20) vs composite_parsi 1.01 — 抗 look-ahead leak 表現遠勝
+# 詳見 reports/whale_picks_phase2_v13_blocker_fix/report_v2.md + [[project_audit_4_blocker_fix]]
+COMPOSITE_SCORE = {
+    'low52w_prox_adj':         -0.066,
+    'dist_52w_high':           -0.071,
+    'f_score':                 +0.042,
+    'z_score':                 -0.038,
+    'upper_half_close_20d_pct': +0.051,
+    'revenue_score_6m_delta':  +0.031,
+    'debt_ratio':              +0.046,
+}
+
 K_DEFAULT = 20
 LOOKBACK_DAYS = 400  # need 252d for 52w + 60d MA buffer
 
 
 def score_universe(asof: date, lookback_days: int = LOOKBACK_DAYS) -> pd.DataFrame:
-    """Compute composite_parsi score for full universe at asof date."""
+    """Compute composite_parsi + composite_score for full universe at asof date.
+
+    2026-05-16 加：同時算 composite_score（v13.2 blocker_fix Sharpe 1.49 vs
+    composite_parsi 1.01），ranking 可二選一用。
+    """
     start = (pd.Timestamp(asof) - pd.Timedelta(days=lookback_days)).strftime('%Y-%m-%d')
     end = pd.Timestamp(asof).strftime('%Y-%m-%d')
 
@@ -96,24 +114,38 @@ def score_universe(asof: date, lookback_days: int = LOOKBACK_DAYS) -> pd.DataFra
     feat = feat.sort_values(['stock_id', 'date']).groupby('stock_id').tail(1).reset_index(drop=True)
     log.info("Universe at asof %s: %d stocks", asof, len(feat))
 
-    # Industry-neutral standardize ONLY the composite features
-    feat = winsorize_standardize(feat, list(COMPOSITE_PARSI.keys()), industry_neutral=True)
+    # Industry-neutral standardize union of both composite feature sets
+    all_features = list(set(COMPOSITE_PARSI.keys()) | set(COMPOSITE_SCORE.keys()))
+    feat = winsorize_standardize(feat, all_features, industry_neutral=True)
 
-    # Compute composite_parsi
+    # Compute composite_parsi (8-feature, legacy)
     feat['composite_parsi'] = 0.0
-    n_valid = pd.Series(0, index=feat.index)
+    n_valid_p = pd.Series(0, index=feat.index)
     for f, w in COMPOSITE_PARSI.items():
         if f not in feat.columns:
-            log.warning("  feature missing: %s", f)
+            log.warning("  composite_parsi feature missing: %s", f)
             continue
         v = feat[f].fillna(0.0)
         feat['composite_parsi'] = feat['composite_parsi'] + w * v
-        n_valid = n_valid + feat[f].notna().astype(int)
-    # Require at least 5/8 features non-null
-    feat.loc[n_valid < 5, 'composite_parsi'] = np.nan
+        n_valid_p = n_valid_p + feat[f].notna().astype(int)
+    feat.loc[n_valid_p < 5, 'composite_parsi'] = np.nan
 
-    log.info("Scored %d stocks (%d with valid composite)",
-             len(feat), feat['composite_parsi'].notna().sum())
+    # Compute composite_score (7-feature, v13.2 top-IC weights)
+    feat['composite_score'] = 0.0
+    n_valid_s = pd.Series(0, index=feat.index)
+    for f, w in COMPOSITE_SCORE.items():
+        if f not in feat.columns:
+            log.warning("  composite_score feature missing: %s", f)
+            continue
+        v = feat[f].fillna(0.0)
+        feat['composite_score'] = feat['composite_score'] + w * v
+        n_valid_s = n_valid_s + feat[f].notna().astype(int)
+    feat.loc[n_valid_s < 4, 'composite_score'] = np.nan
+
+    log.info("Scored %d stocks (parsi valid=%d, score valid=%d)",
+             len(feat),
+             feat['composite_parsi'].notna().sum(),
+             feat['composite_score'].notna().sum())
     return feat
 
 
@@ -165,14 +197,23 @@ def apply_hard_exclusions(scored: pd.DataFrame,
     return scored
 
 
-def render_top_k(scored: pd.DataFrame, K: int = K_DEFAULT) -> pd.DataFrame:
-    """Sort by composite_parsi desc, take top K with key columns."""
-    cols = ['stock_id', 'stock_name', 'industry_category', 'composite_parsi',
+def render_top_k(scored: pd.DataFrame, K: int = K_DEFAULT,
+                 composite: str = 'composite_score') -> pd.DataFrame:
+    """Sort by chosen composite desc, take top K with key columns.
+
+    2026-05-16 default 改 composite_score（誠實 Sharpe 1.49 vs composite_parsi 1.01）。
+    """
+    cols = ['stock_id', 'stock_name', 'industry_category',
+            'composite_score', 'composite_parsi',
             'f_score', 'eps_yoy', 'dist_52w_high', 'turnover_log',
             'stealth_volume_20d', 'revenue_score_6m_delta',
-            'f_score_4q_delta', 'capex_intensity', 'Close']
-    valid = scored.dropna(subset=['composite_parsi']).copy()
-    top = valid.nlargest(K, 'composite_parsi')
+            'f_score_4q_delta', 'capex_intensity',
+            'low52w_prox_adj', 'z_score', 'upper_half_close_20d_pct', 'debt_ratio',
+            'Close']
+    if composite not in ('composite_score', 'composite_parsi'):
+        raise ValueError(f"composite must be composite_score|composite_parsi, got {composite}")
+    valid = scored.dropna(subset=[composite]).copy()
+    top = valid.nlargest(K, composite)
     return top[[c for c in cols if c in top.columns]].reset_index(drop=True)
 
 
@@ -273,19 +314,45 @@ def main():
     parser.add_argument('--asof', default=date.today().isoformat(),
                         help='Snapshot date YYYY-MM-DD (default today)')
     parser.add_argument('--k', type=int, default=K_DEFAULT, help='Top-K (default 20)')
+    parser.add_argument('--composite', default='composite_score',
+                        choices=['composite_score', 'composite_parsi'],
+                        help='Ranking composite (default: composite_score, honest Sharpe 1.49)')
     parser.add_argument('--push', action='store_true', help='Push top-K to Discord (unconditional)')
     parser.add_argument('--push-if-month-end', action='store_true',
                         help='Push only on last trading day of month (daily scan compatible)')
     parser.add_argument('--silent', action='store_true', help='Suppress top-K stdout print (for cron use)')
+    parser.add_argument('--debug-ticker', default=None,
+                        help='Print rank/score for specific stock_id (e.g. 2344) for sanity check')
     args = parser.parse_args()
 
     asof = date.fromisoformat(args.asof)
-    log.info("Whale Picks screener — asof %s, K=%d", asof, args.k)
+    log.info("Whale Picks screener — asof %s, K=%d, composite=%s", asof, args.k, args.composite)
 
     scored = score_universe(asof)
     scored = attach_metadata(scored)
     scored = apply_hard_exclusions(scored)
-    top = render_top_k(scored, K=args.k)
+    top = render_top_k(scored, K=args.k, composite=args.composite)
+
+    if args.debug_ticker:
+        target = str(args.debug_ticker)
+        valid = scored.dropna(subset=[args.composite]).copy()
+        valid['rank'] = valid[args.composite].rank(ascending=False, method='min')
+        hit = valid[valid['stock_id'] == target]
+        if len(hit):
+            r = hit.iloc[0]
+            log.info("=== Debug %s ===", target)
+            log.info("  Rank: %d / %d (composite=%s)", int(r['rank']), len(valid), args.composite)
+            log.info("  composite_score = %.4f / composite_parsi = %.4f",
+                     r.get('composite_score', float('nan')),
+                     r.get('composite_parsi', float('nan')))
+            for col in ['f_score', 'eps_yoy', 'revenue_score_6m_delta', 'dist_52w_high',
+                        'low52w_prox_adj', 'z_score', 'upper_half_close_20d_pct',
+                        'debt_ratio', 'stealth_volume_20d', 'turnover_log',
+                        'capex_intensity', 'f_score_4q_delta']:
+                if col in r.index:
+                    log.info("  %s = %.4f", col, float(r.get(col, float('nan'))))
+        else:
+            log.warning("Debug ticker %s not in valid scored universe", target)
 
     paths = save_outputs(top, scored, asof)
 
