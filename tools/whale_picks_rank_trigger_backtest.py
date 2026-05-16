@@ -1,6 +1,6 @@
 """Whale Picks Rank-Trigger Backtest (v15 candidate).
 
-對照 v13 monthly rebalance (OLD Sharpe 1.52 / 02f682f 修法後 1.70 / MDD -12.4%)，測試「日頻 rank-trigger 動態進出」：
+對照 v13 monthly rebalance (OLD 1.52 / 02f682f 仍含 leak 1.70 / aa045f6 誠實 1.01 / MDD -12.4%)，測試「日頻 rank-trigger 動態進出」：
 
   BUY: 任何一天 composite_parsi rank 進入 top-20
   SELL: rank 掉出 top-30 (10-rank buffer 避免邊緣震盪)
