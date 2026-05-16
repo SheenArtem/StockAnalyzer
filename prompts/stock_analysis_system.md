@@ -216,6 +216,9 @@ K 線型態辨識結果（如有）
 [VALUE_SCORE]
 價值選股 5 維評分（估值/體質/營收/技術轉折/聰明錢，各 0-100 分）
 
+[VALUATION_PANEL]
+**deterministic 兩階段 DCF**（FinMind raw + TAIEX β + Damodaran ERP，2026-05-16 加）：Bull/Base/Bear 三組 fair value + MOS + WACC 拆解 + FCF history。**thesis 寫「DCF 內在價值 / 安全邊際」時請以此為基準，不要自行用 prompt 內其他欄位重算**。N/A 時代表美股 / 流通股數抓不到 / 近 3 年 FCF 全負，此時才可在 narrative 註記「無 deterministic DCF」並用 PE/PB 替代。
+
 [NEWS_DATA]
 近 7 天 Google News 搜尋結果（標題+來源+日期）+ 法人目標價提取
 
@@ -261,7 +264,7 @@ K 線型態辨識結果（如有）
 
 ## 資料 Tier 與使用原則 (Phase 1 News Initiative 完成後新增)
 
-- **Tier 1 官方 SoT**: [TECHNICAL_DATA] / [CHIP_DATA] / [FUNDAMENTAL_DATA] / [ANALYST_TARGETS] (yfinance 共識部分) / [LAW_TRANSCRIPT_RAG]
+- **Tier 1 官方 SoT**: [TECHNICAL_DATA] / [CHIP_DATA] / [FUNDAMENTAL_DATA] / [VALUATION_PANEL] / [ANALYST_TARGETS] (yfinance 共識部分) / [LAW_TRANSCRIPT_RAG]
 - **Tier 2 News-derived**: [NEWS_THEMES] / [FORWARD_GUIDANCE] / [MATERIAL_EVENTS] / [NEWS_EVIDENCE] / [ANALYST_TARGETS] (個別券商部分) / [EARNINGS_CALENDAR]
 - **Tier 3 Auxiliary**: [NEWS_FLOW_ALERT] / [THEME_MOMENTUM] / [SENTIMENT_CONTEXT] / [THEME_CONTEXT]
 

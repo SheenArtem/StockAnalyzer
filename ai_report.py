@@ -1382,6 +1382,30 @@ def _build_market_hedging_context():
         return f"N/A (hedging context failed: {e})"
 
 
+def _build_dcf_panel_context(ticker):
+    """[VALUATION_PANEL] 個股 Two-stage DCF (2026-05-16 加).
+
+    用 tools/dcf_calculator.compute_panel() 算 Bull/Base/Bear 三組 fair value，
+    讓 LLM 在 thesis 寫「DCF 內在價值」時有 deterministic 依據而非腦補。
+
+    僅台股 (FinMind 來源)；美股 / 流通股數 0 / FCF 全負 → return N/A 訊息。
+    敏感度：terminal g > Stage-1 g > WACC，narrative 應引用 panel 而非自算。
+    """
+    if not ticker:
+        return "N/A (no ticker)"
+    is_us = not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return "N/A (DCF panel 目前只支援台股 FinMind 來源)"
+    stock_id = ticker.replace('.TW', '')
+    try:
+        from tools.dcf_calculator import compute_panel, format_panel_text
+        panel = compute_panel(stock_id)
+        return format_panel_text(panel)
+    except Exception as e:
+        logger.warning("DCF panel context failed for %s: %s", ticker, e)
+        return f"N/A (DCF panel failed: {e})"
+
+
 def _build_sentiment_context(ticker):
     """[SENTIMENT_CONTEXT] 市場情緒 vs 個股情緒對比 (2026-05-01 Day 3 加).
 
@@ -1671,6 +1695,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     data_sections.append(f"[MARKET_CONTEXT]\n{_build_market_context(report)}")
     data_sections.append(f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}")
     data_sections.append(f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}")
+    data_sections.append(f"[VALUATION_PANEL]\n{_build_dcf_panel_context(ticker)}")
     data_sections.append(f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}")
     data_sections.append(f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}")
     data_sections.append(f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}")
@@ -1847,6 +1872,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[MARKET_CONTEXT]\n{_build_market_context(report)}",
         f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}",
         f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}",
+        f"[VALUATION_PANEL]\n{_build_dcf_panel_context(ticker)}",
         f"[NEWS_DATA]\n{_build_news_data(ticker, fund_data)}",
         f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}",
         f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}",
