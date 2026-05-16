@@ -51,6 +51,16 @@ LOOKBACK_DAYS_ENTRY = 7    # rank 比較窗
 DROP_THRESHOLD = -0.15     # -15% 觸發 exit warning
 LOOKBACK_DAYS_EXIT = 14    # 從 holding 開始最多回看 N 天
 
+# (C) Mid-month BUY candidate alert — 2026-05-16 加 (e2bdc05 + 5e10f6e 後)
+# 解 monthly rebalance 太慢、mid-month 新爆發股漏網問題（如 2344 4/24-5/14 +55%）
+MID_RANK_LOW = 20          # 不在 top-N 內 (production 已選名單)
+MID_RANK_HIGH = 30         # 但已進入 top-N (score 開始升)
+MID_5D_RET_THRESHOLD = 0.15  # 5d return ≥ 15% 才算啟動
+
+# Primary composite for ranking (2026-05-16: 切 composite_score, 舊 snap 用 composite_parsi)
+def _pick_score_col(snap: pd.DataFrame) -> str:
+    return 'composite_score' if 'composite_score' in snap.columns else 'composite_parsi'
+
 
 def _last_business_day_of_month(d: date) -> date:
     """Return last business day (Mon-Fri) of the month containing d."""
@@ -109,12 +119,15 @@ def detect_early_entries(today: date, snapshots: List[date]) -> List[Dict]:
     if snap_then is None:
         return []
 
-    # Compute rank by composite_parsi (descending = lower rank num = better)
-    snap_today = snap_today.dropna(subset=['composite_parsi']).copy()
-    snap_today['rank_now'] = snap_today['composite_parsi'].rank(ascending=False, method='min')
+    # Compute rank by primary composite (descending = lower rank num = better)
+    # 2026-05-16 切 composite_score primary，舊 snap fallback composite_parsi
+    col_today = _pick_score_col(snap_today)
+    col_then = _pick_score_col(snap_then)
+    snap_today = snap_today.dropna(subset=[col_today]).copy()
+    snap_today['rank_now'] = snap_today[col_today].rank(ascending=False, method='min')
 
-    snap_then = snap_then.dropna(subset=['composite_parsi']).copy()
-    snap_then['rank_then'] = snap_then['composite_parsi'].rank(ascending=False, method='min')
+    snap_then = snap_then.dropna(subset=[col_then]).copy()
+    snap_then['rank_then'] = snap_then[col_then].rank(ascending=False, method='min')
 
     merged = snap_today.merge(
         snap_then[['stock_id', 'rank_then']], on='stock_id', how='inner'
@@ -137,8 +150,84 @@ def detect_early_entries(today: date, snapshots: List[date]) -> List[Dict]:
             'rank_now': int(r['rank_now']),
             'rank_then': int(r['rank_then']),
             'rank_delta': int(r['rank_then'] - r['rank_now']),
-            'composite_parsi_now': float(r['composite_parsi']),
+            'composite_now': float(r[col_today]),
+            'composite_col': col_today,
             'close_now': float(r.get('Close', np.nan)),
+        })
+    return out
+
+
+# ============================================================
+# (C) Mid-month BUY candidate — score 進 top-30 但不在 top-20 + 5d 漲 ≥ 15%
+# ============================================================
+
+def detect_mid_month_buys(today: date, snapshots: List[date],
+                          holdings: Optional[Dict]) -> List[Dict]:
+    """找 score 介於 (top-20, top-30] + 5d return ≥ 15% 的「即將進入但未進」候選。
+
+    用途：monthly rebalance 漏抓 mid-month 爆發股（e.g., 2344 4/24-5/14 +55%）。
+    這 alert 不自動進場，只提醒 user 手動評估。
+
+    Criteria:
+      (1) Rank by composite_score (or composite_parsi fallback) 在 (RANK_NOW_TOP, MID_RANK_HIGH]
+      (2) Close vs Close[-5] ≥ MID_5D_RET_THRESHOLD (+15%)
+      (3) 不在當前 holdings (top-20 of last month-end) — 避免與 alerts (A) 重複
+
+    Returns:
+        List of dicts with stock_id / rank / 5d_ret / close.
+    """
+    snap_today = _load_snapshot(today)
+    if snap_today is None:
+        return []
+
+    # 5d snapshot for return calc
+    target_5d_ago = today - timedelta(days=7)  # 7 calendar days ≈ 5 trading
+    snap_5d_date = _find_snapshot_near(target_5d_ago, snapshots, tolerance_days=3)
+    if snap_5d_date is None:
+        log.info("No 5d-ago snapshot near %s; skip mid-month buy alert", target_5d_ago)
+        return []
+    snap_5d = _load_snapshot(snap_5d_date)
+    if snap_5d is None:
+        return []
+
+    # Rank by primary composite
+    col_today = _pick_score_col(snap_today)
+    snap_today = snap_today.dropna(subset=[col_today, 'Close']).copy()
+    snap_today['rank_now'] = snap_today[col_today].rank(ascending=False, method='min')
+
+    # 5d return
+    snap_5d_close = snap_5d.dropna(subset=['Close'])[['stock_id', 'Close']].rename(
+        columns={'Close': 'close_5d_ago'})
+    merged = snap_today.merge(snap_5d_close, on='stock_id', how='inner')
+    merged['ret_5d'] = merged['Close'] / merged['close_5d_ago'] - 1.0
+
+    holding_ids = set()
+    if holdings and isinstance(holdings.get('tickers'), list):
+        holding_ids = {t.get('stock_id') for t in holdings['tickers']}
+
+    candidates = merged[
+        (merged['rank_now'] > MID_RANK_LOW)
+        & (merged['rank_now'] <= MID_RANK_HIGH)
+        & (merged['ret_5d'] >= MID_5D_RET_THRESHOLD)
+        & (~merged['stock_id'].isin(holding_ids))
+    ].sort_values('ret_5d', ascending=False)
+
+    log.info("Mid-month BUY candidates %s vs %s: %d (rank %d-%d + 5d_ret>=%.0f%%)",
+             snap_5d_date, today, len(candidates),
+             MID_RANK_LOW + 1, MID_RANK_HIGH, MID_5D_RET_THRESHOLD * 100)
+
+    out = []
+    for _, r in candidates.iterrows():
+        out.append({
+            'stock_id': r['stock_id'],
+            'stock_name': r.get('stock_name', '?'),
+            'industry': r.get('industry_category', ''),
+            'rank_now': int(r['rank_now']),
+            'composite_now': float(r[col_today]),
+            'composite_col': col_today,
+            'close_now': float(r['Close']),
+            'close_5d_ago': float(r['close_5d_ago']),
+            'ret_5d': float(r['ret_5d']),
         })
     return out
 
@@ -170,7 +259,8 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
         log.warning("No snapshot for %s to update holdings", today)
         return existing
 
-    top_20 = snap.dropna(subset=['composite_parsi']).nlargest(20, 'composite_parsi')
+    score_col = _pick_score_col(snap)
+    top_20 = snap.dropna(subset=[score_col]).nlargest(20, score_col)
     holdings = {
         'rebalance_date': today.isoformat(),
         'reason': 'month_end' if is_month_end else ('forced' if force else 'bootstrap'),
@@ -180,7 +270,7 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
                 'stock_name': r.get('stock_name', '?'),
                 'industry': r.get('industry_category', ''),
                 'entry_close': float(r.get('Close', np.nan)),
-                'entry_composite': float(r['composite_parsi']),
+                'entry_composite': float(r[score_col]),
             }
             for _, r in top_20.iterrows()
         ],
@@ -235,7 +325,8 @@ def detect_early_exits(today: date, snapshots: List[date], holdings: Optional[Di
 # Discord push
 # ============================================================
 
-def format_discord_alert(entries: List[Dict], exits: List[Dict], today: date) -> str:
+def format_discord_alert(entries: List[Dict], exits: List[Dict],
+                         mid_buys: List[Dict], today: date) -> str:
     """Format alert message for Discord."""
     lines = [f"🐋 **Whale Picks 警報 ({today.isoformat()})**"]
 
@@ -247,6 +338,14 @@ def format_discord_alert(entries: List[Dict], exits: List[Dict], today: date) ->
         if len(entries) > 10:
             lines.append(f"_...另 {len(entries)-10} 檔，詳見 UI_")
 
+    if mid_buys:
+        lines.append(f"\n🚀 **Mid-month BUY 候選 — rank {MID_RANK_LOW + 1}-{MID_RANK_HIGH} + 5d 漲 ≥ {MID_5D_RET_THRESHOLD*100:.0f}%**")
+        lines.append(f"_monthly rebalance 漏抓的 mid-month 爆發候選；不自動進場，僅提醒手動評估_")
+        for m in mid_buys[:10]:
+            lines.append(f"• **{m['stock_id']}** {m['stock_name']}  rank {m['rank_now']}  5d {m['ret_5d']*100:+.1f}%  close {m['close_5d_ago']:.1f}→{m['close_now']:.1f}")
+        if len(mid_buys) > 10:
+            lines.append(f"_...另 {len(mid_buys)-10} 檔_")
+
     if exits:
         lines.append(f"\n📉 **持股早期警報 — Drawdown ≥ {abs(DROP_THRESHOLD)*100:.0f}%**")
         for x in exits[:10]:
@@ -254,10 +353,10 @@ def format_discord_alert(entries: List[Dict], exits: List[Dict], today: date) ->
         if len(exits) > 10:
             lines.append(f"_...另 {len(exits)-10} 檔_")
 
-    if not entries and not exits:
+    if not entries and not exits and not mid_buys:
         return ""  # no alerts
 
-    lines.append(f"\n_8-factor composite_parsi / informational tier / 不接 portfolio gating_")
+    lines.append(f"\n_7-feature composite_score / informational tier / 不接 portfolio gating_")
     return "\n".join(lines)
 
 
@@ -298,8 +397,9 @@ def main():
     holdings = _maybe_update_holdings(today, snapshots, force=args.update_holdings)
     entries = detect_early_entries(today, snapshots)
     exits = detect_early_exits(today, snapshots, holdings)
+    mid_buys = detect_mid_month_buys(today, snapshots, holdings)
 
-    msg = format_discord_alert(entries, exits, today)
+    msg = format_discord_alert(entries, exits, mid_buys, today)
     if not msg:
         log.info("No alerts to push")
         return
