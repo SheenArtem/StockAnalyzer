@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-05-16T16:17:12",
+  "start": "2021-01-01",
+  "end": "2026-04-30",
+  "K": 20,
+  "min_avg_tv_twd": 10000000.0,
+  "composite": {
+    "f_score": 1.0,
+    "f_score_4q_delta": 1.0,
+    "eps_yoy": 1.0,
+    "revenue_score_6m_delta": 1.0,
+    "turnover_log": -1.0,
+    "dist_52w_high": -1.0,
+    "stealth_volume_20d": 1.0,
+    "capex_intensity": -1.0
+  },
+  "standardization": "industry-neutral",
+  "with_llm_reasons": false,
+  "n_positions": 1008,
+  "n_stocks": 675,
+  "n_still_holding": 20,
+  "win_rate": 0.5168650793650794,
+  "avg_pnl_pct": 0.049793168118170535,
+  "median_pnl_pct": 0.0054884809091558795,
+  "best_pnl_pct": 3.5103856332108787,
+  "worst_pnl_pct": -0.40917429503074765,
+  "spec_note": "永遠 informational tier per docs/whale_picks_spec.md §13"
+}
