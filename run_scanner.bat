@@ -237,8 +237,9 @@ echo [%date% %time%] Discord daily summary done >> scanner.log
 
 REM ------------------------------------------------------------
 REM Whale Picks selector (daily silent compute + month-end Discord push).
-REM Added 2026-05-16: composite_parsi 8-factor + industry-neutral + K=20
-REM (per docs/whale_picks_spec.md v0.5).
+REM Added 2026-05-16: composite_score 7-feature default (Sharpe 1.49)
+REM + composite_parsi 8-factor still computed (Sharpe 1.01, secondary)
+REM (per docs/whale_picks_spec.md v0.7).
 REM Daily compute keeps UI fresh (4/8 factors update daily: price/volume).
 REM Push only on last business day of month (matches backtest monthly rebal).
 REM Best-effort: failures do not affect scanner exit.

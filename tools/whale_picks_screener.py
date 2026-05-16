@@ -54,7 +54,7 @@ from tools.whale_picks_phase2 import (
     winsorize_standardize,
 )
 
-# Production config locked per docs/whale_picks_spec.md v0.4
+# Production config locked per docs/whale_picks_spec.md v0.8 (2026-05-16 切換)
 COMPOSITE_PARSI = {
     'f_score':                +1.0,
     'f_score_4q_delta':       +1.0,
@@ -233,16 +233,20 @@ def save_outputs(top: pd.DataFrame, full: pd.DataFrame, asof: date) -> Dict[str,
     paths['latest'] = str(lp)
 
     # Top-K JSON for UI / Discord
+    # 2026-05-16: production default 切 composite_score (Sharpe 1.49 vs composite_parsi 1.01)
     json_obj = {
         'asof': asof_str,
         'universe_size': int(len(full)),
-        'valid_scored': int(full['composite_parsi'].notna().sum()),
+        'valid_scored_score': int(full['composite_score'].notna().sum()),
+        'valid_scored_parsi': int(full['composite_parsi'].notna().sum()),
         'top': top.to_dict(orient='records'),
         'config': {
-            'composite': COMPOSITE_PARSI,
+            'composite_primary': 'composite_score',
+            'weights_score': COMPOSITE_SCORE,
+            'weights_parsi': COMPOSITE_PARSI,
             'K': K_DEFAULT,
             'standardization': 'industry-neutral',
-            'spec_version': '0.4',
+            'spec_version': '0.7',
             'informational_tier': True,
         },
     }

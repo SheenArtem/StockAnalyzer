@@ -77,8 +77,8 @@ def _render_today_signals(obj: dict) -> None:
         try:
             snap_now = pd.read_parquet(SNAPSHOT_DIR / f"{latest_d}.parquet")
             snap_prev = pd.read_parquet(SNAPSHOT_DIR / f"{prev_d}.parquet")
-            top_now = snap_now.dropna(subset=['composite_parsi']).nlargest(20, 'composite_parsi')
-            top_prev = snap_prev.dropna(subset=['composite_parsi']).nlargest(20, 'composite_parsi')
+            top_now = snap_now.dropna(subset=['composite_score']).nlargest(20, 'composite_score')
+            top_prev = snap_prev.dropna(subset=['composite_score']).nlargest(20, 'composite_score')
             ids_now = set(top_now['stock_id'])
             ids_prev = set(top_prev['stock_id'])
             buys = ids_now - ids_prev
@@ -94,8 +94,8 @@ def _render_today_signals(obj: dict) -> None:
                 buy_rows = top_now[top_now['stock_id'].isin(buys)].copy()
                 buy_rows['信號類型'] = '🟢 BUY (新進 top-20)'
                 buy_rows = buy_rows[['信號類型', 'stock_id', 'stock_name',
-                                      'industry_category', 'composite_parsi', 'Close']].rename(
-                    columns={'industry_category': '產業', 'composite_parsi': '分數', 'Close': '當前收盤'}
+                                      'industry_category', 'composite_score', 'Close']].rename(
+                    columns={'industry_category': '產業', 'composite_score': '分數', 'Close': '當前收盤'}
                 )
                 buy_rows['分數'] = buy_rows['分數'].apply(lambda v: f"{v:+.2f}" if pd.notna(v) else "n/a")
                 buy_rows['當前收盤'] = buy_rows['當前收盤'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "n/a")
@@ -113,7 +113,7 @@ def _render_today_signals(obj: dict) -> None:
                             'stock_id': sid,
                             'stock_name': r.get('stock_name', '?'),
                             '產業': r.get('industry_category', ''),
-                            '前次分數': f"{r['composite_parsi']:+.2f}" if pd.notna(r.get('composite_parsi')) else "n/a",
+                            '前次分數': f"{r['composite_score']:+.2f}" if pd.notna(r.get('composite_score')) else "n/a",
                             '前次收盤': f"{r['Close']:.2f}" if pd.notna(r.get('Close')) else "n/a",
                         })
                 if sell_data:
@@ -143,7 +143,7 @@ def _render_current_holdings(obj: dict) -> None:
         return
 
     df = pd.DataFrame(top)
-    show_cols = ['stock_id', 'stock_name', 'industry_category', 'composite_parsi',
+    show_cols = ['stock_id', 'stock_name', 'industry_category', 'composite_score',
                  'f_score', 'eps_yoy', 'dist_52w_high', 'turnover_log',
                  'stealth_volume_20d', 'revenue_score_6m_delta',
                  'f_score_4q_delta', 'capex_intensity', 'Close']
@@ -153,7 +153,7 @@ def _render_current_holdings(obj: dict) -> None:
 
     if 'eps_yoy' in df_show.columns:
         df_show['eps_yoy'] = df_show['eps_yoy'].apply(lambda v: f"{v*100:+.1f}%" if pd.notna(v) else "n/a")
-    for col in ['composite_parsi', 'f_score', 'dist_52w_high', 'turnover_log',
+    for col in ['composite_score', 'f_score', 'dist_52w_high', 'turnover_log',
                 'stealth_volume_20d', 'revenue_score_6m_delta',
                 'f_score_4q_delta', 'capex_intensity']:
         if col in df_show.columns:
@@ -166,7 +166,7 @@ def _render_current_holdings(obj: dict) -> None:
         'stock_id':               '股票代號',
         'stock_name':              '股票名稱',
         'industry_category':        '產業',
-        'composite_parsi':          '綜合分數',
+        'composite_score':          '綜合分數',
         'f_score':                  'F-Score (體質)',
         'eps_yoy':                  'EPS 年增率',
         'dist_52w_high':            '距 52 週高 (反向)',
@@ -181,7 +181,7 @@ def _render_current_holdings(obj: dict) -> None:
     st.dataframe(df_show, use_container_width=True)
     st.caption(
         "**(反向)** 標記的因子：分數越**高**反而**扣分**（例：成交值大 = 大型股不利、"
-        "距 52 週高近 = 動能已盡、Capex 重 = 資本黑洞）。綜合分數已經是 8 因子加權後的結果，"
+        "距 52 週高近 = 動能已盡、Capex 重 = 資本黑洞）。綜合分數已經是 7 因子加權後的結果，"
         "正分數 = 整體 favorable。"
     )
 
@@ -294,7 +294,7 @@ def _render_trade_ledger() -> None:
         st.markdown("---")
         st.markdown(
             "**回測說明**:\n"
-            "- 每月底依 composite_parsi 排名取 top-20，連續入榜合併成 1 個 position\n"
+            "- 每月底依 composite_score 排名取 top-20，連續入榜合併成 1 個 position\n"
             "- 進場價 = 進場月底收盤；出場價 = 掉出 top-20 那個月底收盤\n"
             "- P&L = 純價格報酬 (exit/entry - 1)，**未扣手續費 + 證交稅**\n"
             "- 仍在 top-20 的最新 position 標「持有中」，不計入勝率\n"
@@ -320,8 +320,8 @@ def _render_history_diff() -> None:
         try:
             snap_a = pd.read_parquet(SNAPSHOT_DIR / f"{pick_a}.parquet")
             snap_b = pd.read_parquet(SNAPSHOT_DIR / f"{pick_b}.parquet")
-            top_a = set(snap_a.dropna(subset=['composite_parsi']).nlargest(20, 'composite_parsi')['stock_id'].tolist())
-            top_b = set(snap_b.dropna(subset=['composite_parsi']).nlargest(20, 'composite_parsi')['stock_id'].tolist())
+            top_a = set(snap_a.dropna(subset=['composite_score']).nlargest(20, 'composite_score')['stock_id'].tolist())
+            top_b = set(snap_b.dropna(subset=['composite_score']).nlargest(20, 'composite_score')['stock_id'].tolist())
             entered = top_b - top_a
             exited = top_a - top_b
             kept = top_a & top_b
@@ -354,7 +354,7 @@ def _render_history_diff() -> None:
 def render_whale_picks() -> None:
     st.title("🐋 主力選股 (Whale Picks) — BUY/SELL 訊號")
     st.caption(
-        "8-factor composite_parsi / industry-neutral / monthly rebalance K=20 / "
+        "7-feature composite_score (誠實 Sharpe 1.49) / industry-neutral / monthly rebalance K=20 / "
         "每日 alerts (急升 BUY + drawdown SELL)。"
     )
 
@@ -375,7 +375,7 @@ def render_whale_picks() -> None:
 
     st.warning(
         "⚠️ **SPEC §13 紅線**: 訊號為「下單參考」，**永不接自動下單**。"
-        "live 績效預期低於 backtest 誠實 Sharpe 1.01 (composite_parsi) / 1.49 (composite_score)，"
+        "live 績效預期低於 backtest 誠實 Sharpe 1.01 (composite_score) / 1.49 (composite_score)，"
         "建議當 Mode D 觀察候選池。"
     )
 
@@ -387,26 +387,27 @@ def render_whale_picks() -> None:
     st.divider()
     _render_history_diff()
 
-    with st.expander("ℹ️ 配置 / 方法論 (composite_parsi 8 因子)"):
+    with st.expander("ℹ️ 配置 / 方法論 (composite_score 7 因子)"):
         cfg = obj.get('config', {})
         st.markdown(f"**SPEC version**: v{cfg.get('spec_version', '?')}")
         st.markdown(f"**Standardization**: {cfg.get('standardization', '?')}")
         st.markdown(f"**K**: {cfg.get('K', '?')}")
-        st.markdown("**Composite 8-factor weights**:")
-        comp = cfg.get('composite', {})
+        st.markdown("**Composite 7-feature weights**:")
+        # config 從 v0.7 後分 weights_score / weights_parsi（向後相容 'composite'）
+        comp = cfg.get('weights_score') or cfg.get('composite', {})
         for f, w in comp.items():
             sign = "+" if w >= 0 else ""
             st.markdown(f"- `{f}`: {sign}{w}")
         st.markdown("---")
         st.markdown(
-            "**Backtest (2021-2025 OOS walk-forward, v13 production)**:\n"
-            "- Sharpe **1.52** (vs B&H TWII 0.73, f_score 1.17)\n"
-            "- CAGR **30.5%** (B&H 11.5%)\n"
-            "- MDD **-12.4%** (B&H -28.9%)\n"
-            "- WF positive windows **6/6 = 100%**\n"
-            "- Cross-regime: Bull +0.098 / Bear +0.092 / Sideways +0.095 (全正)"
+            "**Backtest (2021-2025 OOS walk-forward, v13.2 4-blocker fix 誠實 baseline)**:\n"
+            "- Sharpe **1.49** (composite_score, vs B&H TWII 0.73, composite_parsi 1.01)\n"
+            "- CAGR **19.5%** (B&H 11.5%)\n"
+            "- MDD **-12.3%** (B&H -28.9%)\n"
+            "- ⚠️ 之前宣稱 Sharpe 1.52/1.70 含 look-ahead+survivor leak (aa045f6 揭露)\n"
+            "- 詳見 `project_audit_4_blocker_fix` memory"
         )
-        st.caption("詳見 `docs/whale_picks_spec.md` §13 + `reports/whale_picks_phase2_v13_liq/report_v2.md`")
+        st.caption("詳見 `docs/whale_picks_spec.md` v0.8 + `reports/whale_picks_phase2_v13_blocker_fix/report_v2.md`")
 
     st.caption(
         f"資料生成於 {obj.get('asof', '?')}。**每日自動更新** (run_scanner.bat)，"

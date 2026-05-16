@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5 (production v13 + liquidity filter — honest Sharpe) |
+| Version | 0.8 (production composite_score default — post 4-blocker fix 誠實 baseline) |
 | Status | Phase 1 selector (daily scan integrated) + UI tab + Entry/Exit diff — production ready |
 | Created | 2026-05-16 |
 | Goal | 提前預測主力會選哪些股票，跟主力一起進場，瞄準 30~100% 波段獲利 |
-| Promotion gate | ✅ PASS — composite_parsi 8-factor industry-neutral monthly K=20 **with liquidity filter** Sharpe **1.52** / MDD -12% / WF 100% pos |
+| Promotion gate | ✅ PASS — composite_score 7-feature industry-neutral monthly K=20 with liquidity filter **誠實 Sharpe 1.49** / MDD -12% (composite_parsi 1.01 backup) |
 
 ---
 
@@ -21,6 +21,7 @@
 | 0.5 | 2026-05-16 | v13 加 liquidity filter (avg_tv_60d ≥ 10M TWD)：(a) v11 Sharpe 1.92 是 illiquid 小型股 noise 灌水 → 過濾後 honest Sharpe 1.52 (b) universe 1830→885 stocks (-52%) but CAGR 仍 30.5% (c) MDD -10→-12.4% (d) WF 仍 100% pos / cross-regime even more uniform (Bull 0.098 / Bear 0.092 / Sideways 0.095) (e) Phase 1 selector + UI tab + monthly BAT 全部接 liquidity filter; **Production verdict: PASS but Sharpe 1.52 是 honest baseline** |
 | 0.6 | 2026-05-16 | v13.1 eps_yoy sign-flip bug fix (commit 02f682f)：`pct_change(4)` 在 EPS 4 季前為負時翻轉符號，universe 27% 股票 yoy 被誤判（半導體 / 面板 / 鋼鐵 等 turnaround stock 系統性低估）。改 `(new - old) / |old|` 後 walk-forward 重驗：Sharpe **1.52→1.70 (+12%)**, CAGR **30.5%→41.5% (+11pp)**, MDD -12.4→-15.1% (-2.7pp trade-off)。⚠️ **後續 v13.2 audit 證實 Sharpe 1.70 仍含 look-ahead+survivor leak**，真實值見 v0.7。 |
 | 0.7 | 2026-05-16 | **v13.2 4-blocker hidden bug fix (commit aa045f6)**：4 平行 agent audit 揪出 10 bug，修 4 條 Blocker：(1) `cache_manager` 改公告窗邏輯 + USE_MOPS=false default path 接通 calendar-aware（解 user 5/5 提前公告 case）(2)(3) `whale_picks_phase2` financials/quality merge_asof 加 +45d publication delay（杜絕 45 天 fundamental look-ahead）(4) `load_universe_industry()` 切到 PIT universe 3610 檔（含 1483 已下市，修 survivor bias）。**真誠實 Sharpe**：top-20 composite_parsi **1.01** (CAGR 20.9% / MDD -20.0%)、top-20 composite_score **1.49** (CAGR 19.5% / MDD -12.3%) — 之前宣稱的 1.70 約 0.7 Sharpe 是 look-ahead+survivor 假 alpha。composite_score 抗 leak 表現遠勝 composite_parsi，建議切換 production target。 |
+| 0.8 | 2026-05-16 | **Production 切換 composite_parsi → composite_score (commit 5e10f6e)**：`whale_picks_screener.py` 加 COMPOSITE_SCORE 7-feature 權重（low52w_prox_adj / dist_52w_high / f_score / z_score / upper_half_close_20d_pct / revenue_score_6m_delta / debt_ratio），`--composite` 預設 composite_score。風格從「F+EPS 翻轉中小型」改成「pre-explosion + 估值合理 + 大型穩定」。對 2344 (4/24-5/14 +55%) 排名 (composite_parsi rank 254/855 top 30% / composite_score rank 734/856 top 86%) — 2344 已過 picks sweet spot，不入榜屬正確行為。下次 monthly rebalance (6/16) 自動受惠。BAT 排程無需改 (default 切換)。|
 
 ---
 
