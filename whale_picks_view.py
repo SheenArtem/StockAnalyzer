@@ -149,7 +149,7 @@ def _render_current_holdings(obj: dict) -> None:
                  'f_score_4q_delta', 'capex_intensity', 'Close']
     df_show = df[[c for c in show_cols if c in df.columns]].copy()
     df_show.index = range(1, len(df_show) + 1)
-    df_show.index.name = 'rank'
+    df_show.index.name = '排名'
 
     if 'eps_yoy' in df_show.columns:
         df_show['eps_yoy'] = df_show['eps_yoy'].apply(lambda v: f"{v*100:+.1f}%" if pd.notna(v) else "n/a")
@@ -161,7 +161,29 @@ def _render_current_holdings(obj: dict) -> None:
     if 'Close' in df_show.columns:
         df_show['Close'] = df_show['Close'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "n/a")
 
+    # 中文欄位 + 把標準化分數正負方向加進標題（負號因子加「(反向)」）
+    df_show = df_show.rename(columns={
+        'stock_id':               '股票代號',
+        'stock_name':              '股票名稱',
+        'industry_category':        '產業',
+        'composite_parsi':          '綜合分數',
+        'f_score':                  'F-Score (體質)',
+        'eps_yoy':                  'EPS 年增率',
+        'dist_52w_high':            '距 52 週高 (反向)',
+        'turnover_log':             '成交值 log (反向)',
+        'stealth_volume_20d':       '量縮爆量 (主力吸籌)',
+        'revenue_score_6m_delta':   '營收 6 月改善',
+        'f_score_4q_delta':         'F-Score 年增',
+        'capex_intensity':          'Capex 強度 (反向)',
+        'Close':                    '當前收盤',
+    })
+
     st.dataframe(df_show, use_container_width=True)
+    st.caption(
+        "**(反向)** 標記的因子：分數越**高**反而**扣分**（例：成交值大 = 大型股不利、"
+        "距 52 週高近 = 動能已盡、Capex 重 = 資本黑洞）。綜合分數已經是 8 因子加權後的結果，"
+        "正分數 = 整體 favorable。"
+    )
 
 
 # =============================================================================
