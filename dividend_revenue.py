@@ -957,6 +957,7 @@ class RevenueTracker:
                     dl, 'month_revenue', stock_id,
                     'taiwan_stock_month_revenue',
                     ttl_days=20, start_date_filter=start_date,
+                    freshness='monthly',
                 )
 
             if raw is None or raw.empty:

@@ -228,7 +228,8 @@ def _fetch_income(dl, stock_id, start_date):
         else:
             df = get_finmind_cached(dl, 'financial_statement', stock_id,
                                     'taiwan_stock_financial_statement',
-                                    ttl_days=60, start_date_filter=start_date)
+                                    ttl_days=60, start_date_filter=start_date,
+                                    freshness='quarterly')
         if df is None or df.empty:
             return None
     except Exception:
@@ -279,7 +280,8 @@ def _fetch_balance(dl, stock_id, start_date):
         else:
             df = get_finmind_cached(dl, 'balance_sheet', stock_id,
                                     'taiwan_stock_balance_sheet',
-                                    ttl_days=60, start_date_filter=start_date)
+                                    ttl_days=60, start_date_filter=start_date,
+                                    freshness='quarterly')
         if df is None or df.empty:
             return None
     except Exception:
@@ -338,7 +340,8 @@ def _fetch_cashflow(dl, stock_id, start_date):
         else:
             df = get_finmind_cached(dl, 'cash_flows_statement', stock_id,
                                     'taiwan_stock_cash_flows_statement',
-                                    ttl_days=60, start_date_filter=start_date)
+                                    ttl_days=60, start_date_filter=start_date,
+                                    freshness='quarterly')
         if df is None or df.empty:
             return None
     except Exception:

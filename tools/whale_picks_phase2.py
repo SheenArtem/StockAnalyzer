@@ -79,7 +79,21 @@ def load_quality(start: str, end: str) -> pd.DataFrame:
 
 
 def load_universe_industry() -> pd.DataFrame:
-    """Load universe with industry tag (for sector rotation features)."""
+    """Load PIT universe with industry tag — 含已下市股票避免 survivor bias。
+
+    2026-05-16 修：原版用 universe_tw.parquet（2127 檔 survivor only），
+    backtest 2021-2025 miss 掉 1483 檔當時在世後來下市的股票，是 survivor bias。
+    改用 universe_tw_pit.parquet（3610 檔含下市），OHLCV 缺資料期間自然 drop out。
+
+    PIT universe 由 tdcc_universe_download.py 產出（TDCC OpenData 1-1 證券基本資料主檔）
+    後再用 tools/build_pit_universe.py 合併 industry_category。
+    """
+    pit_path = CACHE / "universe_tw_pit.parquet"
+    if pit_path.exists():
+        df = pd.read_parquet(pit_path)
+        return df[['stock_id', 'industry_category']].drop_duplicates()
+    # Fallback: survivor-only universe (legacy, survivorship-biased)
+    log.warning("universe_tw_pit.parquet not found — fallback to survivor-only universe_tw.parquet (survivorship bias)")
     df = pd.read_parquet(CACHE / "universe_tw.parquet")
     return df[['stock_id', 'industry_category']].drop_duplicates()
 
@@ -377,9 +391,13 @@ def build_feature_panel(
     feat['trust_net_pressure'] = feat['trust_net_5d'] / feat['avg_tv_60d'].clip(lower=1)
     feat['total_net_pressure'] = feat['total_net_5d'] / feat['avg_tv_60d'].clip(lower=1)
 
-    # Merge quality (quarterly, asof)
-    log.info("Stage 2 — Merging quality scores (asof)...")
+    # Merge quality (quarterly, asof) — PIT-aware: 加 45 天 publication delay
+    # 2026-05-16 修：原邏輯 date=quarter_end 直接 backward merge → 3/31 收盤就用了 5/15 才公開
+    # 的 Q1 報，整個 fundamental feature 含 45 天 look-ahead leak。FinMind 法定揭露 deadline:
+    # Q1 5/15 / Q2 8/14 / Q3 11/14 / Q4 3/31 → 季末 + 45-92 天，保守取 +45d。
+    log.info("Stage 2 — Merging quality scores (asof, +45d publication delay)...")
     q = quality[['stock_id', 'date', 'f_score', 'z_score', 'f_score_4q_delta', 'f_score_1q_delta']].copy()
+    q['date'] = pd.to_datetime(q['date']) + pd.Timedelta(days=45)
     q = q.sort_values('date').reset_index(drop=True)
     feat = feat.sort_values('date').reset_index(drop=True)
     feat = pd.merge_asof(
@@ -403,10 +421,12 @@ def build_feature_panel(
             suffixes=('', '_rv'),
         )
 
-    # Merge financials (quarterly, asof)
+    # Merge financials (quarterly, asof) — PIT-aware: 加 45 天 publication delay
+    # 2026-05-16 修：詳見上方 quality merge 註解
     if financials is not None and not financials.empty:
-        log.info("Stage 2 — Merging financials (asof quarterly)...")
+        log.info("Stage 2 — Merging financials (asof quarterly, +45d publication delay)...")
         fn = financials.copy()
+        fn['date'] = pd.to_datetime(fn['date']) + pd.Timedelta(days=45)
         fn = fn.sort_values('date').reset_index(drop=True)
         feat = feat.sort_values('date').reset_index(drop=True)
         feat = pd.merge_asof(

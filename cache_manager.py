@@ -58,23 +58,31 @@ def set_use_mops(enabled: bool) -> None:
 # 磁碟快取顯著節省 FinMind 配額（估計 -75% 每日 SCAN 用量）
 
 def get_finmind_cached(dl, cache_key, stock_id, method_name, ttl_days,
-                       start_date_filter=None, fixed_wide_start='2015-01-01'):
+                       start_date_filter=None, fixed_wide_start='2015-01-01',
+                       freshness=None):
     """Disk-cached FinMind fetch for low-frequency datasets.
 
     永遠用 `fixed_wide_start` 抓完整歷史快取，caller 可選傳 `start_date_filter`
-    在回傳前過濾。TTL 依資料更新頻率設定：
-      - 財報（季更）: 60 days
-      - 月營收（月更）: 20 days
-      - 股利（年/半年）: 30 days
+    在回傳前過濾。
+
+    Stale check：
+      - 若 freshness='monthly' / 'quarterly'：先走 calendar-aware (publish-window) 判定，
+        兜底用 ttl_days mtime
+      - 若 freshness=None：純 mtime TTL（向後相容，但不建議用於 publish-window 類資料）
+
+    2026-05-16 修：原版純 mtime TTL 在 USE_MOPS=false default path 下完全沒 calendar-aware，
+    導致 2344 Q1 (5/5 公告) 要等 4/18+60d=6/17 才 force refresh。
+    新版接通 _is_cache_stale_quarterly/monthly 的 publish-window 邏輯。
 
     Args:
         dl: FinMindTracker (or raw DataLoader) instance
         cache_key: 快取分類鍵，例：'financial_statement' / 'month_revenue'
         stock_id: 股票代號
         method_name: dl 上的方法名，例：'taiwan_stock_financial_statement'
-        ttl_days: 快取有效天數
+        ttl_days: 兜底 mtime TTL（calendar-aware 之外的最大 age）
         start_date_filter: 呼叫端想要的起始日期（optional，讀取時過濾）
         fixed_wide_start: 快取底層一律用此起始日抓（預設 2015-01-01，涵蓋 10 年）
+        freshness: 'monthly' / 'quarterly' / None — 走 publish-window 邏輯
 
     Returns:
         DataFrame（empty 時回 pd.DataFrame()）
@@ -84,13 +92,29 @@ def get_finmind_cached(dl, cache_key, stock_id, method_name, ttl_days,
     path.parent.mkdir(parents=True, exist_ok=True)
 
     df = None
+    today = date.today()
     # 1. 嘗試讀磁碟快取
     if path.exists():
         age_days = (time.time() - path.stat().st_mtime) / 86400
-        if age_days < ttl_days:
+        is_stale = False
+        # Calendar-aware stale check first
+        if freshness in ('monthly', 'quarterly'):
+            try:
+                df_cached = pd.read_parquet(path)
+                if freshness == 'monthly':
+                    is_stale = _is_cache_stale_monthly(df_cached, today, age_days)
+                else:
+                    is_stale = _is_cache_stale_quarterly(df_cached, today, age_days)
+            except Exception:
+                is_stale = age_days >= ttl_days
+        else:
+            is_stale = age_days >= ttl_days
+
+        if not is_stale:
             try:
                 df = pd.read_parquet(path)
-                logger.debug("finmind_cache HIT %s/%s (age %.1fd)", cache_key, stock_id, age_days)
+                logger.debug("finmind_cache HIT %s/%s (age %.1fd freshness=%s)",
+                             cache_key, stock_id, age_days, freshness)
             except Exception as e:
                 logger.warning("finmind_cache read failed %s: %s", path, e)
                 df = None
@@ -130,40 +154,58 @@ def get_finmind_cached(dl, cache_key, stock_id, method_name, ttl_days,
 # Calendar-aware stale check helpers
 # ================================================================
 
-def _is_cache_stale_monthly(df: pd.DataFrame, today: date) -> bool:
-    """月營收：過本月 13 號後若 cache 缺上月資料 -> stale。"""
-    if today.day < 13:
-        return False  # 還沒到公告期，舊快取仍有效
-    last_month_date = (today.replace(day=1) - timedelta(days=1))
-    last_month_str = last_month_date.strftime("%Y-%m")
+def _is_cache_stale_monthly(df: pd.DataFrame, today: date, age_days: float = 0) -> bool:
+    """月營收：在公告窗 (10 號 deadline) 後若 cache 缺上月資料 -> stale。
+
+    台股月營收法規：每月 10 號 deadline，但實際多數公司在 1-10 號間提前公告
+    （e.g., 2344 5/5 提前公告 Q1）。原邏輯 `day < 13` 等到 13 號才檢查 → 1-12 號公告
+    全部漏網 (2026-05-16 修)。
+
+    新邏輯：每月 1 號起就進入公告窗，若 cache 缺上月資料且 mtime > 1 天就 stale。
+    """
     if "date" not in df.columns or df.empty:
         return True
+    last_month_date = (today.replace(day=1) - timedelta(days=1))
+    last_month_str = last_month_date.strftime("%Y-%m")
     try:
         cache_latest = pd.to_datetime(df["date"]).max().strftime("%Y-%m")
-        return cache_latest < last_month_str
     except Exception:
         return True
+    # 公告窗：每月 1-10 號為提前公告期 + 10-end 為 deadline 後
+    # 若 cache 缺上月且 mtime > 1 天，trigger refresh
+    if cache_latest < last_month_str and age_days > 1.0:
+        return True
+    # 兩月以上落後一律 stale (不依 age_days)
+    two_months_ago = (today.replace(day=1) - timedelta(days=1)).replace(day=1) - timedelta(days=1)
+    if cache_latest < two_months_ago.strftime("%Y-%m"):
+        return True
+    return False
 
 
-def _is_cache_stale_quarterly(df: pd.DataFrame, today: date) -> bool:
-    """財報：過已知季度 deadline + 1 天 buffer 若 cache 缺該季 -> stale。
+def _is_cache_stale_quarterly(df: pd.DataFrame, today: date, age_days: float = 0) -> bool:
+    """財報：在公告窗 (quarter_end + 30d 起到 deadline + 1d) 內 cache 缺該季 -> stale。
 
-    Deadline（台灣規定）:
-      Q4 (次年 3/31 + 1d)  -> expected 12 月底
-      Q1 (5/15 + 1d)       -> expected 3 月底
-      Q2 (8/14 + 1d)       -> expected 6 月底
-      Q3 (11/14 + 1d)      -> expected 9 月底
+    台股季報法規：
+      Q4 (次年 3/31 deadline)  -> publish window: 2/1 ~ 4/1
+      Q1 (5/15 deadline)       -> publish window: 4/30 ~ 5/16
+      Q2 (8/14 deadline)       -> publish window: 7/30 ~ 8/15
+      Q3 (11/14 deadline)      -> publish window: 10/30 ~ 11/15
 
-    Buffer 從 +7d 縮到 +1d（2026-05-16 修）：FinMind 端 ingest 速度實測 deadline 當天即入庫
-    (e.g., 2344 5/15 公告 Q1 5/16 已可抓)；+7d 把 turnaround stock 卡在 cache stale 期外，
-    導致 whale picks / scanner 用陳舊資料評分。原 +7d 等「最慢公司 ingest」過於保守。
+    bug 演進歷程：
+      v1 (~2026-04): deadline + 7d buffer → 過保守，turnaround stock 漏抓
+      v2 (2026-05-16 早): deadline + 1d → 仍只在 deadline 那天 trigger，提前公告漏網
+      v3 (2026-05-16 晚): publish-window-based → 進入窗就 daily check (本版本)
+
+    例：2344 Q1 2026 公告日 5/5 → 4/30 起進入公告窗 → 任何 5/5 後跑的 scanner
+    若 cache mtime > 1d 即 trigger refresh，能在 5/6 抓到 Q1 而非等 5/15+1d。
     """
     year = today.year
-    DEADLINES = [
-        (date(year, 4, 1),   f"{year - 1}-12"),   # Q4
-        (date(year, 5, 16),  f"{year}-03"),         # Q1
-        (date(year, 8, 15),  f"{year}-06"),         # Q2
-        (date(year, 11, 15), f"{year}-09"),         # Q3
+    # (publish_start, deadline, expected_period)
+    PUBLISH_WINDOWS = [
+        (date(year, 3, 1),   date(year, 4, 1),   f"{year - 1}-12"),  # Q4
+        (date(year, 4, 30),  date(year, 5, 16),  f"{year}-03"),       # Q1
+        (date(year, 7, 30),  date(year, 8, 15),  f"{year}-06"),       # Q2
+        (date(year, 10, 30), date(year, 11, 15), f"{year}-09"),       # Q3
     ]
     if "date" not in df.columns or df.empty:
         return True
@@ -172,15 +214,20 @@ def _is_cache_stale_quarterly(df: pd.DataFrame, today: date) -> bool:
     except Exception:
         return True
 
+    # 1. 公告窗內 (mtime > 1d) → daily check
+    for pub_start, deadline, exp_period in PUBLISH_WINDOWS:
+        if pub_start <= today <= deadline:
+            if cache_latest < exp_period and age_days > 1.0:
+                return True
+    # 2. deadline + 1d 之後 cache 仍缺 → 強制 stale（兜底）
     expected_latest = None
-    for deadline, exp_period in DEADLINES:
-        if today >= deadline:
+    for _, deadline, exp_period in PUBLISH_WINDOWS:
+        if today > deadline:
             if expected_latest is None or exp_period > expected_latest:
                 expected_latest = exp_period
-
-    if expected_latest is None:
-        return False
-    return cache_latest < expected_latest
+    if expected_latest and cache_latest < expected_latest:
+        return True
+    return False
 
 
 def _apply_date_filter(df: pd.DataFrame, start_date_filter) -> pd.DataFrame:
@@ -285,9 +332,9 @@ def get_cached_fundamentals(
         if df_cached is not None and not df_cached.empty:
             # Calendar-aware stale check
             if freshness == "monthly":
-                cache_stale = _is_cache_stale_monthly(df_cached, today)
+                cache_stale = _is_cache_stale_monthly(df_cached, today, age_days)
             elif freshness == "quarterly":
-                cache_stale = _is_cache_stale_quarterly(df_cached, today)
+                cache_stale = _is_cache_stale_quarterly(df_cached, today, age_days)
             elif freshness == "annual":
                 cache_stale = age_days > 30
             else:

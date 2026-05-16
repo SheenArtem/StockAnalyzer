@@ -312,7 +312,8 @@ def get_taiwan_stock_revenue(stock_id):
         else:
             df = get_finmind_cached(dl, 'month_revenue', stock_id,
                                     'taiwan_stock_month_revenue',
-                                    ttl_days=20, start_date_filter=start_date)
+                                    ttl_days=20, start_date_filter=start_date,
+                                    freshness='monthly')
 
         if df is not None and not df.empty:
             latest = df.iloc[-1]
@@ -384,7 +385,8 @@ def get_revenue_history(stock_id, months=36):
         else:
             df = get_finmind_cached(dl, 'month_revenue', stock_id,
                                     'taiwan_stock_month_revenue',
-                                    ttl_days=20, start_date_filter=start_date)
+                                    ttl_days=20, start_date_filter=start_date,
+                                    freshness='monthly')
         if df is not None and not df.empty:
              df['date'] = pd.to_datetime(df['date'])
              df.sort_values('date', inplace=True)
