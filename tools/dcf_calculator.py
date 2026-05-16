@@ -58,14 +58,8 @@ DEFAULT_ETR = 0.17      # 台灣 20% 公司稅但大型科技股 R&D credit 後 
 CACHE_DIR = REPO / "data_cache" / "dcf_panels"
 CACHE_TTL_DAYS = 30     # 年報只在 Q1 末更新；30 天 TTL 平衡新鮮度 vs FinMind 配額
 
-SCENARIOS = {
-    "Bull": {"g1": 0.12, "g_term": 0.04},
-    "Base": {"g1": 0.06, "g_term": 0.03},
-    "Bear": {"g1": 0.00, "g_term": 0.02},
-}
-
-# 產業分組 g1 預設（2026-05-16 加，原本一刀切 12/6/0% 對半導體保守對傳產過熱）
-# (g1, g_term) per scenario per sector
+# 產業分組 g1 預設（2026-05-16 加；舊版一刀切 12/6/0% 對半導體保守對傳產過熱）
+# (g1, g_term) per scenario per sector；default 同舊版行為
 SECTOR_SCENARIOS = {
     "semi":       {"Bull": (0.18, 0.04), "Base": (0.10, 0.03),  "Bear": (0.02,  0.02)},
     "tech":       {"Bull": (0.14, 0.04), "Base": (0.07, 0.03),  "Bear": (0.00,  0.02)},
@@ -615,8 +609,9 @@ def main():
         print(format_panel_text(panel))
         return
     snap = build_snapshot(args.stock_id, fy_end=args.fy)
+    _industry, sector_key = get_sector_for(args.stock_id)
     wacc_info = compute_wacc(snap, rf=args.rf, erp=args.erp, rd=args.rd)
-    scenarios_df = run_scenarios(snap, wacc=wacc_info["WACC"])
+    scenarios_df = run_scenarios(snap, wacc=wacc_info["WACC"], sector_key=sector_key)
     print_report(snap, wacc_info, scenarios_df)
 
 
