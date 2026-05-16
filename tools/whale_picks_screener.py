@@ -1,14 +1,15 @@
 """
 Whale Picks Screener — Phase 1 production selector.
 
-Run weekly/monthly to produce top-20 candidate list using the 8-factor composite_parsi
-locked in docs/whale_picks_spec.md v0.4.
+Run weekly/monthly to produce top-K candidate list using the 7-feature composite_score
+locked in docs/whale_picks_spec.md v0.9.
 
-Config (LOCKED per v11 backtest):
-  - 8 factors pre-registered with sign weights
+Config (LOCKED per v13_kgrid 2026-05-16):
+  - 7-feature composite_score (production primary) + 8-factor composite_parsi (backup)
   - Industry-neutral standardization (by date × industry_category)
   - Monthly rebalance
-  - K=20 top picks
+  - K=10 top picks (K-grid post-blocker-fix shows K=10 strictly dominates K=20:
+    Sharpe 1.52 vs 1.46, MDD -9% vs -12.7%, Win rate 72% vs 63%)
 
 Output:
   - data/whale_picks/latest.parquet — full universe scored
@@ -79,7 +80,11 @@ COMPOSITE_SCORE = {
     'debt_ratio':              +0.046,
 }
 
-K_DEFAULT = 20
+# 2026-05-16: K=10 切換（K-grid post-blocker-fix 顯示 K=10 全面勝 K=20）
+# composite_score K=10: Sharpe 1.52 / MDD -9% / Win rate 72%
+# composite_score K=20: Sharpe 1.46 / MDD -12.7% / Win rate 63%
+# 詳見 reports/whale_picks_phase2_v13_kgrid/stage8_portfolio.csv
+K_DEFAULT = 10
 LOOKBACK_DAYS = 400  # need 252d for 52w + 60d MA buffer
 
 
@@ -317,7 +322,7 @@ def main():
     parser = argparse.ArgumentParser(description="Whale Picks production selector")
     parser.add_argument('--asof', default=date.today().isoformat(),
                         help='Snapshot date YYYY-MM-DD (default today)')
-    parser.add_argument('--k', type=int, default=K_DEFAULT, help='Top-K (default 20)')
+    parser.add_argument('--k', type=int, default=K_DEFAULT, help='Top-K (default 10 per K-grid 2026-05-16)')
     parser.add_argument('--composite', default='composite_score',
                         choices=['composite_score', 'composite_parsi'],
                         help='Ranking composite (default: composite_score, honest Sharpe 1.49)')

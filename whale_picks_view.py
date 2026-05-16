@@ -1,8 +1,8 @@
 """Whale Picks tab — 今日 BUY/SELL 訊號 + 歷史回測表格 + Top-K 持倉清單。
 
 訊號定義 (per docs/whale_picks_spec.md v0.5)：
-  - BUY: 月底 rebalance 新進 top-20 / alerts 模組偵測 7d 急升 rank
-  - SELL: 月底 rebalance 掉出 top-20 / alerts 偵測持倉 ≥ -15% drawdown
+  - BUY: 月底 rebalance 新進 top-10 / alerts 模組偵測 7d 急升 rank
+  - SELL: 月底 rebalance 掉出 top-10 / alerts 偵測持倉 ≥ -15% drawdown
 
 ⚠️ SPEC §13 紅線：永遠不接自動下單；訊號展示用，下單由人類判斷。
 """
@@ -56,8 +56,8 @@ def _render_today_signals(obj: dict) -> None:
     """月底 rebalance 訊號 + 與上次 snapshot diff 的 BUY/SELL 列表。"""
     st.subheader("📡 今日訊號 (BUY / SELL)")
     st.caption(
-        "BUY = 月底 rebalance 新進 top-20，或 alerts 模組 7d 急升 rank。"
-        "SELL = 月底 rebalance 掉出 top-20，或 alerts 偵測持倉 -15% drawdown。"
+        "BUY = 月底 rebalance 新進 top-10，或 alerts 模組 7d 急升 rank。"
+        "SELL = 月底 rebalance 掉出 top-10，或 alerts 偵測持倉 -15% drawdown。"
         "**SPEC §13: 訊號展示用，永不自動下單。**"
     )
 
@@ -83,8 +83,8 @@ def _render_today_signals(obj: dict) -> None:
                 return 'composite_score' if 'composite_score' in snap.columns else 'composite_parsi'
             score_now = _pick_score_col(snap_now)
             score_prev = _pick_score_col(snap_prev)
-            top_now = snap_now.dropna(subset=[score_now]).nlargest(20, score_now)
-            top_prev = snap_prev.dropna(subset=[score_prev]).nlargest(20, score_prev)
+            top_now = snap_now.dropna(subset=[score_now]).nlargest(10, score_now)
+            top_prev = snap_prev.dropna(subset=[score_prev]).nlargest(10, score_prev)
             ids_now = set(top_now['stock_id'])
             ids_prev = set(top_prev['stock_id'])
             buys = ids_now - ids_prev
@@ -92,13 +92,13 @@ def _render_today_signals(obj: dict) -> None:
             holds = ids_now & ids_prev
 
             cBuy, cSell, cHold = st.columns(3)
-            cBuy.metric("🟢 BUY 訊號", len(buys), help=f"從 {prev_d} → {latest_d} 新進 top-20")
-            cSell.metric("🔴 SELL 訊號", len(sells), help=f"從 {prev_d} → {latest_d} 掉出 top-20")
+            cBuy.metric("🟢 BUY 訊號", len(buys), help=f"從 {prev_d} → {latest_d} 新進 top-10")
+            cSell.metric("🔴 SELL 訊號", len(sells), help=f"從 {prev_d} → {latest_d} 掉出 top-10")
             cHold.metric("⚪ 維持", len(holds))
 
             if buys:
                 buy_rows = top_now[top_now['stock_id'].isin(buys)].copy()
-                buy_rows['信號類型'] = '🟢 BUY (新進 top-20)'
+                buy_rows['信號類型'] = '🟢 BUY (新進 top-10)'
                 buy_rows = buy_rows[['信號類型', 'stock_id', 'stock_name',
                                       'industry_category', score_now, 'Close']].rename(
                     columns={'industry_category': '產業', score_now: '分數', 'Close': '當前收盤'}
@@ -115,7 +115,7 @@ def _render_today_signals(obj: dict) -> None:
                     if sid in prev_lookup.index:
                         r = prev_lookup.loc[sid]
                         sell_data.append({
-                            '信號類型': '🔴 SELL (掉出 top-20)',
+                            '信號類型': '🔴 SELL (掉出 top-10)',
                             'stock_id': sid,
                             'stock_name': r.get('stock_name', '?'),
                             '產業': r.get('industry_category', ''),
@@ -135,12 +135,12 @@ def _render_today_signals(obj: dict) -> None:
 
 
 # =============================================================================
-# Section 2 — 今日 Top-20 持倉清單
+# Section 2 — 今日 Top-10 持倉清單
 # =============================================================================
 
 def _render_current_holdings(obj: dict) -> None:
-    """目前 Top-20 名單 — 視同 active BUY list。"""
-    st.subheader("📋 今日 Top-20 持倉清單 (BUY List)")
+    """目前 Top-10 名單 — 視同 active BUY list。"""
+    st.subheader("📋 今日 Top-10 持倉清單 (BUY List)")
     st.caption(f"月底 rebalance 之後 → 持有至下次月底 rebalance；資料生成於 {obj.get('asof', '?')}")
 
     top = obj.get('top', [])
@@ -200,7 +200,7 @@ def _render_trade_ledger() -> None:
     """2021-2026 歷史回測：每筆 BUY/SELL position 的進出場記錄。"""
     st.subheader("📊 歷史回測訊號 (Trade Ledger)")
     st.caption(
-        "依 v13 production 策略 (monthly K=20 / industry-neutral / liquidity ≥ 10M TWD) "
+        "依 v13.4 production 策略 (monthly K=10 / industry-neutral / liquidity ≥ 10M TWD) "
         "在歷史每月底實際會發出的 BUY/SELL 訊號 — 連續持有合併為單筆 position，純價格報酬。"
     )
 
@@ -300,10 +300,10 @@ def _render_trade_ledger() -> None:
         st.markdown("---")
         st.markdown(
             "**回測說明**:\n"
-            "- 每月底依 composite_score 排名取 top-20，連續入榜合併成 1 個 position\n"
-            "- 進場價 = 進場月底收盤；出場價 = 掉出 top-20 那個月底收盤\n"
+            "- 每月底依 composite_score 排名取 top-10，連續入榜合併成 1 個 position\n"
+            "- 進場價 = 進場月底收盤；出場價 = 掉出 top-10 那個月底收盤\n"
             "- P&L = 純價格報酬 (exit/entry - 1)，**未扣手續費 + 證交稅**\n"
-            "- 仍在 top-20 的最新 position 標「持有中」，不計入勝率\n"
+            "- 仍在 top-10 的最新 position 標「持有中」，不計入勝率\n"
             "- 此為 **歷史模擬**，live 績效預期受 survivorship + regime drift 拖累"
         )
 
@@ -329,8 +329,8 @@ def _render_history_diff() -> None:
             # 舊 snapshot fallback：composite_score 不存在則用 composite_parsi
             col_a = 'composite_score' if 'composite_score' in snap_a.columns else 'composite_parsi'
             col_b = 'composite_score' if 'composite_score' in snap_b.columns else 'composite_parsi'
-            top_a = set(snap_a.dropna(subset=[col_a]).nlargest(20, col_a)['stock_id'].tolist())
-            top_b = set(snap_b.dropna(subset=[col_b]).nlargest(20, col_b)['stock_id'].tolist())
+            top_a = set(snap_a.dropna(subset=[col_a]).nlargest(10, col_a)['stock_id'].tolist())
+            top_b = set(snap_b.dropna(subset=[col_b]).nlargest(10, col_b)['stock_id'].tolist())
             entered = top_b - top_a
             exited = top_a - top_b
             kept = top_a & top_b
@@ -363,7 +363,7 @@ def _render_history_diff() -> None:
 def render_whale_picks() -> None:
     st.title("🐋 主力選股 (Whale Picks) — BUY/SELL 訊號")
     st.caption(
-        "7-feature composite_score (誠實 Sharpe 1.49) / industry-neutral / monthly rebalance K=20 / "
+        "7-feature composite_score (誠實 Sharpe 1.52 K=10) / industry-neutral / monthly rebalance K=10 / "
         "每日 alerts (急升 BUY + drawdown SELL)。"
     )
 

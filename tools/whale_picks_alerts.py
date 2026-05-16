@@ -58,8 +58,10 @@ LOOKBACK_DAYS_EXIT = 14    # 從 holding 開始最多回看 N 天
 
 # (C) Mid-month BUY candidate alert — 2026-05-16 加 (e2bdc05 + 5e10f6e 後)
 # 解 monthly rebalance 太慢、mid-month 新爆發股漏網問題（如 2344 4/24-5/14 +55%）
-MID_RANK_LOW = 20          # 不在 top-N 內 (production 已選名單)
-MID_RANK_HIGH = 30         # 但已進入 top-N (score 開始升)
+# 2026-05-16 K_DEFAULT 10 切後同步降低 thresholds: MID_RANK_LOW K_DEFAULT, HIGH 2*K
+PRODUCTION_K = 10          # 對齊 screener.py K_DEFAULT (production picks list size)
+MID_RANK_LOW = PRODUCTION_K     # 不在 top-K 內 (production 已選名單)
+MID_RANK_HIGH = 2 * PRODUCTION_K  # 但已進入 top-2K (score 開始升)
 MID_5D_RET_THRESHOLD = 0.15  # 5d return ≥ 15% 才算啟動
 
 # Primary composite for ranking (2026-05-16: 切 composite_score, 舊 snap 用 composite_parsi)
@@ -265,7 +267,7 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
         return existing
 
     score_col = _pick_score_col(snap)
-    top_20 = snap.dropna(subset=[score_col]).nlargest(20, score_col)
+    top_k = snap.dropna(subset=[score_col]).nlargest(PRODUCTION_K, score_col)
     holdings = {
         'rebalance_date': today.isoformat(),
         'reason': 'month_end' if is_month_end else ('forced' if force else 'bootstrap'),
@@ -277,7 +279,7 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
                 'entry_close': float(r.get('Close', np.nan)),
                 'entry_composite': float(r[score_col]),
             }
-            for _, r in top_20.iterrows()
+            for _, r in top_k.iterrows()
         ],
     }
     HOLDINGS_PATH.write_text(json.dumps(holdings, ensure_ascii=False, indent=2, default=str), encoding='utf-8')

@@ -278,7 +278,8 @@ def portfolio_metrics(daily_ret: pd.Series, name: str = "v15") -> Dict:
 # =============================================================================
 
 V13_REF = {
-    'strategy': 'v13 monthly K=20 (production)',
+    # 歷史對照 (OLD bug 下 baseline) — 修法後 production 改 K=10 composite_score Sharpe 1.52
+    'strategy': 'v13 monthly K=20 (OLD bug baseline, replaced by K=10 composite_score)',
     'total_return': 2.5476,    # from stage8_portfolio.csv (top-20 composite_parsi)
     'cagr': 0.3055,
     'annual_vol': 0.1888,

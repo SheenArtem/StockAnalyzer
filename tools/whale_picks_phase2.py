@@ -742,7 +742,7 @@ def portfolio_topk_returns(df: pd.DataFrame, feature: str, K: int, holding_perio
     Returns a pd.Series indexed by rebalance date with portfolio return.
     """
     # Map holding period to fwd column
-    fwd_col = {'M': 'fwd_20d', 'Q': 'fwd_60d', 'W': 'fwd_5d',
+    fwd_col = {'M': 'fwd_20d', 'Q': 'fwd_60d', 'W': 'fwd_5d', '2W': 'fwd_10d',
                 '60d': 'fwd_60d', '120d': 'fwd_120d'}.get(holding_period, 'fwd_20d')
     if fwd_col not in df.columns:
         log.warning("No %s in df, falling back to fwd_60d", fwd_col)
@@ -970,7 +970,7 @@ def main():
     parser.add_argument('--start', default='2021-01-01')
     parser.add_argument('--end', default='2025-12-31')
     parser.add_argument('--output-dir', default='reports/whale_picks_phase2_v1')
-    parser.add_argument('--rebalance-freq', default='M', help='Rebalance frequency: D / W / M / Q')
+    parser.add_argument('--rebalance-freq', default='M', help='Rebalance frequency: D / W / 2W (bi-weekly) / M / Q')
     parser.add_argument('--smoke', action='store_true', help='Smoke mode: limit to 50 sids')
     parser.add_argument('--industry-neutral', action='store_true', help='Stage 3 standardize by date+industry')
     parser.add_argument('--k-grid', action='store_true', help='Stage 8 iterate K=[5,10,15,20,30,50] for composite_parsi')
@@ -1011,12 +1011,18 @@ def main():
     feat.loc[feat['fwd_120d_max'].isna(), 'hit_30_120d'] = np.nan
 
     # Rebalance dates: filter to chosen frequency
+    # 2026-05-16 加 '2W' (bi-weekly): 用日序對 14 取整 → 每 14 個交易日換一次
     if args.rebalance_freq == 'M':
         feat['_period'] = feat['date'].dt.to_period('M')
     elif args.rebalance_freq == 'Q':
         feat['_period'] = feat['date'].dt.to_period('Q')
     elif args.rebalance_freq == 'W':
         feat['_period'] = feat['date'].dt.to_period('W')
+    elif args.rebalance_freq == '2W':
+        # Bi-weekly: 用每年第 N 週除以 2 取整作為 period
+        weeks = feat['date'].dt.isocalendar().week
+        years = feat['date'].dt.isocalendar().year
+        feat['_period'] = years.astype(str) + '-' + (weeks // 2).astype(str).str.zfill(2)
     else:
         feat['_period'] = feat['date']
     feat = feat.sort_values(['stock_id', 'date'])
@@ -1245,7 +1251,7 @@ def main():
     stage8_rows = []
     stage8_rows.append({'strategy': 'B&H TWII', **twii_metrics})
     # Annualization factor for current rebalance freq
-    freq_factor = {'M': 12, 'Q': 4, 'W': 52, 'D': 252}.get(args.rebalance_freq, 12)
+    freq_factor = {'M': 12, 'Q': 4, 'W': 52, '2W': 26, 'D': 252}.get(args.rebalance_freq, 12)
     hold_period = args.rebalance_freq
     for K in [10, 20]:
         for f in stage7_features:
@@ -1259,14 +1265,26 @@ def main():
             })
     # v11: K-grid for composite_parsi specifically
     if args.k_grid and 'composite_parsi' in feat.columns:
-        log.info("Stage 8 K-grid for composite_parsi: K=[5,15,30,50]")
-        for K in [5, 15, 30, 50]:
+        log.info("Stage 8 K-grid for composite_parsi: K=[5,15,25,30,50]")
+        for K in [5, 15, 25, 30, 50]:
             rets = portfolio_topk_returns(feat, 'composite_parsi', K, holding_period=hold_period)
             if rets.empty:
                 continue
             m = portfolio_metrics(rets, freq=freq_factor)
             stage8_rows.append({
                 'strategy': f'top-{K} composite_parsi (K-grid)',
+                **m,
+            })
+    # 2026-05-16 加：K-grid for composite_score (production primary)
+    if args.k_grid and 'composite_score' in feat.columns:
+        log.info("Stage 8 K-grid for composite_score: K=[5,15,25,30,50]")
+        for K in [5, 15, 25, 30, 50]:
+            rets = portfolio_topk_returns(feat, 'composite_score', K, holding_period=hold_period)
+            if rets.empty:
+                continue
+            m = portfolio_metrics(rets, freq=freq_factor)
+            stage8_rows.append({
+                'strategy': f'top-{K} composite_score (K-grid)',
                 **m,
             })
     stage8_df = pd.DataFrame(stage8_rows)
