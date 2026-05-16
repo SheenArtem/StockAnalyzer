@@ -44,7 +44,7 @@ def render_whale_picks() -> None:
         st.warning(
             "尚未產生 Whale Picks 名單。請先跑：\n"
             "```\npython tools/whale_picks_screener.py\n```\n"
-            "或設 Windows Task Scheduler 跑 `run_whale_picks_monthly.bat`"
+            "或等 daily scan (`run_scanner.bat`) 自動跑 — 已整合進每日 stage"
         )
         return
 

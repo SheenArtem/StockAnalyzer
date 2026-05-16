@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Version | 0.5 (production v13 + liquidity filter — honest Sharpe) |
-| Status | Phase 1 selector + UI tab + monthly BAT — production ready |
+| Status | Phase 1 selector (daily scan integrated) + UI tab + Entry/Exit diff — production ready |
 | Created | 2026-05-16 |
 | Goal | 提前預測主力會選哪些股票，跟主力一起進場，瞄準 30~100% 波段獲利 |
 | Promotion gate | ✅ PASS — composite_parsi 8-factor industry-neutral monthly K=20 **with liquidity filter** Sharpe **1.52** / MDD -12% / WF 100% pos |
