@@ -19,6 +19,7 @@
 | 0.3 | 2026-05-16 | Phase 2 backtest verdict landed — 6 iteration cycle 結論：composite_parsi 5-factor production-ready |
 | 0.4 | 2026-05-16 | 13-iter cycle complete (v1-v12)：(a) 加 eps_yoy (v7-v8) Sharpe 1.57→1.74 (b) 加 f_score_4q_delta + capex_intensity (v9-v10) Sharpe 1.74→1.81 (c) 加 industry-neutral standardization (v11) Sharpe 1.81→1.92 (d) quarterly rebal 較差 (v12 Sharpe 1.29) — monthly 確認最佳 (e) 8-factor composite_parsi locked 為 production config |
 | 0.5 | 2026-05-16 | v13 加 liquidity filter (avg_tv_60d ≥ 10M TWD)：(a) v11 Sharpe 1.92 是 illiquid 小型股 noise 灌水 → 過濾後 honest Sharpe 1.52 (b) universe 1830→885 stocks (-52%) but CAGR 仍 30.5% (c) MDD -10→-12.4% (d) WF 仍 100% pos / cross-regime even more uniform (Bull 0.098 / Bear 0.092 / Sideways 0.095) (e) Phase 1 selector + UI tab + monthly BAT 全部接 liquidity filter; **Production verdict: PASS but Sharpe 1.52 是 honest baseline** |
+| 0.6 | 2026-05-16 | v13.1 eps_yoy sign-flip bug fix (commit 02f682f)：`pct_change(4)` 在 EPS 4 季前為負時翻轉符號，universe 27% 股票 yoy 被誤判（半導體 / 面板 / 鋼鐵 等 turnaround stock 系統性低估）。改 `(new - old) / |old|` 後 walk-forward 重驗：Sharpe **1.52→1.70 (+12%)**, CAGR **30.5%→41.5% (+11pp)**, MDD -12.4→-15.1% (-2.7pp trade-off), WF pos 100%→83% (5/6) 仍合格。同 commit 修 cache_manager `_is_cache_stale_quarterly` buffer +7d→+1d，讓 5/15 截止當天即可抓 Q1 報。**新 production baseline: Sharpe 1.70** |
 
 ---
 
@@ -402,7 +403,7 @@ PARSIMONIOUS_COMPOSITE = {
 
 - v11 Sharpe 1.92 是 universe 含 illiquid 小型股 noise → backtest 抓到 ~ +0.40 Sharpe 的 illiquid risk premium
 - 但這 +0.40 Sharpe 在 production 拿不到（下單會打到 5%+ slippage、流通性不足無法執行）
-- **v13 Sharpe 1.52 是真正能執行的 alpha** — 仍遠勝 B&H 0.73 (亦更新為 0.73 因 universe 過濾後 baseline 上升)
+- **v13 Sharpe 1.52 是 OLD baseline（eps_yoy bug 下）**；commit 02f682f 修法後 **v13.1 Sharpe 1.70 是真正能執行的 alpha** — 仍遠勝 B&H 0.73 (亦更新為 0.73 因 universe 過濾後 baseline 上升)
 
 ### Key insights (從 council 預測 + 實證)
 
