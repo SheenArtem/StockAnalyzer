@@ -9,7 +9,6 @@ from technical_analysis import plot_dual_timeframe, load_and_resample, calculate
 from fundamental_analysis import get_fundamentals, get_revenue_history, get_per_history, get_financial_statements
 from ui_helpers import (
     get_chip_data_cached,
-    on_history_change,
     run_analysis,
     _ai_report_worker,
     _ai_report_job_lock,
@@ -29,9 +28,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# Sidebar
-st.sidebar.title("🔧 設定 (Settings)")
 
 # CSS 美化
 st.markdown("""
@@ -71,47 +67,11 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.header("⚙️ 設定面板")
     st.caption("Version: v2026.05.16.1")
-    
-    # input_method = "股票代號 (Ticker)" # Default, hidden
-    
-    target_ticker = "2330" # 預設值
-    uploaded_file = None
-    
-    # [NEW] Search History (Dropdown)
-    from cache_manager import CacheManager
-    cm = CacheManager()
-    cached_list = cm.list_cached_tickers()
 
-    # History Dropdown
-    if cached_list:
-        st.selectbox(
-            "🕒 歷史紀錄 (最近20筆)", 
-            options=cached_list, 
-            index=None, 
-            placeholder="選擇歷史紀錄...",
-            key='history_selected',
-            on_change=on_history_change
-        )
-
-    # Always show Ticker input
-    # Initialize session state if not present
+    # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:
         st.session_state['ticker_input'] = '2330'
-        
-    target_ticker = st.text_input("輸入股票代號 (台股請加 .TW)", 
-                                  key='ticker_input', # Bind to session state
-                                  help="例如: 2330, TSM, AAPL")
-    # CSV 上傳功能已移除，僅支援股票代號輸入
-
-    # Only Run Button remains
-    if st.button("🚀 開始分析", type="primary"):
-        st.session_state['analysis_active'] = True
-        st.session_state['force_run'] = False
-        st.session_state['app_mode'] = 'analysis'
-
-    st.markdown("---")
 
     # Mode toggle: 個股分析 / 自動選股 / 市場掃描 / AI 報告 / 強勢股報告 / 主力選股 / 總經大盤風向
     _mode_options = ['individual', 'screener', 'market_scan', 'ai_reports', 'strong_stocks', 'whale_picks', 'macro']
@@ -130,6 +90,7 @@ with st.sidebar:
         index=_mode_idx,
         key='mode_radio',
         horizontal=True,
+        label_visibility="collapsed",
     )
     if app_mode == 'screener':
         st.session_state['app_mode'] = 'screener'
@@ -293,13 +254,10 @@ elif st.session_state.get('app_mode') == 'macro':
     from macro_dashboard import render_macro_dashboard
     render_macro_dashboard()
 
-elif st.session_state.get('analysis_active', False):
-    from individual_view import render_individual
-    render_individual(target_ticker)
-
 else:
-    # 初始歡迎畫面
-    st.info("👈 請在左測試欄輸入代號並點擊「開始分析」")
+    # 個股分析（預設 tab）：輸入表單 + 分析結果都在 individual_view 內
+    from individual_view import render_individual
+    render_individual()
 
 # ====================================================================
 #  填入大盤儀表板 Banner（延後渲染，讓主內容先顯示）

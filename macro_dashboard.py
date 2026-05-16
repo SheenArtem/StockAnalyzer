@@ -320,7 +320,26 @@ def _render_systemic_chip(sys_chip: dict):
             unsafe_allow_html=True,
         )
 
-    # detail 展開
+    # detail 展開（中文化欄位 + 單位 + 說明）
+    metric_meta = {
+        # Group A
+        'foreign_holding_chg_4w_pp': ('外資持股 4 週變化', 'pp (百分點)', '0050 成分股外資持股比例 4 週淨變化；負值大 = 外資撤退'),
+        'sbl_change_4w_pct': ('借券餘額 4 週變化', '%', '可借券餘額 4 週變化；正值大 = 空方準備加碼'),
+        'foreign_fut_net_chg_4w': ('外資期貨淨部位 4 週變化', '口', '台指期 + 小台外資多空淨口數 4 週變化；負值大 = 外資轉空'),
+        # Group B
+        'margin_ratio_z_252d': ('融資維持率 z-score', 'z (252 日)', '融資維持率相對過去 252 日的 z-score；負值大 = 散戶資金緊'),
+        'short_to_long_ratio': ('券資比', '比', '融券餘額 ÷ 融資餘額；上升 = 空方相對強'),
+        # Group C
+        'trust_buy_streak': ('投信連續買賣超', '天', '正 = 連續買超天數，負 = 連續賣超天數'),
+        'trust_5d_zscore': ('投信 5 日量能 z-score', 'z', '投信近 5 日買賣超強度；極端負值 = 投信撤退'),
+        # Group D
+        'pcr_oi': ('Put/Call 未平倉比', '比', '臺指選擇權 Put/Call 未平倉比；>1.2 = 避險升溫'),
+        'option_top1_concentration': ('選擇權大戶前 1 集中度', '%', '前 1 大交易人未平倉佔比；過高 = 單一籌碼風險'),
+        # Group E
+        'hyg_volume_z_252d': ('HYG 成交量 z-score', 'z (252 日)', '美國高收益債 ETF 成交量 z-score；極端值 = 信用流動性事件'),
+        'tlt_spy_chg_4w_pct': ('TLT/SPY 比 4 週變化', '%', '長債 / 股票相對表現 4 週變化；正值 = risk-off'),
+    }
+
     with st.expander("詳細數據"):
         rows = []
         for key, name, _ in groups:
@@ -328,7 +347,18 @@ def _render_systemic_chip(sys_chip: dict):
             for k, v in g.items():
                 if k in ('flag', 'reason'):
                     continue
-                rows.append({"組": name, "指標": k, "值": v})
+                label, unit, desc = metric_meta.get(k, (k, '', ''))
+                try:
+                    val_str = f"{float(v):.3f}" if v is not None else "—"
+                except (TypeError, ValueError):
+                    val_str = str(v) if v is not None else "—"
+                rows.append({
+                    "組": name,
+                    "指標": label,
+                    "值": val_str,
+                    "單位": unit,
+                    "說明": desc,
+                })
         if rows:
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
@@ -616,17 +646,18 @@ def _render_credit_cycle(macro: dict):
         tw_cols[2].caption(f"資料日期：{_fmt_date(last_dt)}")
 
         with st.expander("LEI 7 components 詳細數據"):
-            comp_labels = {
-                'leading_export_order_idx': '外銷訂單動向指數',
-                'leading_m1b': '貨幣總計數 M1B',
-                'leading_stock_price_idx': '股價指數',
-                'leading_employee_entry_rt': '員工淨進入率',
-                'leading_building_area': '建築開工樓地板面積',
-                'leading_semi_equip_import': '半導體設備進口值',
-                'leading_mfg_climate': '製造業營業氣候測驗點',
+            # (中文名, 單位, 說明)
+            comp_meta = {
+                'leading_export_order_idx': ('外銷訂單動向指數', '指數', '製造業外銷訂單動向；>50 = 擴張，<50 = 收縮'),
+                'leading_m1b': ('貨幣總計數 M1B', '百萬元', 'M1A + 活期儲蓄存款；上升 = 資金寬鬆'),
+                'leading_stock_price_idx': ('股價指數', '點 (月平均)', '台股加權股價月平均；領先實體經濟 6-9 個月'),
+                'leading_employee_entry_rt': ('工業/服務業員工淨進入率', '%', '進入率 - 退出率；正值 = 就業擴張'),
+                'leading_building_area': ('建築物開工樓地板面積', '千平方公尺', '新建案開工面積；上升 = 房市/營建活絡'),
+                'leading_semi_equip_import': ('半導體設備進口值', '萬美元', '半導體業資本支出 proxy；上升 = 廠商擴產'),
+                'leading_mfg_climate': ('製造業營業氣候測驗點', '燈號分數', 'TIER 製造業景氣燈號；5=紅燈過熱 / 1=藍燈低迷'),
             }
             rows = []
-            for k, name in comp_labels.items():
+            for k, (name, unit, desc) in comp_meta.items():
                 v = last_tw.get(k)
                 if v is None or pd.isna(v):
                     continue
@@ -635,10 +666,18 @@ def _render_credit_cycle(macro: dict):
                     yoy_c = (v / prev - 1) * 100 if prev and prev != 0 else None
                 else:
                     yoy_c = None
+                # 大數字加千分位，小數字保留兩位
+                fv = float(v)
+                if abs(fv) >= 1000:
+                    val_str = f"{fv:,.0f}"
+                else:
+                    val_str = f"{fv:,.2f}"
                 rows.append({
-                    "components": name,
-                    "value": round(float(v), 2),
+                    "項目": name,
+                    "數值": val_str,
+                    "單位": unit,
                     "YoY %": f"{yoy_c:+.2f}" if yoy_c is not None else "n/a",
+                    "說明": desc,
                 })
             if rows:
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)

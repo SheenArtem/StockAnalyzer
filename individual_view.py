@@ -28,6 +28,7 @@ from ui_helpers import (
     _theme_tags_short,
     _wc_tags_short,
     get_chip_data_cached,
+    on_history_change,
     run_analysis,
     validate_ticker,
 )
@@ -35,18 +36,63 @@ from ui_helpers import (
 logger = logging.getLogger(__name__)
 
 
-def render_individual(target_ticker):
+def render_individual():
     """渲染個股分析模式 (5 tabs)。
 
-    Args:
-        target_ticker: ticker symbol from sidebar (st.session_state['ticker_input'])
+    Ticker / 歷史紀錄 / 開始分析按鈕都在本 view 頂部，避免左側面板擁擠。
     """
+    # ==========================================
+    # 輸入表單區（從左側面板搬到 view 內部）
+    # ==========================================
+    if 'ticker_input' not in st.session_state:
+        st.session_state['ticker_input'] = '2330'
+
+    from cache_manager import CacheManager
+    _cm = CacheManager()
+    _cached_list = _cm.list_cached_tickers()
+
+    _col_hist, _col_ticker, _col_btn = st.columns([2, 2, 1])
+    with _col_hist:
+        if _cached_list:
+            st.selectbox(
+                "🕒 歷史紀錄 (最近20筆)",
+                options=_cached_list,
+                index=None,
+                placeholder="選擇歷史紀錄...",
+                key='history_selected',
+                on_change=on_history_change,
+            )
+        else:
+            st.caption("（尚無歷史紀錄）")
+    with _col_ticker:
+        st.text_input(
+            "輸入股票代號",
+            key='ticker_input',
+            help="例如: 2330, TSM, AAPL",
+        )
+    with _col_btn:
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        if st.button("🚀 開始分析", type="primary", use_container_width=True):
+            st.session_state['analysis_active'] = True
+            st.session_state['force_run'] = False
+            st.session_state['app_mode'] = 'analysis'
+            # 清 session 快取：強制重跑 run_analysis（但 disk cache 仍 incremental），
+            # 避免今天稍早跑過、figures 被定格在昨天的情況
+            st.session_state.pop('_individual_cache', None)
+            st.rerun()
+
+    # 未啟動分析 → 只保留輸入表單，return
+    if not st.session_state.get('analysis_active', False):
+        return
+
+    target_ticker = st.session_state.get('ticker_input', '').strip()
+
     # 決定資料來源
     source = None
     display_ticker = ""
     # Use session state for force if available, else False
     is_force = st.session_state.get('force_run', False)
-    
+
     if target_ticker:
         # 驗證輸入
         is_valid, err_msg = validate_ticker(target_ticker)
@@ -458,15 +504,26 @@ def render_individual(target_ticker):
         tab1, tab2, tab3, tab4, tab6 = st.tabs(
             ["週K", "日K", "籌碼面", "🏢 基本面", "📊 除息/營收"])
 
+        # TradingView/三竹 風格的互動：滾輪縮放 + 拖曳平移 + 清理 modebar
+        _kline_config = {
+            'scrollZoom': True,
+            'displaylogo': False,
+            'doubleClick': 'reset',
+            'modeBarButtonsToRemove': [
+                'lasso2d', 'select2d', 'autoScale2d', 'toggleSpikelines',
+                'hoverClosestCartesian', 'hoverCompareCartesian',
+            ],
+        }
+
         with tab1:
             if 'Weekly' in figures:
-                st.plotly_chart(figures['Weekly'], width='stretch')
+                st.plotly_chart(figures['Weekly'], width='stretch', config=_kline_config)
             else:
                 st.warning("⚠️ 無法產生週線圖表 (請查看上方錯誤訊息)")
 
         with tab2:
             if 'Daily' in figures:
-                st.plotly_chart(figures['Daily'], width='stretch')
+                st.plotly_chart(figures['Daily'], width='stretch', config=_kline_config)
             else:
                 st.warning("⚠️ 無法產生日線圖表 (請查看上方錯誤訊息)")
 
@@ -1381,11 +1438,11 @@ def render_individual(target_ticker):
                      if has_margin:
                          fig_margin.update_layout(
                              title="三率走勢圖 (Margins)",
-                             height=350,
+                             height=380,
                              yaxis_title="百分比 (%)",
                              hovermode='x unified',
-                             legend=dict(orientation="h", y=1.2),
-                             margin=dict(l=20, r=20, t=40, b=20)
+                             legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5),
+                             margin=dict(l=20, r=20, t=50, b=60)
                          )
                          st.plotly_chart(fig_margin, width='stretch')
              else:

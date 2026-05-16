@@ -1116,15 +1116,25 @@ def plot_interactive_chart(ticker, df, title_suffix, timeframe_label):
         hovermode='x unified', # Reverted to unified for single-box UI
         height=600 if use_volume else 450,
         margin=dict(l=50, r=50, t=50, b=50),
-        legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02)
+        legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02),
+        dragmode='pan',  # TradingView/三竹 風格：預設拖曳=平移（而非 box zoom）
+        modebar=dict(
+            remove=['lasso2d', 'select2d', 'autoScale2d', 'toggleSpikelines'],
+            orientation='v',
+        ),
     )
-    
-    # Enable Spikelines for better "Ruler" feel in standard hover mode
+
+    # Enable Spikelines for better "Ruler" feel — 跨 subplot crosshair（TradingView 風格）
     fig.update_xaxes(
         showspikes=True, spikemode='across', spikesnap='cursor', showline=True, spikedash='dash',
-        type='category', 
+        spikecolor='rgba(180,180,180,0.6)', spikethickness=1,
+        type='category',
         tickmode='auto',
-        nticks=20 # Limit ticks to avoid clutter
+        nticks=20  # Limit ticks to avoid clutter
+    )
+    fig.update_yaxes(
+        showspikes=True, spikemode='across', spikesnap='cursor', spikedash='dash',
+        spikecolor='rgba(180,180,180,0.6)', spikethickness=1,
     )
 
     return fig

@@ -78,6 +78,50 @@ SLOW_FEATURES = {
 ORANGE_THRESH = 70.0
 YELLOW_THRESH = 50.0
 
+# 表格顯示用：把英文變數名翻成一般人看得懂的中文 + 一句解讀
+FEATURE_LABELS = {
+    'buffett_indicator_us': {
+        'name': '美股巴菲特指標',
+        'desc': '美股總市值/GDP，越高代表估值越貴',
+    },
+    'us_buffett_strict_rank': {
+        'name': '美股估值嚴格分位',
+        'desc': 'CAPE 調整版 Buffett 排名，越高估值越貴',
+    },
+    'us_durable_yoy': {
+        'name': '美國耐久財訂單年增率',
+        'desc': '景氣領先指標，年增率越低越像衰退',
+    },
+    'fed_bs_trillion': {
+        'name': 'Fed 資產負債表 (兆美元)',
+        'desc': '聯準會放水規模，急縮=流動性收緊',
+    },
+    'st_louis_fsi': {
+        'name': '聖路易聯儲金融壓力指數',
+        'desc': '系統性金融壓力，越高代表信用越緊縮',
+    },
+    'buffett_rank_tw': {
+        'name': '台股巴菲特指標分位',
+        'desc': '台股總市值/GDP 排名，越高估值越貴',
+    },
+    'hyg_dollar_flow': {
+        'name': '高收益債 ETF (HYG) 資金流',
+        'desc': '信用偏好指標，資金流出=避險意願升高',
+    },
+    'usdjpy_close': {
+        'name': '美元/日圓匯率',
+        'desc': '套利交易指標，急貶代表風險偏好下降',
+    },
+}
+
+PANEL_LABELS = {
+    'valuation_panel': '估值面板',
+    'fred_panel': 'FRED 總經',
+    'etf_flows': 'ETF 資金流',
+    'systemic_chip': '系統性籌碼',
+    'tw_breadth': '台股廣度',
+}
+
 
 def _load_panel(name: str) -> Optional[pd.DataFrame]:
     """Load 1 of 5 panels by short name."""
@@ -278,9 +322,9 @@ def render(score: dict):
             <span style="margin-left:12px;opacity:0.7">8-feature dedup_top8 confirmation</span>
           </div>
           <div style="font-size:0.78rem;opacity:0.65;margin-top:4px">
-            <strong>主</strong>=buffett_indicator_us rank (IC 60d=-0.371 三 horizon 全最強)，
-            <strong>副</strong>=composite 8-feature 互補 confirmation．
-            informational tier (SOP-14)，<strong>不接 portfolio rebalance</strong>
+            <strong>主</strong>=美股巴菲特指標分位（IC 60d=-0.371，三 horizon 全最強的單一 leading 指標），
+            <strong>副</strong>=8 指標 composite 互補確認．
+            informational tier (SOP-14)，<strong>僅供觀察，不接 portfolio rebalance</strong>
           </div>
         </div>
         ''',
@@ -288,17 +332,20 @@ def render(score: dict):
     )
 
     # Breakdown table
+    st.caption("📋 8 個 leading indicator 細項（IC 驗證通過；**今日分位越高 = 越像歷史 60d 重挫前夕**）")
     rows = []
     for feat, info in bk.items():
+        label = FEATURE_LABELS.get(feat, {'name': feat, 'desc': ''})
+        panel_zh = PANEL_LABELS.get(info.get('panel', '-'), info.get('panel', '-'))
         rank = info.get('rank')
         rank_str = f"{rank:.0f}" if rank is not None else "N/A"
-        rank_color = '#FF4444' if rank is not None and rank >= 85 else '#FF8800' if rank is not None and rank >= 65 else '#888'
         rows.append({
-            "Feature": feat,
-            "今日 rank": rank_str,
-            "Weight": f"{info.get('weight', 0):.3f}",
-            "Contribution": f"{info.get('contribution'):.2f}" if info.get('contribution') is not None else "N/A",
-            "Source": info.get('panel', '-'),
+            "指標": label['name'],
+            "解讀": label['desc'],
+            "今日分位": rank_str,
+            "權重": f"{info.get('weight', 0):.3f}",
+            "貢獻分": f"{info.get('contribution'):.2f}" if info.get('contribution') is not None else "N/A",
+            "資料源": panel_zh,
         })
     if rows:
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
