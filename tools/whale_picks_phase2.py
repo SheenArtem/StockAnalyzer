@@ -158,9 +158,13 @@ def load_financials_panel(start: str, end: str) -> pd.DataFrame:
     for col in ['gross_margin', 'op_margin', 'roe', 'cfo_to_revenue', 'fcf_to_revenue']:
         fin[f'{col}_4q_delta'] = fin.groupby('stock_id')[col].diff(4)
 
-    # EPS YoY
+    # EPS YoY — 用 abs(denominator) 避免「虧轉盈」被算成負值
+    # 2026-05-16 修：pct_change(4) 在 EPS_yago < 0 時翻轉符號，turnaround stock 反成最大負分
+    # 例：2025-Q4 EPS +0.76 vs 2024-Q4 EPS -0.15 → pct_change=-6.07（誤判）
+    #     正確：(0.76 - (-0.15)) / |-0.15| = +6.07 ✅
     if 'EPS' in fin.columns:
-        fin['eps_yoy'] = fin.groupby('stock_id')['EPS'].pct_change(4)
+        eps_yago = fin.groupby('stock_id')['EPS'].shift(4)
+        fin['eps_yoy'] = (fin['EPS'] - eps_yago) / eps_yago.abs().replace(0, np.nan)
 
     keep_cols = ['stock_id', 'date',
                  'roe', 'roa', 'gross_margin', 'op_margin', 'debt_ratio',

@@ -146,20 +146,24 @@ def _is_cache_stale_monthly(df: pd.DataFrame, today: date) -> bool:
 
 
 def _is_cache_stale_quarterly(df: pd.DataFrame, today: date) -> bool:
-    """財報：過已知季度 deadline + 7 天 buffer 若 cache 缺該季 -> stale。
+    """財報：過已知季度 deadline + 1 天 buffer 若 cache 缺該季 -> stale。
 
     Deadline（台灣規定）:
-      Q4 (次年 3/31 + 7d)  -> expected 12 月底
-      Q1 (5/15 + 7d)       -> expected 3 月底
-      Q2 (8/14 + 7d)       -> expected 6 月底
-      Q3 (11/14 + 7d)      -> expected 9 月底
+      Q4 (次年 3/31 + 1d)  -> expected 12 月底
+      Q1 (5/15 + 1d)       -> expected 3 月底
+      Q2 (8/14 + 1d)       -> expected 6 月底
+      Q3 (11/14 + 1d)      -> expected 9 月底
+
+    Buffer 從 +7d 縮到 +1d（2026-05-16 修）：FinMind 端 ingest 速度實測 deadline 當天即入庫
+    (e.g., 2344 5/15 公告 Q1 5/16 已可抓)；+7d 把 turnaround stock 卡在 cache stale 期外，
+    導致 whale picks / scanner 用陳舊資料評分。原 +7d 等「最慢公司 ingest」過於保守。
     """
     year = today.year
     DEADLINES = [
-        (date(year, 4, 7),   f"{year - 1}-12"),   # Q4
-        (date(year, 5, 22),  f"{year}-03"),         # Q1
-        (date(year, 8, 21),  f"{year}-06"),         # Q2
-        (date(year, 11, 21), f"{year}-09"),         # Q3
+        (date(year, 4, 1),   f"{year - 1}-12"),   # Q4
+        (date(year, 5, 16),  f"{year}-03"),         # Q1
+        (date(year, 8, 15),  f"{year}-06"),         # Q2
+        (date(year, 11, 15), f"{year}-09"),         # Q3
     ]
     if "date" not in df.columns or df.empty:
         return True
