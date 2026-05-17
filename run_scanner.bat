@@ -232,11 +232,17 @@ REM Reads data/latest/qm_result.json, runs multi-agent debate on
 REM high-priority picks (rank<=3 + scenario A / trigger>7 / regime shift),
 REM writes data/deep_research/{date}_{ticker}.json (24h cache).
 REM Max 3 picks/day, 11 quota calls each, ~8-10 min each.
-REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
+REM DISABLED 2026-05-17 per user request: save Team Plan quota.
+REM Manual trigger still works via:
+REM   - UI button: individual_view / Mode D Pick "Deep Research" expander
+REM   - CLI: python tools\scanner_deep_research_trigger.py --max-picks 3
+REM To re-enable scheduled auto-trigger: remove the goto line below.
+goto skip_deep_research
 echo [%date% %time%] Deep research trigger starting >> scanner.log
 python tools\scanner_deep_research_trigger.py --max-picks 3 >> scanner.log 2>&1
 echo [%date% %time%] Deep research trigger done (EC=%ERRORLEVEL%) >> scanner.log
+:skip_deep_research
 
 REM Discord daily summary DISABLED 2026-05-04 per user request: cancel scan-result
 REM Discord pushes (covers QM Top 5 + Step-A alerts + paper trade summary block).
