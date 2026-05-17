@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>台股強勢股日報 115/05/15</title>
+  <style>
+    /* 明確固定白底深字，避免被 Streamlit dark mode iframe 穿透 */
+    html, body {
+      background: #ffffff !important;
+      color: #222 !important;
+    }
+    body {
+      font-family: "Microsoft JhengHei", "PingFang TC", -apple-system, sans-serif;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      line-height: 1.65;
+    }
+    @page { size: A4 landscape; margin: 12mm 8mm; }
+    h1 {
+      color: #c93030;
+      border-bottom: 3px solid #c93030;
+      padding-bottom: 8px;
+      font-size: 28px;
+      margin-top: 0;
+    }
+    h2 {
+      color: #c93030;
+      border-bottom: 2px solid #c93030;
+      padding-bottom: 6px;
+      margin-top: 36px;
+      font-size: 22px;
+    }
+    h3 {
+      color: #c93030;
+      border-left: 5px solid #c93030;
+      padding-left: 10px;
+      margin-top: 28px;
+      font-size: 18px;
+    }
+    h4 {
+      color: #444;
+      margin-top: 18px;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 13px;
+      margin-top: -4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 24px;
+      font-size: 12.5px;
+    }
+    th {
+      text-align: left;
+      color: #888;
+      font-weight: normal;
+      border-bottom: 1px solid #ddd;
+      padding: 8px 6px;
+    }
+    td {
+      padding: 10px 6px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: top;
+    }
+    .col-id { font-weight: 600; color: #444; }
+    .col-name { font-weight: 600; }
+    .col-sector { color: #b0b0b0; font-size: 12px; }
+    .col-up { color: #c93030; font-weight: 600; }
+    .col-volratio { color: #444; }
+    .col-abnvol { color: #999; font-size: 11.5px; margin-left: 6px; }
+    .col-inst-pos { color: #c93030; font-weight: 500; }
+    .col-inst-zero { color: #888; }
+    .col-inst-neg { color: #2c7a2c; font-weight: 500; }
+    .col-warn { color: #c93030; font-weight: 600; }
+    .col-score { color: #444; font-weight: 600; }
+    blockquote {
+      border-left: 4px solid #f0a0a0;
+      background: #fdf6f6;
+      margin: 12px 0;
+      padding: 14px 18px;
+      color: #333;
+      font-size: 14.5px;
+    }
+    .stock-block {
+      margin: 14px 0 14px 14px;
+    }
+    .stock-block .stock-title {
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .stock-block .stock-flag {
+      color: #888;
+      font-size: 12px;
+      margin-left: 8px;
+      font-weight: normal;
+    }
+    .stock-block ul {
+      margin: 4px 0 4px 0;
+      padding-left: 22px;
+    }
+    .stock-block ul li {
+      margin: 2px 0;
+      font-size: 14px;
+    }
+    .label-driver, .label-news {
+      color: #c93030;
+      font-weight: 600;
+    }
+    .warn-block {
+      margin: 12px 0 12px 14px;
+    }
+    .warn-block .warn-title {
+      font-weight: 600;
+    }
+    .warn-block .warn-flag {
+      color: #c93030;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+    .watch-block {
+      margin: 12px 0 12px 14px;
+    }
+    .watch-block .watch-title {
+      font-weight: 600;
+    }
+    .watch-block .watch-flag {
+      color: #888;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+      color: #999;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>[台股強勢股日報] 115/05/14 (2026-05-14)</h1>
+<p class="subtitle">
+  報告產生時間：2026-05-15T01:45:37
+  <span style="color:#888;">（資料日 2026-05-14 / 掃描日 2026-05-15）</span>
+</p>
+
+
+
+
+
+<h2>上市強勢股 Top 15</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>代號</th>
+      <th>名稱</th>
+      <th>族群</th>
+      <th>收盤</th>
+      <th>漲幅</th>
+      <th>量比</th>
+      <th>近5日</th>
+      <th>法人</th>
+      <th>融資增減</th>
+      <th>當沖%</th>
+      <th>借券賣</th>
+      <th>評分</th>
+    </tr>
+  </thead>
+  <tbody>
+  
+    <tr>
+      <td class="col-id">2345</td>
+      <td class="col-name">智邦</td>
+      <td class="col-sector">CPO 矽光子 / 光通訊</td>
+      <td>2675.00</td>
+      <td class="col-up">+9.9%</td>
+      <td class="col-volratio">
+        1.13x
+        
+      </td>
+      <td>+4.5%</td>
+      <td>
+<span class="col-inst-pos">+3,660張</span></td>
+      <td>
+<span class="col-inst-neg">-371張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        58張
+      </td>
+      <td class="col-score">7.82</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">2481</td>
+      <td class="col-name">強茂</td>
+      <td class="col-sector">SiC 第三代半導體</td>
+      <td>115.50</td>
+      <td class="col-up">+5.0%</td>
+      <td class="col-volratio">
+        1.89x
+        
+      </td>
+      <td>+11.6%</td>
+      <td>
+<span class="col-inst-pos">+2,667張</span></td>
+      <td>
+<span class="col-inst-neg">-456張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        <span class="col-warn">118張</span>
+      </td>
+      <td class="col-score">6.76</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">2408</td>
+      <td class="col-name">南亞科</td>
+      <td class="col-sector">HBM / 先進記憶體概念</td>
+      <td>341.00</td>
+      <td class="col-up">+6.2%</td>
+      <td class="col-volratio">
+        1.19x
+        
+      </td>
+      <td>+18.8%</td>
+      <td>
+<span class="col-inst-pos">+4,805張</span></td>
+      <td>
+<span class="col-inst-pos">+3,595張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        <span class="col-warn">555張</span>
+      </td>
+      <td class="col-score">6.56</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">3006</td>
+      <td class="col-name">晶豪科</td>
+      <td class="col-sector">記憶體</td>
+      <td>238.00</td>
+      <td class="col-up">+9.9%</td>
+      <td class="col-volratio">
+        0.58x
+        
+      </td>
+      <td>+21.1%</td>
+      <td>
+<span class="col-inst-pos">+6,636張</span></td>
+      <td>
+<span class="col-inst-pos">+1,839張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        10張
+      </td>
+      <td class="col-score">4.6</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">6139</td>
+      <td class="col-name">亞翔</td>
+      <td class="col-sector">無塵室工程</td>
+      <td>720.00</td>
+      <td class="col-up">+5.0%</td>
+      <td class="col-volratio">
+        1.39x
+        
+      </td>
+      <td>-0.1%</td>
+      <td>
+<span class="col-inst-pos">+1,975張</span></td>
+      <td>
+<span class="col-inst-pos">+92張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        1張
+      </td>
+      <td class="col-score">3.92</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">8021</td>
+      <td class="col-name">尖點</td>
+      <td class="col-sector">PCB 硬板</td>
+      <td>490.50</td>
+      <td class="col-up">+10.0%</td>
+      <td class="col-volratio">
+        0.84x
+        
+      </td>
+      <td>+15.3%</td>
+      <td>
+<span class="col-inst-pos">+1,395張</span></td>
+      <td>
+<span class="col-inst-pos">+471張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        57張
+      </td>
+      <td class="col-score">3.41</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">6715</td>
+      <td class="col-name">嘉基</td>
+      <td class="col-sector">CPO 矽光子 / 光通訊</td>
+      <td>487.00</td>
+      <td class="col-up">+4.1%</td>
+      <td class="col-volratio">
+        0.49x
+        
+      </td>
+      <td>+4.3%</td>
+      <td>
+<span class="col-inst-pos">+219張</span></td>
+      <td>
+<span class="col-inst-neg">-90張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        4張
+      </td>
+      <td class="col-score">2.58</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">6257</td>
+      <td class="col-name">矽格</td>
+      <td class="col-sector">先進封測（CoWoS 後段 / AI 測試）</td>
+      <td>210.50</td>
+      <td class="col-up">+0.7%</td>
+      <td class="col-volratio">
+        0.61x
+        
+      </td>
+      <td>-1.2%</td>
+      <td>
+<span class="col-inst-neg">-998張</span></td>
+      <td>
+<span class="col-inst-pos">+277張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        <span class="col-warn">261張</span>
+      </td>
+      <td class="col-score">2.1</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">3533</td>
+      <td class="col-name">嘉澤</td>
+      <td class="col-sector">CPU連接器</td>
+      <td>2450.00</td>
+      <td class="col-up">+6.3%</td>
+      <td class="col-volratio">
+        1.31x
+        
+      </td>
+      <td>-14.0%</td>
+      <td>
+<span class="col-inst-pos">+56張</span></td>
+      <td>
+<span class="col-inst-pos">+20張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        1張
+      </td>
+      <td class="col-score">1.07</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">8046</td>
+      <td class="col-name">南電</td>
+      <td class="col-sector">ABF / IC 載板</td>
+      <td>847.00</td>
+      <td class="col-up">+4.0%</td>
+      <td class="col-volratio">
+        1.4x
+        
+      </td>
+      <td>-10.6%</td>
+      <td>
+<span class="col-inst-neg">-5,502張</span></td>
+      <td>
+<span class="col-inst-pos">+804張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        <span class="col-warn">750張</span>
+      </td>
+      <td class="col-score">0.36</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">4576</td>
+      <td class="col-name">大銀微系統</td>
+      <td class="col-sector">機器人</td>
+      <td>241.50</td>
+      <td class="col-up">+3.0%</td>
+      <td class="col-volratio">
+        0.67x
+        
+      </td>
+      <td>-0.2%</td>
+      <td>
+<span class="col-inst-neg">-300張</span></td>
+      <td>
+<span class="col-inst-neg">-36張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        36張
+      </td>
+      <td class="col-score">0.31</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">7750</td>
+      <td class="col-name">新代</td>
+      <td class="col-sector">工具機零組件</td>
+      <td>2745.00</td>
+      <td class="col-up">+0.7%</td>
+      <td class="col-volratio">
+        1.28x
+        
+      </td>
+      <td>+5.4%</td>
+      <td>
+<span class="col-inst-neg">-72張</span></td>
+      <td>
+<span class="col-inst-neg">-8張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        12張
+      </td>
+      <td class="col-score">0.26</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">6197</td>
+      <td class="col-name">佳必琪</td>
+      <td class="col-sector">CPO</td>
+      <td>226.50</td>
+      <td class="col-up">+3.0%</td>
+      <td class="col-volratio">
+        1.06x
+        
+      </td>
+      <td>-2.2%</td>
+      <td>
+<span class="col-inst-neg">-361張</span></td>
+      <td>
+<span class="col-inst-neg">-197張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        <span class="col-warn">422張</span>
+      </td>
+      <td class="col-score">0.12</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">2548</td>
+      <td class="col-name">華固</td>
+      <td class="col-sector">高殖利率</td>
+      <td>126.50</td>
+      <td class="col-up">+1.6%</td>
+      <td class="col-volratio">
+        0.62x
+        
+      </td>
+      <td>+1.6%</td>
+      <td>
+<span class="col-inst-neg">-99張</span></td>
+      <td>
+<span class="col-inst-neg">-12張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        0張
+      </td>
+      <td class="col-score">-1.07</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">1590</td>
+      <td class="col-name">亞德客-KY</td>
+      <td class="col-sector">機器人</td>
+      <td>1465.00</td>
+      <td class="col-up">+1.0%</td>
+      <td class="col-volratio">
+        0.72x
+        
+      </td>
+      <td>-1.7%</td>
+      <td>
+<span class="col-inst-pos">+88張</span></td>
+      <td>
+<span class="col-inst-neg">-11張</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        21張
+      </td>
+      <td class="col-score">-1.62</td>
+    </tr>
+  
+  </tbody>
+</table>
+
+
+<h2>上櫃強勢股 Top 4</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>代號</th>
+      <th>名稱</th>
+      <th>族群</th>
+      <th>收盤</th>
+      <th>漲幅</th>
+      <th>量比</th>
+      <th>近5日</th>
+      <th>法人</th>
+      <th>融資增減</th>
+      <th>當沖%</th>
+      <th>借券賣</th>
+      <th>評分</th>
+    </tr>
+  </thead>
+  <tbody>
+  
+    <tr>
+      <td class="col-id">4931</td>
+      <td class="col-name">新盛力</td>
+      <td class="col-sector">AI 伺服器電源</td>
+      <td>198.50</td>
+      <td class="col-up">+0.8%</td>
+      <td class="col-volratio">
+        0.55x
+        
+      </td>
+      <td>+21.0%</td>
+      <td>
+<span class="col-inst-neg">-1,804張</span></td>
+      <td>
+<span class="col-inst-zero">N/A</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        -
+      </td>
+      <td class="col-score">4.47</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">6291</td>
+      <td class="col-name">沛亨</td>
+      <td class="col-sector">光學元件 / 鏡頭</td>
+      <td>509.00</td>
+      <td class="col-up">+4.0%</td>
+      <td class="col-volratio">
+        0.86x
+        
+      </td>
+      <td>+5.6%</td>
+      <td>
+<span class="col-inst-neg">-83張</span></td>
+      <td>
+<span class="col-inst-zero">N/A</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        -
+      </td>
+      <td class="col-score">3.59</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">3081</td>
+      <td class="col-name">聯亞</td>
+      <td class="col-sector">CPO 矽光子 / 光通訊</td>
+      <td>2945.00</td>
+      <td class="col-up">+3.9%</td>
+      <td class="col-volratio">
+        1.0x
+        
+      </td>
+      <td>+10.7%</td>
+      <td>
+<span class="col-inst-pos">+174張</span></td>
+      <td>
+<span class="col-inst-zero">N/A</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        -
+      </td>
+      <td class="col-score">0.37</td>
+    </tr>
+  
+    <tr>
+      <td class="col-id">3265</td>
+      <td class="col-name">台星科</td>
+      <td class="col-sector"></td>
+      <td>182.50</td>
+      <td class="col-up">+1.4%</td>
+      <td class="col-volratio">
+        0.71x
+        
+      </td>
+      <td>-1.4%</td>
+      <td>
+<span class="col-inst-pos">+161張</span></td>
+      <td>
+<span class="col-inst-zero">N/A</span></td>
+      <td>
+        -
+      </td>
+      <td>
+        -
+      </td>
+      <td class="col-score">-1.51</td>
+    </tr>
+  
+  </tbody>
+</table>
+
+
+
+<h2>AI 盤後分析（Claude Opus + WebSearch）</h2>
+
+<h3>一、資金熱點總結</h3>
+<blockquote>今日台股延續 AI 基礎建設與記憶體雙主軸，盤面呈現結構性轉型訊號而非單純短線反彈。CPO 矽光子 / 光通訊族群由智邦 (2345) 法人買超 +3,660 張帶頭攻漲停 +9.9%，量比 1.13x 顯示外資持續加碼非散戶炒作；嘉基 (6715)、聯亞 (3081) 同步走高，題材主流性確認。記憶體族群表現更為強勢，南亞科 (2408) 法人買超 +4,805 張 + 融資增 +3,595 張同步加碼，5 日累計 +18.8%，呼應慧榮總座苟嘉章「DRAM/NAND 缺貨到 2028 年」的中期供需論述；晶豪科 (3006) 法人買超 +6,636 張為今日最大，5 日 +21.1% 結構性轉強。SiC 第三代半導體強茂 (2481) 法人 +2,667 張續攻 +5.0%、5 日 +11.6%，AI 伺服器電源題材延伸。PCB 硬板尖點 (8021) Q1 EPS 1.17 元 + 擴產利多帶動漲停。值得警惕的是 ABF 載板南電 (8046) 雖反彈 +4.0%，法人卻大賣 -5,502 張 + 借券賣 750 張，呈現籌碼與價格背離訊號。整體觀察，量價齊揚 + 法人加碼集中於 CPO / 記憶體 / SiC 三大主軸，屬於結構性題材輪動而非全面性短線反彈。</blockquote>
+
+<h3>二、族群行情判斷</h3>
+
+  <h4>🚀 CPO 矽光子 / 光通訊</h4>
+  
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">智邦 (2345)</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> 今日漲停 +9.9%，法人買超 +3,660 張為族群最大，融資反減 -371 張顯示非散戶推動，借券賣僅 58 張無空方壓力，量比 1.13x 屬健康放量。</li>
+        <li><span class="label-news">新聞利多催化劑：</span> AI 資料中心 800G 交換器需求延伸至 CPO 共封裝光學世代，外資持續加碼網通龍頭。</li>
+      </ul>
+    </div>
+  
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">嘉基 (6715)</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> 上漲 +4.1%，法人小買 +219 張，融資減 -90 張籌碼乾淨，借券賣僅 4 張，5 日累計 +4.3% 穩步走升。</li>
+        <li><span class="label-news">新聞利多催化劑：</span> 矽光子 / 光通訊族群題材延伸，跟隨智邦帶動的 CPO 基礎建設投資循環。</li>
+      </ul>
+    </div>
+  
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">聯亞 (3081)</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> 上漲 +3.9%，法人小幅買超 +174 張，5 日累計 +10.7% 動能延續，量比 1.0x 屬正常放量。</li>
+        <li><span class="label-news">新聞利多催化劑：</span> 上櫃光通訊代表股，受惠 CPO 矽光子題材擴散與 AI 資料中心光模組需求。</li>
+      </ul>
+    </div>
+  
+
+  <h4>💾 記憶體 / HBM 先進記憶體</h4>
+  
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">南亞科 (2408)</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> 上漲 +6.2%，法人買超 +4,805 張為族群最大，5 日累計 +18.8% 結構性轉強；但融資同步增 +3,595 張需留意散戶跟風熱度，借券賣 555 張為警示訊號。</li>
+        <li><span class="label-news">新聞利多催化劑：</span> 慧榮總座苟嘉章 5/10 表示「DRAM 與 NAND Flash 吃緊恐缺到 2028 年」，AI 推論需求升溫推升 HBM / DRAM 中期供需論述。</li>
+      </ul>
+    </div>
+  
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">晶豪科 (3006)</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> 漲停 +9.9%，法人買超 +6,636 張為今日全場最大，5 日累計 +21.1% 動能極強，借券賣僅 10 張無空方壓力；惟量比 0.58x 偏低 + 融資增 +1,839 張需追蹤後續放量。</li>
+        <li><span class="label-news">新聞利多催化劑：</span> 受惠 DRAM/NAND 缺貨至 2028 年論述，利基型記憶體 IC 設計廠成為供需吃緊受惠標的。</li>
+      </ul>
+    </div>
+  
+
+  <h4>⚡ SiC 第三代半導體 / AI 伺服器電源</h4>
+  
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">強茂 (2481)</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> 上漲 +5.0%，法人買超 +2,667 張、5 日累計 +11.6%，量比 1.89x 健康放量，融資反減 -456 張籌碼結構乾淨。</li>
+        <li><span class="label-news">新聞利多催化劑：</span> 強茂集團 5/11 贊助臺大創客松鼓勵 AI 與智慧機器人應用，SiC 切入 AI 伺服器電源與電動車題材延伸。</li>
+      </ul>
+    </div>
+  
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">新盛力 (4931)</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> AI 伺服器電源族群代表，5 日累計 +21.0% 動能極強；但法人賣超 -1,804 張為背離警訊，今日量比 0.55x 縮量上漲僅 +0.8%。</li>
+        <li><span class="label-news">新聞利多催化劑：</span> AI 伺服器電源題材延續，惟需留意法人連續調節壓力。</li>
+      </ul>
+    </div>
+  
+
+  <h4>🏭 AI 供應鏈基礎建設 (PCB / 無塵室)</h4>
+  
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">尖點 (8021)</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> 漲停 +10.0%，法人買超 +1,395 張，5 日累計 +15.3% 動能強勁，借券賣僅 57 張。</li>
+        <li><span class="label-news">新聞利多催化劑：</span> 尖點 5/14 公布首季 EPS 1.17 元、持全年看法正向並續擴充兩岸新產能，PCB 鑽針受惠 AI / HBM 載板需求。</li>
+      </ul>
+    </div>
+  
+    <div class="stock-block">
+      <div>
+        <span class="stock-title">亞翔 (6139)</span>
+        <span class="stock-flag">族群行情啟動</span>
+      </div>
+      <ul>
+        <li><span class="label-driver">驅動原因：</span> 上漲 +5.0%，法人買超 +1,975 張，量比 1.39x 健康放量，融資增僅 +92 張籌碼乾淨，借券賣僅 1 張無空方壓力。</li>
+        <li><span class="label-news">新聞利多催化劑：</span> 受惠台積電 / 三星先進製程擴產，無塵室工程訂單能見度延伸至 2027 年。</li>
+      </ul>
+    </div>
+  
+
+
+<h3>三、追高風險提示</h3>
+<blockquote>在市場情緒亢奮環境下，部分股價已出現過度樂觀和短期投機跡象，投資人必須警惕「追高陷阱」。</blockquote>
+
+  <div class="warn-block">
+    <div>
+      <span class="warn-title">
+        8046 南電
+        （漲幅 +4.0%）
+      </span>
+      <span class="warn-flag">不宜追價</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">風險原因：</span> 今日反彈 +4.0% 但法人大賣 -5,502 張為全場最大賣超，借券賣 750 張屬高度空方押寶訊號，融資反增 +804 張呈現散戶接刀、機構出貨的典型背離；5 日累計 -10.6% 趨勢仍弱，量比 1.4x 出貨型放量。</li>
+    </ul>
+  </div>
+
+  <div class="warn-block">
+    <div>
+      <span class="warn-title">
+        2408 南亞科
+        （漲幅 +6.2%）
+      </span>
+      <span class="warn-flag">不宜追價</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">風險原因：</span> 雖法人買超 +4,805 張帶動上漲，但融資同步爆增 +3,595 張顯示散戶大舉槓桿追價，借券賣高達 555 張機構押寶下跌訊號明顯；5 日已累計 +18.8% 短線過熱，追價需注意獲利了結賣壓。</li>
+    </ul>
+  </div>
+
+  <div class="warn-block">
+    <div>
+      <span class="warn-title">
+        3006 晶豪科
+        （漲幅 +9.9%）
+      </span>
+      <span class="warn-flag">不宜追價</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">風險原因：</span> 漲停但量比僅 0.58x 屬縮量漲停，5 日累計 +21.1% 暴漲符合「短線過熱」警訊，融資增 +1,839 張籌碼結構轉鬆動；雖法人買超 +6,636 張支撐但小型 IC 設計流動性風險需留意。</li>
+    </ul>
+  </div>
+
+  <div class="warn-block">
+    <div>
+      <span class="warn-title">
+        3533 嘉澤
+        （漲幅 +6.3%）
+      </span>
+      <span class="warn-flag">不宜追價</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">風險原因：</span> 今日 +6.3% 但 5 日累計 -14.0% 與單日漲幅明顯背離，量比 1.31x 放量但法人僅小買 +56 張屬反彈型行情；連接器族群輪動接續性不明確，恐為短線跌深反彈。</li>
+    </ul>
+  </div>
+
+  <div class="warn-block">
+    <div>
+      <span class="warn-title">
+        6197 佳必琪
+        （漲幅 +3.0%）
+      </span>
+      <span class="warn-flag">不宜追價</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">風險原因：</span> 上漲 +3.0% 但法人賣超 -361 張、融資減 -197 張、借券賣達 422 張呈現全籌碼面警訊；5 日累計 -2.2% 動能不足，借券賣大為機構押寶下跌的典型信號。</li>
+    </ul>
+  </div>
+
+
+<h3>四、潛力觀察名單</h3>
+
+  <div class="watch-block">
+    <div>
+      <span class="watch-title">2345 智邦</span>
+      <span class="watch-flag">潛力觀察</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">推薦邏輯：</span> 法人買超 +3,660 張且融資反減 -371 張，量比 1.13x 健康放量，借券賣僅 58 張無空方壓力，符合「法人加碼 + 籌碼乾淨」優質結構；CPO 龍頭題材護城河深。</li>
+    </ul>
+  </div>
+
+  <div class="watch-block">
+    <div>
+      <span class="watch-title">2481 強茂</span>
+      <span class="watch-flag">潛力觀察</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">推薦邏輯：</span> 法人買超 +2,667 張、融資減 -456 張呈現「法人吸貨 + 散戶縮手」健康結構，量比 1.89x 屬健康放量區間，5 日累計 +11.6% 動能延續；SiC 第三代半導體題材具中期成長性。</li>
+    </ul>
+  </div>
+
+  <div class="watch-block">
+    <div>
+      <span class="watch-title">6139 亞翔</span>
+      <span class="watch-flag">潛力觀察</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">推薦邏輯：</span> 法人買超 +1,975 張、融資僅增 +92 張籌碼乾淨，借券賣僅 1 張完全無空方押寶，量比 1.39x 健康放量；無塵室工程訂單能見度高，受惠台積電擴產循環。</li>
+    </ul>
+  </div>
+
+  <div class="watch-block">
+    <div>
+      <span class="watch-title">8021 尖點</span>
+      <span class="watch-flag">潛力觀察</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">推薦邏輯：</span> 法人買超 +1,395 張，借券賣僅 57 張，PCB 鑽針 Q1 EPS 1.17 元 + 全年正向 + 兩岸擴產三大利多齊發；5 日累計 +15.3% 動能強且基本面護城河紮實。</li>
+    </ul>
+  </div>
+
+  <div class="watch-block">
+    <div>
+      <span class="watch-title">6715 嘉基</span>
+      <span class="watch-flag">潛力觀察</span>
+    </div>
+    <ul>
+      <li><span class="label-driver">推薦邏輯：</span> 法人小買 +219 張、融資減 -90 張籌碼極乾淨，借券賣僅 4 張無空方壓力，CPO 矽光子題材延伸；目前漲幅 +4.1% 屬溫和走升尚未過熱。</li>
+    </ul>
+  </div>
+
+
+<h3>五、整體風險提醒</h3>
+<blockquote>美國利率政策方向仍為最大變數，FOMC 6 月會議若鷹派將壓抑高評價題材股；地緣面台海與紅海風險未解，外資資金流向需密切觀察。短線而言，CPO / 記憶體龍頭已累積 5 日 +15~21% 漲幅，獲利了結賣壓隨時可能浮現；操作上建議分批進場、設定停利停損紀律，避免單日漲停追價，優先選擇法人買超 + 融資不過熱 + 借券賣 &lt; 100 張的「乾淨籌碼」標的。</blockquote>
+
+
+<div class="footer">本報告由 AI 自動產生，僅供參考，不構成投資建議。</div>
+
+</body>
+</html>
