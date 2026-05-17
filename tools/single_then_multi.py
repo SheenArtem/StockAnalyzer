@@ -113,6 +113,93 @@ def _write_combined_report(ticker: str, stage1_md: Path, stage2: dict,
     return out_path
 
 
+def _find_cached_report(ticker: str, cache_hours: int) -> Path | None:
+    """找最近 cache_hours 內最新的 deep_research_{ticker}_*.md。"""
+    pattern = f"deep_research_{ticker}_*.md"
+    candidates = sorted(OUT_DIR.glob(pattern),
+                        key=lambda p: p.stat().st_mtime, reverse=True)
+    if not candidates:
+        return None
+    newest = candidates[0]
+    age_hours = (time.time() - newest.stat().st_mtime) / 3600
+    return newest if age_hours <= cache_hours else None
+
+
+def _extract_pm_excerpt(report_path: Path, n_lines: int = 12) -> str:
+    """從 combined report 抽 PM Final Decision 區段前 N 行作為 UI 預覽。"""
+    try:
+        text = report_path.read_text(encoding='utf-8')
+    except Exception:
+        return ""
+    marker = '## Portfolio Manager Final Decision'
+    idx = text.find(marker)
+    if idx < 0:
+        return text[:500]
+    section = text[idx + len(marker):]
+    end = section.find('\n## ')
+    if end > 0:
+        section = section[:end]
+    lines = [ln for ln in section.split('\n') if ln.strip()]
+    return '\n'.join(lines[:n_lines])
+
+
+def run_deep_research(ticker: str, rounds: int = 2, cache_hours: int = 24,
+                      force: bool = False, progress_cb=None) -> dict:
+    """Public API for UI integration: 跑完整 deep research with 24h cache。
+
+    Args:
+        ticker: stock id
+        rounds: Bull/Bear debate rounds (default 2)
+        cache_hours: cache 視窗 (default 24h);超過視為過期 re-run
+        force: 跳過 cache 強制重跑
+        progress_cb: callback(msg: str) — UI spinner 顯示進度
+
+    Returns:
+        dict with keys: ok / cached / report_path / pm_excerpt / elapsed_min / error
+    """
+    def _emit(msg: str):
+        if progress_cb:
+            try:
+                progress_cb(msg)
+            except Exception:
+                pass
+        logger.info(msg)
+
+    if not force:
+        cached = _find_cached_report(ticker, cache_hours)
+        if cached:
+            _emit(f"Cache hit: {cached.name}")
+            return {
+                'ok': True, 'cached': True, 'report_path': cached,
+                'pm_excerpt': _extract_pm_excerpt(cached),
+                'elapsed_min': 0.0, 'error': None,
+            }
+
+    t0 = time.time()
+    try:
+        _emit("Stage 1/2: 廣度資料蒐集 + WebSearch 30+ URLs (~4 min)")
+        stage1_md = _run_stage1(ticker)
+
+        _emit("Stage 2/2: 5 層多 AI 辯論 (Bull/Bear/Risk/Trader/PM, ~5 min)")
+        stage2 = _run_stage2(ticker, rounds=rounds, input_report=stage1_md)
+
+        elapsed = time.time() - t0
+        out_path = _write_combined_report(ticker, stage1_md, stage2,
+                                          rounds=rounds, total_elapsed=elapsed)
+        return {
+            'ok': True, 'cached': False, 'report_path': out_path,
+            'pm_excerpt': _extract_pm_excerpt(out_path),
+            'elapsed_min': elapsed / 60, 'error': None,
+        }
+    except Exception as e:
+        logger.exception(f"run_deep_research failed for {ticker}")
+        return {
+            'ok': False, 'cached': False, 'report_path': None,
+            'pm_excerpt': '', 'elapsed_min': (time.time() - t0) / 60,
+            'error': str(e),
+        }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ticker", required=True)

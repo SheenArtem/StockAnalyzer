@@ -1831,8 +1831,23 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                         _tp = _ap.get('rec_tp_price')
                         _scenario = _ap.get('scenario_code', '-')
 
+                        # ⭐ Deep research priority badge (C3 Phase A, 2026-05-17)
+                        try:
+                            import sys as _sys
+                            from pathlib import Path as _P
+                            _td = str(_P(__file__).resolve().parent / 'tools')
+                            if _td not in _sys.path:
+                                _sys.path.insert(0, _td)
+                            from deep_research_priority import is_high_priority_pick
+                            _pick_with_rank = dict(_r, qm_rank=i)
+                            _is_pri, _ = is_high_priority_pick(_pick_with_rank)
+                            _dr_badge = '⭐' if _is_pri else ''
+                        except Exception:
+                            _dr_badge = ''
+
                         _rows.append({
                             '#': i,
+                            '⭐DR': _dr_badge,
                             '代號': _sid,
                             '名稱': _r.get('name', '')[:6],
                             'QM 分': round(_r.get('composite_score', 0), 1),
@@ -1849,7 +1864,50 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
 
                     if _rows:
                         st.dataframe(_pd_d.DataFrame(_rows), use_container_width=True, hide_index=True)
-                        st.caption("劇本 A=現價可進 / B=等拉回 5-10MA / C=觀望 / D=空頭避開 | C1 ✅ = 月營收 YoY 拐點 (×1.2 加分) | YT 7d = 近 7 日節目提及次數 | 週榜 = 本週三大法人榜上標記 | 題材 = AI era sector tag (manual + News 30d + YT 180d + TV industry 四層融合)")
+                        st.caption("劇本 A=現價可進 / B=等拉回 5-10MA / C=觀望 / D=空頭避開 | C1 ✅ = 月營收 YoY 拐點 (×1.2 加分) | YT 7d = 近 7 日節目提及次數 | 週榜 = 本週三大法人榜上標記 | 題材 = AI era sector tag (manual + News 30d + YT 180d + TV industry 四層融合) | ⭐DR = 建議跑深度辯論 (rank≤3 + scenario A/trigger>80)")
+
+                        # 🔬 深度辯論觸發區 (C3 Phase B, 2026-05-17)
+                        st.markdown("##### 🔬 深度辯論 (Multi-Agent Stress-Test)")
+                        _dr_options = [r['代號'] for r in _rows]
+                        _dr_default_idx = 0
+                        for _idx, _r2 in enumerate(_rows):
+                            if _r2.get('⭐DR') == '⭐':
+                                _dr_default_idx = _idx
+                                break
+                        _dr_col1, _dr_col2 = st.columns([2, 1])
+                        with _dr_col1:
+                            _dr_pick = st.selectbox(
+                                "選擇代號",
+                                _dr_options, index=_dr_default_idx,
+                                key='_mode_d_dr_pick',
+                                help="預設標 ⭐ 那檔；單次 8-10 min, 24h cache 避免重複觸發"
+                            )
+                        with _dr_col2:
+                            st.write("")
+                            st.write("")
+                            _dr_go = st.button("🔬 開跑 / 看快取", key='_mode_d_dr_go', width='stretch')
+
+                        if _dr_go and _dr_pick:
+                            try:
+                                from single_then_multi import run_deep_research
+                            except Exception as _imp_err:
+                                st.error(f"模組載入失敗: {_imp_err}")
+                            else:
+                                with st.spinner(f"🔬 {_dr_pick} 深度辯論中 (8-10 min, 已跑過則 cache hit)..."):
+                                    try:
+                                        _dr_out = run_deep_research(_dr_pick, rounds=2, cache_hours=24)
+                                    except Exception as _run_err:
+                                        st.error(f"執行失敗: {_run_err}")
+                                        _dr_out = None
+                                if _dr_out and _dr_out.get('ok'):
+                                    _status = '(cache)' if _dr_out['cached'] else f"完成 {_dr_out['elapsed_min']:.1f} min"
+                                    st.success(f"✅ {_status} — `{_dr_out['report_path'].name}`")
+                                    st.markdown("**📋 PM Final Decision**")
+                                    st.code(_dr_out['pm_excerpt'], language='markdown')
+                                    with st.expander("📖 完整辯論報告"):
+                                        st.markdown(_dr_out['report_path'].read_text(encoding='utf-8'))
+                                elif _dr_out is not None:
+                                    st.error(f"❌ {_dr_out.get('error', 'unknown')}")
                     else:
                         st.info("無 pick 資料")
             except Exception as _e:

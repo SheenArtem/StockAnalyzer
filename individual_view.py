@@ -36,6 +36,73 @@ from ui_helpers import (
 logger = logging.getLogger(__name__)
 
 
+def _render_deep_research_section(ticker: str):
+    """🔬 深度辯論 expander (C3 Phase B, 2026-05-17)。
+
+    5 AI 互辯 second opinion, 24h cache, ~8-10 min single run。
+    呼叫 tools.single_then_multi.run_deep_research()。
+    """
+    import sys
+    from pathlib import Path as _Path
+    _tools_dir = str(_Path(__file__).resolve().parent / "tools")
+    if _tools_dir not in sys.path:
+        sys.path.insert(0, _tools_dir)
+
+    try:
+        from single_then_multi import run_deep_research, _find_cached_report, _extract_pm_excerpt
+    except Exception as _imp_err:
+        st.caption(f"⚠️ 深度辯論模組載入失敗: {_imp_err}")
+        return
+
+    cached = _find_cached_report(ticker, cache_hours=24)
+    has_cache = cached is not None
+
+    label_suffix = "（24h 內已跑過,點擊看結果）" if has_cache else "（5 AI 互辯, ~8-10 min, 24h cache）"
+    with st.expander(f"🔬 深度辯論 (Multi-Agent Stress-Test) {label_suffix}", expanded=False):
+        st.caption("Bull/Bear x2 輪 → Research Mgr → Trader → 3 Risk debaters → PM 最終裁決。"
+                   "抓 QM 純技術面看不到的盲點 (Bull 論點漏洞 / 同業 guidance / 基本面瑕疵)。"
+                   "Team Plan $0 quota / 24h cache 避免重複觸發。")
+
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            btn_label = "🔬 看快取結果" if has_cache else "🔬 開跑 (~8-10 min)"
+            if st.button(btn_label, key=f"dr_btn_{ticker}", width='stretch'):
+                st.session_state[f"_dr_request_{ticker}"] = True
+        with col2:
+            if has_cache:
+                st.caption(f"快取: `{cached.name}` (24h 內可重用,跳過 quota)")
+                if st.button("🔄 強制重跑", key=f"dr_force_{ticker}", help="忽略 cache, 重新跑一次 (~8-10 min)"):
+                    st.session_state[f"_dr_request_{ticker}"] = True
+                    st.session_state[f"_dr_force_{ticker}"] = True
+
+        if st.session_state.get(f"_dr_request_{ticker}"):
+            force = st.session_state.get(f"_dr_force_{ticker}", False)
+            with st.spinner(f"🔬 跑深度辯論中 (預估 8-10 min)... 進度看主控台 log"):
+                try:
+                    out = run_deep_research(ticker, rounds=2, cache_hours=24, force=force)
+                except Exception as _run_err:
+                    st.error(f"❌ 深度辯論執行失敗: {_run_err}")
+                    out = None
+            st.session_state.pop(f"_dr_request_{ticker}", None)
+            st.session_state.pop(f"_dr_force_{ticker}", None)
+
+            if out and out.get('ok'):
+                _status = '(cache)' if out['cached'] else f"完成 {out['elapsed_min']:.1f} min"
+                st.success(f"✅ {_status} — 報告: `{out['report_path'].name}`")
+                st.markdown("#### 📋 PM Final Decision 摘要")
+                st.code(out['pm_excerpt'], language='markdown')
+                with st.expander("📖 看完整辯論報告", expanded=False):
+                    try:
+                        st.markdown(out['report_path'].read_text(encoding='utf-8'))
+                    except Exception as _rd_err:
+                        st.warning(f"讀檔失敗: {_rd_err}")
+            elif out is not None:
+                st.error(f"❌ {out.get('error', 'unknown error')}")
+        elif has_cache:
+            st.markdown("#### 📋 上次 PM Final Decision 摘要")
+            st.code(_extract_pm_excerpt(cached), language='markdown')
+
+
 def render_individual():
     """渲染個股分析模式 (5 tabs)。
 
@@ -481,6 +548,11 @@ def render_individual():
                         for sl in ap['sl_list']:
                             sl_data.append([sl['desc'], f"{sl['price']:.2f}", f"{sl['loss']}%"])
                         st.table(pd.DataFrame(sl_data, columns=['支撐位置', '價格', '風險幅度']))
+
+            # 5. 🔬 深度辯論 (Multi-Agent Stress-Test, C3 Phase B, 2026-05-17)
+            #    5 AI 互辯 (Bull/Bear/Risk x3/Trader/PM) 抓 QM 看不到的盲點
+            #    單次 ~8-10 min / 11 quota call / 24h cache 避免重複觸發
+            _render_deep_research_section(display_ticker)
 
 
 
