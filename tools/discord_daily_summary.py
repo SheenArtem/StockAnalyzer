@@ -285,6 +285,36 @@ def build_summary() -> str:
             lines.append(f"今日重大事件: (load error: {exc})")
             lines.append("")
 
+    # --- 3.8 Deep Research verdicts (C3 Phase C, 2026-05-17) ---
+    # 讀 data/deep_research/{today}_*.json (由 tools/scanner_deep_research_trigger.py 寫)
+    dr_dir = REPO / "data" / "deep_research"
+    if dr_dir.exists():
+        dr_files = sorted(dr_dir.glob(f"{today.isoformat()}_*.json"))
+        if dr_files:
+            lines.append(f"🔬 深度辯論 verdict [{len(dr_files)}]:")
+            for dr_path in dr_files:
+                try:
+                    dr = json.loads(dr_path.read_text(encoding='utf-8'))
+                except Exception:
+                    continue
+                tk = dr.get('ticker', '?')
+                nm = str(dr.get('name', ''))[:6]
+                rank = dr.get('qm_rank', '?')
+                if dr.get('ok'):
+                    cache_tag = '(cache)' if dr.get('cached') else f"{dr.get('elapsed_min', 0):.0f}min"
+                    # 抓 PM excerpt 首行非空當 verdict 摘要 (40 char cap)
+                    excerpt = (dr.get('pm_excerpt') or '').strip()
+                    first_line = next(
+                        (ln.strip().lstrip('#').strip() for ln in excerpt.split('\n')
+                         if ln.strip() and not ln.strip().startswith('---')),
+                        '(no verdict text)'
+                    )[:50]
+                    lines.append(f"  > {tk} {nm} (#{rank}) {cache_tag} | {first_line}")
+                else:
+                    err = str(dr.get('error', ''))[:40]
+                    lines.append(f"  ! {tk} {nm} (#{rank}) FAILED | {err}")
+            lines.append("")
+
     # --- 4. Audits ---
     audits = load_audits_today()
     if audits:
