@@ -42,11 +42,26 @@ echo [%date% %time%] Weekly scanner started >> scanner_weekly.log
 
 REM ------------------------------------------------------------
 REM Stage 1: weekly screener (universe scan + scoring + 5d chip)
+REM
+REM IMPORTANT: Stage 1 MUST succeed before Stage 2/3 run. If Stage 1
+REM fails (e.g. TWSE MI_INDEX outage -> universe too small),
+REM strong_stocks_weekly.json is NOT overwritten. Running Stage 2/3
+REM would silently regenerate last week's stale report with a fresh
+REM AI section, hiding the failure. Abort instead. (CLAUDE.md
+REM Robustness: Fail loud, no swallowing.)
 REM ------------------------------------------------------------
 echo [%date% %time%] Stage 1 weekly_screener starting >> scanner_weekly.log
 python tools\strong_stocks_weekly_screener.py >> scanner_weekly.log 2>&1
 set EC1=%ERRORLEVEL%
 echo [%date% %time%] Stage 1 done (exit=%EC1%) >> scanner_weekly.log
+
+if not "%EC1%"=="0" (
+    echo [%date% %time%] [FATAL] Stage 1 failed exit=%EC1% - aborting Stage 2/3 and skipping commit >> scanner_weekly.log
+    echo [%date% %time%] [FATAL] Reason: weekly JSON was NOT regenerated; running Stage 2/3 would re-render stale report from last week >> scanner_weekly.log
+    echo [%date% %time%] [FATAL] Inspect scanner_weekly.log above for root cause TWSE/TPEX/TradingView upstream failure >> scanner_weekly.log
+    echo [%date% %time%] Weekly scanner ABORTED EC1=%EC1% >> scanner_weekly.log
+    exit /b %EC1%
+)
 
 REM ------------------------------------------------------------
 REM Stage 2: AI analysis (Opus + WebSearch + 14d news inject)
