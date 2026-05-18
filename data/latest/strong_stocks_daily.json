@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-05-17T01:37:41",
-  "scan_date": "2026-05-17",
-  "scan_time": "00:33",
+  "generated_at": "2026-05-18T00:36:18",
+  "scan_date": "2026-05-18",
+  "scan_time": "00:30",
   "ref_date": "2026-05-15",
   "abnormal_vol_threshold": 1.9,
   "top_n_per_market": 15,
@@ -180,7 +180,7 @@
         "連續 4 季獲利 (+5)"
       ],
       "qm_f_score": 9,
-      "composite_score": 89.2,
+      "composite_score": 89.3,
       "qm_position_size": {
         "recommended_pct": 13.4,
         "base_pct": 8.9,
@@ -194,7 +194,7 @@
       "inst_net_buy_today_shares": -129,
       "margin_net_today_shares": 887,
       "sbl_sell_today_shares": 1026,
-      "day_trade_pct": null
+      "day_trade_pct": 53.9
     },
     {
       "stock_id": "7610",
@@ -568,7 +568,7 @@
       "inst_net_buy_today_shares": 856,
       "margin_net_today_shares": 86,
       "sbl_sell_today_shares": 63,
-      "day_trade_pct": null
+      "day_trade_pct": 48.2
     },
     {
       "stock_id": "3006",
@@ -755,7 +755,7 @@
       "inst_net_buy_today_shares": 5085,
       "margin_net_today_shares": -1059,
       "sbl_sell_today_shares": 102,
-      "day_trade_pct": null
+      "day_trade_pct": 67.8
     },
     {
       "stock_id": "2327",
@@ -930,7 +930,7 @@
         "營收正驚喜 +20.3% (+12)"
       ],
       "qm_f_score": 8,
-      "composite_score": 78.0,
+      "composite_score": 78.2,
       "qm_position_size": {
         "recommended_pct": 7.0,
         "base_pct": 7.8,
@@ -944,7 +944,7 @@
       "inst_net_buy_today_shares": 10340,
       "margin_net_today_shares": -4182,
       "sbl_sell_today_shares": 1733,
-      "day_trade_pct": null
+      "day_trade_pct": 54.7
     },
     {
       "stock_id": "1727",
@@ -1122,7 +1122,7 @@
       "inst_net_buy_today_shares": 2138,
       "margin_net_today_shares": -1535,
       "sbl_sell_today_shares": 489,
-      "day_trade_pct": null
+      "day_trade_pct": 35.2
     },
     {
       "stock_id": "2027",
@@ -1286,7 +1286,7 @@
         "營收正驚喜 +39.1% (+12)"
       ],
       "qm_f_score": 8,
-      "composite_score": 78.0,
+      "composite_score": 78.2,
       "qm_position_size": {
         "recommended_pct": 6.3,
         "base_pct": 7.8,
@@ -1300,7 +1300,7 @@
       "inst_net_buy_today_shares": 22094,
       "margin_net_today_shares": -1189,
       "sbl_sell_today_shares": 32,
-      "day_trade_pct": null
+      "day_trade_pct": 28.7
     },
     {
       "stock_id": "2412",
@@ -1454,7 +1454,7 @@
         "營益率=20.5% 優 (+5) [TV]"
       ],
       "qm_f_score": 8,
-      "composite_score": 78.0,
+      "composite_score": 78.2,
       "qm_position_size": {
         "recommended_pct": 5.6,
         "base_pct": 7.8,
@@ -1468,7 +1468,7 @@
       "inst_net_buy_today_shares": 2570,
       "margin_net_today_shares": 0,
       "sbl_sell_today_shares": 118,
-      "day_trade_pct": null
+      "day_trade_pct": 19.6
     },
     {
       "stock_id": "2451",
@@ -1655,7 +1655,7 @@
       "inst_net_buy_today_shares": -96,
       "margin_net_today_shares": -147,
       "sbl_sell_today_shares": 271,
-      "day_trade_pct": null
+      "day_trade_pct": 50.2
     },
     {
       "stock_id": "2105",
@@ -1830,7 +1830,7 @@
         "營收正驚喜 +23.1% (+12)"
       ],
       "qm_f_score": 8,
-      "composite_score": 78.0,
+      "composite_score": 78.2,
       "qm_position_size": {
         "recommended_pct": 5.2,
         "base_pct": 7.8,
@@ -1844,7 +1844,7 @@
       "inst_net_buy_today_shares": 6225,
       "margin_net_today_shares": -129,
       "sbl_sell_today_shares": 79,
-      "day_trade_pct": null
+      "day_trade_pct": 22.8
     },
     {
       "stock_id": "3563",
@@ -2028,7 +2028,7 @@
       "inst_net_buy_today_shares": 690,
       "margin_net_today_shares": 237,
       "sbl_sell_today_shares": 18,
-      "day_trade_pct": null
+      "day_trade_pct": 36.6
     },
     {
       "stock_id": "2408",
@@ -2214,7 +2214,7 @@
       "inst_net_buy_today_shares": -25585,
       "margin_net_today_shares": -5591,
       "sbl_sell_today_shares": 2810,
-      "day_trade_pct": null
+      "day_trade_pct": 50.3
     },
     {
       "stock_id": "8261",
@@ -2397,7 +2397,7 @@
       "inst_net_buy_today_shares": -282,
       "margin_net_today_shares": -331,
       "sbl_sell_today_shares": 43,
-      "day_trade_pct": null
+      "day_trade_pct": 48.6
     },
     {
       "stock_id": "2351",
@@ -2579,7 +2579,7 @@
       "inst_net_buy_today_shares": 852,
       "margin_net_today_shares": -170,
       "sbl_sell_today_shares": 137,
-      "day_trade_pct": null
+      "day_trade_pct": 49.7
     },
     {
       "stock_id": "4583",
@@ -2762,88 +2762,94 @@
       "inst_net_buy_today_shares": 128,
       "margin_net_today_shares": -30,
       "sbl_sell_today_shares": 0,
-      "day_trade_pct": null
+      "day_trade_pct": 34.7
     }
   ],
   "tpex_top": [],
   "ai_analysis": {
-    "market_summary": "5/17 盤面呈現「記憶體 + 被動元件 + 先進封測」三主軸齊揚的格局，資金熱點明顯回流至半導體中下游。記憶體族群最為強勢，2408 南亞科漲停 +10.5%、3006 晶豪科 +5.5% 近5日累積 +24.3%，呼應慧榮苟嘉章「DRAM/NAND 吃緊恐缺貨到 2028」之產業前瞻，題材具結構性。被動元件 2327 國巨雖僅 +1.4%，但法人單日大買 +10,340 張、融資反向減 -4,182 張，呈現「籌碼由散戶轉入法人」的良性換手訊號，量比 2.07x 爆量值得追蹤。先進封測 2441 超豐量比 2.16x 爆量、近5日 +17.7%，搭配 3563 牧德 CoWoS 概念 +7.0% 同步爆量 2.16x，反映 AI 後段封測產能吃緊預期。機器人題材 4576 大銀微系統漲停 +9.9% 法人買超 +856 張，特化學品 1727 中華化漲停 +9.9% 法人買 +2,138 張，皆屬中小型法人鎖碼。整體而言屬「結構性題材 + 法人加碼」並行，非單純短線反彈；但 2408 南亞科法人單日賣超 -25,585 張創天量、借券賣 2,810 張為全場最高，需警覺漲停背後的籌碼鬆動。",
+    "market_summary": "今日台股強勢股呈現「記憶體+被動元件+先進封測」三大主軸齊揚，資金明顯回流半導體中下游與關鍵零組件。記憶體族群最為強勢：南亞科 +10.5% 強攻漲停但法人賣超 -25,585 張、融資減 -5,591 張，呈現籌碼背離爆量出貨警訊；晶豪科 +5.5% 法人買超 +5,085 張、近5日 +24.3%，搭配慧榮苟嘉章公開示警 DRAM/NAND 缺貨至 2028 年的題材催化，買盤理由扎實。被動元件龍頭國巨 +1.4% 但量比 2.07x 爆量、法人狂買 +10,340 張、融資大減 -4,182 張，呈現典型「法人接籌碼、散戶減槓桿」的健康結構。先進封測超豐 +5.5% 量比 2.16x 爆量、近5日 +17.7%，但借券賣 1,026 張為當日次高警示；牧德 +7.0% 切入 CoWoS 設備題材。傳產面大成鋼法人買超 +22,094 張為全場最大、中華電 +2,570 張防禦性買盤同步進場，顯示資金避險與成長兼具。整體屬於「結構性記憶體缺貨循環 + AI 被動元件補庫存」的中期題材延伸，非單純短線反彈，但南亞科、國巨等指標股需留意爆量後的獲利了結壓力。",
     "sector_analysis": [
       {
         "sector_emoji": "💾",
-        "sector_name": "記憶體 / HBM 缺貨概念",
+        "sector_name": "記憶體 / HBM 缺貨題材",
         "stocks": [
           {
             "stock_id": "3006",
             "name": "晶豪科",
-            "driver": "漲幅 +5.5%、近5日 +24.3% 為全場最強動能，法人買超 +5,085 張且融資減 -1,059 張，籌碼由散戶轉法人。",
-            "news_catalyst": "慧榮苟嘉章公開預期 DRAM 與 NAND Flash 吃緊恐缺貨到 2028 年，AI 推論需求升溫直接利多利基型記憶體 IC 設計廠。"
+            "driver": "法人買超 +5,085 張、近5日累積 +24.3% 為全場第二強，但當沖比 67.8% 偏投機需留意短線情緒",
+            "news_catalyst": "慧榮總座苟嘉章公開示警 DRAM 與 NAND Flash 吃緊恐缺貨到 2028 年，AI 推論需求點火利基型記憶體報價"
           },
           {
             "stock_id": "2408",
             "name": "南亞科",
-            "driver": "漲幅 +10.5% 漲停、近5日 +13.7%，但法人賣超 -25,585 張、借券賣 2,810 張為全場最高，量價背離訊號明顯。",
-            "news_catalyst": "HBM 與先進記憶體缺貨題材帶動散戶追價，惟法人籌碼面已轉空。"
+            "driver": "漲幅 +10.5% 攻頂但法人大賣 -25,585 張為全場最大賣超、融資減 -5,591 張、借券賣 2,810 張同步壓頂，籌碼三殺背離",
+            "news_catalyst": "HBM 與 DRAM 缺貨題材延燒至 2028 年，但機構選擇高檔調節獲利了結"
           },
           {
             "stock_id": "2451",
             "name": "創見",
-            "driver": "漲幅 +2.6%、近5日 +7.5%，量比 0.51x 屬縮量上漲，法人 -96 張、融資 -147 張籌碼穩定。",
-            "news_catalyst": "NAND 缺貨到 2028 年題材間接利多記憶體模組廠庫存價值重估。"
+            "driver": "記憶體模組受惠原廠調漲，法人小賣 -96 張籌碼穩定，當沖 50.2% 顯示短線投機介入",
+            "news_catalyst": "DRAM/NAND 缺貨循環延長至 2028 年，模組廠庫存利益顯著"
           }
         ]
       },
       {
-        "sector_emoji": "🔋",
-        "sector_name": "被動元件 / 利基 IC",
+        "sector_emoji": "⚡",
+        "sector_name": "被動元件 / 功率元件",
         "stocks": [
           {
             "stock_id": "2327",
-            "name": "國巨*",
-            "driver": "漲幅雖僅 +1.4%，但法人單日大買 +10,340 張為全場第二大，融資反向減 -4,182 張，量比 2.07x 爆量呈現「法人吃貨、散戶縮手」的健康換手。",
-            "news_catalyst": "被動元件 MLCC 受惠 AI 伺服器與 HBM 需求帶動，搭配法人加碼題材續溫。"
+            "name": "國巨",
+            "driver": "法人狂買 +10,340 張、融資大減 -4,182 張，量比 2.07x 爆量呈現法人接散戶籌碼的健康結構",
+            "news_catalyst": "AI 伺服器與電動車終端需求帶動 MLCC 報價回升，被動元件龍頭率先反映"
           },
           {
-            "stock_id": "1727",
-            "name": "中華化",
-            "driver": "漲停 +9.9%、近5日 +20.9%，法人買超 +2,138 張且融資減 -1,535 張，籌碼鎖定度高。",
-            "news_catalyst": "半導體特化學品族群受惠晶圓代工產能利用率回升及材料國產化題材。"
+            "stock_id": "8261",
+            "name": "富鼎",
+            "driver": "功率元件受惠 AI 電源需求，但法人賣超 -282 張、融資減 -331 張籌碼偏弱，當沖 48.6%",
+            "news_catalyst": "AI 伺服器電源 MOSFET 規格升級，但本地新聞無顯著催化"
           }
         ]
       },
       {
-        "sector_emoji": "🏗️",
-        "sector_name": "先進封測 / CoWoS",
+        "sector_emoji": "🔬",
+        "sector_name": "先進封測 / CoWoS 設備",
         "stocks": [
           {
             "stock_id": "2441",
             "name": "超豐",
-            "driver": "漲幅 +5.5%、近5日 +17.7%、量比 2.16x 爆量，但法人賣超 -129 張、融資增 +887 張、借券賣 1,026 張，籌碼面分歧。",
-            "news_catalyst": "AI 後段封測產能吃緊帶動利基型封測廠評價重估。"
+            "driver": "量比 2.16x 爆量、近5日 +17.7%，但法人小賣 -129 張、借券賣高達 1,026 張，當沖 53.9% 投機度高",
+            "news_catalyst": "先進封裝產能緊俏帶動測試需求，但機構透過借券押寶短線回檔"
           },
           {
             "stock_id": "3563",
             "name": "牧德",
-            "driver": "漲幅 +7.0%、量比 2.16x 爆量，法人買 +690 張、融資增 +237 張同步追價。",
-            "news_catalyst": "CoWoS 設備檢測題材，AI 封裝產能擴張帶動檢測設備需求。"
+            "driver": "量比 2.16x 爆量、法人買超 +690 張、融資 +237 張同步增加，CoWoS 設備題材升溫",
+            "news_catalyst": "AI 晶片 CoWoS 產能擴張帶動光學檢測設備需求，台積電 CoWoS 月產能持續上修"
           }
         ]
       },
       {
         "sector_emoji": "🤖",
-        "sector_name": "機器人 / 自動化",
+        "sector_name": "機器人 / 特化 / 傳產防禦",
         "stocks": [
           {
             "stock_id": "4576",
             "name": "大銀微系統",
-            "driver": "漲停 +9.9%、近5日 +16.4%，法人買 +856 張、融資僅增 +86 張，借券賣僅 63 張，籌碼極佳。",
-            "news_catalyst": "人形機器人線性傳動元件題材，受惠特斯拉 Optimus 量產進度推進。"
+            "driver": "漲幅 +9.9% 攻頂、法人買超 +856 張、融資僅 +86 張籌碼乾淨，近5日 +16.4%",
+            "news_catalyst": "特斯拉 Optimus 與輝達機器人題材延燒，線性傳動模組為關鍵零組件"
           },
           {
-            "stock_id": "4583",
-            "name": "台灣精銳",
-            "driver": "漲幅 +2.4%、評分 0.67，法人買 +128 張、借券賣 0 張屬完全無空方押寶。",
-            "news_catalyst": "CPO 矽光子減速機題材，光通訊封裝產能擴張間接利多。"
+            "stock_id": "1727",
+            "name": "中華化",
+            "driver": "漲幅 +9.9% 攻漲停、法人買超 +2,138 張、融資大減 -1,535 張呈籌碼集中",
+            "news_catalyst": "特化學品本地新聞無顯著事件，純粹族群輪動與題材接棒"
+          },
+          {
+            "stock_id": "2027",
+            "name": "大成鋼",
+            "driver": "法人買超 +22,094 張為全場最大買超、融資減 -1,189 張，但漲幅僅 +0.1% 屬靜悄悄吸籌",
+            "news_catalyst": "鋼鐵族群本地新聞無催化，機構低調建立部位中"
           }
         ]
       }
@@ -2853,64 +2859,64 @@
         "stock_id": "2408",
         "name": "南亞科",
         "change_pct": 10.5,
-        "reason": "漲停 +10.5% 但法人賣超 -25,585 張為全場最大賣壓、借券賣 2,810 張為全場最高，融資減 -5,591 張代表散戶在漲停板被軋反手砍倉，量價籌碼嚴重背離，明日跳空缺口若無法守住極易反轉。"
+        "reason": "漲幅 +10.5% 攻漲停但法人大賣 -25,585 張為全場最大賣超、融資減 -5,591 張、借券賣 2,810 張機構押寶下跌，三大籌碼指標全面背離，當沖 50.3% 投機度極高"
       },
       {
         "stock_id": "2441",
         "name": "超豐",
         "change_pct": 5.5,
-        "reason": "量比 2.16x 爆量但法人賣超 -129 張、融資增 +887 張散戶追價、借券賣 1,026 張機構押寶下跌，近5日已 +17.7% 漲多獲利了結壓力大。"
+        "reason": "量比 2.16x 爆量、借券賣 1,026 張機構押寶下跌、當沖 53.9% 投機度極高，法人小賣 -129 張籌碼偏弱"
       },
       {
         "stock_id": "2327",
-        "name": "國巨*",
+        "name": "國巨",
         "change_pct": 1.4,
-        "reason": "雖法人大買 +10,340 張，但借券賣 1,733 張為次高，量比 2.07x 爆量於漲幅僅 +1.4% 之下，疑似法人借券避險或多空對作，短線追價勝率偏低。"
+        "reason": "雖法人買 +10,340 張但借券賣高達 1,733 張為全場最高、當沖 54.7% 投機度高，量比 2.07x 爆量需留意爆量後拉回"
       },
       {
         "stock_id": "1727",
         "name": "中華化",
         "change_pct": 9.9,
-        "reason": "漲停 +9.9% + 近5日 +20.9% 已連續暴漲，借券賣 489 張機構押寶回檔，特化族群題材熱度恐難持續支撐。"
-      },
-      {
-        "stock_id": "7610",
-        "name": "聯友金屬-創",
-        "change_pct": 9.0,
-        "reason": "漲停 +9.0% + 近5日 +19.7%、量比 2.07x 爆量，但融資與借券資料 N/A（創新板流動性低），小型股漲多易急殺，無法人籌碼可追蹤風險高。"
-      }
-    ],
-    "watchlist": [
-      {
-        "stock_id": "4576",
-        "name": "大銀微系統",
-        "reason": "漲停 +9.9% 配合法人買超 +856 張、融資僅增 +86 張未過熱、借券賣僅 63 張，籌碼結構最乾淨，機器人題材具產業趨勢護城河。"
+        "reason": "漲停板但近5日已累積 +20.9% 漲多、當沖 35.2%，融資雖大減但小型特化族群流動性有限，追高需控量"
       },
       {
         "stock_id": "3006",
         "name": "晶豪科",
-        "reason": "法人買超 +5,085 張且融資減 -1,059 張屬「法人進、散戶退」之最佳換手型態，近5日 +24.3% 為全場最強動能，配合 DRAM/NAND 缺貨到 2028 年結構性題材。"
+        "change_pct": 5.5,
+        "reason": "當沖比 67.8% 為全場最高投機度、近5日已 +24.3% 漲多，雖法人買 +5,085 張但短線過熱風險升高"
+      }
+    ],
+    "watchlist": [
+      {
+        "stock_id": "2327",
+        "name": "國巨",
+        "reason": "法人買超 +10,340 張、融資大減 -4,182 張呈現法人接散戶籌碼結構，被動元件龍頭具 MLCC 漲價護城河，符合條件 (a)"
+      },
+      {
+        "stock_id": "4576",
+        "name": "大銀微系統",
+        "reason": "法人買超 +856 張、融資僅微增 +86 張籌碼乾淨，量比 1.34x 屬健康放量，機器人題材具中期成長性，符合條件 (a)(b)"
+      },
+      {
+        "stock_id": "3563",
+        "name": "牧德",
+        "reason": "法人買超 +690 張、融資 +237 張同步增加，CoWoS 設備直接受惠 AI 晶片擴產，符合條件 (a)"
       },
       {
         "stock_id": "2027",
         "name": "大成鋼",
-        "reason": "漲幅僅 +0.1% 但法人單日買超 +22,094 張為全場最大、融資減 -1,189 張、借券賣僅 32 張，明顯為法人默默佈局型態，傳產輪動候選。"
-      },
-      {
-        "stock_id": "2105",
-        "name": "正新",
-        "reason": "法人買超 +6,225 張、融資減 -129 張、借券賣僅 79 張，量比 1.6x 健康放量，輪胎傳產股呈現法人逢低承接訊號。"
+        "reason": "法人買超 +22,094 張為全場最大但股價僅 +0.1%，量比 1.29x 健康放量、當沖 28.7% 屬實質交易，機構低調建倉，符合條件 (a)(b)"
       },
       {
         "stock_id": "2412",
         "name": "中華電",
-        "reason": "法人買超 +2,570 張、融資 0 張變動、借券賣 118 張屬可控，搭配 4 月 EPS 0.48 元重回獲利王新聞，防禦型配置首選。"
+        "reason": "法人買超 +2,570 張、融資零增減、量比 0.77x 無投機性，4 月 EPS 0.48 元重回獲利王，具防禦性配置價值，符合條件 (a)"
       }
     ],
-    "overall_risk": "記憶體與封測族群漲幅已大，2408 南亞科漲停伴隨 -25,585 張法人賣超為強烈警訊，留意「漲停天量見高」型態擴散。Fed 降息預期與台幣匯率波動仍是外資進出主因，短線獲利了結壓力升溫；操作上建議鎖定法人連續買超 + 借券賣低於 100 張的個股，避開融資爆增 ≥ 1000 張的散戶追高標的，停損設於 5 日線下緣嚴守紀律。"
+    "overall_risk": "記憶體族群雖有結構性缺貨題材至 2028 年，但南亞科爆量法人大賣 -25,585 張需高度警戒主力出貨；被動元件國巨爆量需留意短線獲利了結。借券賣集中在南亞科、國巨、超豐三檔超過 1,000 張，顯示機構對指標股押寶回檔。操作上建議：強勢股不追漲停、爆量背離當減碼訊號、分批進場潛力股、嚴設停損 5-7%，避免在 Fed 利率與地緣風險未明下重壓單一族群。"
   },
   "ai_analysis_meta": {
-    "generated_at": "2026-05-17T01:38:47",
+    "generated_at": "2026-05-18T00:37:22",
     "model": "claude opus",
     "allowed_tools": "*",
     "mode": "daily",
