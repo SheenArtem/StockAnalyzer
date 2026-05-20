@@ -1,12 +1,12 @@
 {
-  "scan_date": "2026-05-20",
-  "scan_time": "00:44",
+  "scan_date": "2026-05-21",
+  "scan_time": "00:45",
   "scan_type": "value",
   "market": "tw",
-  "total_scanned": 1940,
-  "passed_initial": 118,
+  "total_scanned": 1945,
+  "passed_initial": 116,
   "scored_count": 20,
-  "elapsed_seconds": 250.1,
+  "elapsed_seconds": 233.4,
   "failures": [],
   "config": {
     "max_pe": 30,
@@ -17,14 +17,14 @@
       "stock_id": "3356",
       "name": "奇偶",
       "market": "twse",
-      "price": 60.3,
-      "change_pct": 2.03,
-      "trading_value": 62975900,
-      "avg_trading_value_5d": 94695127,
-      "_avg_vol_20d": 1258324.3,
-      "PE": 5.95,
-      "PB": 1.81,
-      "dividend_yield": 5.8,
+      "price": 60.1,
+      "change_pct": 0.33,
+      "trading_value": 34845380,
+      "avg_trading_value_5d": 84989964,
+      "_avg_vol_20d": 1259615.0,
+      "PE": 5.93,
+      "PB": 1.8,
+      "dividend_yield": 5.82,
       "value_score": 74.2,
       "scores": {
         "valuation": 90,
@@ -35,91 +35,91 @@
         "gm_qoq": 50
       },
       "details": [
-        "PE=6.0 極低 (+25)",
+        "PE=5.9 極低 (+25)",
         "殖利率 5.8% (+5)",
-        "DDM fair=125 (discount 107%) (+10)",
+        "DDM fair=125 (discount 108%) (+10)",
         "F-Score=5/9 中等 (+10)",
         "流動比率=7.4 安全 (+5)",
         "Z-Score=10.4 [資訊]",
         "連續 4 季獲利 (+5)",
         "ROE=33.4% 高 (+5) [TV]",
         "營收正驚喜 +23.9% (+12)",
-        "法人近 5 日淨買 +343,939 (+10)",
+        "法人近 5 日淨買 +280,621 (+10)",
         "GM QoQ Δ=+0.1pp (49.5%→49.6%) (+0) [F2 A 級]",
-        "周轉率=1.54% Q5 (volatile regime +5)"
+        "周轉率=1.57% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 57.28,
-        "entry_high": 60.3,
+        "entry_low": 57.09,
+        "entry_high": 60.1,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 60.3,
+            "price": 60.1,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 59.09,
+            "price": 58.9,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 57.28,
+            "price": 57.09,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 55.48,
+            "price": 55.29,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
         "stop_loss": 42.4,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -29.68,
+        "stop_loss_pct": -29.45,
         "tp_list": [
           {
             "tier": 1,
-            "price": 66.33,
+            "price": 66.11,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 72.36,
+            "price": 72.12,
             "pct": 20.000000000000004,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
-            "price": 81.41,
-            "pct": 35.00000000000001,
+            "price": 81.14,
+            "pct": 35.0,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 57.28~60.3，分 4 批 30/25/25/20%；停損 42.4 (前波 60 日低點, -29.7%)；TP1=66.33 +10% 落袋 1/3；持倉 90 天為期"
+        "strategy_text": "【左側分批】進場區間 57.09~60.1，分 4 批 30/25/25/20%；停損 42.4 (前波 60 日低點, -29.5%)；TP1=66.11 +10% 落袋 1/3；持倉 90 天為期"
       },
-      "_turnover_20d": 1.54
+      "_turnover_20d": 1.57
     },
     {
       "stock_id": "2027",
       "name": "大成鋼",
       "market": "twse",
-      "price": 40.0,
-      "change_pct": 1.52,
-      "trading_value": 1038708368,
-      "avg_trading_value_5d": 1653428156,
-      "_avg_vol_20d": 26162745.9,
-      "PE": 11.7,
-      "PB": 1.19,
-      "dividend_yield": 3.75,
-      "value_score": 73.0,
+      "price": 41.15,
+      "change_pct": 2.88,
+      "trading_value": 1935687407,
+      "avg_trading_value_5d": 1727778307,
+      "_avg_vol_20d": 27920233.5,
+      "PE": 12.03,
+      "PB": 1.22,
+      "dividend_yield": 3.65,
+      "value_score": 70.5,
       "scores": {
-        "valuation": 83,
+        "valuation": 73,
         "quality": 73,
         "revenue": 62,
         "technical": 50,
@@ -127,88 +127,180 @@
         "gm_qoq": 60
       },
       "details": [
-        "PE=11.7 偏低 (+15)",
-        "PB=1.19 偏低 (+8)",
-        "DDM fair=54 (discount 34%) (+10)",
+        "PE=12.0 合理 (+5)",
+        "PB=1.22 偏低 (+8)",
+        "DDM fair=54 (discount 30%) (+10)",
         "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
         "流動比率=3.7 安全 (+5)",
         "Z-Score=1.1 危險區 (破產風險) (-20)",
-        "FCF Yield=134.5% 高 (+8)",
+        "FCF Yield=130.7% 高 (+8)",
         "連續 4 季獲利 (+5)",
         "營收正驚喜 +39.1% (+12)",
-        "法人近 5 日淨買 +57,789,603 (+10)",
+        "法人近 5 日淨買 +90,525,557 (+10)",
         "GM QoQ Δ=+1.8pp (25.5%→27.3%) (+10) [F2 A 級]",
-        "周轉率=1.06% Q5 (volatile regime +5)"
+        "周轉率=1.15% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 38.0,
-        "entry_high": 40.0,
+        "entry_low": 39.09,
+        "entry_high": 41.15,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 40.0,
+            "price": 41.15,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 39.2,
+            "price": 40.33,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 38.0,
+            "price": 39.09,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 36.8,
+            "price": 37.86,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
         "stop_loss": 35.7,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -10.75,
+        "stop_loss_pct": -13.24,
         "tp_list": [
           {
             "tier": 1,
-            "price": 44.0,
+            "price": 45.27,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 48.0,
+            "price": 49.38,
+            "pct": 19.999999999999993,
+            "method": "布林上緣",
+            "action": "再減 1/3，剩下用移動停損"
+          },
+          {
+            "tier": 3,
+            "price": 55.55,
+            "pct": 35.00000000000001,
+            "method": "前高",
+            "action": "清倉或 120 日到期換股"
+          }
+        ],
+        "horizon_days": 120,
+        "strategy_text": "【左側分批】進場區間 39.09~41.15，分 4 批 30/25/25/20%；停損 35.7 (前波 60 日低點, -13.2%)；TP1=45.27 +10% 落袋 1/3；持倉 120 天為期"
+      },
+      "_turnover_20d": 1.15
+    },
+    {
+      "stock_id": "5515",
+      "name": "建國",
+      "market": "twse",
+      "price": 39.65,
+      "change_pct": 0.38,
+      "trading_value": 52745998,
+      "avg_trading_value_5d": 54234712,
+      "_avg_vol_20d": 710250.4,
+      "PE": 6.64,
+      "PB": 1.4,
+      "dividend_yield": 8.32,
+      "value_score": 70.2,
+      "scores": {
+        "valuation": 100,
+        "quality": 65,
+        "revenue": 62,
+        "technical": 50,
+        "smart_money": 40,
+        "gm_qoq": 60
+      },
+      "details": [
+        "PE=6.6 極低 (+25)",
+        "PB=1.40 偏低 (+8)",
+        "殖利率 8.3% 高 (+10)",
+        "DDM fair=118 (discount 197%) (+10)",
+        "F-Score=7/9 強 (獲利3/槓桿3/效率1) (+25)",
+        "Z-Score=1.5 危險區 (破產風險) (-20)",
+        "連續 4 季獲利 (+5)",
+        "ROE=22.4% 高 (+5) [TV]",
+        "營收正驚喜 +57.2% (+12)",
+        "法人近 5 日淨賣 -417,362 (-10)",
+        "GM QoQ Δ=+1.4pp (18.0%→19.4%) (+10) [F2 A 級]",
+        "周轉率=0.35% [mid quintile, volatile regime +0]"
+      ],
+      "bypass_reason": "",
+      "action_plan": {
+        "entry_low": 37.67,
+        "entry_high": 39.65,
+        "entry_batches": [
+          {
+            "pct": 30,
+            "price": 39.65,
+            "trigger": "即時進場"
+          },
+          {
+            "pct": 25,
+            "price": 38.86,
+            "trigger": "回檔 -2%"
+          },
+          {
+            "pct": 25,
+            "price": 37.67,
+            "trigger": "回檔 -5%"
+          },
+          {
+            "pct": 20,
+            "price": 36.48,
+            "trigger": "深跌 -8% 或 MA60 支撐"
+          }
+        ],
+        "stop_loss": 31.0,
+        "stop_method": "前波 60 日低點",
+        "stop_loss_pct": -21.82,
+        "tp_list": [
+          {
+            "tier": 1,
+            "price": 43.62,
+            "pct": 10.0,
+            "method": "+10%",
+            "action": "減碼 1/3 落袋"
+          },
+          {
+            "tier": 2,
+            "price": 47.58,
             "pct": 20.0,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
-            "price": 54.0,
-            "pct": 35.0,
+            "price": 53.53,
+            "pct": 35.000000000000014,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
-        "horizon_days": 120,
-        "strategy_text": "【左側分批】進場區間 38.0~40.0，分 4 批 30/25/25/20%；停損 35.7 (前波 60 日低點, -10.7%)；TP1=44.0 +10% 落袋 1/3；持倉 120 天為期"
+        "horizon_days": 90,
+        "strategy_text": "【左側分批】進場區間 37.67~39.65，分 4 批 30/25/25/20%；停損 31.0 (前波 60 日低點, -21.8%)；TP1=43.62 +10% 落袋 1/3；持倉 90 天為期"
       },
-      "_turnover_20d": 1.06
+      "_turnover_20d": 0.35
     },
     {
       "stock_id": "2618",
       "name": "長榮航",
       "market": "twse",
-      "price": 34.45,
-      "change_pct": 1.03,
-      "trading_value": 746661771,
-      "avg_trading_value_5d": 898004598,
-      "_avg_vol_20d": 25514884.85,
-      "PE": 6.54,
+      "price": 34.3,
+      "change_pct": 0.44,
+      "trading_value": 991327970,
+      "avg_trading_value_5d": 946803262,
+      "_avg_vol_20d": 25976925.1,
+      "PE": 6.51,
       "PB": 1.37,
-      "dividend_yield": 5.81,
+      "dividend_yield": 5.83,
       "value_score": 69.8,
       "scores": {
         "valuation": 98,
@@ -225,67 +317,67 @@
         "DDM fair=71 (discount 108%) (+10)",
         "F-Score=7/9 強 (獲利4/槓桿2/效率1) (+25)",
         "Z-Score=0.5 危險區 (破產風險) (-20)",
-        "FCF Yield=760.1% 高 (+8)",
+        "FCF Yield=763.4% 高 (+8)",
         "連續 4 季獲利 (+5)",
         "ROE=22.7% 高 (+5) [TV]",
-        "法人近 5 日淨賣 -9,705,939 (-10)",
+        "法人近 5 日淨賣 -9,335,310 (-10)",
         "GM QoQ Δ=+3.3pp (22.9%→26.2%) (+20) [F2 A 級]",
         "周轉率=0.48% [mid quintile, volatile regime +0]"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 32.73,
-        "entry_high": 34.45,
+        "entry_low": 32.58,
+        "entry_high": 34.3,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 34.45,
+            "price": 34.3,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 33.76,
+            "price": 33.61,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 32.73,
+            "price": 32.58,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 31.69,
+            "price": 31.56,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
         "stop_loss": 32.15,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -6.68,
+        "stop_loss_pct": -6.27,
         "tp_list": [
           {
             "tier": 1,
-            "price": 37.9,
+            "price": 37.73,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 41.34,
+            "price": 41.16,
             "pct": 20.0,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
-            "price": 46.51,
+            "price": 46.3,
             "pct": 35.00000000000001,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 32.73~34.45，分 4 批 30/25/25/20%；停損 32.15 (前波 60 日低點, -6.7%)；TP1=37.9 +10% 落袋 1/3；持倉 90 天為期"
+        "strategy_text": "【左側分批】進場區間 32.58~34.3，分 4 批 30/25/25/20%；停損 32.15 (前波 60 日低點, -6.3%)；TP1=37.73 +10% 落袋 1/3；持倉 90 天為期"
       },
       "_turnover_20d": 0.48
     },
@@ -293,13 +385,13 @@
       "stock_id": "2408",
       "name": "南亞科",
       "market": "twse",
-      "price": 274.5,
-      "change_pct": 12.5,
-      "trading_value": 33486284188,
-      "avg_trading_value_5d": 42873946466,
-      "_avg_vol_20d": 134084235.35,
-      "PE": 24.57,
-      "PB": 4.41,
+      "price": 275.0,
+      "change_pct": 0.18,
+      "trading_value": 34285119840,
+      "avg_trading_value_5d": 42874857737,
+      "_avg_vol_20d": 134786365.25,
+      "PE": 24.62,
+      "PB": 4.42,
       "dividend_yield": 0.55,
       "value_score": 69.5,
       "scores": {
@@ -311,87 +403,87 @@
         "gm_qoq": 70
       },
       "details": [
-        "PB=4.41 偏高 (-5)",
+        "PB=4.42 偏高 (-5)",
         "F-Score=7/9 強 (獲利4/槓桿1/效率2) (+25)",
         "流動比率=5.6 安全 (+5)",
         "Z-Score=2.3 [資訊]",
-        "FCF Yield=114.9% 高 (+8)",
+        "FCF Yield=114.7% 高 (+8)",
         "營益率=35.5% 優 (+5) [TV]",
         "營收正驚喜 +182.0% (+12)",
         "ETF 同步買超 3 檔 (+20)",
-        "法人近 5 日淨賣 -57,714,540 (-10)",
+        "法人近 5 日淨賣 -61,489,779 (-10)",
         "GM QoQ Δ=+18.8pp (49.0%→67.9%) (+20) [F2 A 級]",
-        "周轉率=3.50% Q5 (volatile regime +5)"
+        "周轉率=3.92% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "large_cap_graham_exempt",
       "action_plan": {
-        "entry_low": 260.77,
-        "entry_high": 274.5,
+        "entry_low": 261.25,
+        "entry_high": 275.0,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 274.5,
+            "price": 275.0,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 269.01,
+            "price": 269.5,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 260.77,
+            "price": 261.25,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 252.54,
+            "price": 253.0,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
         "stop_loss": 198.5,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -27.69,
+        "stop_loss_pct": -27.82,
         "tp_list": [
           {
             "tier": 1,
-            "price": 301.95,
+            "price": 302.5,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 347.86,
-            "pct": 26.723468004859065,
+            "price": 348.29,
+            "pct": 26.65189959966357,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
             "price": 353.0,
-            "pct": 28.59744990892532,
+            "pct": 28.363636363636363,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 150,
-        "strategy_text": "【左側分批】進場區間 260.77~274.5，分 4 批 30/25/25/20%；停損 198.5 (前波 60 日低點, -27.7%)；TP1=301.95 +10% 落袋 1/3；持倉 150 天為期"
+        "strategy_text": "【左側分批】進場區間 261.25~275.0，分 4 批 30/25/25/20%；停損 198.5 (前波 60 日低點, -27.8%)；TP1=302.5 +10% 落袋 1/3；持倉 150 天為期"
       },
-      "_turnover_20d": 3.5
+      "_turnover_20d": 3.92
     },
     {
       "stock_id": "5864",
       "name": "致和證",
       "market": "tpex",
-      "price": 31.0,
-      "change_pct": 0.0,
-      "trading_value": 107580152,
-      "avg_trading_value_5d": 166805832,
-      "_avg_vol_20d": 5595711.1,
-      "PE": 4.4,
-      "PB": 1.45,
-      "dividend_yield": 5.16,
+      "price": 31.35,
+      "change_pct": 1.13,
+      "trading_value": 120658211,
+      "avg_trading_value_5d": 151017555,
+      "_avg_vol_20d": 5667832.75,
+      "PE": 4.45,
+      "PB": 1.46,
+      "dividend_yield": 5.1,
       "value_score": 66.8,
       "scores": {
         "valuation": 80,
@@ -402,88 +494,88 @@
         "gm_qoq": 50
       },
       "details": [
-        "PE=4.4 極低 (+25)",
-        "PB=1.45 偏低 (+8)",
-        "殖利率 5.2% (+5)",
-        "DDM fair=21 (premium 34%) (-8)",
+        "PE=4.5 極低 (+25)",
+        "PB=1.46 偏低 (+8)",
+        "殖利率 5.1% (+5)",
+        "DDM fair=20 (premium 35%) (-8)",
         "F-Score=5/9 中等 (+10)",
         "流動比率=2.6 安全 (+5)",
         "Z-Score=1.4 危險區 (破產風險) (-20)",
         "ROE=15.9% (+5)",
         "營益率=80.8% 優 (+5) [TV]",
         "營收正驚喜 +523.6% (+12)",
-        "法人近 5 日淨賣 -7,221,327 (-10)",
-        "周轉率=1.23% Q5 (volatile regime +5)"
+        "法人近 5 日淨賣 -7,190,497 (-10)",
+        "周轉率=1.26% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 29.45,
-        "entry_high": 31.0,
+        "entry_low": 29.78,
+        "entry_high": 31.35,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 31.0,
+            "price": 31.35,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 30.38,
+            "price": 30.72,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 29.45,
+            "price": 29.78,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 28.52,
+            "price": 28.84,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
         "stop_loss": 22.2,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -28.39,
+        "stop_loss_pct": -29.19,
         "tp_list": [
           {
             "tier": 1,
-            "price": 34.1,
+            "price": 34.49,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 36.47,
-            "pct": 17.64828625138923,
+            "price": 36.43,
+            "pct": 16.196599102070135,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
             "price": 37.75,
-            "pct": 21.774193548387096,
+            "pct": 20.414673046251988,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 29.45~31.0，分 4 批 30/25/25/20%；停損 22.2 (前波 60 日低點, -28.4%)；TP1=34.1 +10% 落袋 1/3；持倉 90 天為期"
+        "strategy_text": "【左側分批】進場區間 29.78~31.35，分 4 批 30/25/25/20%；停損 22.2 (前波 60 日低點, -29.2%)；TP1=34.49 +10% 落袋 1/3；持倉 90 天為期"
       },
-      "_turnover_20d": 1.23
+      "_turnover_20d": 1.26
     },
     {
       "stock_id": "4123",
       "name": "晟德",
       "market": "tpex",
-      "price": 37.95,
-      "change_pct": 0.0,
-      "trading_value": 76134167,
-      "avg_trading_value_5d": 148534870,
-      "_avg_vol_20d": 2703842.25,
-      "PE": 2.69,
-      "PB": 1.0,
-      "dividend_yield": 5.93,
+      "price": 38.2,
+      "change_pct": 0.66,
+      "trading_value": 46200085,
+      "avg_trading_value_5d": 144308651,
+      "_avg_vol_20d": 2615564.25,
+      "PE": 2.71,
+      "PB": 1.01,
+      "dividend_yield": 5.89,
       "value_score": 66.2,
       "scores": {
         "valuation": 98,
@@ -495,88 +587,88 @@
       },
       "details": [
         "PE=2.7 極低 (+25)",
-        "PB=1.00 偏低 (+8)",
+        "PB=1.01 偏低 (+8)",
         "殖利率 5.9% (+5)",
-        "DDM fair=80 (discount 112%) (+10)",
+        "DDM fair=80 (discount 110%) (+10)",
         "F-Score=7/9 強 (獲利2/槓桿3/效率2) (+25)",
         "流動比率=0.9 偏低 (-8)",
         "Z-Score=0.8 危險區 (破產風險) (-20)",
         "ROIC=-0.1% 虧損 (-5)",
         "ROE=45.7% 高 (+5) [TV]",
         "營收正驚喜 +32.7% (+12)",
-        "法人近 5 日淨賣 -4,122,724 (-10)",
+        "法人近 5 日淨賣 -3,067,494 (-10)",
         "GM QoQ Δ=+4.6pp (41.9%→46.6%) (+20) [F2 A 級]",
-        "周轉率=0.36% [mid quintile, volatile regime +0]"
+        "周轉率=0.35% [mid quintile, volatile regime +0]"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 36.05,
-        "entry_high": 37.95,
+        "entry_low": 36.29,
+        "entry_high": 38.2,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 37.95,
+            "price": 38.2,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 37.19,
+            "price": 37.44,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 36.05,
+            "price": 36.29,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 34.91,
+            "price": 35.14,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
-        "stop_loss": 32.26,
+        "stop_loss": 32.47,
         "stop_method": "硬停損 -15%",
-        "stop_loss_pct": -14.99,
+        "stop_loss_pct": -15.0,
         "tp_list": [
           {
             "tier": 1,
-            "price": 41.34,
-            "pct": 8.92841458058848,
+            "price": 41.31,
+            "pct": 8.150087260034876,
             "method": "MA60 反壓",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 45.54,
-            "pct": 19.99999999999999,
+            "price": 45.84,
+            "pct": 20.0,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
             "price": 51.4,
-            "pct": 35.44137022397891,
+            "pct": 34.55497382198951,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 36.05~37.95，分 4 批 30/25/25/20%；停損 32.26 (硬停損 -15%, -15.0%)；TP1=41.34 MA60 反壓 落袋 1/3；持倉 90 天為期"
+        "strategy_text": "【左側分批】進場區間 36.29~38.2，分 4 批 30/25/25/20%；停損 32.47 (硬停損 -15%, -15.0%)；TP1=41.31 MA60 反壓 落袋 1/3；持倉 90 天為期"
       },
-      "_turnover_20d": 0.36
+      "_turnover_20d": 0.35
     },
     {
       "stock_id": "3673",
       "name": "TPK-KY",
       "market": "twse",
-      "price": 75.4,
-      "change_pct": 9.91,
-      "trading_value": 2273015482,
-      "avg_trading_value_5d": 2182838510,
-      "_avg_vol_20d": 16768857.65,
-      "PE": 20.71,
-      "PB": 0.76,
-      "dividend_yield": 2.39,
+      "price": 71.7,
+      "change_pct": 5.44,
+      "trading_value": 3557217857,
+      "avg_trading_value_5d": 2522381287,
+      "_avg_vol_20d": 18490582.2,
+      "PE": 19.7,
+      "PB": 0.72,
+      "dividend_yield": 2.51,
       "value_score": 66.2,
       "scores": {
         "valuation": 65,
@@ -587,86 +679,86 @@
         "gm_qoq": 70
       },
       "details": [
-        "PB=0.76 破淨 (+15)",
+        "PB=0.72 破淨 (+15)",
         "F-Score=8/9 強 (獲利3/槓桿3/效率2) (+25)",
         "流動比率=2.2 安全 (+5)",
         "Z-Score=0.8 危險區 (破產風險) (-20)",
         "ROIC=-0.1% 虧損 (-5)",
         "連續 4 季獲利 (+5)",
         "營收正驚喜 +21.8% (+12)",
-        "法人近 5 日淨賣 -4,539,134 (-10)",
+        "法人近 5 日淨賣 -3,891,031 (-10)",
         "GM QoQ Δ=+3.5pp (5.8%→9.4%) (+20) [F2 A 級]",
-        "周轉率=4.53% Q5 (volatile regime +5)"
+        "周轉率=4.32% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 71.63,
-        "entry_high": 75.4,
+        "entry_low": 68.11,
+        "entry_high": 71.7,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 75.4,
+            "price": 71.7,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 73.89,
+            "price": 70.27,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 71.63,
+            "price": 68.11,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 69.37,
+            "price": 65.96,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
         "stop_loss": 37.05,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -50.86,
+        "stop_loss_pct": -48.33,
         "tp_list": [
           {
             "tier": 1,
-            "price": 82.94,
+            "price": 78.87,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 90.48,
-            "pct": 19.999999999999996,
+            "price": 86.04,
+            "pct": 20.000000000000004,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
-            "price": 101.79,
+            "price": 96.8,
             "pct": 35.000000000000014,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
-        "horizon_days": 150,
-        "strategy_text": "【左側分批】進場區間 71.63~75.4，分 4 批 30/25/25/20%；停損 37.05 (前波 60 日低點, -50.9%)；TP1=82.94 +10% 落袋 1/3；持倉 150 天為期"
+        "horizon_days": 120,
+        "strategy_text": "【左側分批】進場區間 68.11~71.7，分 4 批 30/25/25/20%；停損 37.05 (前波 60 日低點, -48.3%)；TP1=78.87 +10% 落袋 1/3；持倉 120 天為期"
       },
-      "_turnover_20d": 4.53
+      "_turnover_20d": 4.32
     },
     {
       "stock_id": "2324",
       "name": "仁寶",
       "market": "twse",
-      "price": 27.8,
-      "change_pct": 1.65,
-      "trading_value": 1853093304,
-      "avg_trading_value_5d": 2417858953,
-      "_avg_vol_20d": 57934810.45,
-      "PE": 20.9,
-      "PB": 0.93,
-      "dividend_yield": 3.96,
+      "price": 27.6,
+      "change_pct": 0.73,
+      "trading_value": 1102303151,
+      "avg_trading_value_5d": 1908548935,
+      "_avg_vol_20d": 55443077.55,
+      "PE": 20.75,
+      "PB": 0.92,
+      "dividend_yield": 3.99,
       "value_score": 65.8,
       "scores": {
         "valuation": 75,
@@ -677,85 +769,85 @@
         "gm_qoq": 50
       },
       "details": [
-        "PB=0.93 破淨 (+15)",
-        "DDM fair=39 (discount 41%) (+10)",
+        "PB=0.92 破淨 (+15)",
+        "DDM fair=39 (discount 43%) (+10)",
         "F-Score=7/9 強 (獲利4/槓桿2/效率1) (+25)",
         "Z-Score=0.9 危險區 (破產風險) (-20)",
-        "FCF Yield=504.0% 高 (+8)",
+        "FCF Yield=507.7% 高 (+8)",
         "連續 4 季獲利 (+5)",
-        "法人近 5 日淨賣 -66,049,415 (-10)",
+        "法人近 5 日淨賣 -133,526,157 (-10)",
         "GM QoQ Δ=-0.6pp (5.8%→5.3%) (+0) [F2 A 級]",
-        "周轉率=1.31% Q5 (volatile regime +5)"
+        "周轉率=1.26% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 26.41,
-        "entry_high": 27.8,
+        "entry_low": 26.22,
+        "entry_high": 27.6,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 27.8,
+            "price": 27.6,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 27.24,
+            "price": 27.05,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 26.41,
+            "price": 26.22,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 25.58,
+            "price": 25.39,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
-        "stop_loss": 23.63,
+        "stop_loss": 23.46,
         "stop_method": "硬停損 -15%",
         "stop_loss_pct": -15.0,
         "tp_list": [
           {
             "tier": 1,
-            "price": 29.74,
-            "pct": 6.965456489178775,
+            "price": 29.7,
+            "pct": 7.623936289174535,
             "method": "MA60 反壓",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 32.2,
-            "pct": 15.824209611564813,
+            "price": 32.1,
+            "pct": 16.29769609249638,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
             "price": 33.87,
-            "pct": 21.8499392808537,
+            "pct": 22.732909855352638,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 150,
-        "strategy_text": "【左側分批】進場區間 26.41~27.8，分 4 批 30/25/25/20%；停損 23.63 (硬停損 -15%, -15.0%)；TP1=29.74 MA60 反壓 落袋 1/3；持倉 150 天為期"
+        "strategy_text": "【左側分批】進場區間 26.22~27.6，分 4 批 30/25/25/20%；停損 23.46 (硬停損 -15%, -15.0%)；TP1=29.7 MA60 反壓 落袋 1/3；持倉 150 天為期"
       },
-      "_turnover_20d": 1.31
+      "_turnover_20d": 1.26
     },
     {
       "stock_id": "2610",
       "name": "華航",
       "market": "twse",
-      "price": 18.4,
-      "change_pct": 0.27,
-      "trading_value": 368681953,
-      "avg_trading_value_5d": 412560094,
-      "_avg_vol_20d": 24185562.6,
-      "PE": 7.19,
-      "PB": 1.09,
-      "dividend_yield": 4.46,
+      "price": 18.2,
+      "change_pct": 1.11,
+      "trading_value": 321122846,
+      "avg_trading_value_5d": 409209411,
+      "_avg_vol_20d": 24238185.05,
+      "PE": 7.11,
+      "PB": 1.08,
+      "dividend_yield": 4.51,
       "value_score": 65.5,
       "scores": {
         "valuation": 98,
@@ -766,88 +858,88 @@
         "gm_qoq": 60
       },
       "details": [
-        "PE=7.2 極低 (+25)",
-        "PB=1.09 偏低 (+8)",
+        "PE=7.1 極低 (+25)",
+        "PB=1.08 偏低 (+8)",
         "殖利率 4.5% (+5)",
-        "DDM fair=29 (discount 59%) (+10)",
+        "DDM fair=29 (discount 61%) (+10)",
         "F-Score=7/9 強 (獲利4/槓桿1/效率2) (+25)",
         "流動比率=0.7 偏低 (-8)",
         "Z-Score=0.2 危險區 (破產風險) (-20)",
-        "FCF Yield=706.2% 高 (+8)",
+        "FCF Yield=714.0% 高 (+8)",
         "連續 4 季獲利 (+5)",
-        "法人近 5 日淨賣 -12,454,685 (-10)",
+        "法人近 5 日淨賣 -23,249,061 (-10)",
         "GM QoQ Δ=+2.5pp (18.1%→20.6%) (+10) [F2 A 級]",
-        "周轉率=0.40% [mid quintile, volatile regime +0]"
+        "周轉率=0.39% [mid quintile, volatile regime +0]"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 17.48,
-        "entry_high": 18.4,
+        "entry_low": 17.29,
+        "entry_high": 18.2,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 18.4,
+            "price": 18.2,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 18.03,
+            "price": 17.84,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 17.48,
+            "price": 17.29,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 16.93,
+            "price": 16.74,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
-        "stop_loss": 15.64,
+        "stop_loss": 15.47,
         "stop_method": "硬停損 -15%",
         "stop_loss_pct": -15.0,
         "tp_list": [
           {
             "tier": 1,
-            "price": 20.24,
+            "price": 20.02,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 22.08,
-            "pct": 20.0,
+            "price": 21.84,
+            "pct": 20.000000000000004,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
             "price": 23.5,
-            "pct": 27.71739130434784,
+            "pct": 29.120879120879128,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 17.48~18.4，分 4 批 30/25/25/20%；停損 15.64 (硬停損 -15%, -15.0%)；TP1=20.24 +10% 落袋 1/3；持倉 90 天為期"
+        "strategy_text": "【左側分批】進場區間 17.29~18.2，分 4 批 30/25/25/20%；停損 15.47 (硬停損 -15%, -15.0%)；TP1=20.02 +10% 落袋 1/3；持倉 90 天為期"
       },
-      "_turnover_20d": 0.4
+      "_turnover_20d": 0.39
     },
     {
       "stock_id": "6016",
       "name": "康和證",
       "market": "tpex",
-      "price": 21.65,
-      "change_pct": -0.69,
-      "trading_value": 104449831,
-      "avg_trading_value_5d": 209871560,
-      "_avg_vol_20d": 10541011.85,
-      "PE": 5.13,
-      "PB": 1.2,
-      "dividend_yield": 6.49,
+      "price": 21.8,
+      "change_pct": 0.69,
+      "trading_value": 80557211,
+      "avg_trading_value_5d": 174460292,
+      "_avg_vol_20d": 10464917.85,
+      "PE": 5.17,
+      "PB": 1.21,
+      "dividend_yield": 6.44,
       "value_score": 65.0,
       "scores": {
         "valuation": 93,
@@ -858,178 +950,87 @@
         "gm_qoq": 50
       },
       "details": [
-        "PE=5.1 極低 (+25)",
-        "PB=1.20 偏低 (+8)",
-        "殖利率 6.5% 高 (+10)",
+        "PE=5.2 極低 (+25)",
+        "PB=1.21 偏低 (+8)",
+        "殖利率 6.4% 高 (+10)",
         "F-Score=4/9 (+0)",
         "Z-Score=0.3 危險區 (破產風險) (-20)",
-        "FCF Yield=-92.9% 負 (-5)",
+        "FCF Yield=-92.3% 負 (-5)",
         "連續 4 季獲利 (+5)",
         "營益率=35.0% 優 (+5) [TV]",
         "營收正驚喜 +428.5% (+12)",
-        "法人近 5 日淨賣 -8,618,000 (-10)",
-        "周轉率=1.52% Q5 (volatile regime +5)"
+        "法人近 5 日淨賣 -8,799,000 (-10)",
+        "周轉率=1.53% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 20.57,
-        "entry_high": 21.65,
+        "entry_low": 20.71,
+        "entry_high": 21.8,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 21.65,
+            "price": 21.8,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 21.22,
+            "price": 21.36,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 20.57,
+            "price": 20.71,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 19.92,
+            "price": 20.06,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
         "stop_loss": 15.45,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -28.64,
+        "stop_loss_pct": -29.13,
         "tp_list": [
           {
             "tier": 1,
-            "price": 23.82,
+            "price": 23.98,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 24.52,
-            "pct": 13.275555461246979,
+            "price": 24.53,
+            "pct": 12.523372364031005,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
-            "price": 29.23,
-            "pct": 35.0,
+            "price": 29.43,
+            "pct": 35.00000000000001,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 20.57~21.65，分 4 批 30/25/25/20%；停損 15.45 (前波 60 日低點, -28.6%)；TP1=23.82 +10% 落袋 1/3；持倉 90 天為期"
+        "strategy_text": "【左側分批】進場區間 20.71~21.8，分 4 批 30/25/25/20%；停損 15.45 (前波 60 日低點, -29.1%)；TP1=23.98 +10% 落袋 1/3；持倉 90 天為期"
       },
-      "_turnover_20d": 1.52
-    },
-    {
-      "stock_id": "6192",
-      "name": "巨路",
-      "market": "twse",
-      "price": 124.0,
-      "change_pct": 2.48,
-      "trading_value": 35992322,
-      "avg_trading_value_5d": 64871893,
-      "_avg_vol_20d": 455439.15,
-      "PE": 12.69,
-      "PB": 1.64,
-      "dividend_yield": 4.68,
-      "value_score": 65.0,
-      "scores": {
-        "valuation": 70,
-        "quality": 70,
-        "revenue": 62,
-        "technical": 50,
-        "smart_money": 60,
-        "gm_qoq": 70
-      },
-      "details": [
-        "PE=12.7 合理 (+5)",
-        "殖利率 4.7% (+5)",
-        "DDM fair=207 (discount 67%) (+10)",
-        "F-Score=6/9 中等 (+10)",
-        "流動比率=2.1 安全 (+5)",
-        "Z-Score=2.8 [資訊]",
-        "連續 4 季獲利 (+5)",
-        "營收正驚喜 +42.3% (+12)",
-        "法人近 5 日淨買 +147,405 (+10)",
-        "GM QoQ Δ=+3.4pp (30.7%→34.0%) (+20) [F2 A 級]",
-        "周轉率=0.46% [mid quintile, volatile regime +0]"
-      ],
-      "bypass_reason": "",
-      "action_plan": {
-        "entry_low": 117.8,
-        "entry_high": 124.0,
-        "entry_batches": [
-          {
-            "pct": 30,
-            "price": 124.0,
-            "trigger": "即時進場"
-          },
-          {
-            "pct": 25,
-            "price": 121.52,
-            "trigger": "回檔 -2%"
-          },
-          {
-            "pct": 25,
-            "price": 117.8,
-            "trigger": "回檔 -5%"
-          },
-          {
-            "pct": 20,
-            "price": 114.08,
-            "trigger": "深跌 -8% 或 MA60 支撐"
-          }
-        ],
-        "stop_loss": 114.0,
-        "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -8.06,
-        "tp_list": [
-          {
-            "tier": 1,
-            "price": 136.4,
-            "pct": 10.0,
-            "method": "+10%",
-            "action": "減碼 1/3 落袋"
-          },
-          {
-            "tier": 2,
-            "price": 148.8,
-            "pct": 19.999999999999986,
-            "method": "布林上緣",
-            "action": "再減 1/3，剩下用移動停損"
-          },
-          {
-            "tier": 3,
-            "price": 167.4,
-            "pct": 35.0,
-            "method": "前高",
-            "action": "清倉或 120 日到期換股"
-          }
-        ],
-        "horizon_days": 120,
-        "strategy_text": "【左側分批】進場區間 117.8~124.0，分 4 批 30/25/25/20%；停損 114.0 (前波 60 日低點, -8.1%)；TP1=136.4 +10% 落袋 1/3；持倉 120 天為期"
-      },
-      "_turnover_20d": 0.46
+      "_turnover_20d": 1.53
     },
     {
       "stock_id": "2615",
       "name": "萬海",
       "market": "twse",
-      "price": 80.4,
-      "change_pct": 4.55,
-      "trading_value": 1719740504,
-      "avg_trading_value_5d": 1013595836,
-      "_avg_vol_20d": 7565419.1,
-      "PE": 7.42,
+      "price": 81.1,
+      "change_pct": 0.87,
+      "trading_value": 1911866413,
+      "avg_trading_value_5d": 1215802717,
+      "_avg_vol_20d": 8349985.85,
+      "PE": 7.49,
       "PB": 0.79,
-      "dividend_yield": 3.73,
+      "dividend_yield": 3.7,
       "value_score": 64.8,
       "scores": {
         "valuation": 100,
@@ -1040,99 +1041,99 @@
         "gm_qoq": 40
       },
       "details": [
-        "PE=7.4 極低 (+25)",
+        "PE=7.5 極低 (+25)",
         "PB=0.79 破淨 (+15)",
-        "DDM fair=107 (discount 33%) (+10)",
+        "DDM fair=107 (discount 32%) (+10)",
         "F-Score=5/9 中等 (+10)",
         "流動比率=4.0 安全 (+5)",
         "Z-Score=1.3 危險區 (破產風險) (-20)",
-        "FCF Yield=120.6% 高 (+8)",
+        "FCF Yield=119.5% 高 (+8)",
         "連續 4 季獲利 (+5)",
         "營益率=21.4% 優 (+5) [TV]",
-        "法人近 5 日淨買 +7,684,862 (+10)",
+        "法人近 5 日淨買 +19,912,074 (+10)",
         "GM QoQ Δ=-1.2pp (23.9%→22.8%) (-10) [F2 A 級]",
-        "周轉率=0.28% [mid quintile, volatile regime +0]"
+        "周轉率=0.30% [mid quintile, volatile regime +0]"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 76.38,
-        "entry_high": 80.4,
+        "entry_low": 77.04,
+        "entry_high": 81.1,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 80.4,
+            "price": 81.1,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 78.79,
+            "price": 79.48,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 76.38,
+            "price": 77.04,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 73.97,
+            "price": 74.61,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
         "stop_loss": 73.2,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -8.96,
+        "stop_loss_pct": -9.74,
         "tp_list": [
           {
             "tier": 1,
-            "price": 88.44,
+            "price": 89.21,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 96.48,
-            "pct": 19.999999999999996,
+            "price": 97.32,
+            "pct": 20.0,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
-            "price": 108.54,
-            "pct": 35.000000000000014,
+            "price": 109.48,
+            "pct": 35.00000000000001,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 76.38~80.4，分 4 批 30/25/25/20%；停損 73.2 (前波 60 日低點, -9.0%)；TP1=88.44 +10% 落袋 1/3；持倉 90 天為期"
+        "strategy_text": "【左側分批】進場區間 77.04~81.1，分 4 批 30/25/25/20%；停損 73.2 (前波 60 日低點, -9.7%)；TP1=89.21 +10% 落袋 1/3；持倉 90 天為期"
       },
-      "_turnover_20d": 0.28
+      "_turnover_20d": 0.3
     },
     {
       "stock_id": "2316",
       "name": "楠梓電",
       "market": "twse",
-      "price": 139.0,
-      "change_pct": 9.88,
-      "trading_value": 2070769651,
-      "avg_trading_value_5d": 1915032254,
-      "_avg_vol_20d": 8091598.15,
-      "PE": 9.0,
-      "PB": 1.84,
-      "dividend_yield": 1.44,
+      "price": 137.5,
+      "change_pct": 1.1,
+      "trading_value": 3286627146,
+      "avg_trading_value_5d": 1911771591,
+      "_avg_vol_20d": 9035188.85,
+      "PE": 8.91,
+      "PB": 1.82,
+      "dividend_yield": 1.45,
       "value_score": 64.8,
       "scores": {
         "valuation": 65,
         "quality": 62,
         "revenue": 62,
         "technical": 50,
-        "smart_money": 60,
+        "smart_money": 40,
         "gm_qoq": 50
       },
       "details": [
-        "PE=9.0 偏低 (+15)",
+        "PE=8.9 偏低 (+15)",
         "F-Score=5/9 中等 (+10)",
         "流動比率=2.3 安全 (+5)",
         "Z-Score=2.4 [資訊]",
@@ -1141,79 +1142,79 @@
         "營益率=-11.6% 虧損 (-8) [TV]",
         "ROE=23.3% 高 (+5) [TV]",
         "營收正驚喜 +32.4% (+12)",
-        "法人近 5 日淨買 +2,684,741 (+10)",
+        "法人近 5 日淨賣 -571,252 (-10)",
         "GM QoQ Δ=+0.5pp (5.7%→6.2%) (+0) [F2 A 級]",
-        "周轉率=4.90% Q5 (volatile regime +5)"
+        "周轉率=4.93% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 132.05,
-        "entry_high": 139.0,
+        "entry_low": 130.62,
+        "entry_high": 137.5,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 139.0,
+            "price": 137.5,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 136.22,
+            "price": 134.75,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 132.05,
+            "price": 130.62,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 127.88,
+            "price": 126.5,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
         "stop_loss": 84.7,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -39.06,
+        "stop_loss_pct": -38.4,
         "tp_list": [
           {
             "tier": 1,
-            "price": 152.9,
+            "price": 151.25,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 166.8,
-            "pct": 19.999999999999986,
+            "price": 165.0,
+            "pct": 20.0,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
-            "price": 187.65,
+            "price": 185.62,
             "pct": 35.0,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 120,
-        "strategy_text": "【左側分批】進場區間 132.05~139.0，分 4 批 30/25/25/20%；停損 84.7 (前波 60 日低點, -39.1%)；TP1=152.9 +10% 落袋 1/3；持倉 120 天為期"
+        "strategy_text": "【左側分批】進場區間 130.62~137.5，分 4 批 30/25/25/20%；停損 84.7 (前波 60 日低點, -38.4%)；TP1=151.25 +10% 落袋 1/3；持倉 120 天為期"
       },
-      "_turnover_20d": 4.9
+      "_turnover_20d": 4.93
     },
     {
       "stock_id": "1608",
       "name": "華榮",
       "market": "twse",
-      "price": 31.4,
-      "change_pct": 0.64,
-      "trading_value": 58320008,
-      "avg_trading_value_5d": 81732981,
-      "_avg_vol_20d": 4210134.05,
-      "PE": 5.7,
+      "price": 31.5,
+      "change_pct": 0.32,
+      "trading_value": 43925750,
+      "avg_trading_value_5d": 76111223,
+      "_avg_vol_20d": 3433186.95,
+      "PE": 5.72,
       "PB": 1.37,
-      "dividend_yield": 6.37,
+      "dividend_yield": 6.35,
       "value_score": 64.5,
       "scores": {
         "valuation": 100,
@@ -1226,268 +1227,85 @@
       "details": [
         "PE=5.7 極低 (+25)",
         "PB=1.37 偏低 (+8)",
-        "殖利率 6.4% 高 (+10)",
-        "DDM fair=71 (discount 128%) (+10)",
+        "殖利率 6.3% 高 (+10)",
+        "DDM fair=71 (discount 127%) (+10)",
         "F-Score=6/9 中等 (+10)",
         "Z-Score=1.2 危險區 (破產風險) (-20)",
         "連續 4 季獲利 (+5)",
         "ROE=26.4% 高 (+5) [TV]",
-        "法人近 5 日淨賣 -2,968,738 (-10)",
+        "法人近 5 日淨賣 -2,357,290 (-10)",
         "GM QoQ Δ=+4.8pp (9.2%→14.0%) (+20) [F2 A 級]",
-        "周轉率=0.99% [mid quintile, volatile regime +0]"
+        "周轉率=0.81% [mid quintile, volatile regime +0]"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 29.83,
-        "entry_high": 31.4,
+        "entry_low": 29.92,
+        "entry_high": 31.5,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 31.4,
+            "price": 31.5,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 30.77,
+            "price": 30.87,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 29.83,
+            "price": 29.92,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 28.89,
+            "price": 28.98,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
-        "stop_loss": 26.69,
+        "stop_loss": 26.77,
         "stop_method": "硬停損 -15%",
-        "stop_loss_pct": -15.0,
+        "stop_loss_pct": -15.02,
         "tp_list": [
           {
             "tier": 1,
-            "price": 33.3,
-            "pct": 6.064225296052905,
+            "price": 33.26,
+            "pct": 5.595238337441078,
             "method": "MA60 反壓",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 35.14,
-            "pct": 11.922635384817447,
+            "price": 34.9,
+            "pct": 10.787655829155716,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
             "price": 41.55,
-            "pct": 32.324840764331206,
+            "pct": 31.904761904761898,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 29.83~31.4，分 4 批 30/25/25/20%；停損 26.69 (硬停損 -15%, -15.0%)；TP1=33.3 MA60 反壓 落袋 1/3；持倉 90 天為期"
+        "strategy_text": "【左側分批】進場區間 29.92~31.5，分 4 批 30/25/25/20%；停損 26.77 (硬停損 -15%, -15.0%)；TP1=33.26 MA60 反壓 落袋 1/3；持倉 90 天為期"
       },
-      "_turnover_20d": 0.99
-    },
-    {
-      "stock_id": "6962",
-      "name": "奕力-KY",
-      "market": "twse",
-      "price": 35.95,
-      "change_pct": 0.98,
-      "trading_value": 84460197,
-      "avg_trading_value_5d": 132800272,
-      "_avg_vol_20d": 7372199.65,
-      "PE": 24.62,
-      "PB": 0.87,
-      "dividend_yield": 2.78,
-      "value_score": 64.5,
-      "scores": {
-        "valuation": 57,
-        "quality": 73,
-        "revenue": 50,
-        "technical": 50,
-        "smart_money": 60,
-        "gm_qoq": 70
-      },
-      "details": [
-        "PB=0.87 破淨 (+15)",
-        "DDM fair=13 (premium 64%) (-8)",
-        "F-Score=8/9 強 (獲利4/槓桿3/效率1) (+25)",
-        "流動比率=2.6 安全 (+5)",
-        "Z-Score=1.5 危險區 (破產風險) (-20)",
-        "FCF Yield=16.1% 高 (+8)",
-        "連續 4 季獲利 (+5)",
-        "法人近 5 日淨買 +446,332 (+10)",
-        "GM QoQ Δ=+10.0pp (17.4%→27.3%) (+20) [F2 A 級]",
-        "周轉率=1.48% Q5 (volatile regime +5)"
-      ],
-      "bypass_reason": "",
-      "action_plan": {
-        "entry_low": 34.15,
-        "entry_high": 35.95,
-        "entry_batches": [
-          {
-            "pct": 30,
-            "price": 35.95,
-            "trigger": "即時進場"
-          },
-          {
-            "pct": 25,
-            "price": 35.23,
-            "trigger": "回檔 -2%"
-          },
-          {
-            "pct": 25,
-            "price": 34.15,
-            "trigger": "回檔 -5%"
-          },
-          {
-            "pct": 20,
-            "price": 33.07,
-            "trigger": "深跌 -8% 或 MA60 支撐"
-          }
-        ],
-        "stop_loss": 29.25,
-        "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -18.64,
-        "tp_list": [
-          {
-            "tier": 1,
-            "price": 39.55,
-            "pct": 10.0,
-            "method": "+10%",
-            "action": "減碼 1/3 落袋"
-          },
-          {
-            "tier": 2,
-            "price": 39.88,
-            "pct": 10.932712441217971,
-            "method": "布林上緣",
-            "action": "再減 1/3，剩下用移動停損"
-          },
-          {
-            "tier": 3,
-            "price": 43.3,
-            "pct": 20.44506258692627,
-            "method": "前高",
-            "action": "清倉或 120 日到期換股"
-          }
-        ],
-        "horizon_days": 150,
-        "strategy_text": "【左側分批】進場區間 34.15~35.95，分 4 批 30/25/25/20%；停損 29.25 (前波 60 日低點, -18.6%)；TP1=39.55 +10% 落袋 1/3；持倉 150 天為期"
-      },
-      "_turnover_20d": 1.48
-    },
-    {
-      "stock_id": "6186",
-      "name": "新潤",
-      "market": "tpex",
-      "price": 39.8,
-      "change_pct": 0.0,
-      "trading_value": 35385995,
-      "avg_trading_value_5d": 47145229,
-      "_avg_vol_20d": 1141490.4,
-      "PE": 4.94,
-      "PB": 1.4,
-      "dividend_yield": 12.58,
-      "value_score": 64.2,
-      "scores": {
-        "valuation": 100,
-        "quality": 73,
-        "revenue": 42,
-        "technical": 50,
-        "smart_money": 40,
-        "gm_qoq": 30
-      },
-      "details": [
-        "PE=4.9 極低 (+25)",
-        "PB=1.40 偏低 (+8)",
-        "殖利率 12.6% 高 (+10)",
-        "DDM fair=64 (discount 61%) (+10)",
-        "F-Score=7/9 強 (獲利4/槓桿2/效率1) (+25)",
-        "Z-Score=1.3 危險區 (破產風險) (-20)",
-        "FCF Yield=35.2% 高 (+8)",
-        "連續 4 季獲利 (+5)",
-        "ROE=32.2% 高 (+5) [TV]",
-        "營收負驚喜 -63.9% (-8)",
-        "法人近 5 日淨賣 -380,080 (-10)",
-        "GM QoQ Δ=-22.1pp (45.0%→23.0%) (-20) [F2 A 級]",
-        "周轉率=0.59% [mid quintile, volatile regime +0]"
-      ],
-      "bypass_reason": "",
-      "action_plan": {
-        "entry_low": 37.81,
-        "entry_high": 39.8,
-        "entry_batches": [
-          {
-            "pct": 30,
-            "price": 39.8,
-            "trigger": "即時進場"
-          },
-          {
-            "pct": 25,
-            "price": 39.0,
-            "trigger": "回檔 -2%"
-          },
-          {
-            "pct": 25,
-            "price": 37.81,
-            "trigger": "回檔 -5%"
-          },
-          {
-            "pct": 20,
-            "price": 36.62,
-            "trigger": "深跌 -8% 或 MA60 支撐"
-          }
-        ],
-        "stop_loss": 33.83,
-        "stop_method": "硬停損 -15%",
-        "stop_loss_pct": -15.0,
-        "tp_list": [
-          {
-            "tier": 1,
-            "price": 41.14,
-            "pct": 3.3731156417872556,
-            "method": "MA60 反壓",
-            "action": "減碼 1/3 落袋"
-          },
-          {
-            "tier": 2,
-            "price": 47.76,
-            "pct": 20.000000000000004,
-            "method": "布林上緣",
-            "action": "再減 1/3，剩下用移動停損"
-          },
-          {
-            "tier": 3,
-            "price": 58.8,
-            "pct": 47.73869346733669,
-            "method": "前高",
-            "action": "清倉或 120 日到期換股"
-          }
-        ],
-        "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 37.81~39.8，分 4 批 30/25/25/20%；停損 33.83 (硬停損 -15%, -15.0%)；TP1=41.14 MA60 反壓 落袋 1/3；持倉 90 天為期"
-      },
-      "_turnover_20d": 0.59
+      "_turnover_20d": 0.81
     },
     {
       "stock_id": "9945",
       "name": "潤泰新",
       "market": "twse",
-      "price": 23.95,
-      "change_pct": 1.05,
-      "trading_value": 193718418,
-      "avg_trading_value_5d": 202024983,
-      "_avg_vol_20d": 6318023.5,
-      "PE": 6.73,
-      "PB": 0.6,
-      "dividend_yield": 4.59,
+      "price": 23.4,
+      "change_pct": 2.41,
+      "trading_value": 210645096,
+      "avg_trading_value_5d": 214183048,
+      "_avg_vol_20d": 6547489.05,
+      "PE": 6.57,
+      "PB": 0.58,
+      "dividend_yield": 4.7,
       "value_score": 64.2,
       "scores": {
         "valuation": 100,
@@ -1498,58 +1316,58 @@
         "gm_qoq": 60
       },
       "details": [
-        "PE=6.7 極低 (+25)",
-        "PB=0.60 破淨 (+15)",
-        "殖利率 4.6% (+5)",
-        "DDM fair=39 (discount 64%) (+10)",
+        "PE=6.6 極低 (+25)",
+        "PB=0.58 破淨 (+15)",
+        "殖利率 4.7% (+5)",
+        "DDM fair=39 (discount 68%) (+10)",
         "F-Score=5/9 中等 (+10)",
         "Z-Score=1.0 危險區 (破產風險) (-20)",
-        "FCF Yield=21.6% 高 (+8)",
+        "FCF Yield=22.2% 高 (+8)",
         "連續 4 季獲利 (+5)",
-        "法人近 5 日淨賣 -7,489,834 (-10)",
+        "法人近 5 日淨賣 -9,115,753 (-10)",
         "GM QoQ Δ=+1.8pp (22.9%→24.7%) (+10) [F2 A 級]",
         "周轉率=0.23% [mid quintile, volatile regime +0]"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 22.75,
-        "entry_high": 23.95,
+        "entry_low": 22.23,
+        "entry_high": 23.4,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 23.95,
+            "price": 23.4,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 23.47,
+            "price": 22.93,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 22.75,
+            "price": 22.23,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 22.03,
+            "price": 21.53,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
-        "stop_loss": 22.75,
-        "stop_method": "布林下緣 (20d - 2σ)",
-        "stop_loss_pct": -5.01,
+        "stop_loss": 19.89,
+        "stop_method": "硬停損 -15%",
+        "stop_loss_pct": -15.0,
         "tp_list": [
           {
             "tier": 1,
-            "price": 25.76,
-            "pct": 7.550452331245666,
+            "price": 25.66,
+            "pct": 9.672364672364697,
             "method": "MA60 反壓",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 28.74,
+            "price": 28.08,
             "pct": 20.0,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
@@ -1557,121 +1375,28 @@
           {
             "tier": 3,
             "price": 31.0,
-            "pct": 29.43632567849687,
+            "pct": 32.478632478632484,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 90,
-        "strategy_text": "【左側分批】進場區間 22.75~23.95，分 4 批 30/25/25/20%；停損 22.75 (布林下緣 (20d - 2σ), -5.0%)；TP1=25.76 MA60 反壓 落袋 1/3；持倉 90 天為期"
+        "strategy_text": "【左側分批】進場區間 22.23~23.4，分 4 批 30/25/25/20%；停損 19.89 (硬停損 -15%, -15.0%)；TP1=25.66 MA60 反壓 落袋 1/3；持倉 90 天為期"
       },
       "_turnover_20d": 0.23
-    },
-    {
-      "stock_id": "8415",
-      "name": "大國鋼",
-      "market": "tpex",
-      "price": 35.9,
-      "change_pct": 1.27,
-      "trading_value": 40341656,
-      "avg_trading_value_5d": 42463516,
-      "_avg_vol_20d": 679152.55,
-      "PE": 10.85,
-      "PB": 1.27,
-      "dividend_yield": 4.18,
-      "value_score": 64.2,
-      "scores": {
-        "valuation": 88,
-        "quality": 73,
-        "revenue": 62,
-        "technical": 50,
-        "smart_money": 60,
-        "gm_qoq": 60
-      },
-      "details": [
-        "PE=10.8 偏低 (+15)",
-        "PB=1.27 偏低 (+8)",
-        "殖利率 4.2% (+5)",
-        "DDM fair=54 (discount 49%) (+10)",
-        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
-        "流動比率=2.2 安全 (+5)",
-        "Z-Score=1.1 危險區 (破產風險) (-20)",
-        "FCF Yield=33.1% 高 (+8)",
-        "連續 4 季獲利 (+5)",
-        "營收正驚喜 +25.3% (+12)",
-        "法人近 5 日淨買 +940,805 (+10)",
-        "GM QoQ Δ=+1.7pp (37.4%→39.1%) (+10) [F2 A 級]",
-        "周轉率=0.07% Q1 (volatile regime -5)"
-      ],
-      "bypass_reason": "",
-      "action_plan": {
-        "entry_low": 34.1,
-        "entry_high": 35.9,
-        "entry_batches": [
-          {
-            "pct": 30,
-            "price": 35.9,
-            "trigger": "即時進場"
-          },
-          {
-            "pct": 25,
-            "price": 35.18,
-            "trigger": "回檔 -2%"
-          },
-          {
-            "pct": 25,
-            "price": 34.1,
-            "trigger": "回檔 -5%"
-          },
-          {
-            "pct": 20,
-            "price": 33.03,
-            "trigger": "深跌 -8% 或 MA60 支撐"
-          }
-        ],
-        "stop_loss": 33.25,
-        "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -7.38,
-        "tp_list": [
-          {
-            "tier": 1,
-            "price": 39.49,
-            "pct": 10.0,
-            "method": "+10%",
-            "action": "減碼 1/3 落袋"
-          },
-          {
-            "tier": 2,
-            "price": 43.08,
-            "pct": 20.0,
-            "method": "布林上緣",
-            "action": "再減 1/3，剩下用移動停損"
-          },
-          {
-            "tier": 3,
-            "price": 48.47,
-            "pct": 35.000000000000014,
-            "method": "前高",
-            "action": "清倉或 120 日到期換股"
-          }
-        ],
-        "horizon_days": 120,
-        "strategy_text": "【左側分批】進場區間 34.1~35.9，分 4 批 30/25/25/20%；停損 33.25 (前波 60 日低點, -7.4%)；TP1=39.49 +10% 落袋 1/3；持倉 120 天為期"
-      },
-      "_turnover_20d": 0.07
     },
     {
       "stock_id": "1708",
       "name": "東鹼",
       "market": "twse",
-      "price": 39.85,
-      "change_pct": 0.5,
-      "trading_value": 104425926,
-      "avg_trading_value_5d": 99661510,
-      "_avg_vol_20d": 4291379.3,
-      "PE": 11.82,
-      "PB": 1.34,
-      "dividend_yield": 4.02,
+      "price": 39.55,
+      "change_pct": 0.76,
+      "trading_value": 72364812,
+      "avg_trading_value_5d": 87722130,
+      "_avg_vol_20d": 4247449.9,
+      "PE": 11.74,
+      "PB": 1.33,
+      "dividend_yield": 4.05,
       "value_score": 64.2,
       "scores": {
         "valuation": 88,
@@ -1682,90 +1407,363 @@
         "gm_qoq": 30
       },
       "details": [
-        "PE=11.8 偏低 (+15)",
-        "PB=1.34 偏低 (+8)",
+        "PE=11.7 偏低 (+15)",
+        "PB=1.33 偏低 (+8)",
         "殖利率 4.0% (+5)",
-        "DDM fair=57 (discount 44%) (+10)",
+        "DDM fair=57 (discount 45%) (+10)",
         "F-Score=6/9 中等 (+10)",
         "Z-Score=1.1 危險區 (破產風險) (-20)",
         "連續 4 季獲利 (+5)",
         "營收正驚喜 +35.0% (+12)",
-        "法人近 5 日淨賣 -317,000 (-10)",
+        "法人近 5 日淨賣 -1,125,287 (-10)",
         "GM QoQ Δ=-3.3pp (33.9%→30.6%) (-20) [F2 A 級]",
-        "周轉率=1.73% Q5 (volatile regime +5)"
+        "周轉率=1.69% Q5 (volatile regime +5)"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 37.86,
-        "entry_high": 39.85,
+        "entry_low": 37.57,
+        "entry_high": 39.55,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 39.85,
+            "price": 39.55,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 39.05,
+            "price": 38.76,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 37.86,
+            "price": 37.57,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 36.66,
+            "price": 36.39,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
-        "stop_loss": 33.4,
+        "stop_loss": 33.45,
         "stop_method": "前波 60 日低點",
-        "stop_loss_pct": -16.19,
+        "stop_loss_pct": -15.42,
         "tp_list": [
           {
             "tier": 1,
-            "price": 43.84,
+            "price": 43.51,
             "pct": 10.0,
             "method": "+10%",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 47.82,
+            "price": 47.46,
+            "pct": 19.999999999999993,
+            "method": "布林上緣",
+            "action": "再減 1/3，剩下用移動停損"
+          },
+          {
+            "tier": 3,
+            "price": 53.39,
+            "pct": 35.0,
+            "method": "前高",
+            "action": "清倉或 120 日到期換股"
+          }
+        ],
+        "horizon_days": 120,
+        "strategy_text": "【左側分批】進場區間 37.57~39.55，分 4 批 30/25/25/20%；停損 33.45 (前波 60 日低點, -15.4%)；TP1=43.51 +10% 落袋 1/3；持倉 120 天為期"
+      },
+      "_turnover_20d": 1.69
+    },
+    {
+      "stock_id": "8415",
+      "name": "大國鋼",
+      "market": "tpex",
+      "price": 36.45,
+      "change_pct": 1.53,
+      "trading_value": 60416755,
+      "avg_trading_value_5d": 50067953,
+      "_avg_vol_20d": 746794.15,
+      "PE": 11.01,
+      "PB": 1.29,
+      "dividend_yield": 4.12,
+      "value_score": 63.5,
+      "scores": {
+        "valuation": 88,
+        "quality": 73,
+        "revenue": 62,
+        "technical": 45,
+        "smart_money": 60,
+        "gm_qoq": 60
+      },
+      "details": [
+        "PE=11.0 偏低 (+15)",
+        "PB=1.29 偏低 (+8)",
+        "殖利率 4.1% (+5)",
+        "DDM fair=54 (discount 47%) (+10)",
+        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
+        "流動比率=2.2 安全 (+5)",
+        "Z-Score=1.1 危險區 (破產風險) (-20)",
+        "FCF Yield=32.6% 高 (+8)",
+        "連續 4 季獲利 (+5)",
+        "營收正驚喜 +25.3% (+12)",
+        "RSI=80 極度超買 (-5)",
+        "法人近 5 日淨買 +1,639,326 (+10)",
+        "GM QoQ Δ=+1.7pp (37.4%→39.1%) (+10) [F2 A 級]",
+        "周轉率=0.07% Q1 (volatile regime -5)"
+      ],
+      "bypass_reason": "",
+      "action_plan": {
+        "entry_low": 34.63,
+        "entry_high": 36.45,
+        "entry_batches": [
+          {
+            "pct": 30,
+            "price": 36.45,
+            "trigger": "即時進場"
+          },
+          {
+            "pct": 25,
+            "price": 35.72,
+            "trigger": "回檔 -2%"
+          },
+          {
+            "pct": 25,
+            "price": 34.63,
+            "trigger": "回檔 -5%"
+          },
+          {
+            "pct": 20,
+            "price": 33.53,
+            "trigger": "深跌 -8% 或 MA60 支撐"
+          }
+        ],
+        "stop_loss": 33.25,
+        "stop_method": "前波 60 日低點",
+        "stop_loss_pct": -8.78,
+        "tp_list": [
+          {
+            "tier": 1,
+            "price": 40.1,
+            "pct": 10.0,
+            "method": "+10%",
+            "action": "減碼 1/3 落袋"
+          },
+          {
+            "tier": 2,
+            "price": 43.74,
             "pct": 19.999999999999996,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
-            "price": 53.8,
-            "pct": 35.00000000000001,
+            "price": 49.21,
+            "pct": 35.00000000000002,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 120,
-        "strategy_text": "【左側分批】進場區間 37.86~39.85，分 4 批 30/25/25/20%；停損 33.4 (前波 60 日低點, -16.2%)；TP1=43.84 +10% 落袋 1/3；持倉 120 天為期"
+        "strategy_text": "【左側分批】進場區間 34.63~36.45，分 4 批 30/25/25/20%；停損 33.25 (前波 60 日低點, -8.8%)；TP1=40.1 +10% 落袋 1/3；持倉 120 天為期"
       },
-      "_turnover_20d": 1.73
+      "_turnover_20d": 0.07
+    },
+    {
+      "stock_id": "2377",
+      "name": "微星",
+      "market": "twse",
+      "price": 109.5,
+      "change_pct": 1.86,
+      "trading_value": 1872623866,
+      "avg_trading_value_5d": 4804300719,
+      "_avg_vol_20d": 29392065.4,
+      "PE": 11.44,
+      "PB": 1.68,
+      "dividend_yield": 3.84,
+      "value_score": 63.2,
+      "scores": {
+        "valuation": 57,
+        "quality": 68,
+        "revenue": 50,
+        "technical": 50,
+        "smart_money": 40,
+        "gm_qoq": 70
+      },
+      "details": [
+        "PE=11.4 偏低 (+15)",
+        "DDM fair=54 (premium 51%) (-8)",
+        "F-Score=7/9 強 (獲利4/槓桿2/效率1) (+25)",
+        "Z-Score=1.7 危險區 (破產風險) (-20)",
+        "FCF Yield=31.9% 高 (+8)",
+        "連續 4 季獲利 (+5)",
+        "法人近 5 日淨賣 -34,171,654 (-10)",
+        "GM QoQ Δ=+3.9pp (11.1%→15.0%) (+20) [F2 A 級]",
+        "周轉率=3.42% Q5 (volatile regime +5)"
+      ],
+      "bypass_reason": "",
+      "action_plan": {
+        "entry_low": 104.02,
+        "entry_high": 109.5,
+        "entry_batches": [
+          {
+            "pct": 30,
+            "price": 109.5,
+            "trigger": "即時進場"
+          },
+          {
+            "pct": 25,
+            "price": 107.31,
+            "trigger": "回檔 -2%"
+          },
+          {
+            "pct": 25,
+            "price": 104.02,
+            "trigger": "回檔 -5%"
+          },
+          {
+            "pct": 20,
+            "price": 100.74,
+            "trigger": "深跌 -8% 或 MA60 支撐"
+          }
+        ],
+        "stop_loss": 85.0,
+        "stop_method": "前波 60 日低點",
+        "stop_loss_pct": -22.37,
+        "tp_list": [
+          {
+            "tier": 1,
+            "price": 120.45,
+            "pct": 10.0,
+            "method": "+10%",
+            "action": "減碼 1/3 落袋"
+          },
+          {
+            "tier": 2,
+            "price": 131.4,
+            "pct": 20.000000000000004,
+            "method": "布林上緣",
+            "action": "再減 1/3，剩下用移動停損"
+          },
+          {
+            "tier": 3,
+            "price": 147.83,
+            "pct": 35.000000000000014,
+            "method": "前高",
+            "action": "清倉或 120 日到期換股"
+          }
+        ],
+        "horizon_days": 120,
+        "strategy_text": "【左側分批】進場區間 104.02~109.5，分 4 批 30/25/25/20%；停損 85.0 (前波 60 日低點, -22.4%)；TP1=120.45 +10% 落袋 1/3；持倉 120 天為期"
+      },
+      "_turnover_20d": 3.42
+    },
+    {
+      "stock_id": "2535",
+      "name": "達欣工",
+      "market": "twse",
+      "price": 74.6,
+      "change_pct": 2.19,
+      "trading_value": 41601457,
+      "avg_trading_value_5d": 43479020,
+      "_avg_vol_20d": 913917.7,
+      "PE": 8.94,
+      "PB": 1.96,
+      "dividend_yield": 6.17,
+      "value_score": 63.0,
+      "scores": {
+        "valuation": 75,
+        "quality": 73,
+        "revenue": 50,
+        "technical": 50,
+        "smart_money": 40,
+        "gm_qoq": 60
+      },
+      "details": [
+        "PE=8.9 偏低 (+15)",
+        "殖利率 6.2% 高 (+10)",
+        "F-Score=8/9 強 (獲利4/槓桿2/效率2) (+25)",
+        "Z-Score=1.2 危險區 (破產風險) (-20)",
+        "FCF Yield=22.8% 高 (+8)",
+        "連續 4 季獲利 (+5)",
+        "ROE=22.9% 高 (+5) [TV]",
+        "法人近 5 日淨賣 -773,808 (-10)",
+        "GM QoQ Δ=+2.0pp (12.3%→14.3%) (+10) [F2 A 級]",
+        "周轉率=0.36% [mid quintile, volatile regime +0]"
+      ],
+      "bypass_reason": "",
+      "action_plan": {
+        "entry_low": 70.87,
+        "entry_high": 74.6,
+        "entry_batches": [
+          {
+            "pct": 30,
+            "price": 74.6,
+            "trigger": "即時進場"
+          },
+          {
+            "pct": 25,
+            "price": 73.11,
+            "trigger": "回檔 -2%"
+          },
+          {
+            "pct": 25,
+            "price": 70.87,
+            "trigger": "回檔 -5%"
+          },
+          {
+            "pct": 20,
+            "price": 68.63,
+            "trigger": "深跌 -8% 或 MA60 支撐"
+          }
+        ],
+        "stop_loss": 66.8,
+        "stop_method": "前波 60 日低點",
+        "stop_loss_pct": -10.46,
+        "tp_list": [
+          {
+            "tier": 1,
+            "price": 82.06,
+            "pct": 10.0,
+            "method": "+10%",
+            "action": "減碼 1/3 落袋"
+          },
+          {
+            "tier": 2,
+            "price": 89.52,
+            "pct": 20.000000000000004,
+            "method": "布林上緣",
+            "action": "再減 1/3，剩下用移動停損"
+          },
+          {
+            "tier": 3,
+            "price": 100.71,
+            "pct": 35.0,
+            "method": "前高",
+            "action": "清倉或 120 日到期換股"
+          }
+        ],
+        "horizon_days": 120,
+        "strategy_text": "【左側分批】進場區間 70.87~74.6，分 4 批 30/25/25/20%；停損 66.8 (前波 60 日低點, -10.5%)；TP1=82.06 +10% 落袋 1/3；持倉 120 天為期"
+      },
+      "_turnover_20d": 0.36
     },
     {
       "stock_id": "2609",
       "name": "陽明",
       "market": "twse",
-      "price": 49.5,
-      "change_pct": 1.96,
-      "trading_value": 954252801,
-      "avg_trading_value_5d": 908417542,
-      "_avg_vol_20d": 16832940.85,
-      "PE": 16.07,
+      "price": 50.3,
+      "change_pct": 1.62,
+      "trading_value": 1202184070,
+      "avg_trading_value_5d": 972641533,
+      "_avg_vol_20d": 17326209.65,
+      "PE": 16.33,
       "PB": 0.53,
-      "dividend_yield": 4.04,
-      "value_score": 64.2,
+      "dividend_yield": 3.98,
+      "value_score": 63.0,
       "scores": {
-        "valuation": 80,
+        "valuation": 75,
         "quality": 73,
         "revenue": 50,
         "technical": 50,
@@ -1774,73 +1772,72 @@
       },
       "details": [
         "PB=0.53 破淨 (+15)",
-        "殖利率 4.0% (+5)",
-        "DDM fair=71 (discount 44%) (+10)",
+        "DDM fair=71 (discount 42%) (+10)",
         "F-Score=7/9 強 (獲利3/槓桿2/效率2) (+25)",
         "流動比率=4.4 安全 (+5)",
         "Z-Score=1.3 危險區 (破產風險) (-20)",
-        "FCF Yield=242.0% 高 (+8)",
+        "FCF Yield=238.2% 高 (+8)",
         "連續 4 季獲利 (+5)",
-        "法人近 5 日淨賣 -16,477,048 (-10)",
+        "法人近 5 日淨賣 -7,528,821 (-10)",
         "GM QoQ Δ=+1.6pp (5.7%→7.3%) (+10) [F2 A 級]",
-        "周轉率=0.49% [mid quintile, volatile regime +0]"
+        "周轉率=0.50% [mid quintile, volatile regime +0]"
       ],
       "bypass_reason": "",
       "action_plan": {
-        "entry_low": 47.02,
-        "entry_high": 49.5,
+        "entry_low": 47.78,
+        "entry_high": 50.3,
         "entry_batches": [
           {
             "pct": 30,
-            "price": 49.5,
+            "price": 50.3,
             "trigger": "即時進場"
           },
           {
             "pct": 25,
-            "price": 48.51,
+            "price": 49.29,
             "trigger": "回檔 -2%"
           },
           {
             "pct": 25,
-            "price": 47.02,
+            "price": 47.78,
             "trigger": "回檔 -5%"
           },
           {
             "pct": 20,
-            "price": 45.54,
+            "price": 46.28,
             "trigger": "深跌 -8% 或 MA60 支撐"
           }
         ],
-        "stop_loss": 42.07,
+        "stop_loss": 42.75,
         "stop_method": "硬停損 -15%",
         "stop_loss_pct": -15.01,
         "tp_list": [
           {
             "tier": 1,
-            "price": 53.55,
-            "pct": 8.176767651079489,
+            "price": 53.51,
+            "pct": 6.373426110006665,
             "method": "MA60 反壓",
             "action": "減碼 1/3 落袋"
           },
           {
             "tier": 2,
-            "price": 59.4,
-            "pct": 20.0,
+            "price": 60.36,
+            "pct": 19.999999999999993,
             "method": "布林上緣",
             "action": "再減 1/3，剩下用移動停損"
           },
           {
             "tier": 3,
             "price": 69.9,
-            "pct": 41.21212429470486,
+            "pct": 38.96620581685668,
             "method": "前高",
             "action": "清倉或 120 日到期換股"
           }
         ],
         "horizon_days": 120,
-        "strategy_text": "【左側分批】進場區間 47.02~49.5，分 4 批 30/25/25/20%；停損 42.07 (硬停損 -15%, -15.0%)；TP1=53.55 MA60 反壓 落袋 1/3；持倉 120 天為期"
+        "strategy_text": "【左側分批】進場區間 47.78~50.3，分 4 批 30/25/25/20%；停損 42.75 (硬停損 -15%, -15.0%)；TP1=53.51 MA60 反壓 落袋 1/3；持倉 120 天為期"
       },
-      "_turnover_20d": 0.49
+      "_turnover_20d": 0.5
     }
   ]
 }
