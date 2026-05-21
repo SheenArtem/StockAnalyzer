@@ -69,7 +69,7 @@ All features MUST follow the same priority to avoid data drift:
 | Analyst consensus | yfinance | — | Target price / Forward EPS / rating |
 | Peer comparison | TWSE/TPEX PER + FinMind industry tag | — | `peer_comparison.py` |
 | TV-show YT mentions | yt-dlp auto-sub + Claude Sonnet | — | `fetch_yt_transcripts.py` → `extract_yt_sector_tags.py` → `data/sector_tags_dynamic.parquet` |
-| Brokerage YT mentions | yt-dlp manual-sub + Claude Sonnet | — | 摩爾投顧 8 分析師日更；`fetch_yt_brokerage.py` → `extract_yt_brokerage.py` → `data/yt_brokerage_{mentions,videos}.parquet`；獨立 pipeline 不混 TV-show；**不接 AI 報告**（合規） |
+| Brokerage YT mentions | yt-dlp manual-sub + codex GPT-5.5 + Claude Sonnet fallback | — | 摩爾 8 分析師個人頻道 + 元大看盤室單頻道輪換 (BROKERAGES dict 加 `channel_type` 區分 personal/rotating_guest)；`fetch_yt_brokerage.py` → `extract_yt_brokerage.py` → `data/yt_brokerage_{mentions,videos}.parquet`；獨立 pipeline 不混 TV-show；**不接 AI 報告**（合規） |
 
 ## Data Source Discovery SOP — 不公開 / 改版後 endpoint 失蹤
 
