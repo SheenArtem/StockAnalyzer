@@ -49,7 +49,7 @@ Wave 2/3 填實。Wave 0 只保證呼叫機制與輸出路徑不會在 Wave 3 sc
 | **D4 risk** | rec_sl_price 與 rec_entry 之 R:R 是否 ≥ 1:1？scenario D 是否誤進 Pick？|
 
 Wave 2 細化時用自己的反面論點審查框架（至少 3 點具體訊號層級的反向證據），
-不重造整套 `/songfen` 深度分析（太重）。
+不做整套深度分析（太重，本 skill 只負責 quick check）。
 
 ### Step 3 — 輸出 JSON (Wave 3 scanner 消費 schema)
 
@@ -90,20 +90,6 @@ audit verdict。
 
 ---
 
-## 與 `/songfen` 差異
-
-| 項目 | `/songfen` | `/mode-d-audit` |
-|------|-----------|-----------------|
-| 觸發 | `/songfen <ticker>` | `/mode-d-audit <ticker>` |
-| 目的 | Ad-hoc 個股宋分視角深度分析 | 對 Mode D 選中的 pick 做 signal 合理性複核 |
-| 輸出 | Markdown 到對話 | JSON 到 `data/latest/audits/` + Markdown 對話 |
-| 時長 | 長（5 step 深度拆解） | 短（4 維度 quick check） |
-| Scanner 整合 | 無 | Wave 3 有 |
-
-**使用時機**：
-- 想深度理解一檔股票的 re-rate / 損益表 → `/songfen`
-- 今日 Mode D 選了 X 想快速驗證 thesis 成立 → `/mode-d-audit`
-
 ## 限制 (Robustness First)
 
 - **不自動觸發**：絕不把此 skill 塞進 scanner TUE-SAT 00:00 pipeline。人工下單 = 人工審查
@@ -125,5 +111,4 @@ audit verdict。
 - `data/latest/qm_result.json` — scanner pick 來源
 - `data/c1_tilt_flags.parquet` — C1 tilt 狀態
 - `data/sector_tags_dynamic.parquet` — YT mention panel
-- `.claude/skills/songfen.md` — 深度分析 SKILL (本 skill 的互補)
 - Wave 2/3 落地時要加: `data/latest/audits/` 目錄、Thesis Panel UI 整合、scanner_job.py 消費邏輯

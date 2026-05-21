@@ -44,7 +44,7 @@ REQUIRED_STAGES = [
     # Discord daily summary disabled 2026-05-04 (run_scanner.bat goto skip_discord_summary).
     # Re-add ('Discord daily summary done', r'\] Discord daily summary done') here
     # when re-enabling the stage.
-    ('Substack sync done',     r'\] Substack sync done'),
+    # Substack sync stage removed 2026-05-21 (v2026.05.21.3 整套 rm, marker no longer fires).
     ('Chip history resume done', r'\] Chip history resume done'),
     ('News flow anomaly done', r'\] News flow anomaly done'),
     ('Theme momentum done', r'\] Theme momentum done'),
