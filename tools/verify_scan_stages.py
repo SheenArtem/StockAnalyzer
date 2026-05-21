@@ -52,15 +52,19 @@ REQUIRED_STAGES = [
     ('Minifutures ratio archive done', r'\] Minifutures ratio archive done'),
     ('Options institutional archive done', r'\] Options institutional archive done'),
     ('Earnings calendar fetch done', r'\] Earnings calendar fetch done'),
-    ('Whale picks done', r'\] Whale picks done'),
-    ('Whale picks alerts done', r'\] Whale picks alerts done'),
+    # Whale picks disabled 2026-05-21 (run_scanner.bat goto skip_whale_picks).
+    # Re-add ('Whale picks done', ...) + ('Whale picks alerts done', ...) here
+    # when re-enabling the stage.
     ('Scanner finished (exit=0)', r'\] Scanner finished \(exit=0\)'),
 ]
 
-# QM push + Value push = at least 2 'Pushed: scan:' lines in scanner.log.
-# (commit msg is hardcoded "momentum results" for both QM and Value, so we cannot
-# distinguish by text, only by count.)
+# QM + Value scan completion = at least 2 marker lines in scanner.log:
+#   - 'Pushed: scan:' (had new commit to push), OR
+#   - 'No changes to push' (gitignored daily output, nothing to push but scan did run)
+# 2026-05-21 daily output gitignore policy 後 daily 全 "No changes to push",
+# 改抓兩個 marker 任一都算 success.
 EXPECTED_PUSH_MIN = 2
+PUSH_MARKER_RE = r'(Pushed: scan:|No changes to push)'
 
 
 def _read_webhook():
@@ -114,7 +118,7 @@ def main():
         line_start = log_text.rfind('\n', 0, last) + 1
         tail = log_text[line_start:]
         missing = [label for label, pat in REQUIRED_STAGES if not re.search(pat, tail)]
-        push_count = len(re.findall(r'Pushed: scan:', tail))
+        push_count = len(re.findall(PUSH_MARKER_RE, tail))
 
     if not missing and push_count >= EXPECTED_PUSH_MIN:
         print(f'[verify_scan_stages] OK: all {len(REQUIRED_STAGES)} stages + {push_count} pushes')
