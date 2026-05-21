@@ -83,7 +83,7 @@ REM ------------------------------------------------------------
 REM Commit + push (best-effort, do not block on failure)
 REM ------------------------------------------------------------
 echo [%date% %time%] git commit + push starting >> scanner_weekly.log
-git add data/latest/strong_stocks_weekly.json >> scanner_weekly.log 2>&1
+REM data/latest/strong_stocks_weekly.json gitignored 2026-05-21 (commit 74c57f8); only stage HTML/PDF archive
 git add data/strong_stocks_reports/*.html data/strong_stocks_reports/*.pdf >> scanner_weekly.log 2>&1
 git commit -m "weekly scan: %date% %time% strong stocks weekly results" >> scanner_weekly.log 2>&1
 git push >> scanner_weekly.log 2>&1

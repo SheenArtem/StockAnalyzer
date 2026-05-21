@@ -255,7 +255,9 @@ def git_push_results(data_dir='data'):
             logger.warning("Data dir %s not found, skipping push", data_dir)
             return False
 
-        # Stage data files (data/history is gitignored, only stage data/latest)
+        # data/latest/*.json + *.txt 已 gitignored (2026-05-21 commit 74c57f8)；
+        # 此處保留 git add 僅為 stage 殘留非 ignored 檔案 (例如 audits/.gitkeep)，
+        # 多數情況 staged 為空 → 函式直接早退，不會 commit/push daily 結果。
         subprocess.run(
             ['git', 'add', str(data_path / 'latest')],
             check=True, capture_output=True, encoding='utf-8', errors='replace',
@@ -267,7 +269,7 @@ def git_push_results(data_dir='data'):
             capture_output=True,
         )
         if status.returncode == 0:
-            print("No changes to push.")
+            print("No changes to push (daily outputs now gitignored).")
             return True
 
         # Commit
