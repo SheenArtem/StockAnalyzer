@@ -48,8 +48,8 @@ Wave 2/3 填實。Wave 0 只保證呼叫機制與輸出路徑不會在 Wave 3 sc
 | **D3 regime** | C1 tilt 狀態與 regime 配合？非 AI era 時 tilt 應 OFF |
 | **D4 risk** | rec_sl_price 與 rec_entry 之 R:R 是否 ≥ 1:1？scenario D 是否誤進 Pick？|
 
-Wave 2 細化時可引用 `prompts/songfen_framework.md` 的反面論點章節做審查
-框架；不重造整套 `/songfen` 深度分析（太重）。
+Wave 2 細化時用自己的反面論點審查框架（至少 3 點具體訊號層級的反向證據），
+不重造整套 `/songfen` 深度分析（太重）。
 
 ### Step 3 — 輸出 JSON (Wave 3 scanner 消費 schema)
 

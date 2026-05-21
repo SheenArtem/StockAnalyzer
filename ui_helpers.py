@@ -111,7 +111,7 @@ def run_analysis(source_data, force_update=False):
 _ai_report_job_lock = threading.Lock()
 
 
-def _ai_report_worker(job, ticker, report_format='md', include_songfen=True):
+def _ai_report_worker(job, ticker, report_format='md'):
     """在背景 thread 跑完整 AI 報告流程。
 
     job 是 session_state 裡的 dict 參照，thread 透過 _ai_report_job_lock 安全 mutate。
@@ -119,7 +119,6 @@ def _ai_report_worker(job, ticker, report_format='md', include_songfen=True):
 
     Args:
         report_format: 'md' = 傳統 Markdown 報告；'html' = 互動儀表板
-        include_songfen: bool，md 格式時在最末尾附加「宋分視角補充分析」區塊。html 忽略。
     """
     from ai_report_pipeline import generate_one_report
 
@@ -129,8 +128,7 @@ def _ai_report_worker(job, ticker, report_format='md', include_songfen=True):
 
     try:
         result = generate_one_report(ticker, fmt=report_format,
-                                     progress_cb=_progress,
-                                     include_songfen=include_songfen)
+                                     progress_cb=_progress)
         with _ai_report_job_lock:
             if result['ok']:
                 job['result'] = {

@@ -98,22 +98,6 @@ def render_ai_reports():
                 horizontal=False,
             )
 
-        # 宋分視角 — 只對 Markdown 格式生效；HTML 儀表板 schema 固定不支援
-        _songfen_disabled = _is_running or (_ai_format == 'html')
-        _songfen_help = (
-            "新增第 10 區塊「宋分視角補充分析」：套用機構分析師 re-rate 訊號 / "
-            "5-layer 損益表 / 擇時紀律 / 反面論點。框架來源見 prompts/songfen_framework.md。"
-            if _ai_format == 'md'
-            else "HTML 互動儀表板 schema 固定，不支援宋分區塊。請改選 Markdown 格式。"
-        )
-        _include_songfen = st.checkbox(
-            "✅ 加入宋分視角區塊（Markdown 格式限定）",
-            value=True,
-            key='ai_report_include_songfen',
-            disabled=_songfen_disabled,
-            help=_songfen_help,
-        )
-
         if st.button("生成研究報告", type="primary", key='ai_gen_btn', disabled=_is_running):
             if not _ai_ticker or not _ai_ticker.strip():
                 st.error("請輸入股票代號")
@@ -123,8 +107,6 @@ def render_ai_reports():
                 if not is_valid:
                     st.error(f"代號格式不正確: {err_msg}")
                 else:
-                    # md 格式才套用 songfen；html 忽略
-                    _effective_songfen = bool(_include_songfen) and (_ai_format == 'md')
                     _new_job = {
                         'ticker': _ai_ticker,
                         'status': 'running',
@@ -132,12 +114,11 @@ def render_ai_reports():
                         'progress': [],
                         'result': None,
                         'format': _ai_format,
-                        'include_songfen': _effective_songfen,
                     }
                     st.session_state['ai_report_job'] = _new_job
                     _t = threading.Thread(
                         target=_ai_report_worker,
-                        args=(_new_job, _ai_ticker, _ai_format, _effective_songfen),
+                        args=(_new_job, _ai_ticker, _ai_format),
                         daemon=True,
                     )
                     _t.start()
