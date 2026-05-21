@@ -58,6 +58,20 @@ Desktop.ini
 data/ai_reports/
 data/macro_reports/
 
+# Daily-refresh pipeline outputs (每晚重生，untrack 防止 git restore data/ 退回舊版)
+# 保留 tracked: strong_stocks_reports/ (per-day archive)、whale_picks/trade_ledger* (累積 state)、
+#               paper_trades/open_trades.json (open state)、sentiment/*history* (累積)
+data/sector_tags_dynamic.parquet
+data/yt_videos_panel.parquet
+data/yt_brokerage_mentions.parquet
+data/yt_brokerage_videos.parquet
+data/calendar/earnings_call.parquet
+data/latest/*.json
+data/latest/*.txt
+data/news/*.parquet
+data/macro/*.parquet
+data/breadth/*.parquet
+
 # Macro / banner UI smoke test screenshots（reports/screenshots/banner_regime_ext_* 仍 commit）
 reports/screenshots/macro_*
 reports/screenshots/banner_full_page_*
