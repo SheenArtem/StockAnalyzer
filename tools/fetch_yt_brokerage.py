@@ -40,6 +40,7 @@ OUT_ROOT = REPO / "data_cache" / "yt_brokerage_transcripts"
 BROKERAGES: dict[str, dict] = {
     "moore": {
         "name": "摩爾證券投顧",
+        "channel_type": "personal",  # 分析師個人頻道 (1 channel per analyst)
         "analysts": {
             "moore_guo":   {"name": "郭哲榮", "channel_id": "UChfl3auNxAxOR3wy8a8ysQQ"},
             "moore_chen":  {"name": "陳昆仁", "channel_id": "UCiBLyIFu3KjG2opa7uQHZbQ"},
@@ -51,7 +52,18 @@ BROKERAGES: dict[str, dict] = {
             "moore_he":    {"name": "何基鼎", "channel_id": "UCWHR2sdmPvJSJ6TYhX2r8YQ"},  # @gd1788
         },
     },
-    # 未來: "kgi" 凱基, "yongchen" 永誠, "uni" 統一 ...
+    "yuanta": {
+        "name": "元大投顧",
+        "channel_type": "rotating_guest",  # 單頻道輪換來賓 (1 channel + 多分析師)
+        "analysts": {
+            # @yuantachannel「元大看盤室」: 主持人 + 主分析師都輪換 (實測 5/2-5/21 抓到
+            # 7 位輪換主持人: 宛瑩/森寶/祥維/囿羽/義忠/智中/蔚辰). analyst_name 寫節目名,
+            # 當集實際分析師由 LLM 從字幕識別寫到 host_name. 60% 影片有 manual zh 字幕
+            # (看盤室解盤都有,樂活理財/投資理財 podcast 無字幕會被 skip).
+            "yuanta_room": {"name": "元大看盤室", "channel_id": "UCS1bMmw249R7R0wDjAmE6CA"},
+        },
+    },
+    # 未來: "kgi" 凱基, "yongchen" 永誠, "uni" 統一 ... (需自跑 ASR, 目前無字幕)
 }
 
 
