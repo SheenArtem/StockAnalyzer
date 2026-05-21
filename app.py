@@ -67,21 +67,24 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.caption("Version: v2026.05.17.3")
+    st.caption("Version: v2026.05.21.4")
 
     # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:
         st.session_state['ticker_input'] = '2330'
 
-    # Mode toggle: 個股分析 / 自動選股 / 市場掃描 / AI 報告 / 強勢股報告 / 主力選股 / 總經大盤風向
-    _mode_options = ['individual', 'screener', 'market_scan', 'ai_reports', 'strong_stocks', 'whale_picks', 'macro']
+    # Mode toggle: 個股分析 / 自動選股 / 市場掃描 / AI 報告 / 總經大盤風向
+    # 強勢股報告 + 主力選股 2026-05-21 暫時從 UI 移除（後端 scanner 對應 stage 已停用）
+    # 復原方式：把 'strong_stocks' / 'whale_picks' 加回 _mode_options（render handler/label 仍保留為死代碼）
+    _mode_options = ['individual', 'screener', 'market_scan', 'ai_reports', 'macro', 'brokerage_yt']
     _mode_labels = {'individual': '📈 個股分析', 'screener': '🔍 自動選股',
                     'market_scan': '📡 市場掃描', 'ai_reports': '📝 AI 報告',
                     'strong_stocks': '🌟 強勢股報告', 'whale_picks': '🐋 主力選股',
-                    'macro': '🧭 總經大盤風向'}
+                    'macro': '🧭 總經大盤風向',
+                    'brokerage_yt': '📺 投顧追蹤'}
     _current_mode = st.session_state.get('app_mode', 'analysis')
     _mode_idx_map = {'screener': 1, 'market_scan': 2, 'ai_reports': 3,
-                     'strong_stocks': 4, 'whale_picks': 5, 'macro': 6}
+                     'macro': 4, 'brokerage_yt': 5}
     _mode_idx = _mode_idx_map.get(_current_mode, 0)
     app_mode = st.radio(
         "功能模式",
@@ -104,6 +107,8 @@ with st.sidebar:
         st.session_state['app_mode'] = 'whale_picks'
     elif app_mode == 'macro':
         st.session_state['app_mode'] = 'macro'
+    elif app_mode == 'brokerage_yt':
+        st.session_state['app_mode'] = 'brokerage_yt'
     else:
         st.session_state['app_mode'] = 'analysis'
 
@@ -242,17 +247,25 @@ elif st.session_state.get('app_mode') == 'market_scan':
     from market_scan_view import render_market_scan
     render_market_scan()
 
-elif st.session_state.get('app_mode') == 'strong_stocks':
-    from strong_stocks_view import render_strong_stocks
-    render_strong_stocks()
+# 強勢股報告 2026-05-21 暫時停用（Opus stage 已停 → render 出來只會是過期報告）
+# 復原：把以下三行 elif 取消註解 + app_mode 'strong_stocks' 加回 _mode_options
+# elif st.session_state.get('app_mode') == 'strong_stocks':
+#     from strong_stocks_view import render_strong_stocks
+#     render_strong_stocks()
 
-elif st.session_state.get('app_mode') == 'whale_picks':
-    from whale_picks_view import render_whale_picks
-    render_whale_picks()
+# 主力選股 2026-05-21 暫時停用（scanner whale_picks stage 已停 → 資料會過期）
+# 復原：把以下三行 elif 取消註解 + app_mode 'whale_picks' 加回 _mode_options
+# elif st.session_state.get('app_mode') == 'whale_picks':
+#     from whale_picks_view import render_whale_picks
+#     render_whale_picks()
 
 elif st.session_state.get('app_mode') == 'macro':
     from macro_dashboard import render_macro_dashboard
     render_macro_dashboard()
+
+elif st.session_state.get('app_mode') == 'brokerage_yt':
+    from brokerage_view import render_brokerage_yt
+    render_brokerage_yt()
 
 else:
     # 個股分析（預設 tab）：輸入表單 + 分析結果都在 individual_view 內

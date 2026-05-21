@@ -66,6 +66,28 @@ set YT_EC3=%ERRORLEVEL%
 echo [%date% %time%] YT sync done (EC1=%YT_EC1% EC2=%YT_EC2% EC3=%YT_EC3%) >> scanner.log
 
 REM ------------------------------------------------------------
+REM Brokerage YT sync (added 2026-05-21): Taiwan brokerage analyst channels
+REM (Moore Securities 8 analysts). Independent pipeline from TV-show YT above.
+REM Outputs: data/yt_brokerage_mentions.parquet + yt_brokerage_videos.parquet
+REM UI: sidebar mode "brokerage_yt" -> brokerage_view.render_brokerage_yt()
+REM Best-effort: failures do not affect PY_EXIT.
+REM ------------------------------------------------------------
+echo [%date% %time%] Brokerage YT sync Stage 1 fetch starting >> scanner.log
+python tools\fetch_yt_brokerage.py --end 3 >> scanner.log 2>&1
+set BYT_EC1=%ERRORLEVEL%
+echo [%date% %time%] Brokerage YT Stage 1 done (exit=%BYT_EC1%) >> scanner.log
+
+echo [%date% %time%] Brokerage YT Stage 2 extract starting >> scanner.log
+python tools\extract_yt_brokerage.py --all >> scanner.log 2>&1
+set BYT_EC2=%ERRORLEVEL%
+echo [%date% %time%] Brokerage YT Stage 2 done (exit=%BYT_EC2%) >> scanner.log
+
+echo [%date% %time%] Brokerage YT Stage 3 panel starting >> scanner.log
+python tools\build_yt_brokerage_panel.py >> scanner.log 2>&1
+set BYT_EC3=%ERRORLEVEL%
+echo [%date% %time%] Brokerage YT done (EC1=%BYT_EC1% EC2=%BYT_EC2% EC3=%BYT_EC3%) >> scanner.log
+
+REM ------------------------------------------------------------
 REM RAG #4 Path A POC removed 2026-05-01: verdict MARGINAL +0.074 (N=1 TSMC),
 REM both yt-dlp + youtube-transcript-api hit YT timedtext IP throttle (~10
 REM calls/session) so N=5 scale-up is structurally fragile. POC closed; tools
@@ -216,6 +238,16 @@ python tools\strong_stocks_daily.py >> scanner.log 2>&1
 set SS_EC1=%ERRORLEVEL%
 echo [%date% %time%] Strong stocks Stage 1 done (exit=%SS_EC1%) >> scanner.log
 
+REM DISABLED 2026-05-21 per user request: save Agent SDK Credit quota (Anthropic billing split effective 2026-06-15).
+REM Stage 2 (Opus AI analysis) + Stage 3 (HTML+PDF render) skipped.
+REM Stage 3 also skipped because rendering without fresh AI commentary produces misleading PDF with stale text.
+REM Manual trigger still works via:
+REM   python tools\strong_stocks_ai_analysis.py
+REM   python tools\strong_stocks_render.py
+REM To re-enable scheduled run: remove the "goto skip_strong_stocks_ai" line below.
+set SS_EC2=SKIP
+set SS_EC3=SKIP
+goto skip_strong_stocks_ai
 echo [%date% %time%] Strong stocks Stage 2 AI analysis starting >> scanner.log
 python tools\strong_stocks_ai_analysis.py >> scanner.log 2>&1
 set SS_EC2=%ERRORLEVEL%
@@ -224,6 +256,7 @@ echo [%date% %time%] Strong stocks Stage 2 done (exit=%SS_EC2%) >> scanner.log
 echo [%date% %time%] Strong stocks Stage 3 render starting >> scanner.log
 python tools\strong_stocks_render.py >> scanner.log 2>&1
 set SS_EC3=%ERRORLEVEL%
+:skip_strong_stocks_ai
 echo [%date% %time%] Strong stocks done (EC1=%SS_EC1% EC2=%SS_EC2% EC3=%SS_EC3%) >> scanner.log
 
 REM ------------------------------------------------------------
@@ -262,6 +295,12 @@ REM Daily compute keeps UI fresh (4/8 factors update daily: price/volume).
 REM Push only on last business day of month (matches backtest monthly rebal).
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
+REM DISABLED 2026-05-21 per user request: whale_picks feature shelved (also removed from UI).
+REM screener + alerts both skipped. Manual trigger still works:
+REM   python tools\whale_picks_screener.py --silent --push-if-month-end
+REM   python tools\whale_picks_alerts.py
+REM To re-enable scheduled run: remove the "goto skip_whale_picks" line below.
+goto skip_whale_picks
 echo [%date% %time%] Whale picks selector starting >> scanner.log
 python tools\whale_picks_screener.py --silent --push-if-month-end >> scanner.log 2>&1
 echo [%date% %time%] Whale picks done >> scanner.log
@@ -272,14 +311,7 @@ REM holdings drop >= 15%% from month-end rebalance close. Best-effort.
 echo [%date% %time%] Whale picks alerts starting >> scanner.log
 python tools\whale_picks_alerts.py >> scanner.log 2>&1
 echo [%date% %time%] Whale picks alerts done >> scanner.log
-
-REM ------------------------------------------------------------
-REM Substack sync: download new songfen articles + detect pending INDEX updates.
-REM Added 2026-04-23. Best-effort: failures do not affect scanner exit code.
-REM ------------------------------------------------------------
-echo [%date% %time%] Substack sync starting >> scanner.log
-python tools\sync_substack.py >> scanner.log 2>&1
-echo [%date% %time%] Substack sync done >> scanner.log
+:skip_whale_picks
 
 REM ------------------------------------------------------------
 REM Chip history institutional resume (daily).

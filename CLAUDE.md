@@ -1,26 +1,28 @@
 # StockAnalyzer — TW/US Trading Analysis System
 
-## ⚠️ LLM Usage Rules (mandatory, locked 2026-05-01)
+## ⚠️ LLM Usage Rules (mandatory, locked 2026-05-01；Gemini 移除 2026-05-20)
 
-Any code calling Claude CLI / Gemini CLI / LLM SDK MUST follow:
+Any code calling Claude CLI / LLM SDK MUST follow:
 
 | Module | LLM | model flag | extra flag | timeout |
 |---|---|---|---|---|
 | **AI Report** (`ai_report.py` / `ai_report_pipeline.py` / `strong_stocks_ai_analysis.py`) | Claude | `--model opus` | `--allowedTools "*"` | 600s |
 | **News / short-form / metadata extract** | Claude | `--model sonnet` | (optional) `--allowedTools` | 600s |
 | **Calendar / structured table extract** | Claude | `--model haiku` | — | 600s |
-| **Sector tag extract (YT VTT / batch)** | Claude(primary) / Gemini(backup) | `sonnet` / `gemini-3.1-pro-preview` | — | 600s / 900s |
+| **Sector tag extract (YT VTT / batch)** | Claude | `--model sonnet` | — | 600s |
+| **Brokerage YT extract** (`tools/extract_yt_brokerage.py`) | Claude | `--model sonnet` | — | 600s |
 | **Multi-agent debate / exploratory** | Claude | `--model sonnet` | `--allowedTools "WebSearch,WebFetch"` | 600s |
-| **Any Gemini call** | Gemini | `gemini-3.1-pro-preview` | — | 900s |
+| **Macro Compass 第二視角** (`tools/macro_compass_report.py`) | Claude | `--model sonnet` | `--allowedTools "WebSearch,WebFetch"` | 600s |
 
-**Model choice rationale**: AI Report uses Opus (cost not a concern) / News uses Sonnet (balanced) / table extract uses Haiku (fast+cheap) / Gemini always preview.
+**Model choice rationale**: AI Report uses Opus (cost not a concern) / News uses Sonnet (balanced) / table extract uses Haiku (fast+cheap)。Gemini CLI 2026-05-20 暫停支援後全面撤除，所有節點改為 Claude 系列。
 
 **How to apply**:
 
 - **New call → pick from table** — model + timeout MUST follow above
-- **Grep before changing** — `claude.*-p` / `--model` / `gemini.*-p`
+- **Grep before changing** — `claude.*-p` / `--model`
 - **AI Report MUST be Opus** — `generate_report*` with `--model opus --allowedTools "*"`
 - **No timeout=None** — always specify explicit seconds
+- **不要再加 Gemini 呼叫** — 2026-05-20 之後一律 Claude；若 Gemini CLI 復活想重啟，整批改前先在此 table 加回
 
 ---
 
@@ -63,6 +65,8 @@ All features MUST follow the same priority to avoid data drift:
 | News | Google News RSS + udn money RSS | — | `news_fetcher.py` (per-ticker) / `tools/news_theme_extract.py` (theme batch) |
 | Analyst consensus | yfinance | — | Target price / Forward EPS / rating |
 | Peer comparison | TWSE/TPEX PER + FinMind industry tag | — | `peer_comparison.py` |
+| TV-show YT mentions | yt-dlp auto-sub + Claude Sonnet | — | `fetch_yt_transcripts.py` → `extract_yt_sector_tags.py` → `data/sector_tags_dynamic.parquet` |
+| Brokerage YT mentions | yt-dlp manual-sub + Claude Sonnet | — | 摩爾投顧 8 分析師日更；`fetch_yt_brokerage.py` → `extract_yt_brokerage.py` → `data/yt_brokerage_{mentions,videos}.parquet`；獨立 pipeline 不混 TV-show；**不接 AI 報告**（合規） |
 
 ## Data Source Discovery SOP — 不公開 / 改版後 endpoint 失蹤
 
