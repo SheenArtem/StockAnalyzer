@@ -238,6 +238,7 @@ def call_claude_opus(prompt: str) -> tuple[bool, str]:
         result = subprocess.run(
             [CLAUDE_CLI, "-p",
              "--model", "opus",
+             "--effort", "xhigh",  # 2026-05-21: 必須 CLI 帶 (settings.json effortLevel 不影響 -p)
              "--allowedTools", "*",
              "--output-format", "text"],
             input=prompt,
@@ -303,6 +304,7 @@ def call_claude_sonnet_council(claude_out: str, gemini_out: str, context: str) -
         result = subprocess.run(
             [CLAUDE_CLI, "-p",
              "--model", "sonnet",
+             "--effort", "xhigh",  # 2026-05-21: 必須 CLI 帶
              "--allowedTools", "WebSearch,WebFetch",
              "--output-format", "text"],
             input=council_prompt,

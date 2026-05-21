@@ -1822,6 +1822,7 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
         result = subprocess.run(
             [_CLAUDE_CLI, "-p",
              "--model", "opus",
+             "--effort", "xhigh",  # 2026-05-21: AI 報告核心品質優先
              "--allowedTools", "*",
              "--output-format", "text"],
             input=prompt,
@@ -1977,6 +1978,7 @@ def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_
         result = subprocess.run(
             [_CLAUDE_CLI, "-p",
              "--model", "opus",
+             "--effort", "xhigh",  # 2026-05-21: AI 報告核心品質優先
              "--allowedTools", "*",
              "--output-format", "text"],
             input=prompt,

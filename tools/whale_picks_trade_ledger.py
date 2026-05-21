@@ -382,7 +382,8 @@ def _build_prompt(batch: List[pd.Series]) -> str:
 
 def _call_sonnet(prompt: str) -> Optional[str]:
     """Per CLAUDE.md LLM rules: Sonnet + 600s timeout for short narrative tasks."""
-    cmd = [_CLAUDE_CLI, '-p', '--model', 'sonnet', '--output-format', 'json']
+    # 2026-05-21: --effort xhigh (claude -p 不繼承 settings.json effortLevel)
+    cmd = [_CLAUDE_CLI, '-p', '--model', 'sonnet', '--effort', 'xhigh', '--output-format', 'json']
     try:
         result = subprocess.run(
             cmd, input=prompt, capture_output=True, text=True,

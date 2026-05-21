@@ -37,7 +37,7 @@ SECTOR_TAGS_FILE = REPO / "data" / "sector_tags_manual.json"
 
 GEMINI_MODEL = "gemini-3.1-pro-preview"  # LLM 規範 (2026-05-01)：Gemini 一律 3.1-pro-preview
 GEMINI_FALLBACK_MODEL = None  # None = default model
-CLAUDE_MODEL_FLAG = "--model=sonnet"  # LLM 規範 (2026-05-01)：News 解析用 Sonnet
+CLAUDE_MODEL_FLAG = "--model=sonnet --effort xhigh"  # LLM 規範 (2026-05-01)：Sonnet + effort xhigh (2026-05-21 加)：投顧 YT A/B 顯示沒 reasoning budget 的 Sonnet 抓錯 ticker code (4958 vs 2344 華邦電) + 漏抓供應鏈個股；fallback 路徑必須維持品質故統一開 xhigh，速度退讓
 
 
 class TokenExhaustedError(Exception):

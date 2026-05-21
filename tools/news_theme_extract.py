@@ -647,7 +647,8 @@ def call_claude_sonnet(prompt: str) -> tuple[str, str | None]:
     （symptom: 開頭 5-10KB 的 model output 不見）。改用 stdin direct + shell=False。
     用 --output-format json 拿包含 result field 的 envelope，更可靠的 parse。
     """
-    cmd = [_CLAUDE_CLI, '-p', '--model', 'sonnet', '--output-format', 'json']
+    # 2026-05-21: --effort xhigh (claude -p 不繼承 settings.json effortLevel,必須 CLI 帶)
+    cmd = [_CLAUDE_CLI, '-p', '--model', 'sonnet', '--effort', 'xhigh', '--output-format', 'json']
     try:
         result = subprocess.run(
             cmd,

@@ -1,28 +1,31 @@
 # StockAnalyzer — TW/US Trading Analysis System
 
-## ⚠️ LLM Usage Rules (mandatory, locked 2026-05-01；Gemini 移除 2026-05-20)
+## ⚠️ LLM Usage Rules (mandatory, locked 2026-05-01；Gemini 移除 2026-05-20；effort 加註 2026-05-21；codex fallback 加註 2026-05-21)
 
 Any code calling Claude CLI / LLM SDK MUST follow:
 
-| Module | LLM | model flag | extra flag | timeout |
-|---|---|---|---|---|
-| **AI Report** (`ai_report.py` / `ai_report_pipeline.py` / `strong_stocks_ai_analysis.py`) | Claude | `--model opus` | `--allowedTools "*"` | 600s |
-| **News / short-form / metadata extract** | Claude | `--model sonnet` | (optional) `--allowedTools` | 600s |
-| **Calendar / structured table extract** | Claude | `--model haiku` | — | 600s |
-| **Sector tag extract (YT VTT / batch)** | Claude | `--model sonnet` | — | 600s |
-| **Brokerage YT extract** (`tools/extract_yt_brokerage.py`) | Claude | `--model sonnet` | — | 600s |
-| **Multi-agent debate / exploratory** | Claude | `--model sonnet` | `--allowedTools "WebSearch,WebFetch"` | 600s |
-| **Macro Compass 第二視角** (`tools/macro_compass_report.py`) | Claude | `--model sonnet` | `--allowedTools "WebSearch,WebFetch"` | 600s |
+| Module | LLM | model flag | effort | extra flag | timeout |
+|---|---|---|---|---|---|
+| **AI Report** (`ai_report.py` / `ai_report_pipeline.py` / `strong_stocks_ai_analysis.py`) | Claude | `--model opus` | `--effort xhigh` | `--allowedTools "*"` | 600s |
+| **News / short-form / metadata extract** | Claude | `--model sonnet` | `--effort xhigh` | (optional) `--allowedTools` | 600s |
+| **Calendar / structured table extract** | Claude | `--model haiku` | — (fast+cheap 不開 thinking) | — | 600s |
+| **Sector tag extract (YT VTT / batch)** | Claude | `--model sonnet` | `--effort xhigh` | — | 600s |
+| **Brokerage YT extract** (`tools/extract_yt_brokerage.py`) | **codex GPT-5.5 (primary)** + Claude Sonnet (fallback) | codex: `-c model_reasoning_effort=medium`<br>claude: `--model sonnet` | claude `--effort xhigh` | — | 600s |
+| **Multi-agent debate / exploratory** | Claude | `--model sonnet` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | 600s |
+| **Macro Compass 第二視角** (`tools/macro_compass_report.py`) | Claude | `--model sonnet` 或 `opus` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | 600s |
 
-**Model choice rationale**: AI Report uses Opus (cost not a concern) / News uses Sonnet (balanced) / table extract uses Haiku (fast+cheap)。Gemini CLI 2026-05-20 暫停支援後全面撤除，所有節點改為 Claude 系列。
+**Model choice rationale**: AI Report uses Opus (cost not a concern) / News uses Sonnet (balanced) / table extract uses Haiku (fast+cheap)。Gemini CLI 2026-05-20 暫停支援後全面撤除，所有節點改為 Claude 系列。Brokerage YT 2026-05-21 A/B 後改 codex GPT-5.5 primary（速度 4-6x，ticker code 較準，幻覺率 8% 可控）；Sonnet 當 codex quota / JSON 失敗時 fallback，必須帶 `--effort xhigh` 保證 fallback 品質。
+
+**⚠️ `--effort` 強制規則 (2026-05-21)**: 實測 `claude -p` **不繼承 `~/.claude/settings.json` 的 `effortLevel`**（即使設 `max` 也 0 reasoning tokens）— 必須在 CLI 顯式帶 `--effort xhigh`。Haiku 例外（不開 thinking，保 fast+cheap 用意）。
 
 **How to apply**:
 
-- **New call → pick from table** — model + timeout MUST follow above
-- **Grep before changing** — `claude.*-p` / `--model`
-- **AI Report MUST be Opus** — `generate_report*` with `--model opus --allowedTools "*"`
+- **New call → pick from table** — model + effort + timeout MUST follow above
+- **Grep before changing** — `claude.*-p` / `--model` / `--effort`
+- **AI Report MUST be Opus + effort xhigh** — `generate_report*` with `--model opus --effort xhigh --allowedTools "*"`
 - **No timeout=None** — always specify explicit seconds
 - **不要再加 Gemini 呼叫** — 2026-05-20 之後一律 Claude；若 Gemini CLI 復活想重啟，整批改前先在此 table 加回
+- **新加 codex / OpenAI / 其他 LLM provider** — 必須先在此 table 加新列 + 註明 fallback 順序
 
 ---
 

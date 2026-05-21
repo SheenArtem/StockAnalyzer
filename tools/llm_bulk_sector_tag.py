@@ -42,7 +42,7 @@ THEMES_PATH = REPO / "data" / "sector_tags_manual.json"
 OUT_PATH = REPO / "data" / "sector_tags_llm.json"
 TMP_DIR = REPO / "tools" / "tmp" / "llm_tag_batches"
 
-CLAUDE_MODEL_FLAG = "--model sonnet"  # LLM 規範 (2026-05-01)：Sonnet alias 自動跟最新 sonnet
+CLAUDE_MODEL_FLAG = "--model sonnet --effort xhigh"  # LLM 規範 (2026-05-01)：Sonnet alias 自動跟最新 sonnet。2026-05-21 加 --effort xhigh (claude -p 不繼承 settings.json effortLevel)
 
 
 def load_themes_schema() -> tuple[list[dict], set[str]]:

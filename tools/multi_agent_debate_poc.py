@@ -186,6 +186,7 @@ def call_cli(system_prompt: str, user_prompt: str, role: str,
         result = subprocess.run(
             [_CLAUDE_CLI, "-p",
              "--model", "sonnet",
+             "--effort", "xhigh",  # 2026-05-21: 必須 CLI 帶
              "--allowedTools", "WebSearch,WebFetch",
              "--output-format", "text"],
             input=full,

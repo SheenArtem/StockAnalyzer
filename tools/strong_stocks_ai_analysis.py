@@ -359,6 +359,7 @@ def call_claude_opus(prompt: str) -> tuple[str, str | None]:
     cmd = [
         _CLAUDE_CLI, "-p",
         "--model", "opus",
+        "--effort", "xhigh",  # 2026-05-21: 必須 CLI 帶 (該 stage 2026-05-21 已停用,但保留 effort 防復活)
         "--allowedTools", "*",
         "--output-format", "json",
     ]

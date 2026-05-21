@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -47,6 +48,105 @@ REPO = Path(__file__).resolve().parent.parent
 VTT_ROOT = REPO / "data_cache" / "yt_brokerage_transcripts"
 OUT_ROOT = REPO / "data_cache" / "yt_brokerage_extracts"
 SCHEMA_VERSION = 1
+
+# A/B 比較 (2026-05-21) 結果: codex (GPT-5.5 reasoning=medium) 速度 4-6x Claude Sonnet
+# + 覆蓋更廣 (多抓 24 個真實討論的供應鏈個股) + ticker code 較準 (Sonnet 把華邦電抓成 4958
+# 應為 2344)。幻覺率 8% 但同類股 prompt 加強後可壓低。
+# 策略: codex primary, Claude Sonnet (effort xhigh) fallback (codex 超時 / JSON 解不出時切換)。
+CODEX_REASONING = "medium"  # minimal | low | medium | high | xhigh
+CODEX_TIMEOUT = 600
+
+# Sticky fallback (2026-05-21): codex quota 用完時若每支 VTT 都再試一次 codex 才
+# fallback Sonnet,每支多花 30-60 秒等 timeout/quota error。連續 N 次失敗後切 sticky
+# 模式直接走 Sonnet,但每 PROBE_INTERVAL_SEC 秒 probe 一次 codex,恢復就切回。
+STICKY_THRESHOLD = 3            # 連續 N 次 codex 失敗 -> sticky
+PROBE_INTERVAL_SEC = 600        # sticky 期間每 10 分鐘 probe 一次 codex
+_codex_consecutive_fails = 0
+_codex_last_fail_ts: float = 0.0
+_codex_sticky_until_logged = False
+
+
+def _should_try_codex() -> tuple[bool, str]:
+    """回傳 (try_codex, reason)。sticky 期間僅在 probe 時間到才回 True。"""
+    global _codex_consecutive_fails, _codex_last_fail_ts
+    if _codex_consecutive_fails < STICKY_THRESHOLD:
+        return True, "normal"
+    # sticky 期間
+    elapsed = time.time() - _codex_last_fail_ts
+    if elapsed >= PROBE_INTERVAL_SEC:
+        return True, f"probe (sticky {_codex_consecutive_fails} fails, last {elapsed/60:.1f}min ago)"
+    return False, f"sticky ({_codex_consecutive_fails} fails, probe in {(PROBE_INTERVAL_SEC-elapsed)/60:.1f}min)"
+
+
+def _record_codex_result(success: bool) -> None:
+    global _codex_consecutive_fails, _codex_last_fail_ts, _codex_sticky_until_logged
+    if success:
+        if _codex_consecutive_fails >= STICKY_THRESHOLD:
+            sys.stderr.write(
+                f"  [STICKY RECOVERY] codex 重新可用,清除 sticky 狀態 "
+                f"(之前連續失敗 {_codex_consecutive_fails} 次)\n"
+            )
+            sys.stderr.flush()
+        _codex_consecutive_fails = 0
+        _codex_sticky_until_logged = False
+    else:
+        _codex_consecutive_fails += 1
+        _codex_last_fail_ts = time.time()
+        if _codex_consecutive_fails == STICKY_THRESHOLD and not _codex_sticky_until_logged:
+            sys.stderr.write(
+                f"  [STICKY ENTER] codex 連續失敗 {STICKY_THRESHOLD} 次,切 sticky 模式 "
+                f"(每 {PROBE_INTERVAL_SEC//60} 分鐘 probe 一次)\n"
+            )
+            sys.stderr.flush()
+            _codex_sticky_until_logged = True
+
+
+def call_codex(prompt: str, vtt_text: str,
+               timeout: int = CODEX_TIMEOUT,
+               reasoning_effort: str = CODEX_REASONING) -> tuple[str, str | None]:
+    """呼叫 codex exec (GPT-5.5)。回傳 (model_output_text, error_msg)。
+
+    - shell=True 因為 codex 是 npm 包裝 .cmd (Windows PATH 透過 shell 才找得到)
+    - 用 -o output-last-message 避開 codex banner / tokens used 後綴
+    - 超時/exit!=0 視為 fallback signal
+    """
+    combined = f"{prompt}\n\n--- 以下為 VTT 字幕 ---\n{vtt_text}"
+    last_msg_file = REPO / f"data_cache/codex_last_msg_{int(time.time()*1000)}.txt"
+    last_msg_file.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = (
+        f'codex exec --skip-git-repo-check '
+        f'--dangerously-bypass-approvals-and-sandbox '
+        f'-o "{last_msg_file}" '
+        f'-c model_reasoning_effort={reasoning_effort} -'
+    )
+    try:
+        result = subprocess.run(
+            cmd, input=combined, capture_output=True, text=True,
+            timeout=timeout, encoding="utf-8", errors="replace",
+            shell=True,
+        )
+    except subprocess.TimeoutExpired:
+        if last_msg_file.exists():
+            last_msg_file.unlink()
+        return "", f"codex timeout {timeout}s"
+
+    output = ""
+    if last_msg_file.exists():
+        try:
+            output = last_msg_file.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+        try:
+            last_msg_file.unlink()
+        except Exception:
+            pass
+    if not output:
+        output = result.stdout or ""
+
+    if result.returncode != 0:
+        return output, f"codex exit {result.returncode}: {(result.stderr or '')[:300]}"
+    return output, None
 
 
 PROMPT_TEMPLATE = """你是台股投顧分析師頻道內容萃取員。stdin 會給你一集影片自動/人工字幕 (VTT 含時間碼,可忽略),請萃取結構化資訊。
@@ -101,6 +201,12 @@ schema:
 - entry/stop/target 只在分析師**明確講出價位**時填,否則 null
 - timeframe: 短線當沖 → intraday / 波段 1-4 週 → swing / 長線 > 1 月 → position / 沒講清楚 → unspecified
 - 不要幻覺,VTT 沒提到就不寫
+- **關鍵反幻覺規則**: 公司名 **必須在字幕原文出現過** 才能列。不要因為「同類股」「供應鏈」「題材接近」就自行擴充列出。
+  例如分析師討論「漢唐 (2404)」時,你不能順便列「亞翔 (6139)」即使兩者都是台積電廠房工程股 — 除非字幕原文也明確提到「亞翔」。
+  違反此規則的 mention 應該整筆移除。
+- **Ticker 對應正確性**: 公司中文名 → 4 位數 ticker 對應務必精準。
+  常見易錯: 華邦電=2344 (非 4958), 臻鼎-KY=4958, 環球晶=6488, 中砂=1560, 漢唐=2404。
+  若不確定 ticker 對應正確,寧可留 ticker="" 也不要硬猜。
 - Tag 請用常見題材名稱: AI 散熱 / CPO / HBM / ASIC / ASIC 設計服務 / Apple 供應鏈 / AI 伺服器 ODM / AI 伺服器電源 / CCL / ABF 載板 / PCB 硬板 / 先進封測 / CoWoS / BMC / 矽智財 / 手機 SoC / AI PC / 網通 / EV / SiC / 矽晶圓 / 光學元件 / 機器人 / 其他 (自定名稱)
 """
 
@@ -153,10 +259,35 @@ def extract(vtt_path: Path, brokerage: str, analyst_key: str,
         title=meta["title"],
     )
 
-    output, err = call_claude(prompt, vtt_text)
+    # Strategy (2026-05-21 A/B 後): codex GPT-5.5 primary, Claude Sonnet fallback
+    # + sticky fallback: codex 連續失敗 STICKY_THRESHOLD 次切 sticky 模式直接走 Sonnet,
+    #   每 PROBE_INTERVAL_SEC 秒 probe 一次 codex 恢復狀況
+    try_codex, reason = _should_try_codex()
+    parsed = None
+    output, err = "", None
     model_used = "claude-sonnet"
 
-    parsed = extract_json_from_output(output) if not err else None
+    if try_codex:
+        if reason != "normal":
+            sys.stderr.write(f"  [PROBE] {reason}\n")
+            sys.stderr.flush()
+        output, err = call_codex(prompt, vtt_text)
+        parsed = extract_json_from_output(output) if output else None
+        if parsed is not None:
+            _record_codex_result(success=True)
+            model_used = "codex-gpt-5.5"
+        else:
+            _record_codex_result(success=False)
+            sys.stderr.write(
+                f"  [FALLBACK] codex failed (err={err!r}), retrying with Claude Sonnet...\n"
+            )
+            sys.stderr.flush()
+
+    if parsed is None:
+        # 兩種狀況走到這: 1) sticky 跳過 codex, 2) codex 失敗 fallback
+        output, err = call_claude(prompt, vtt_text)
+        model_used = "claude-sonnet"
+        parsed = extract_json_from_output(output) if not err else None
 
     base_meta = {
         "schema_version": SCHEMA_VERSION,
@@ -174,7 +305,7 @@ def extract(vtt_path: Path, brokerage: str, analyst_key: str,
     if parsed is None:
         return {
             **base_meta,
-            "error": "Claude Sonnet failed to return valid JSON",
+            "error": "Both codex and Claude Sonnet failed to return valid JSON",
             "last_error": err,
             "mentions": [],
         }
