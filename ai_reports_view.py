@@ -226,23 +226,44 @@ def render_ai_reports():
         # HTML 模式：從 JSON meta.ticker 自動抓代號（claude.ai 真值優先），form ticker 是 MD fallback
         st.markdown("---")
         st.markdown("#### 📥 貼回 claude.ai 輸出")
-        _paste_fmt_label = '📊 儀表板 (HTML JSON)' if _ai_format == 'html' else '📝 Markdown'
+        # HTML 格式底下再切「JSON 灌本地模板」vs「整頁 HTML 直存」(2026-05-22 新增)
+        _paste_html_mode = 'json'  # 預設給 MD 模式用（不會讀到）
         if _ai_format == 'html':
-            st.caption(
-                f"把 claude.ai 的 JSON 回傳貼到下方 → 點「處理並儲存」會自動解析 + 灌模板 + 存到報告庫。"
-                f"**股票代號直接從 JSON `meta.ticker` 抓**（不靠上方表單），格式=`{_paste_fmt_label}`。"
+            _paste_html_mode = st.radio(
+                "貼回類型",
+                options=['json', 'fullhtml'],
+                format_func=lambda x: {
+                    'json': '📐 JSON 灌本地模板 (預設)',
+                    'fullhtml': '📄 整頁 HTML (claude.ai 已生好)',
+                }[x],
+                key='ai_paste_html_mode',
+                horizontal=True,
             )
+        if _ai_format == 'html' and _paste_html_mode == 'json':
+            st.caption(
+                "把 claude.ai 的 JSON 回傳貼到下方 → 點「處理並儲存」會自動解析 + 灌模板 + 存到報告庫。"
+                "**股票代號直接從 JSON `meta.ticker` 抓**（不靠上方表單）。"
+            )
+            _paste_placeholder = '{"meta": {"ticker": "CRCL", ...}, ...}'
+        elif _ai_format == 'html' and _paste_html_mode == 'fullhtml':
+            _paste_ticker_show = _ai_ticker.strip().upper() if _ai_ticker and _ai_ticker.strip() else "(未填)"
+            st.caption(
+                f"把 claude.ai 直接生好的完整 HTML 頁面貼到下方 → 直接存檔，不再灌本地模板。"
+                f"**整頁 HTML 模式必須先在上方輸入股票代號**（=`{_paste_ticker_show}`），用作存檔代號。"
+            )
+            _paste_placeholder = '<!DOCTYPE html><html>...</html>'
         else:
             _paste_ticker_show = _ai_ticker.strip().upper() if _ai_ticker and _ai_ticker.strip() else "(未填)"
             st.caption(
                 f"把 claude.ai 的 markdown 報告貼到下方 → 點「處理並儲存」存到報告庫。"
                 f"**Markdown 模式必須先在上方輸入股票代號**（=`{_paste_ticker_show}`），無法從純文字自動抓。"
             )
+            _paste_placeholder = 'markdown 報告全文'
         _paste = st.text_area(
             "貼上 claude.ai 輸出",
             value="",
             height=200,
-            placeholder='{"meta": {"ticker": "CRCL", ...}, ...}  (HTML) 或 markdown 報告全文 (MD)',
+            placeholder=_paste_placeholder,
             key='ai_paste_textarea',
         )
         if st.button("📥 處理並儲存到報告庫", type='primary', key='ai_paste_save_btn',
@@ -251,7 +272,7 @@ def render_ai_reports():
                 st.error("請先貼上 claude.ai 輸出")
             else:
                 try:
-                    if _ai_format == 'html':
+                    if _ai_format == 'html' and _paste_html_mode == 'json':
                         from ai_report import render_html_from_claude_output, save_report_html
                         # HTML 路徑：先 ticker fallback 給 render 用做 title 預設，實際存檔用 JSON meta.ticker
                         _fallback_ticker = (_ai_ticker.strip().upper() if _ai_ticker and _ai_ticker.strip() else 'UNKNOWN')
@@ -276,6 +297,23 @@ def render_ai_reports():
                                     _meta_ticker, _html_or_err,
                                     json_data=_json_data,
                                 )
+                                st.success(f"✅ 已存到報告庫 (ID: `{_rid}`)，切到「📚 報告庫」tab 查看")
+                                st.session_state.pop('ai_paste_textarea', None)
+                    elif _ai_format == 'html' and _paste_html_mode == 'fullhtml':
+                        # 整頁 HTML 直存：不解析 JSON、不灌模板、不寫 sidecar；ticker 只能靠上方表單
+                        _save_ticker = _ai_ticker.strip().upper() if _ai_ticker else ""
+                        if not _save_ticker:
+                            st.error("整頁 HTML 模式請在上方「股票代號」欄輸入代號")
+                        else:
+                            is_valid, err_msg = validate_ticker(_save_ticker)
+                            if not is_valid:
+                                st.error(f"代號格式不正確: {err_msg}")
+                            else:
+                                _paste_head = _paste.strip()[:200].lower()
+                                if not (_paste_head.startswith('<!doctype') or _paste_head.startswith('<html')):
+                                    st.warning("⚠️ 內容不像完整 HTML（沒 `<!DOCTYPE` 或 `<html` 開頭），仍會存檔但可能無法正常顯示。")
+                                from ai_report import save_report_html
+                                _rid = save_report_html(_save_ticker, _paste, json_data=None)
                                 st.success(f"✅ 已存到報告庫 (ID: `{_rid}`)，切到「📚 報告庫」tab 查看")
                                 st.session_state.pop('ai_paste_textarea', None)
                     else:
