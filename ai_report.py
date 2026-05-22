@@ -1858,10 +1858,13 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 
 ## 你的任務
 
-1. **可選搜尋補充**（2-3 次即可）:
-   - "{stock_id} {stock_name} 產業趨勢 2026"
-   - "{stock_id} 競爭對手 比較"
-   - 美股: "{ticker} industry outlook 2026"
+1. **必須使用 WebSearch 工具搜尋以下資訊**（強制 3-4 次，即使系統數據看似齊全也不得略過）：
+   - "{stock_id} {stock_name} 產業趨勢 2026" — 產業動態、上下游供需
+   - "{stock_id} {stock_name} 法說會 營運展望" — 最新展望、產品線變化
+   - "{stock_id} 競爭對手 比較" — 主要競爭者營收/毛利率比較
+   - 美股請改用英文: "{ticker} industry outlook 2026", "{ticker} competitors analysis", "{ticker} latest earnings guidance"
+
+   搜尋結果用於補充 bull_bear / industry / valuation 三區塊的質化敘事與最新催化；系統 [NEWS_DATA] / [NEWS_THEMES] 為歷史快取，必須以 WebSearch 補今日最新資訊。
 
 2. **輸出嚴格符合 schema 的純 JSON**，必含 5 個頂層物件：meta / summary / technical / chip / valuation / bull_bear
 
