@@ -98,7 +98,17 @@ def render_ai_reports():
                 horizontal=False,
             )
 
-        if st.button("生成研究報告", type="primary", key='ai_gen_btn', disabled=_is_running):
+        _col_btn1, _col_btn2 = st.columns([1, 1])
+        with _col_btn1:
+            _gen_clicked = st.button("🤖 生成研究報告", type="primary",
+                                     key='ai_gen_btn', disabled=_is_running,
+                                     help="呼叫 claude -p CLI 自動跑完整報告（消耗 Agent SDK Credit）")
+        with _col_btn2:
+            _prompt_clicked = st.button("📋 產生 Prompt (貼到 claude.ai)",
+                                         key='ai_prompt_btn', disabled=_is_running,
+                                         help="只組裝 prompt 不呼叫 CLI；複製貼到 claude.ai 網頁手動跑（用訂閱 quota，不吃 Agent SDK Credit）")
+
+        if _gen_clicked:
             if not _ai_ticker or not _ai_ticker.strip():
                 st.error("請輸入股票代號")
             else:
@@ -123,6 +133,50 @@ def render_ai_reports():
                     )
                     _t.start()
                     st.rerun()
+
+        if _prompt_clicked:
+            if not _ai_ticker or not _ai_ticker.strip():
+                st.error("請輸入股票代號")
+            else:
+                _ai_ticker = _ai_ticker.strip().upper()
+                is_valid, err_msg = validate_ticker(_ai_ticker)
+                if not is_valid:
+                    st.error(f"代號格式不正確: {err_msg}")
+                else:
+                    from ai_report_pipeline import assemble_prompt_only
+                    with st.spinner(f"組裝 {_ai_ticker} prompt 中（10-30 秒，無 LLM call）..."):
+                        _r = assemble_prompt_only(_ai_ticker, fmt=_ai_format)
+                    if not _r['ok']:
+                        st.error(f"組裝失敗: {_r['error']}")
+                    else:
+                        st.session_state['ai_prompt_result'] = {
+                            'ticker': _ai_ticker,
+                            'format': _ai_format,
+                            'prompt': _r['prompt'],
+                            'elapsed_s': _r['elapsed_s'],
+                        }
+
+        # --- 顯示組好的 prompt（如果有）---
+        _pr = st.session_state.get('ai_prompt_result')
+        if _pr:
+            _fmt_label = '📊 儀表板 (HTML JSON)' if _pr['format'] == 'html' else '📝 Markdown'
+            st.success(
+                f"✅ **{_pr['ticker']}** prompt 組裝完成 (`{_fmt_label}`, "
+                f"{len(_pr['prompt']):,} chars, {_pr['elapsed_s']:.1f}s)"
+            )
+            st.caption(
+                "💡 把下面整段貼到 claude.ai 對話框（建議用 Opus 4.7 / Extended Thinking）。"
+                "HTML 格式回傳 JSON 後可貼回個股 tab 或自行用 prompts/report_dashboard_template.html 渲染。"
+            )
+            st.text_area(
+                "Prompt (點右上 Copy icon 複製)",
+                value=_pr['prompt'],
+                height=400,
+                key='ai_prompt_textarea',
+            )
+            if st.button("🗑️ 清除 prompt 顯示", key='ai_prompt_clear'):
+                del st.session_state['ai_prompt_result']
+                st.rerun()
 
     # --- Tab 2: Library ---
     with _report_tab_lib:

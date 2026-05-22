@@ -41,6 +41,105 @@ def _noop(_msg: str) -> None:
     pass
 
 
+def _load_report_inputs(ticker: str, progress_cb: Callable[[str], None]):
+    """Run steps 1-4 of the report pipeline: load price/chip/fundamental + run technical analysis.
+
+    Returns:
+        tuple (report, chip_data, us_chip_data, fund_data, df_day) — same shape as
+        assemble_prompt() / assemble_dashboard_prompt() expect.
+
+    Raises:
+        RuntimeError if price data unavailable (downstream cannot proceed).
+    """
+    # --- 1. Load price data ---
+    progress_cb("📥 載入價量資料...")
+    from technical_analysis import plot_dual_timeframe
+    figures, errors, df_week, df_day, stock_meta = plot_dual_timeframe(ticker, force_update=False)
+    if df_day is None or df_day.empty:
+        raise RuntimeError('no price data available')
+
+    # --- 2. Load chip data (TW or US) ---
+    progress_cb("📥 載入籌碼資料...")
+    chip_data, us_chip_data = None, None
+    if ticker.isdigit() or ticker.endswith('.TW'):
+        try:
+            from chip_analysis import ChipAnalyzer, ChipFetchError
+            chip_data = ChipAnalyzer().fetch_chip(ticker, scan_mode=False)
+        except ChipFetchError as e:
+            logger.warning("[%s] TW chip fetch failed: %s", ticker, e)
+        except Exception as e:
+            logger.warning("[%s] TW chip load unexpected error: %s: %s", ticker, type(e).__name__, e)
+    else:
+        try:
+            from us_stock_chip import USStockChipAnalyzer
+            us_chip_data, _err = USStockChipAnalyzer().get_chip_data(ticker)
+        except Exception as e:
+            logger.warning("[%s] US chip load failed: %s: %s", ticker, type(e).__name__, e)
+
+    # --- 3. Load fundamental data ---
+    progress_cb("📥 載入基本面資料...")
+    try:
+        from fundamental_analysis import get_fundamentals
+        fund_data = get_fundamentals(ticker)
+    except Exception as e:
+        logger.warning("[%s] fundamental load failed: %s: %s", ticker, type(e).__name__, e)
+        fund_data = None
+
+    # --- 4. Run technical analyzer (trigger score + regime) ---
+    progress_cb("📊 計算技術分析與觸發分數...")
+    from analysis_engine import TechnicalAnalyzer
+    analyzer = TechnicalAnalyzer(
+        ticker, df_week, df_day,
+        chip_data=chip_data, us_chip_data=us_chip_data,
+    )
+    report = analyzer.run_analysis()
+    return report, chip_data, us_chip_data, fund_data, df_day
+
+
+def assemble_prompt_only(
+    ticker: str,
+    fmt: str = 'html',
+    progress_cb: Optional[Callable[[str], None]] = None,
+) -> dict:
+    """Run pipeline steps 1-4 + assemble prompt, but skip Claude CLI call.
+
+    用途：2026-06-15 起 `claude -p` quota 與 claude.ai 訂閱分流計費後，user 可
+    手動把 prompt 貼到 claude.ai 網頁跑（不消耗 Agent SDK Credit pool）。
+
+    Returns:
+        dict with keys:
+          - ok: bool
+          - prompt: str | None     — assembled prompt on success
+          - format: 'html' | 'md'
+          - elapsed_s: float
+          - error: str | None
+    """
+    if progress_cb is None:
+        progress_cb = _noop
+
+    t_start = time.time()
+    out = {'ok': False, 'prompt': None, 'format': fmt, 'elapsed_s': 0.0, 'error': None}
+    try:
+        inputs = _load_report_inputs(ticker, progress_cb)
+        progress_cb("📝 組裝 prompt...")
+        if fmt == 'html':
+            from ai_report import assemble_dashboard_prompt
+            prompt = assemble_dashboard_prompt(ticker, *inputs)
+        else:
+            from ai_report import assemble_prompt
+            prompt = assemble_prompt(ticker, *inputs)
+        out['ok'] = True
+        out['prompt'] = prompt
+    except RuntimeError as e:
+        out['error'] = str(e)
+    except Exception as e:
+        logger.error("[%s] assemble_prompt_only unexpected error: %s", ticker, e, exc_info=True)
+        out['error'] = f"{type(e).__name__}: {e}"
+    finally:
+        out['elapsed_s'] = time.time() - t_start
+    return out
+
+
 def generate_one_report(
     ticker: str,
     fmt: str = 'md',
@@ -79,51 +178,13 @@ def generate_one_report(
     }
 
     try:
-        # --- 1. Load price data ---
-        progress_cb("📥 載入價量資料...")
-        from technical_analysis import plot_dual_timeframe
-        figures, errors, df_week, df_day, stock_meta = plot_dual_timeframe(ticker, force_update=False)
-        if df_day is None or df_day.empty:
-            result['error'] = 'no price data available'
+        # --- Steps 1-4: load inputs ---
+        try:
+            report, chip_data, us_chip_data, fund_data, df_day = _load_report_inputs(ticker, progress_cb)
+        except RuntimeError as e:
+            result['error'] = str(e)
             result['elapsed_s'] = time.time() - t_start
             return result
-
-        # --- 2. Load chip data (TW or US) ---
-        progress_cb("📥 載入籌碼資料...")
-        chip_data, us_chip_data = None, None
-        if ticker.isdigit() or ticker.endswith('.TW'):
-            # 用新的 fetch_chip (H5, 2026-04-23): 回純 dict，不會踩到 tuple-unpack footgun
-            try:
-                from chip_analysis import ChipAnalyzer, ChipFetchError
-                chip_data = ChipAnalyzer().fetch_chip(ticker, scan_mode=False)
-            except ChipFetchError as e:
-                logger.warning("[%s] TW chip fetch failed: %s", ticker, e)
-            except Exception as e:
-                logger.warning("[%s] TW chip load unexpected error: %s: %s", ticker, type(e).__name__, e)
-        else:
-            try:
-                from us_stock_chip import USStockChipAnalyzer
-                us_chip_data, _err = USStockChipAnalyzer().get_chip_data(ticker)
-            except Exception as e:
-                logger.warning("[%s] US chip load failed: %s: %s", ticker, type(e).__name__, e)
-
-        # --- 3. Load fundamental data ---
-        progress_cb("📥 載入基本面資料...")
-        try:
-            from fundamental_analysis import get_fundamentals
-            fund_data = get_fundamentals(ticker)
-        except Exception as e:
-            logger.warning("[%s] fundamental load failed: %s: %s", ticker, type(e).__name__, e)
-            fund_data = None
-
-        # --- 4. Run technical analyzer (trigger score + regime) ---
-        progress_cb("📊 計算技術分析與觸發分數...")
-        from analysis_engine import TechnicalAnalyzer
-        analyzer = TechnicalAnalyzer(
-            ticker, df_week, df_day,
-            chip_data=chip_data, us_chip_data=us_chip_data,
-        )
-        report = analyzer.run_analysis()
 
         # --- 5. Call Claude CLI + save ---
         if fmt == 'html':
