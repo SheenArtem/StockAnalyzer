@@ -1900,6 +1900,49 @@ def _extract_json_from_output(text):
     return text
 
 
+def render_html_from_claude_output(ticker, raw_output):
+    """把 Claude 回傳的 JSON 文字組成 HTML dashboard。
+
+    用途：(a) `generate_report_html` CLI 路徑共用 / (b) UI「貼回 claude.ai 輸出」
+    手動分流路徑共用。post-Claude 解析+驗證+灌模板邏輯抽到此函式避免 drift。
+
+    Args:
+        ticker: 股票代號
+        raw_output: Claude 回傳的原始文字（可能含 markdown fence、前後贅文）
+
+    Returns:
+        tuple: (success: bool, html_or_error_msg: str, json_data: dict | None)
+    """
+    raw_output = (raw_output or '').strip()
+    if not raw_output:
+        return False, "輸入內容為空", None
+
+    json_text = _extract_json_from_output(raw_output)
+    try:
+        data = json.loads(json_text)
+    except json.JSONDecodeError as e:
+        logger.error("JSON parse failed: %s", e)
+        logger.error("First 1000 chars of output: %s", json_text[:1000])
+        return False, f"Claude 回傳的 JSON 格式錯誤: {e}\n\n前 1000 字:\n{json_text[:1000]}", None
+
+    required = ['meta', 'summary', 'technical', 'chip', 'valuation', 'bull_bear']
+    missing = [k for k in required if k not in data]
+    if missing:
+        return False, f"JSON 缺少必要欄位: {missing}", data
+
+    template = _load_dashboard_template()
+    if not template:
+        return False, "HTML 模板載入失敗", data
+
+    meta = data.get('meta', {})
+    title = f"{meta.get('ticker', ticker)} {meta.get('name', '')} 研究報告"
+    html = template.replace('__TITLE__', title)
+    html = html.replace('__REPORT_JSON__', json.dumps(data, ensure_ascii=False))
+
+    logger.info("HTML dashboard rendered for %s (%d bytes)", ticker, len(html))
+    return True, html, data
+
+
 def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_day,
                          timeout=600):
     """
@@ -1936,33 +1979,7 @@ def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_
         if not raw_output:
             return False, "Claude CLI 回傳空白結果", None
 
-        # 提取 + 解析 JSON
-        json_text = _extract_json_from_output(raw_output)
-        try:
-            data = json.loads(json_text)
-        except json.JSONDecodeError as e:
-            logger.error("JSON parse failed: %s", e)
-            logger.error("First 1000 chars of output: %s", json_text[:1000])
-            return False, f"Claude 回傳的 JSON 格式錯誤: {e}\n\n前 1000 字:\n{json_text[:1000]}", None
-
-        # 驗證必要欄位
-        required = ['meta', 'summary', 'technical', 'chip', 'valuation', 'bull_bear']
-        missing = [k for k in required if k not in data]
-        if missing:
-            return False, f"JSON 缺少必要欄位: {missing}", data
-
-        # 注入 HTML 模板
-        template = _load_dashboard_template()
-        if not template:
-            return False, "HTML 模板載入失敗", data
-
-        meta = data.get('meta', {})
-        title = f"{meta.get('ticker', ticker)} {meta.get('name', '')} 研究報告"
-        html = template.replace('__TITLE__', title)
-        html = html.replace('__REPORT_JSON__', json.dumps(data, ensure_ascii=False))
-
-        logger.info("HTML dashboard generated for %s (%d bytes)", ticker, len(html))
-        return True, html, data
+        return render_html_from_claude_output(ticker, raw_output)
 
     except subprocess.TimeoutExpired:
         return False, f"Claude CLI 逾時 ({timeout} 秒)", None

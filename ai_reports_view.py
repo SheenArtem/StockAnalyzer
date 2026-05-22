@@ -165,11 +165,47 @@ def render_ai_reports():
                 f"{len(_pr['prompt']):,} chars, {_pr['elapsed_s']:.1f}s)"
             )
             st.caption(
-                "💡 把下面整段貼到 claude.ai 對話框（建議用 Opus 4.7 / Extended Thinking）。"
-                "HTML 格式回傳 JSON 後可貼回個股 tab 或自行用 prompts/report_dashboard_template.html 渲染。"
+                "💡 點下方「📋 一鍵複製」按鈕複製 prompt → 貼到 claude.ai 對話框"
+                "（建議用 Opus 4.7 / Extended Thinking）。Claude 回傳的內容貼到本頁下方"
+                "「📥 貼回 claude.ai 輸出」區塊即可存到報告庫。"
             )
-            # st.code 才有 hover-to-show 的 Copy icon (右上角)；text_area 沒有
-            st.code(_pr['prompt'], language=None)
+
+            # JS 一鍵複製按鈕 (navigator.clipboard.writeText)
+            import streamlit.components.v1 as components
+            import html as _htmlmod
+            _esc_prompt = _htmlmod.escape(_pr['prompt'])  # 防 </script> 注入
+            _btn_html = f"""
+            <textarea id="prompt_src_{_pr['ticker']}" style="position:absolute;left:-9999px;">{_esc_prompt}</textarea>
+            <button id="copy_btn_{_pr['ticker']}"
+                    style="background:#FF4B4B;color:white;border:none;padding:10px 20px;
+                           border-radius:8px;font-size:16px;cursor:pointer;font-weight:600;">
+              📋 一鍵複製 Prompt 到剪貼簿
+            </button>
+            <span id="copy_status_{_pr['ticker']}" style="margin-left:12px;color:#0f9d58;font-weight:600;"></span>
+            <script>
+              document.getElementById("copy_btn_{_pr['ticker']}").addEventListener("click", async () => {{
+                const src = document.getElementById("prompt_src_{_pr['ticker']}");
+                const status = document.getElementById("copy_status_{_pr['ticker']}");
+                try {{
+                  if (navigator.clipboard && navigator.clipboard.writeText) {{
+                    await navigator.clipboard.writeText(src.value);
+                  }} else {{
+                    src.style.left = "0"; src.select(); document.execCommand("copy"); src.style.left = "-9999px";
+                  }}
+                  status.textContent = "✅ 已複製 " + src.value.length.toLocaleString() + " chars";
+                  setTimeout(() => {{ status.textContent = ""; }}, 4000);
+                }} catch (e) {{
+                  status.textContent = "❌ 複製失敗: " + e.message;
+                  status.style.color = "#d93025";
+                }}
+              }});
+            </script>
+            """
+            components.html(_btn_html, height=60)
+
+            # 仍保留 st.code 給「想自己選取或檢視內容」的場景
+            with st.expander("📄 顯示 prompt 全文（檢視/手動選取）", expanded=False):
+                st.code(_pr['prompt'], language=None)
 
             _col_dl, _col_clr = st.columns([1, 1])
             with _col_dl:
@@ -180,12 +216,55 @@ def render_ai_reports():
                     file_name=f"prompt_{_pr['ticker']}_{_pr['format']}.{_ext}",
                     mime='text/plain',
                     key='ai_prompt_dl',
-                    help="若 Copy icon 沒出現可下載 .txt 再貼",
                 )
             with _col_clr:
                 if st.button("🗑️ 清除 prompt 顯示", key='ai_prompt_clear', width='stretch'):
                     del st.session_state['ai_prompt_result']
                     st.rerun()
+
+            # === 貼回區塊：把 claude.ai 輸出存進報告庫 ===
+            st.markdown("---")
+            st.markdown("#### 📥 貼回 claude.ai 輸出")
+            st.caption(
+                f"把 claude.ai 的回傳貼到下方文字框 → 點「處理並儲存」會解析 + 灌模板 + 存到報告庫。"
+                f"目前 prompt 格式：`{_fmt_label}` (HTML→需 JSON、Markdown→純文字)。"
+            )
+            _paste = st.text_area(
+                "貼上 claude.ai 輸出",
+                value="",
+                height=200,
+                placeholder='{"meta": {...}, "summary": {...}, ...}  (HTML) 或 markdown 報告全文 (MD)',
+                key='ai_paste_textarea',
+            )
+            if st.button("📥 處理並儲存到報告庫", type='primary', key='ai_paste_save_btn'):
+                if not _paste or not _paste.strip():
+                    st.error("請先貼上 claude.ai 輸出")
+                else:
+                    try:
+                        if _pr['format'] == 'html':
+                            from ai_report import render_html_from_claude_output, save_report_html
+                            with st.spinner("解析 JSON + 灌模板..."):
+                                _ok, _html_or_err, _json_data = render_html_from_claude_output(
+                                    _pr['ticker'], _paste
+                                )
+                            if not _ok:
+                                st.error(f"處理失敗: {_html_or_err}")
+                            else:
+                                _rid = save_report_html(
+                                    _pr['ticker'], _html_or_err,
+                                    json_data=_json_data,
+                                )
+                                st.success(f"✅ 已存到報告庫 (ID: `{_rid}`)，切到「📚 報告庫」tab 查看")
+                                del st.session_state['ai_prompt_result']
+                                st.rerun()
+                        else:
+                            from ai_report import save_report
+                            _rid = save_report(_pr['ticker'], _paste)
+                            st.success(f"✅ 已存到報告庫 (ID: `{_rid}`)，切到「📚 報告庫」tab 查看")
+                            del st.session_state['ai_prompt_result']
+                            st.rerun()
+                    except Exception as _save_err:
+                        st.error(f"儲存失敗: {type(_save_err).__name__}: {_save_err}")
 
     # --- Tab 2: Library ---
     with _report_tab_lib:
