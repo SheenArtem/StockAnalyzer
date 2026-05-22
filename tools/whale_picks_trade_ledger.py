@@ -587,7 +587,8 @@ def generate_reasons(df: pd.DataFrame, batch_size: int = 8,
 # =============================================================================
 
 def save_ledger(df: pd.DataFrame, start: str, end: str, K: int, with_reasons: bool,
-                composite_name: str = DEFAULT_COMPOSITE) -> None:
+                composite_name: str = DEFAULT_COMPOSITE,
+                rebal_mode: str = 'M15') -> None:
     active_dict = _get_composite_dict(composite_name)
     df.to_parquet(LEDGER_PATH, index=False)
     meta = {
@@ -595,6 +596,7 @@ def save_ledger(df: pd.DataFrame, start: str, end: str, K: int, with_reasons: bo
         'start': start,
         'end': end,
         'K': K,
+        'rebal_mode': rebal_mode,
         'min_avg_tv_twd': MIN_AVG_TV,
         'composite_name': composite_name,
         'composite': active_dict,
@@ -646,7 +648,7 @@ def main():
         df = generate_reasons(df, batch_size=args.reasons_batch_size,
                               composite_name=args.composite, K=args.k)
         save_ledger(df, args.start, args.end, args.k, with_reasons=True,
-                    composite_name=args.composite)
+                    composite_name=args.composite, rebal_mode=args.rebal_mode)
         return
 
     feat = build_v13_feat(args.start, args.end, composite_name=args.composite,
@@ -664,7 +666,7 @@ def main():
                               composite_name=args.composite, K=args.k)
 
     save_ledger(df, args.start, args.end, args.k, with_reasons=args.with_reasons,
-                composite_name=args.composite)
+                composite_name=args.composite, rebal_mode=args.rebal_mode)
 
 
 if __name__ == "__main__":

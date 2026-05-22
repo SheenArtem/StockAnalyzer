@@ -380,19 +380,28 @@ PARSIMONIOUS_COMPOSITE = {
 |---|---|---|
 | Composite | **7-feature composite_score primary** + 8-factor composite_parsi backup | 5e10f6e: composite_score 抗 leak Sharpe 1.49 vs parsi 1.01 |
 | Standardization | **Industry-neutral** by date×industry (Stage 3) | v11 +0.11 Sharpe vs universe-wide |
-| Rebalance | **Monthly** (month-end snapshot) | Quarterly Sharpe -49% inferior，bi-weekly fee-adjusted 反輸 |
+| Rebalance | **M15** (每月 15 號或之前最後交易日 — 2026-05-22 從月底切換) | composite_parsi Sharpe 0.60 → 1.18 (+96%), wf 0.20 → 0.63 (+0.43); 月營收 day-10 公告，M15 拿 5d 舊資料 vs 月底 20d; sell-the-news 假設被 MIXED arm 0.30 falsify; quarterly Sharpe -49% inferior，bi-weekly fee-adjusted 反輸 |
 | K (portfolio size) | **K=10** (post c3ff065 K-grid) | composite_score K=10 全面勝 K=20: Sharpe 1.52 vs 1.46, MDD -9% vs -12.7% |
 | Hold | fwd_20d (one month) | Match rebalance period |
 | Universe | TW 3610 PIT (含已下市) filtered to **~885 liquid stocks** (avg_tv ≥ 10M TWD + Vol ≥ 300 lots) | aa045f6 — PIT 避免 survivor bias + exclude illiquid noise |
 | Liquidity hard filter | **avg_tv_60d ≥ 10M TWD AND latest Vol ≥ 300 lots** | v13 (SPEC §3 C5 落地) — production-actionable |
 
-### Performance (v13.4 production K=10, 2021-2025 with liquidity filter, 誠實 baseline)
+### Performance (v0.10 production K=10 M15, 2021-2026 with liquidity filter, 誠實 baseline)
 
-**composite_score K=10** (production primary):
-- Sharpe **1.52** / CAGR **21.7%** / MDD **-9.0%** / Win rate **72%**
-- 對照 K=20: Sharpe 1.46 / MDD -12.7% / Win rate 63% — K=10 strict dominance
+**Production primary metrics** (M15 rebal, 4-arm controlled experiment vs M month-end):
 
-**composite_parsi K=25-30** (backup, K-grid optimum):
+| Composite | M (月底) | **M15 (current production)** | M15 advantage |
+|---|---:|---:|---:|
+| composite_parsi (pre-registered, 最穩健) | 0.60 | **1.18** | +96% |
+| composite_wf_score (walk-forward, 最誠實) | 0.20 | **0.63** | +0.43 abs |
+| composite_score (in-sample IC, optimistic) | 0.75 | **1.18** | +57% |
+
+**composite_parsi M15** (production primary metric, pre-registered weights so most robust):
+- Sharpe **1.18** / CAGR **33.2%** / MDD **-26.2%** / Win **58%**
+
+⚠️ **過期 baseline 紀錄**：v0.9 宣稱的 K=10 composite_score Sharpe 1.52 是 5/16 當下 baseline，5/16 之後 commit e84c4a6 (修 5 個 non-blocker bugs) 動了 universe → 用 current code 跑同期間只有 0.75。詳見 `reports/whale_picks_rebal_timing/REPORT.md`.
+
+**composite_parsi K=25-30** (backup, K-grid optimum，月底時代數據):
 - Sharpe ~1.22 / CAGR 23.4-24.6% / MDD -15.2-15.9% / Win 58-63%
 - 對照 K=20: Sharpe 1.02
 

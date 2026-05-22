@@ -1,8 +1,8 @@
 """Whale Picks tab — 今日 BUY/SELL 訊號 + 歷史回測表格 + Top-K 持倉清單。
 
-訊號定義 (per docs/whale_picks_spec.md v0.5)：
-  - BUY: 月底 rebalance 新進 top-10 / alerts 模組偵測 7d 急升 rank
-  - SELL: 月底 rebalance 掉出 top-10 / alerts 偵測持倉 ≥ -15% drawdown
+訊號定義 (per docs/whale_picks_spec.md v0.10, M15 rebal since 2026-05-22)：
+  - BUY: M15 rebalance (每月 15 號或之前最後交易日) 新進 top-10 / alerts 模組偵測 7d 急升 rank
+  - SELL: M15 rebalance 掉出 top-10 / alerts 偵測持倉 ≥ -15% drawdown
 
 ⚠️ SPEC §13 紅線：永遠不接自動下單；訊號展示用，下單由人類判斷。
 """
@@ -64,11 +64,11 @@ def _fetch_live_quote_cached(stock_id: str) -> dict | None:
 # =============================================================================
 
 def _render_today_signals(obj: dict) -> None:
-    """月底 rebalance 訊號 + 與上次 snapshot diff 的 BUY/SELL 列表。"""
+    """M15 rebalance 訊號 + 與上次 snapshot diff 的 BUY/SELL 列表。"""
     st.subheader("📡 今日訊號 (BUY / SELL)")
     st.caption(
-        "BUY = 月底 rebalance 新進 top-10，或 alerts 模組 7d 急升 rank。"
-        "SELL = 月底 rebalance 掉出 top-10，或 alerts 偵測持倉 -15% drawdown。"
+        "BUY = M15 rebalance (每月 15 號或之前最後交易日) 新進 top-10，或 alerts 模組 7d 急升 rank。"
+        "SELL = M15 rebalance 掉出 top-10，或 alerts 偵測持倉 -15% drawdown。"
         "**SPEC §13: 訊號展示用，永不自動下單。**"
     )
 
@@ -152,7 +152,7 @@ def _render_today_signals(obj: dict) -> None:
 def _render_current_holdings(obj: dict) -> None:
     """目前 Top-10 名單 — 視同 active BUY list。"""
     st.subheader("📋 今日 Top-10 持倉清單 (BUY List)")
-    st.caption(f"月底 rebalance 之後 → 持有至下次月底 rebalance；資料生成於 {obj.get('asof', '?')}")
+    st.caption(f"M15 rebalance 之後 → 持有至下次 M15 rebalance；資料生成於 {obj.get('asof', '?')}")
 
     top = obj.get('top', [])
     if not top:
@@ -299,10 +299,9 @@ def _render_trade_ledger() -> None:
 
     st.subheader("📊 歷史回測訊號 (Trade Ledger)")
     st.caption(
-        "依 v13.4 production 策略 (monthly K=10 / industry-neutral / liquidity ≥ 10M TWD) "
-        "在歷史每月底實際會發出的 BUY/SELL 訊號 — 連續持有合併為單筆 position，純價格報酬。 "
-        "⚠️ 此 ledger 為 5/16 一次性歷史 snapshot (K=20 / composite_parsi)，跟現在 production "
-        "(K=10 / composite_score) 參數不同；**當前實際持倉看上方「💼 當前持倉即時損益」**。"
+        "依 v0.10 production 策略 (M15 K=10 / industry-neutral / liquidity ≥ 10M TWD) "
+        "在歷史每月 15 號 (週末延前一交易日) 實際會發出的 BUY/SELL 訊號 — 連續持有合併為單筆 position，純價格報酬。 "
+        "**當前實際持倉看上方「💼 當前持倉即時損益」**。"
     )
 
     if not LEDGER_PATH.exists():
@@ -392,7 +391,7 @@ def _render_trade_ledger() -> None:
     with st.expander("ℹ️ 回測 metadata + 方法論", expanded=False):
         if meta:
             st.markdown(f"**回測期間**: {meta.get('start', '?')} ~ {meta.get('end', '?')}")
-            st.markdown(f"**重新平衡**: 月底 / K={meta.get('K', '?')} / 流動性門檻 ≥ NT$ {meta.get('min_avg_tv_twd', 0) / 1e6:.0f}M")
+            st.markdown(f"**重新平衡**: M15 (每月 15 號或之前最後交易日) / K={meta.get('K', '?')} / 流動性門檻 ≥ NT$ {meta.get('min_avg_tv_twd', 0) / 1e6:.0f}M")
             st.markdown(f"**生成時間**: {meta.get('generated_at', '?')}")
             st.markdown(f"**LLM 理由**: {'✅ 已生成' if meta.get('with_llm_reasons') else '❌ 未生成 (`--with-reasons` flag)'}")
             st.markdown(f"**Win rate** (含持有中): {meta.get('win_rate', 0) * 100:.1f}% / "
@@ -401,8 +400,8 @@ def _render_trade_ledger() -> None:
         st.markdown("---")
         st.markdown(
             "**回測說明**:\n"
-            "- 每月底依 composite_score 排名取 top-10，連續入榜合併成 1 個 position\n"
-            "- 進場價 = 進場月底收盤；出場價 = 掉出 top-10 那個月底收盤\n"
+            "- 每月 15 號 (週末延前一交易日) 依 composite_score 排名取 top-10，連續入榜合併成 1 個 position\n"
+            "- 進場價 = 進場日收盤；出場價 = 掉出 top-10 那個 M15 rebal 日收盤\n"
             "- P&L = 純價格報酬 (exit/entry - 1)，**未扣手續費 + 證交稅**\n"
             "- 仍在 top-10 的最新 position 標「持有中」，不計入勝率\n"
             "- 此為 **歷史模擬**，live 績效預期受 survivorship + regime drift 拖累"
@@ -464,7 +463,7 @@ def _render_history_diff() -> None:
 def render_whale_picks() -> None:
     st.title("🐋 主力選股 (Whale Picks) — BUY/SELL 訊號")
     st.caption(
-        "7-feature composite_score (誠實 Sharpe 1.52 K=10) / industry-neutral / monthly rebalance K=10 / "
+        "7-feature composite_score / industry-neutral / **M15 rebalance** K=10 (composite_parsi Sharpe 1.18 / walk-forward 0.63) / "
         "每日 alerts (急升 BUY + drawdown SELL)。"
     )
 
@@ -521,5 +520,5 @@ def render_whale_picks() -> None:
 
     st.caption(
         f"資料生成於 {obj.get('asof', '?')}。**每日自動更新** (run_scanner.bat)，"
-        f"月底自動 Discord push (`DISCORD_WEBHOOK_WHALE_PICKS`)。"
+        f"M15 rebal 日 (每月 15 號或之前最後交易日) 自動 Discord push (`DISCORD_WEBHOOK_WHALE_PICKS`)。"
     )

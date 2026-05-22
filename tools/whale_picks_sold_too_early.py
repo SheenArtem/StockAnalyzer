@@ -2,7 +2,7 @@
 
 For each closed position with PnL >= 0 (winners that got cut), compute the stock's
 post-exit return over 30d / 60d / 90d windows. Aggregate to see how much alpha
-the monthly rebalance discipline left on the table.
+the M15 rebalance discipline left on the table.
 """
 from __future__ import annotations
 import pandas as pd

@@ -3,6 +3,7 @@
   "start": "2021-01-01",
   "end": "2026-05-15",
   "K": 10,
+  "rebal_mode": "M15",
   "min_avg_tv_twd": 10000000.0,
   "composite_name": "composite_score",
   "composite": {

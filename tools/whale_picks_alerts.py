@@ -10,16 +10,16 @@ Three alert types (2026-05-16 後從原 2 種擴充為 3 種):
     to ≤30 (today) → 主力剛發動候選 → Discord push.
 
 (B) Trailing stop / early exit:
-    Active holdings (last month-end's top-20) that dropped ≥ 15% from
-    rebalance-day close → 不等月底才出 → Discord push.
+    Active holdings (last M15 rebal's top-10) that dropped ≥ 15% from
+    rebalance-day close → 不等下次 rebal 才出 → Discord push.
 
-(C) Mid-month BUY 候選 (2bfacf9 新加):
-    Rank by composite_score 在 (20, 30] + 5d return ≥ 15% + 不在當前 holdings
-    → monthly rebalance 漏抓的 mid-month 爆發股 (e.g., 2344 case) → Discord push.
+(C) Mid-rebal BUY 候選 (2bfacf9 新加):
+    Rank by composite_score 在 (10, 20] + 5d return ≥ 15% + 不在當前 holdings
+    → M15 rebal 漏抓的 mid-cycle 爆發股 (e.g., 2344 case) → Discord push.
     不自動進場、僅手動評估提醒。
 
 Outputs:
-- data/whale_picks/_active_holdings.json — refreshed each month-end
+- data/whale_picks/_active_holdings.json — refreshed on M15 rebal day
 - Discord push only if any alerts triggered
 
 Usage:
@@ -56,8 +56,8 @@ LOOKBACK_DAYS_ENTRY = 7    # rank 比較窗
 DROP_THRESHOLD = -0.15     # -15% 觸發 exit warning
 LOOKBACK_DAYS_EXIT = 14    # 從 holding 開始最多回看 N 天
 
-# (C) Mid-month BUY candidate alert — 2026-05-16 加 (e2bdc05 + 5e10f6e 後)
-# 解 monthly rebalance 太慢、mid-month 新爆發股漏網問題（如 2344 4/24-5/14 +55%）
+# (C) Mid-rebal BUY candidate alert — 2026-05-16 加 (e2bdc05 + 5e10f6e 後)
+# 解 M15 rebal 太慢、mid-cycle 新爆發股漏網問題（如 2344 4/24-5/14 +55%）
 # 2026-05-16 K_DEFAULT 10 切後同步降低 thresholds: MID_RANK_LOW K_DEFAULT, HIGH 2*K
 PRODUCTION_K = 10          # 對齊 screener.py K_DEFAULT (production picks list size)
 MID_RANK_LOW = PRODUCTION_K     # 不在 top-K 內 (production 已選名單)
@@ -184,13 +184,13 @@ def detect_mid_month_buys(today: date, snapshots: List[date],
                           holdings: Optional[Dict]) -> List[Dict]:
     """找 score 介於 (top-20, top-30] + 5d return ≥ 15% 的「即將進入但未進」候選。
 
-    用途：monthly rebalance 漏抓 mid-month 爆發股（e.g., 2344 4/24-5/14 +55%）。
+    用途：M15 rebal 漏抓 mid-cycle 爆發股（e.g., 2344 4/24-5/14 +55%）。
     這 alert 不自動進場，只提醒 user 手動評估。
 
     Criteria:
       (1) Rank by composite_score (or composite_parsi fallback) 在 (RANK_NOW_TOP, MID_RANK_HIGH]
       (2) Close vs Close[-5] ≥ MID_5D_RET_THRESHOLD (+15%)
-      (3) 不在當前 holdings (top-20 of last month-end) — 避免與 alerts (A) 重複
+      (3) 不在當前 holdings (top-10 of last M15 rebal) — 避免與 alerts (A) 重複
 
     Returns:
         List of dicts with stock_id / rank / 5d_ret / close.
@@ -256,7 +256,7 @@ def detect_mid_month_buys(today: date, snapshots: List[date],
 # ============================================================
 
 def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = False) -> Optional[Dict]:
-    """Refresh _active_holdings.json on month-end (or when forced).
+    """Refresh _active_holdings.json on M15 rebal day (or when forced).
 
     Returns the holdings dict (or existing if no update needed).
 
@@ -380,8 +380,8 @@ def format_discord_alert(entries: List[Dict], exits: List[Dict],
             lines.append(f"_...另 {len(entries)-10} 檔，詳見 UI_")
 
     if mid_buys:
-        lines.append(f"\n🚀 **Mid-month BUY 候選 — rank {MID_RANK_LOW + 1}-{MID_RANK_HIGH} + 5d 漲 ≥ {MID_5D_RET_THRESHOLD*100:.0f}%**")
-        lines.append(f"_monthly rebalance 漏抓的 mid-month 爆發候選；不自動進場，僅提醒手動評估_")
+        lines.append(f"\n🚀 **Mid-rebal BUY 候選 — rank {MID_RANK_LOW + 1}-{MID_RANK_HIGH} + 5d 漲 ≥ {MID_5D_RET_THRESHOLD*100:.0f}%**")
+        lines.append(f"_M15 rebal 漏抓的 mid-cycle 爆發候選；不自動進場，僅提醒手動評估_")
         for m in mid_buys[:10]:
             lines.append(f"• **{m['stock_id']}** {m['stock_name']}  rank {m['rank_now']}  5d {m['ret_5d']*100:+.1f}%  close {m['close_5d_ago']:.1f}→{m['close_now']:.1f}")
         if len(mid_buys) > 10:
