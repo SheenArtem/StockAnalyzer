@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.9 (production K=10 — K-grid 顯示 K=10 全面勝 K=20) |
+| Version | 0.10 (rebal timing M → M15 — 月營收新鮮度抓 alpha) |
 | Status | Phase 1 selector (daily scan integrated) + UI tab + Entry/Exit diff — production ready |
 | Created | 2026-05-16 |
 | Goal | 提前預測主力會選哪些股票，跟主力一起進場，瞄準 30~100% 波段獲利 |
-| Promotion gate | ✅ PASS — composite_score 7-feature industry-neutral monthly K=10 with liquidity filter **誠實 Sharpe 1.52 / MDD -9%** (K=20 1.46/-12.7% / composite_parsi K=20 1.01 backup) |
+| Promotion gate | ✅ PASS — composite_score 7-feature industry-neutral **M15 (mid-15) rebal** K=10 with liquidity filter (composite_parsi pre-registered M15 Sharpe **1.18** vs M baseline 0.60, walk-forward 0.63 vs 0.20) |
 
 ---
 
@@ -23,6 +23,7 @@
 | 0.7 | 2026-05-16 | **v13.2 4-blocker hidden bug fix (commit aa045f6)**：4 平行 agent audit 揪出 10 bug，修 4 條 Blocker：(1) `cache_manager` 改公告窗邏輯 + USE_MOPS=false default path 接通 calendar-aware（解 user 5/5 提前公告 case）(2)(3) `whale_picks_phase2` financials/quality merge_asof 加 +45d publication delay（杜絕 45 天 fundamental look-ahead）(4) `load_universe_industry()` 切到 PIT universe 3610 檔（含 1483 已下市，修 survivor bias）。**真誠實 Sharpe**：top-20 composite_parsi **1.01** (CAGR 20.9% / MDD -20.0%)、top-20 composite_score **1.49** (CAGR 19.5% / MDD -12.3%) — 之前宣稱的 1.70 約 0.7 Sharpe 是 look-ahead+survivor 假 alpha。composite_score 抗 leak 表現遠勝 composite_parsi，建議切換 production target。 |
 | 0.8 | 2026-05-16 | **Production 切換 composite_parsi → composite_score (commit 5e10f6e)**：`whale_picks_screener.py` 加 COMPOSITE_SCORE 7-feature 權重（low52w_prox_adj / dist_52w_high / f_score / z_score / upper_half_close_20d_pct / revenue_score_6m_delta / debt_ratio），`--composite` 預設 composite_score。風格從「F+EPS 翻轉中小型」改成「pre-explosion + 估值合理 + 大型穩定」。對 2344 (4/24-5/14 +55%) 排名 (composite_parsi rank 254/855 top 30% / composite_score rank 734/856 top 86%) — 2344 已過 picks sweet spot，不入榜屬正確行為。下次 monthly rebalance (6/16) 自動受惠。BAT 排程無需改 (default 切換)。|
 | 0.9 | 2026-05-16 | **K=20 → K=10 K-grid 驗證後切換 (commit c3ff065)**：首次嚴謹 K-grid 在誠實 baseline 跑：K=10 在 4/4 metrics 全面勝 K=20 (Sharpe 1.52 vs 1.46 / MDD -9% vs -12.7% / CAGR 21.7% vs 19.3% / Win 72% vs 63%)。反直覺：通常 K 大 MDD 小，但 composite_score K=10 MDD 反而最小（top-10 是真正高品質 + K 大會稀釋）。同 commit 同步：whale_picks_alerts.py PRODUCTION_K=10 + MID_RANK_LOW/HIGH 10/20、whale_picks_view.py 全 'top-20' → 'top-10' + nlargest(20) → nlargest(10)、whale_picks_phase2.py --k-grid 加 K=25 + composite_score 那組。 |
+| 0.10 | 2026-05-22 | **Rebal timing 月底 → M15 切換**：4-arm controlled backtest (M / M15 / M11 / MIXED) 在同 universe / 同 K=10 / 同 composite 跑 2021-01~2026-04 期間。Result: M15 ≫ M baseline 跨 3/3 composite definitions:<br>- composite_parsi (pre-registered, 最穩健): M 0.60 → M15 **1.18** (+96%)<br>- composite_wf_score (walk-forward, 最誠實): M 0.20 → M15 **0.63** (+0.43)<br>- composite_score (in-sample IC, optimistic): M 0.75 → M15 1.18<br>**Sell-the-news 假設 falsified**: MIXED arm (季報月用月底避利多出盡 + 非季報月用 15) Sharpe parsi 0.30 / wf -0.18, 比 baseline 還差 → 季報月底沒避到 sell-the-news, 反而拖累。真正讓 M15 領先的是月營收新鮮度 (法定 day-10 公告, M15 拿 5d 舊資料 vs 月底 20d). M baseline 0.75 與 memory 1.52 不符是因 5/16 之後 commit e84c4a6 修 5 個 non-blocker bug 後 in-sample composite fitting 結果不同 (universe 變了)，但 4 arm 用同 code 相對比較 valid。同 commit 同步：whale_picks_phase2.py 加 M15/M11/MIXED rebal_freq + revenue +10d PIT delay、whale_picks_screener.py `_is_last_business_day_of_month` → `_is_mid_month_rebal_day`、whale_picks_alerts.py `is_month_end` → `is_rebal_day` + reason 'm15_rebal'、whale_picks_trade_ledger.py 加 --rebal-mode (default M15)、run_scanner.bat 註解。詳見 reports/whale_picks_rebal_timing/REPORT.md. |
 
 ---
 

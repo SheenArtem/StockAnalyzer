@@ -48,6 +48,17 @@ def _list_snapshots() -> list[str]:
     return sorted([f.stem for f in SNAPSHOT_DIR.glob('20*.parquet')], reverse=True)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _fetch_live_quote_cached(stock_id: str) -> dict | None:
+    """mis.twse 即時報價 cache 5min (盤中即時 / 盤後 prev_close)。
+    回 dict {'price', 'date', 'price_source', ...} 或 None。"""
+    try:
+        from mis_twse_client import get_quote
+        return get_quote(stock_id)
+    except Exception:
+        return None
+
+
 # =============================================================================
 # Section 1 — 今日訊號 (BUY/SELL)
 # =============================================================================
@@ -193,15 +204,105 @@ def _render_current_holdings(obj: dict) -> None:
 
 
 # =============================================================================
+# Section 3a — 當前持倉即時損益 (Live Holdings PnL)
+# =============================================================================
+
+def _render_current_holdings_pnl() -> None:
+    """當前 _active_holdings.json 對照即時報價算 PnL。"""
+    holdings = _load_active_holdings()
+    if not holdings or not holdings.get('tickers'):
+        st.info("📭 尚未產生當前持倉清單 (`_active_holdings.json`)。等下次 M15 rebalance (每月 15 號或之前最後交易日) 或手動跑 `python tools/whale_picks_alerts.py --update-holdings`。")
+        return
+
+    rebalance_date = holdings.get('rebalance_date', '?')
+    reason = holdings.get('reason', '?')
+    tickers = holdings['tickers']
+
+    st.subheader("💼 當前持倉即時損益")
+    st.caption(
+        f"上次 rebalance: **{rebalance_date}** ({reason}) / 持有 **{len(tickers)}** 檔。"
+        f" 即時價走 mis.twse (盤中即時 / 盤後 prev_close)，cache 5 分鐘 TTL。"
+    )
+
+    rows = []
+    for t in tickers:
+        sid = str(t.get('stock_id', ''))
+        entry = t.get('entry_close')
+        quote = _fetch_live_quote_cached(sid) if sid else None
+        latest = quote.get('price') if quote else None
+        if entry and latest and entry > 0:
+            pnl_pct = (latest - entry) / entry
+        else:
+            pnl_pct = None
+        rows.append({
+            'stock_id': sid,
+            'stock_name': t.get('stock_name', ''),
+            'industry': t.get('industry', ''),
+            'entry_close': entry,
+            'latest': latest,
+            'source': quote.get('price_source') if quote else None,
+            'pnl_pct': pnl_pct,
+        })
+
+    df = pd.DataFrame(rows)
+
+    # 加總指標
+    closed = df.dropna(subset=['pnl_pct'])
+    cM1, cM2, cM3, cM4 = st.columns(4)
+    cM1.metric("持倉檔數", f"{len(df)}", help=f"成功抓到報價: {len(closed)} 檔")
+    if len(closed):
+        avg_pnl = closed['pnl_pct'].mean() * 100
+        cM2.metric("平均報酬", f"{avg_pnl:+.2f}%")
+        cM3.metric("勝率", f"{(closed['pnl_pct'] > 0).mean() * 100:.0f}%",
+                   help=f"{int((closed['pnl_pct'] > 0).sum())}/{len(closed)} 檔正報酬")
+        cM4.metric("最佳/最差", f"{closed['pnl_pct'].max()*100:+.1f}% / {closed['pnl_pct'].min()*100:+.1f}%")
+    else:
+        cM2.metric("平均報酬", "n/a")
+        cM3.metric("勝率", "n/a")
+        cM4.metric("最佳/最差", "n/a")
+
+    # 顯示表格
+    display = pd.DataFrame({
+        '股票': df['stock_id'] + ' ' + df['stock_name'].fillna(''),
+        '產業': df['industry'].fillna(''),
+        '進場價': df['entry_close'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—"),
+        '即時價': df['latest'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—"),
+        '價源': df['source'].fillna('—'),
+        '損益%': df['pnl_pct'].apply(
+            lambda v: ("🟢 +{:.1f}%".format(v*100) if pd.notna(v) and v > 0
+                       else ("🔴 {:.1f}%".format(v*100) if pd.notna(v) and v < 0
+                             else ("⚪ {:.1f}%".format(v*100) if pd.notna(v) else "—")))
+        ),
+    })
+    display = display.sort_values('損益%', ascending=False).reset_index(drop=True)
+    st.dataframe(display, use_container_width=True, hide_index=True)
+
+    with st.expander("ℹ️ 價源說明", expanded=False):
+        st.markdown(
+            "- **z** = 該秒成交價 (盤中即時)\n"
+            "- **pz** = 上次成交價 (盤中無撮合 fallback)\n"
+            "- **mid** = 五檔買賣 1 中點 (停撮 fallback)\n"
+            "- **prev_close** = 昨收 (盤後 / 停牌)\n"
+            "- 報價來源 mis.twse 5 sec/3 req 限制 → 用 streamlit cache 5 min TTL 包"
+        )
+
+
+# =============================================================================
 # Section 3 — 歷史回測訊號 (Trade Ledger)
 # =============================================================================
 
 def _render_trade_ledger() -> None:
     """2021-2026 歷史回測：每筆 BUY/SELL position 的進出場記錄。"""
+    # 上方先顯示「當前持倉即時損益」(每天最有用的 panel)
+    _render_current_holdings_pnl()
+    st.markdown("---")
+
     st.subheader("📊 歷史回測訊號 (Trade Ledger)")
     st.caption(
         "依 v13.4 production 策略 (monthly K=10 / industry-neutral / liquidity ≥ 10M TWD) "
-        "在歷史每月底實際會發出的 BUY/SELL 訊號 — 連續持有合併為單筆 position，純價格報酬。"
+        "在歷史每月底實際會發出的 BUY/SELL 訊號 — 連續持有合併為單筆 position，純價格報酬。 "
+        "⚠️ 此 ledger 為 5/16 一次性歷史 snapshot (K=20 / composite_parsi)，跟現在 production "
+        "(K=10 / composite_score) 參數不同；**當前實際持倉看上方「💼 當前持倉即時損益」**。"
     )
 
     if not LEDGER_PATH.exists():

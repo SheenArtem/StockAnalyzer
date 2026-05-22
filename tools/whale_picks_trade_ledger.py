@@ -1,14 +1,18 @@
 """Whale Picks Trade Ledger - backtest position-level entry/exit records.
 
-Re-runs v13 production strategy (monthly K=20, industry-neutral, liquidity filter
+Re-runs production strategy (monthly K=10, industry-neutral, liquidity filter
 avg_tv_60d >= 10M TWD) and outputs a position-level trade ledger with entry/exit
-dates + prices + 8-factor snapshots + (optional LLM) Chinese narrative reasons.
+dates + prices + factor snapshots + (optional LLM) Chinese narrative reasons.
+
+支援雙 composite (2026-05-22 加 --composite flag):
+  - composite_score (production primary, 7-feature, Sharpe 1.52 K=10)
+  - composite_parsi (backup, 8-feature, Sharpe 1.01 K=20)
 
 連續持有合併為單筆 position：
-  - 月底某檔進入 top-20 -> 進場
-  - 連續月底仍在 top-20 -> 維持持有
-  - 某月底掉出 top-20 -> 用該月底收盤價出場
-  - 若回測末月仍在 top-20 -> still_holding=True，exit_price 留空
+  - 月底某檔進入 top-K -> 進場
+  - 連續月底仍在 top-K -> 維持持有
+  - 某月底掉出 top-K -> 用該月底收盤價出場
+  - 若回測末月仍在 top-K -> still_holding=True，exit_price 留空
 
 Output:
   - data/whale_picks/trade_ledger.parquet  (主檔)
@@ -16,9 +20,10 @@ Output:
   - data/whale_picks/trade_reasons_cache.json (LLM reason cache)
 
 Usage:
-  python tools/whale_picks_trade_ledger.py
+  python tools/whale_picks_trade_ledger.py                                       # default K=10 + composite_score
   python tools/whale_picks_trade_ledger.py --with-reasons
-  python tools/whale_picks_trade_ledger.py --start 2021-01-01 --end 2025-12-31 --k 20
+  python tools/whale_picks_trade_ledger.py --start 2021-01-01 --end 2026-05-22 --k 10 --composite composite_score
+  python tools/whale_picks_trade_ledger.py --composite composite_parsi --k 20    # 8-factor backup
 
 LLM 規範 (CLAUDE.md): reason 生成走 Sonnet (`--model sonnet`) + 600s timeout，純文字摘要任務。
 """
@@ -49,7 +54,8 @@ from tools.whale_picks_phase2 import (  # noqa: E402
     winsorize_standardize,
 )
 
-# Production config locked per docs/whale_picks_spec.md v0.5
+# Production config locked per docs/whale_picks_spec.md v0.8
+# composite_parsi: 8-feature backup (誠實 Sharpe 1.01 K=20)
 COMPOSITE_PARSI: Dict[str, float] = {
     'f_score':                +1.0,
     'f_score_4q_delta':       +1.0,
@@ -60,7 +66,23 @@ COMPOSITE_PARSI: Dict[str, float] = {
     'stealth_volume_20d':     +1.0,
     'capex_intensity':        -1.0,
 }
+# composite_score: 7-feature production primary (誠實 Sharpe 1.52 K=10, v13.2 blocker_fix top-IC weights)
+# Source: whale_picks_screener.py - must stay in sync with screener
+COMPOSITE_SCORE: Dict[str, float] = {
+    'low52w_prox_adj':         -0.066,
+    'dist_52w_high':           -0.071,
+    'f_score':                 +0.042,
+    'z_score':                 -0.038,
+    'upper_half_close_20d_pct': +0.051,
+    'revenue_score_6m_delta':  +0.031,
+    'debt_ratio':              +0.046,
+}
+COMPOSITE_CONFIGS: Dict[str, Dict[str, float]] = {
+    'composite_parsi': COMPOSITE_PARSI,
+    'composite_score': COMPOSITE_SCORE,
+}
 FACTOR_LABEL_ZH: Dict[str, str] = {
+    # composite_parsi 8-feature
     'f_score':                'Piotroski F-Score (財務體質)',
     'f_score_4q_delta':       'F-Score 年增 (體質改善)',
     'eps_yoy':                'EPS 年增率',
@@ -69,8 +91,14 @@ FACTOR_LABEL_ZH: Dict[str, str] = {
     'dist_52w_high':          '距 52 週高點 (近高扣分)',
     'stealth_volume_20d':     '量縮中爆量 (主力吸籌)',
     'capex_intensity':        '資本支出強度 (反向)',
+    # composite_score 7-feature 額外項
+    'low52w_prox_adj':        '距 52 週低點 (近底加分)',
+    'z_score':                'Altman Z-Score (破產風險)',
+    'upper_half_close_20d_pct': '近 20 日上半部收盤 % (強勢)',
+    'debt_ratio':             '負債比率',
 }
 FACTOR_RAW_HINT: Dict[str, str] = {
+    # composite_parsi 8-feature
     'f_score':                'F-Score (0-9 越高越好)',
     'f_score_4q_delta':       'F-Score 較 4 季前差 (>0 改善)',
     'eps_yoy':                'EPS 年增率 (小數，0.5=+50%)',
@@ -79,9 +107,22 @@ FACTOR_RAW_HINT: Dict[str, str] = {
     'dist_52w_high':          '與 52 週高點距離 (0.0=同高)',
     'stealth_volume_20d':     '近 20 日量縮爆量分',
     'capex_intensity':        '資本支出 / 總資產',
+    # composite_score 7-feature 額外項
+    'low52w_prox_adj':        '距 52 週低點 (1.0=同低)',
+    'z_score':                'Altman Z (越高越穩)',
+    'upper_half_close_20d_pct': '近 20 日收盤位於高半部比例 (0~1)',
+    'debt_ratio':             '負債 / 總資產',
 }
-K_DEFAULT = 20
+K_DEFAULT = 10  # 2026-05-22: 對齊 production K=10 (was 20)
+DEFAULT_COMPOSITE = 'composite_score'  # production primary
 MIN_AVG_TV = 1e7  # 10M TWD liquidity filter
+
+
+def _get_composite_dict(name: str) -> Dict[str, float]:
+    """Pick composite weight dict by name; raise if unknown."""
+    if name not in COMPOSITE_CONFIGS:
+        raise ValueError(f"Unknown composite: {name!r}; valid: {list(COMPOSITE_CONFIGS.keys())}")
+    return COMPOSITE_CONFIGS[name]
 
 OUT_DIR = REPO / "data" / "whale_picks"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -98,15 +139,22 @@ CLAUDE_TIMEOUT = 600
 # Stage A — Build v13 feature panel (re-uses phase2 loaders)
 # =============================================================================
 
-def build_v13_feat(start: str, end: str) -> pd.DataFrame:
-    """Build feature panel: monthly + liquidity-filtered + composite_parsi computed.
+def build_v13_feat(start: str, end: str, composite_name: str = DEFAULT_COMPOSITE,
+                    rebal_mode: str = 'M15') -> pd.DataFrame:
+    """Build feature panel: monthly + liquidity-filtered + active composite computed.
 
-    Returns one row per (stock_id, month_end_date) with:
-      - composite_parsi (standardized)
+    Args:
+        composite_name: 'composite_score' (7-feature, default) or 'composite_parsi' (8-feature)
+        rebal_mode: 'M15' (default, 2026-05-22 切換) or 'M' (legacy month-end)
+
+    Returns one row per (stock_id, rebal_date) with:
+      - {composite_name} (standardized score, column name matches composite_name)
       - Close, stock_name, industry_category
       - f_<factor>: standardized factor values (for top_drivers)
       - r_<factor>: raw factor values (for LLM narrative)
     """
+    active_dict = _get_composite_dict(composite_name)
+    log.info("Active composite: %s (%d features)", composite_name, len(active_dict))
     log.info("Loading panels: %s ~ %s", start, end)
     indicators = load_indicators(start, end)
     fwd_returns = pd.DataFrame(columns=['stock_id', 'date', 'fwd_5d', 'fwd_10d',
@@ -124,11 +172,17 @@ def build_v13_feat(start: str, end: str) -> pd.DataFrame:
     feat['date'] = pd.to_datetime(feat['date'])
     feat = feat[(feat['date'] >= start) & (feat['date'] <= end)].copy()
 
-    # Monthly rebalance: last available date per (stock, month)
+    # Rebalance: last available date per (stock, month) — M (month-end) or M15 (≤15)
+    if rebal_mode == 'M15':
+        feat = feat[feat['date'].dt.day <= 15].copy()
+    elif rebal_mode == 'M':
+        pass  # no date filter, month-end naturally selected by groupby.tail(1)
+    else:
+        raise ValueError(f"Unknown rebal_mode: {rebal_mode!r} (use 'M' or 'M15')")
     feat['_period'] = feat['date'].dt.to_period('M')
     feat = feat.sort_values(['stock_id', 'date'])
     feat = feat.groupby(['stock_id', '_period']).tail(1).drop(columns=['_period']).reset_index(drop=True)
-    log.info("After monthly filter: %d rows", len(feat))
+    log.info("After %s rebal filter: %d rows", rebal_mode, len(feat))
 
     # Liquidity filter (production-equivalent)
     if 'avg_tv_60d' in feat.columns:
@@ -139,27 +193,29 @@ def build_v13_feat(start: str, end: str) -> pd.DataFrame:
                  100 * (before - len(feat)) / before)
 
     # Snapshot raw factor values BEFORE standardization (for LLM narrative)
-    raw_cols = [c for c in COMPOSITE_PARSI.keys() if c in feat.columns]
+    raw_cols = [c for c in active_dict.keys() if c in feat.columns]
     feat_raw = feat[['stock_id', 'date'] + raw_cols].copy()
     feat_raw = feat_raw.rename(columns={c: f"r_{c}" for c in raw_cols})
 
-    # Industry-neutral standardize the 8 composite features
-    feat = winsorize_standardize(feat, list(COMPOSITE_PARSI.keys()), industry_neutral=True)
+    # Industry-neutral standardize active composite features
+    feat = winsorize_standardize(feat, list(active_dict.keys()), industry_neutral=True)
 
-    # Build composite_parsi (same logic as screener)
-    feat['composite_parsi'] = 0.0
+    # Build active composite score (same logic as screener)
+    # min_valid threshold scales with composite size: composite_parsi 8feat=>5, composite_score 7feat=>4
+    min_valid = max(4, len(active_dict) - 3)
+    feat[composite_name] = 0.0
     n_valid = pd.Series(0, index=feat.index)
-    for f, w in COMPOSITE_PARSI.items():
+    for f, w in active_dict.items():
         if f not in feat.columns:
             log.warning("  feature missing: %s", f)
             continue
         v = feat[f].fillna(0.0)
-        feat['composite_parsi'] = feat['composite_parsi'] + w * v
+        feat[composite_name] = feat[composite_name] + w * v
         n_valid = n_valid + feat[f].notna().astype(int)
-    feat.loc[n_valid < 5, 'composite_parsi'] = np.nan
+    feat.loc[n_valid < min_valid, composite_name] = np.nan
 
     # Rename standardized factor cols -> f_<name>
-    feat = feat.rename(columns={c: f"f_{c}" for c in COMPOSITE_PARSI.keys() if c in feat.columns})
+    feat = feat.rename(columns={c: f"f_{c}" for c in active_dict.keys() if c in feat.columns})
 
     # Merge raw values back
     feat = feat.merge(feat_raw, on=['stock_id', 'date'], how='left')
@@ -169,9 +225,9 @@ def build_v13_feat(start: str, end: str) -> pd.DataFrame:
     u_name = u[['stock_id', 'stock_name']].drop_duplicates('stock_id')
     feat = feat.merge(u_name, on='stock_id', how='left')
 
-    log.info("Final feat: %d rows, %d sids, %d valid composite",
+    log.info("Final feat: %d rows, %d sids, %d valid %s",
              len(feat), feat['stock_id'].nunique(),
-             feat['composite_parsi'].notna().sum())
+             feat[composite_name].notna().sum(), composite_name)
     return feat
 
 
@@ -179,22 +235,25 @@ def build_v13_feat(start: str, end: str) -> pd.DataFrame:
 # Stage B — Position aggregation
 # =============================================================================
 
-def build_positions(feat: pd.DataFrame, K: int = K_DEFAULT) -> pd.DataFrame:
-    """For each month-end, pick top-K by composite_parsi. For each stock, aggregate
+def build_positions(feat: pd.DataFrame, K: int = K_DEFAULT,
+                    composite_name: str = DEFAULT_COMPOSITE) -> pd.DataFrame:
+    """For each month-end, pick top-K by active composite. For each stock, aggregate
     continuous runs into positions.
 
     Continuous = appears in top-K on consecutive month-ends for the same stock.
     Note: a stock that drops then re-enters spawns a NEW position.
     """
+    active_dict = _get_composite_dict(composite_name)
     feat = feat.copy()
-    feat['_rank'] = feat.groupby('date')['composite_parsi'].rank(ascending=False, method='first')
-    feat['in_topk'] = (feat['_rank'] <= K) & feat['composite_parsi'].notna()
+    feat['_rank'] = feat.groupby('date')[composite_name].rank(ascending=False, method='first')
+    feat['in_topk'] = (feat['_rank'] <= K) & feat[composite_name].notna()
 
     rebal_dates = sorted(feat['date'].dropna().unique())
-    log.info("Rebalance dates: %d (range %s ~ %s)",
-             len(rebal_dates), pd.Timestamp(rebal_dates[0]).date(), pd.Timestamp(rebal_dates[-1]).date())
+    log.info("Rebalance dates: %d (range %s ~ %s, K=%d, composite=%s)",
+             len(rebal_dates), pd.Timestamp(rebal_dates[0]).date(),
+             pd.Timestamp(rebal_dates[-1]).date(), K, composite_name)
 
-    factor_cols = [c for c in COMPOSITE_PARSI.keys()]
+    factor_cols = [c for c in active_dict.keys()]
     last_rebal_date = pd.Timestamp(rebal_dates[-1])
 
     positions: List[Dict] = []
@@ -244,8 +303,8 @@ def build_positions(feat: pd.DataFrame, K: int = K_DEFAULT) -> pd.DataFrame:
                 'still_holding': bool(still_holding),
                 'holding_months': int(holding_months),
                 'pnl_pct': pnl_pct,
-                'composite_at_entry': float(entry_row['composite_parsi']) if pd.notna(entry_row['composite_parsi']) else np.nan,
-                'composite_at_exit': float(exit_row['composite_parsi']) if pd.notna(exit_row['composite_parsi']) else np.nan,
+                'composite_at_entry': float(entry_row[composite_name]) if pd.notna(entry_row[composite_name]) else np.nan,
+                'composite_at_exit': float(exit_row[composite_name]) if pd.notna(exit_row[composite_name]) else np.nan,
                 'rank_at_entry': int(entry_row['_rank']) if pd.notna(entry_row.get('_rank')) else None,
             }
             # Standardized factor scores (for top-driver calc)
@@ -269,9 +328,10 @@ def build_positions(feat: pd.DataFrame, K: int = K_DEFAULT) -> pd.DataFrame:
     return df
 
 
-def attach_top_drivers(df: pd.DataFrame) -> pd.DataFrame:
+def attach_top_drivers(df: pd.DataFrame, composite_name: str = DEFAULT_COMPOSITE) -> pd.DataFrame:
     """Attach entry_top_drivers + exit_top_drivers (top 3 contributing factors)."""
-    factor_cols = list(COMPOSITE_PARSI.keys())
+    active_dict = _get_composite_dict(composite_name)
+    factor_cols = list(active_dict.keys())
 
     def _entry_drivers(row) -> str:
         contribs = []
@@ -279,7 +339,7 @@ def attach_top_drivers(df: pd.DataFrame) -> pd.DataFrame:
             v = row.get(f"f_{c}_entry")
             if pd.isna(v):
                 continue
-            contribs.append((c, float(v) * COMPOSITE_PARSI[c]))
+            contribs.append((c, float(v) * active_dict[c]))
         contribs.sort(key=lambda x: x[1], reverse=True)
         top = [c for c, v in contribs[:3] if v > 0]
         return " / ".join(FACTOR_LABEL_ZH.get(c, c) for c in top) if top else "n/a"
@@ -294,7 +354,7 @@ def attach_top_drivers(df: pd.DataFrame) -> pd.DataFrame:
             if pd.isna(ve) or pd.isna(vx):
                 continue
             # contribution drop = (entry - exit) * weight
-            drop = (float(ve) - float(vx)) * COMPOSITE_PARSI[c]
+            drop = (float(ve) - float(vx)) * active_dict[c]
             deltas.append((c, drop))
         deltas.sort(key=lambda x: x[1], reverse=True)
         top = [c for c, v in deltas[:3] if v > 0]
@@ -325,20 +385,19 @@ def _save_reason_cache(cache: Dict[str, Dict[str, str]]) -> None:
     )
 
 
-def _format_factor_block(row: pd.Series, suffix: str) -> str:
+def _format_factor_block(row: pd.Series, suffix: str,
+                         composite_name: str = DEFAULT_COMPOSITE) -> str:
     """Format raw factor values for LLM prompt."""
+    active_dict = _get_composite_dict(composite_name)
     lines = []
-    for c in COMPOSITE_PARSI.keys():
+    for c in active_dict.keys():
         v_raw = row.get(f"r_{c}_{suffix}")
         v_std = row.get(f"f_{c}_{suffix}")
         hint = FACTOR_RAW_HINT.get(c, c)
         if pd.notna(v_raw):
-            if c == 'eps_yoy':
-                raw_s = f"{float(v_raw) * 100:+.1f}%"
-            elif c == 'capex_intensity':
-                raw_s = f"{float(v_raw) * 100:.1f}%"
-            elif c == 'dist_52w_high':
-                raw_s = f"{float(v_raw) * 100:.1f}%"
+            if c in ('eps_yoy', 'capex_intensity', 'dist_52w_high', 'debt_ratio',
+                     'upper_half_close_20d_pct'):
+                raw_s = f"{float(v_raw) * 100:+.1f}%" if c == 'eps_yoy' else f"{float(v_raw) * 100:.1f}%"
             else:
                 raw_s = f"{float(v_raw):+.2f}"
         else:
@@ -348,18 +407,21 @@ def _format_factor_block(row: pd.Series, suffix: str) -> str:
     return "\n".join(lines)
 
 
-def _build_prompt(batch: List[pd.Series]) -> str:
+def _build_prompt(batch: List[pd.Series], composite_name: str = DEFAULT_COMPOSITE,
+                  K: int = K_DEFAULT) -> str:
     """Build batched prompt for Sonnet — 5-10 positions per call."""
+    active_dict = _get_composite_dict(composite_name)
+    n_factors = len(active_dict)
     intro = (
-        "你是台股量化策略分析師。以下是「主力選股」回測選出的多筆 position，"
-        "每筆都列了進場/出場時的 8 個因子原始值 + 標準化 z-score。\n\n"
-        "請為每筆 position 寫：\n"
-        "  - entry_reason: 1-2 句中文，解釋為什麼這檔在進場月底被選上 (top-20 of composite_parsi)。\n"
-        "  - exit_reason: 1-2 句中文，解釋為什麼這檔在出場月底掉出 top-20。\n\n"
-        "重點：聚焦在 z-score 最高的進場 driver 和 entry-exit 跌幅最大的出場 driver；用具體數字。\n"
-        "若 still_holding=true，exit_reason 寫「目前仍在 top-20 持有中」。\n\n"
-        "回傳 JSON array，每筆: {\"key\": \"<stock_id>_<entry_date>\", \"entry_reason\": \"...\", \"exit_reason\": \"...\"}\n"
-        "不要 markdown fence，直接 JSON。\n\n"
+        f"你是台股量化策略分析師。以下是「主力選股」回測選出的多筆 position，"
+        f"每筆都列了進場/出場時的 {n_factors} 個因子原始值 + 標準化 z-score。\n\n"
+        f"請為每筆 position 寫：\n"
+        f"  - entry_reason: 1-2 句中文，解釋為什麼這檔在進場月底被選上 (top-{K} of {composite_name})。\n"
+        f"  - exit_reason: 1-2 句中文，解釋為什麼這檔在出場月底掉出 top-{K}。\n\n"
+        f"重點：聚焦在 z-score 最高的進場 driver 和 entry-exit 跌幅最大的出場 driver；用具體數字。\n"
+        f"若 still_holding=true，exit_reason 寫「目前仍在 top-{K} 持有中」。\n\n"
+        f"回傳 JSON array，每筆: {{\"key\": \"<stock_id>_<entry_date>\", \"entry_reason\": \"...\", \"exit_reason\": \"...\"}}\n"
+        f"不要 markdown fence，直接 JSON。\n\n"
     )
     items = []
     for row in batch:
@@ -374,8 +436,8 @@ def _build_prompt(batch: List[pd.Series]) -> str:
             f"@ {row['exit_price'] if pd.notna(row['exit_price']) else 'n/a'}\n"
             f"持有 {row['holding_months']} 個月, P&L {pnl_s}, still_holding={bool(row['still_holding'])}\n"
             f"composite: entry={row['composite_at_entry']:+.2f}, exit={row['composite_at_exit']:+.2f}\n"
-            f"進場因子：\n{_format_factor_block(row, 'entry')}\n"
-            f"出場因子：\n{_format_factor_block(row, 'exit')}\n"
+            f"進場因子：\n{_format_factor_block(row, 'entry', composite_name)}\n"
+            f"出場因子：\n{_format_factor_block(row, 'exit', composite_name)}\n"
         )
     return intro + "\n".join(items)
 
@@ -454,7 +516,9 @@ def _parse_reason_json(text: str) -> List[Dict[str, str]]:
         return []
 
 
-def generate_reasons(df: pd.DataFrame, batch_size: int = 8) -> pd.DataFrame:
+def generate_reasons(df: pd.DataFrame, batch_size: int = 8,
+                     composite_name: str = DEFAULT_COMPOSITE,
+                     K: int = K_DEFAULT) -> pd.DataFrame:
     """Fill entry_reason_zh + exit_reason_zh via batched Sonnet calls.
 
     Cached by (stock_id, entry_date) — re-runs skip cached rows.
@@ -487,7 +551,7 @@ def generate_reasons(df: pd.DataFrame, batch_size: int = 8) -> pd.DataFrame:
         chunk = pending.iloc[bi * batch_size:(bi + 1) * batch_size]
         batch_rows = [chunk.iloc[k] for k in range(len(chunk))]
         log.info("Batch %d/%d (%d positions) -> Sonnet", bi + 1, total_batches, len(chunk))
-        prompt = _build_prompt(batch_rows)
+        prompt = _build_prompt(batch_rows, composite_name=composite_name, K=K)
         resp = _call_sonnet(prompt)
         if not resp:
             log.warning("  batch %d failed — skipping", bi + 1)
@@ -522,7 +586,9 @@ def generate_reasons(df: pd.DataFrame, batch_size: int = 8) -> pd.DataFrame:
 # Stage D — Save outputs
 # =============================================================================
 
-def save_ledger(df: pd.DataFrame, start: str, end: str, K: int, with_reasons: bool) -> None:
+def save_ledger(df: pd.DataFrame, start: str, end: str, K: int, with_reasons: bool,
+                composite_name: str = DEFAULT_COMPOSITE) -> None:
+    active_dict = _get_composite_dict(composite_name)
     df.to_parquet(LEDGER_PATH, index=False)
     meta = {
         'generated_at': datetime.now().isoformat(timespec='seconds'),
@@ -530,7 +596,8 @@ def save_ledger(df: pd.DataFrame, start: str, end: str, K: int, with_reasons: bo
         'end': end,
         'K': K,
         'min_avg_tv_twd': MIN_AVG_TV,
-        'composite': COMPOSITE_PARSI,
+        'composite_name': composite_name,
+        'composite': active_dict,
         'standardization': 'industry-neutral',
         'with_llm_reasons': with_reasons,
         'n_positions': int(len(df)),
@@ -557,11 +624,17 @@ def main():
     parser.add_argument('--start', default='2021-01-01')
     parser.add_argument('--end', default='2025-12-31')
     parser.add_argument('--k', type=int, default=K_DEFAULT)
+    parser.add_argument('--composite', default=DEFAULT_COMPOSITE,
+                        choices=list(COMPOSITE_CONFIGS.keys()),
+                        help=f'Composite to use ({DEFAULT_COMPOSITE}=production primary 7-feat / composite_parsi=8-feat backup)')
     parser.add_argument('--with-reasons', action='store_true',
                         help='Generate LLM (Sonnet) entry/exit narratives. Slow (~30 min).')
     parser.add_argument('--reasons-batch-size', type=int, default=8)
     parser.add_argument('--reasons-only', action='store_true',
                         help='Skip rebuilding ledger; fill LLM reasons on existing ledger.')
+    parser.add_argument('--rebal-mode', default='M15', choices=['M', 'M15'],
+                        help='Rebalance day: M15 (default, 2026-05-22 切換, 15 號或之前最後交易日) '
+                             'or M (legacy, 月底最後交易日)')
     args = parser.parse_args()
 
     if args.reasons_only:
@@ -569,24 +642,29 @@ def main():
             log.error("No existing ledger at %s — run without --reasons-only first", LEDGER_PATH)
             return
         df = pd.read_parquet(LEDGER_PATH)
-        log.info("Loaded existing ledger: %d positions", len(df))
-        df = generate_reasons(df, batch_size=args.reasons_batch_size)
-        save_ledger(df, args.start, args.end, args.k, with_reasons=True)
+        log.info("Loaded existing ledger: %d positions (composite=%s)", len(df), args.composite)
+        df = generate_reasons(df, batch_size=args.reasons_batch_size,
+                              composite_name=args.composite, K=args.k)
+        save_ledger(df, args.start, args.end, args.k, with_reasons=True,
+                    composite_name=args.composite)
         return
 
-    feat = build_v13_feat(args.start, args.end)
-    df = build_positions(feat, K=args.k)
+    feat = build_v13_feat(args.start, args.end, composite_name=args.composite,
+                            rebal_mode=args.rebal_mode)
+    df = build_positions(feat, K=args.k, composite_name=args.composite)
     if len(df) == 0:
         log.error("No positions generated — exiting")
         return
-    df = attach_top_drivers(df)
+    df = attach_top_drivers(df, composite_name=args.composite)
     df['entry_reason_zh'] = ''
     df['exit_reason_zh'] = ''
 
     if args.with_reasons:
-        df = generate_reasons(df, batch_size=args.reasons_batch_size)
+        df = generate_reasons(df, batch_size=args.reasons_batch_size,
+                              composite_name=args.composite, K=args.k)
 
-    save_ledger(df, args.start, args.end, args.k, with_reasons=args.with_reasons)
+    save_ledger(df, args.start, args.end, args.k, with_reasons=args.with_reasons,
+                composite_name=args.composite)
 
 
 if __name__ == "__main__":

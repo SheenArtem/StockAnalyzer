@@ -275,16 +275,19 @@ echo [%date% %time%] Discord daily summary done >> scanner.log
 :skip_discord_summary
 
 REM ------------------------------------------------------------
-REM Whale Picks selector (daily silent compute + month-end Discord push).
+REM Whale Picks selector (daily silent compute + M15 Discord push).
 REM Added 2026-05-16: composite_score 7-feature K=10 default (Sharpe 1.52, MDD -9%)
 REM + composite_parsi 8-factor still computed (Sharpe 1.01 K=20, secondary)
-REM (per docs/whale_picks_spec.md v0.9 -- K-grid confirms K=10 beats K=20).
+REM (per docs/whale_picks_spec.md v0.10 -- M15 rebal locked 2026-05-22).
 REM Daily compute keeps UI fresh (4/8 factors update daily: price/volume).
-REM Push only on last business day of month (matches backtest monthly rebal).
+REM Push only on M15 rebal day = last weekday on/before 15th of month.
+REM (--push-if-month-end flag kept for backward compat, actual gate is M15.)
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
 REM RE-ENABLED 2026-05-22 per user request: whale_picks pure Python, no LLM quota.
-REM K-grid validated: K=10 composite_score Sharpe 1.52 / MDD -9%% production-grade.
+REM 2026-05-22 switched to M15 rebal: composite_parsi Sharpe 0.60 -> 1.18 (+96%),
+REM walk-forward 0.20 -> 0.63 (+0.43). Sell-the-news hypothesis falsified by MIXED arm.
+REM See reports/whale_picks_rebal_timing/REPORT.md for full controlled experiment.
 REM Manual trigger:
 REM   python tools\whale_picks_screener.py --silent --push-if-month-end
 REM   python tools\whale_picks_alerts.py
@@ -294,7 +297,7 @@ echo [%date% %time%] Whale picks done >> scanner.log
 
 REM Whale picks daily alerts (early-entry + trailing-stop).
 REM Detects rapid rank rises (outside top-100 -> top-30 in 7d) + active
-REM holdings drop >= 15%% from month-end rebalance close. Best-effort.
+REM holdings drop >= 15%% from M15 rebalance close. Best-effort.
 echo [%date% %time%] Whale picks alerts starting >> scanner.log
 python tools\whale_picks_alerts.py >> scanner.log 2>&1
 echo [%date% %time%] Whale picks alerts done >> scanner.log

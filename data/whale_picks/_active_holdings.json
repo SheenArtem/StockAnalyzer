@@ -1,146 +1,76 @@
 {
-  "rebalance_date": "2026-05-16",
-  "reason": "forced",
+  "rebalance_date": "2026-05-15",
+  "reason": "m15_rebal",
   "tickers": [
     {
-      "stock_id": "2851",
-      "stock_name": "中再保",
-      "industry": "金融保險",
-      "entry_close": 31.549999237060547,
-      "entry_composite": 9.598600652115998
+      "stock_id": "3045",
+      "stock_name": "台灣大",
+      "industry": "通信網路業",
+      "entry_close": 110.0,
+      "entry_composite": 0.43415957000445043
     },
     {
-      "stock_id": "7810",
-      "stock_name": "捷創科技",
+      "stock_id": "2347",
+      "stock_name": "聯強",
+      "industry": "電子工業",
+      "entry_close": 82.0,
+      "entry_composite": 0.39361076849027915
+    },
+    {
+      "stock_id": "2633",
+      "stock_name": "台灣高鐵",
+      "industry": "航運業",
+      "entry_close": 26.899999618530273,
+      "entry_composite": 0.38382300746558196
+    },
+    {
+      "stock_id": "5483",
+      "stock_name": "中美晶",
       "industry": "半導體業",
-      "entry_close": 260.0,
-      "entry_composite": 8.40237248992085
+      "entry_close": 120.0,
+      "entry_composite": 0.3499593241247566
     },
     {
-      "stock_id": "3037",
-      "stock_name": "欣興",
-      "industry": "電子工業",
-      "entry_close": 626.0,
-      "entry_composite": 8.027556426631882
-    },
-    {
-      "stock_id": "8473",
-      "stock_name": "山林水",
-      "industry": "其他",
-      "entry_close": 37.79999923706055,
-      "entry_composite": 7.74825974373976
-    },
-    {
-      "stock_id": "6414",
-      "stock_name": "樺漢",
-      "industry": "電子工業",
-      "entry_close": 287.5,
-      "entry_composite": 6.880480697792944
-    },
-    {
-      "stock_id": "3591",
-      "stock_name": "艾笛森",
+      "stock_id": "6278",
+      "stock_name": "台表科",
       "industry": "光電業",
-      "entry_close": 22.799999237060547,
-      "entry_composite": 6.569420652985107
+      "entry_close": 114.0,
+      "entry_composite": 0.33368424286253956
     },
     {
-      "stock_id": "3702",
-      "stock_name": "大聯大",
-      "industry": "電子工業",
-      "entry_close": 96.5999984741211,
-      "entry_composite": 6.567929234328578
-    },
-    {
-      "stock_id": "6664",
-      "stock_name": "群翊",
-      "industry": "電子零組件業",
-      "entry_close": 411.5,
-      "entry_composite": 6.417456598914616
-    },
-    {
-      "stock_id": "6024",
-      "stock_name": "群益期",
-      "industry": "金融保險",
-      "entry_close": 56.599998474121094,
-      "entry_composite": 6.273038753355259
-    },
-    {
-      "stock_id": "3022",
-      "stock_name": "威強電",
-      "industry": "電子工業",
-      "entry_close": 67.9000015258789,
-      "entry_composite": 6.098413592046862
-    },
-    {
-      "stock_id": "3577",
-      "stock_name": "泓格",
-      "industry": "電腦及週邊設備業",
-      "entry_close": 77.30000305175781,
-      "entry_composite": 6.06007863955439
-    },
-    {
-      "stock_id": "2305",
-      "stock_name": "全友",
-      "industry": "電子工業",
-      "entry_close": 19.799999237060547,
-      "entry_composite": 6.017458013594475
-    },
-    {
-      "stock_id": "4543",
-      "stock_name": "萬在",
-      "industry": "電機機械",
-      "entry_close": 34.79999923706055,
-      "entry_composite": 5.999170239188143
-    },
-    {
-      "stock_id": "6658",
-      "stock_name": "聯策",
-      "industry": "其他電子業",
-      "entry_close": 82.69999694824219,
-      "entry_composite": 5.980981453691392
-    },
-    {
-      "stock_id": "8240",
-      "stock_name": "華宏",
-      "industry": "光電業",
-      "entry_close": 62.29999923706055,
-      "entry_composite": 5.87335023688396
-    },
-    {
-      "stock_id": "8926",
-      "stock_name": "台汽電",
-      "industry": "油電燃氣業",
-      "entry_close": 43.79999923706055,
-      "entry_composite": 5.814432476810628
-    },
-    {
-      "stock_id": "8064",
-      "stock_name": "東捷",
-      "industry": "光電業",
-      "entry_close": 83.0,
-      "entry_composite": 5.687533634241205
-    },
-    {
-      "stock_id": "5511",
-      "stock_name": "德昌",
-      "industry": "建材營造",
-      "entry_close": 71.4000015258789,
-      "entry_composite": 5.553588738521188
-    },
-    {
-      "stock_id": "3708",
-      "stock_name": "上緯投控",
-      "industry": "化學生技醫療",
-      "entry_close": 116.5,
-      "entry_composite": 5.5155731717422585
-    },
-    {
-      "stock_id": "6531",
-      "stock_name": "愛普*",
+      "stock_id": "3711",
+      "stock_name": "日月光投控",
       "industry": "半導體業",
-      "entry_close": 567.0,
-      "entry_composite": 5.468547219300515
+      "entry_close": 417.5,
+      "entry_composite": 0.3323518708056218
+    },
+    {
+      "stock_id": "2460",
+      "stock_name": "建通",
+      "industry": "電子工業",
+      "entry_close": 33.70000076293945,
+      "entry_composite": 0.31918634416919645
+    },
+    {
+      "stock_id": "6488",
+      "stock_name": "環球晶",
+      "industry": "半導體業",
+      "entry_close": 499.5,
+      "entry_composite": 0.293892866259916
+    },
+    {
+      "stock_id": "2379",
+      "stock_name": "瑞昱",
+      "industry": "半導體業",
+      "entry_close": 525.0,
+      "entry_composite": 0.29033609439487895
+    },
+    {
+      "stock_id": "3532",
+      "stock_name": "台勝科",
+      "industry": "半導體業",
+      "entry_close": 182.0,
+      "entry_composite": 0.2873284440047355
     }
   ]
 }

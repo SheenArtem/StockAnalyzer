@@ -78,6 +78,18 @@ def _last_business_day_of_month(d: date) -> date:
     return last_dt
 
 
+def _mid_month_rebal_day(d: date) -> date:
+    """Return M15 rebal day = last weekday on or before the 15th of d's month.
+
+    2026-05-22 切換 (取代 month-end). Backtest 顯示 M15 顯著勝月底.
+    詳見 reports/whale_picks_rebal_timing/REPORT.md.
+    """
+    target = date(d.year, d.month, 15)
+    while target.weekday() >= 5:
+        target = target - timedelta(days=1)
+    return target
+
+
 def _list_snapshots() -> List[date]:
     """All available snapshot dates, sorted ascending."""
     if not SNAPSHOT_DIR.exists():
@@ -247,6 +259,10 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
     """Refresh _active_holdings.json on month-end (or when forced).
 
     Returns the holdings dict (or existing if no update needed).
+
+    2026-05-22 加 K drift detection: 如果 existing holdings 數量 != PRODUCTION_K
+    也強制 refresh (防止切版後 holdings 沒同步更新，例如 5/16 K=20->K=10 切版時
+    holdings JSON 卡在舊 K=20 直到下個月底才會自動覆寫)。
     """
     existing = None
     if HOLDINGS_PATH.exists():
@@ -255,22 +271,40 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
         except Exception:
             existing = None
 
-    is_month_end = today == _last_business_day_of_month(today)
-    needs_update = force or is_month_end or existing is None
+    is_rebal_day = today == _mid_month_rebal_day(today)
+    # K drift: existing holdings 數量 != production K → 強制 refresh
+    n_existing = len(existing.get('tickers', [])) if existing else 0
+    k_drift = existing is not None and n_existing != PRODUCTION_K
+    needs_update = force or is_rebal_day or existing is None or k_drift
+
+    if k_drift:
+        log.info("K drift detected: existing=%d tickers vs PRODUCTION_K=%d → force refresh",
+                 n_existing, PRODUCTION_K)
 
     if not needs_update:
         return existing
 
     snap = _load_snapshot(today)
+    snap_date = today
     if snap is None:
-        log.warning("No snapshot for %s to update holdings", today)
+        # Fallback to most recent available snapshot (scanner runs 00:00 daily,
+        # so on the same day before scan you'd need yesterday's snapshot for refresh)
+        # _list_snapshots() returns ascending → iterate reversed to pick newest first
+        for d in reversed(snapshots):
+            snap = _load_snapshot(d)
+            if snap is not None:
+                snap_date = d
+                log.info("Using fallback snapshot %s (today %s not yet generated)", d, today)
+                break
+    if snap is None:
+        log.warning("No snapshot available to update holdings (today=%s)", today)
         return existing
 
     score_col = _pick_score_col(snap)
     top_k = snap.dropna(subset=[score_col]).nlargest(PRODUCTION_K, score_col)
     holdings = {
-        'rebalance_date': today.isoformat(),
-        'reason': 'month_end' if is_month_end else ('forced' if force else 'bootstrap'),
+        'rebalance_date': snap_date.isoformat(),
+        'reason': 'm15_rebal' if is_rebal_day else ('forced' if force else ('k_drift' if k_drift else 'bootstrap')),
         'tickers': [
             {
                 'stock_id': r['stock_id'],
@@ -294,7 +328,7 @@ def detect_early_exits(today: date, snapshots: List[date], holdings: Optional[Di
         return []
     rebalance_date = date.fromisoformat(holdings['rebalance_date'])
     if (today - rebalance_date).days > 35:
-        log.info("Holdings stale (rebalance=%s, today=%s, gap>35d), skip until next month-end",
+        log.info("Holdings stale (rebalance=%s, today=%s, gap>35d), skip until next M15 rebal",
                  rebalance_date, today)
         return []
 

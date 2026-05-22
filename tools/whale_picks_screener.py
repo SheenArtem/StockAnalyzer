@@ -4,12 +4,15 @@ Whale Picks Screener — Phase 1 production selector.
 Run weekly/monthly to produce top-K candidate list using the 7-feature composite_score
 locked in docs/whale_picks_spec.md v0.9.
 
-Config (LOCKED per v13_kgrid 2026-05-16):
+Config (LOCKED per v13_kgrid 2026-05-16 + rebal-timing 2026-05-22):
   - 7-feature composite_score (production primary) + 8-factor composite_parsi (backup)
   - Industry-neutral standardization (by date × industry_category)
-  - Monthly rebalance
+  - **Mid-15 rebalance** (M15 — last weekday ≤ 15th; 2026-05-22 從月底切換到 15 號)
   - K=10 top picks (K-grid post-blocker-fix shows K=10 strictly dominates K=20:
     Sharpe 1.52 vs 1.46, MDD -9% vs -12.7%, Win rate 72% vs 63%)
+  - M15 rebal: 月營收 11 號公告 → 15 號 rebal 拿 5 天舊資料 vs 月底拿 20 天
+    (composite_parsi Sharpe 0.60 → 1.18 / walk-forward 0.20 → 0.63)
+    詳見 reports/whale_picks_rebal_timing/REPORT.md
 
 Output:
   - data/whale_picks/latest.parquet — full universe scored
@@ -304,18 +307,22 @@ def push_discord(text: str) -> bool:
     return True
 
 
-def _is_last_business_day_of_month(d: date) -> bool:
-    """Check if d is the last trading day of its month (rough: last weekday)."""
-    import calendar
-    year, month = d.year, d.month
-    # Last day of month
-    _, last = calendar.monthrange(year, month)
-    last_dt = date(year, month, last)
-    # Walk backward from last day to find last weekday
-    while last_dt.weekday() >= 5:  # 5=Sat, 6=Sun
-        from datetime import timedelta
-        last_dt = last_dt - timedelta(days=1)
-    return d == last_dt
+def _is_mid_month_rebal_day(d: date) -> bool:
+    """Check if d is the M15 rebal day = last weekday on or before the 15th of the month.
+
+    2026-05-22 切換 M15 rebal (取代 month-end):
+    backtest 顯示 M15 對 composite_parsi Sharpe 0.60 → 1.18 (+96%) /
+    walk-forward 0.20 → 0.63 (+0.43); 主因是月營收 11 號公告新鮮度
+    (M15 看 5 天舊資料 vs 月底看 20 天舊資料).
+    Sell-the-news 假設被 MIXED arm (Sharpe 0.30) falsify.
+    詳見 reports/whale_picks_rebal_timing/REPORT.md.
+    """
+    from datetime import timedelta
+    target = date(d.year, d.month, 15)
+    # Walk backward from 15th to find last weekday
+    while target.weekday() >= 5:  # 5=Sat, 6=Sun
+        target = target - timedelta(days=1)
+    return d == target
 
 
 def main():
@@ -328,7 +335,8 @@ def main():
                         help='Ranking composite (default: composite_score, honest Sharpe 1.49)')
     parser.add_argument('--push', action='store_true', help='Push top-K to Discord (unconditional)')
     parser.add_argument('--push-if-month-end', action='store_true',
-                        help='Push only on last trading day of month (daily scan compatible)')
+                        help='Push only on M15 rebal day = last weekday on/before 15th '
+                             '(flag name kept for backward-compat scanner.bat; actual gate is M15)')
     parser.add_argument('--silent', action='store_true', help='Suppress top-K stdout print (for cron use)')
     parser.add_argument('--debug-ticker', default=None,
                         help='Print rank/score for specific stock_id (e.g. 2344) for sanity check')
@@ -369,11 +377,11 @@ def main():
         log.info("Top-%d picks:", len(top))
         print(top.to_string(index=False))
 
-    # Decide push: explicit --push always, --push-if-month-end conditional
+    # Decide push: explicit --push always, --push-if-month-end conditional (M15 gate)
     should_push = args.push
-    if args.push_if_month_end and _is_last_business_day_of_month(asof):
+    if args.push_if_month_end and _is_mid_month_rebal_day(asof):
         should_push = True
-        log.info("Today (%s) is last business day of month → enabling Discord push", asof)
+        log.info("Today (%s) is M15 rebal day (≤15 last weekday) → enabling Discord push", asof)
     if should_push:
         msg = format_discord_message(top, asof)
         push_discord(msg)

@@ -410,11 +410,15 @@ def build_feature_panel(
         suffixes=('', '_q'),
     )
 
-    # Merge revenue (monthly, asof)
+    # Merge revenue (monthly, asof) — PIT-aware: +10 days publication delay
+    # 2026-05-22 修：cache date = 公告月初 (e.g., 4/01 代表 3 月營收，法定 4/10 才公告).
+    # 沒加 delay → rebal date 落在公告月 day-1~day-10 期間會看到未公開資料 (e.g., M11
+    # rebal 在 4/9 週五會 backward asof 到 4/01 March revenue, 但 4/10 才公告 → leak).
     if revenue is not None and not revenue.empty:
-        log.info("Stage 2 — Merging revenue scores (asof)...")
+        log.info("Stage 2 — Merging revenue scores (asof, +10d publication delay)...")
         rv = revenue[['stock_id', 'date', 'revenue_score',
                       'revenue_score_3m_delta', 'revenue_score_6m_delta']].copy()
+        rv['date'] = pd.to_datetime(rv['date']) + pd.Timedelta(days=10)
         rv = rv.sort_values('date').reset_index(drop=True)
         feat = feat.sort_values('date').reset_index(drop=True)
         feat = pd.merge_asof(
@@ -1012,6 +1016,7 @@ def main():
 
     # Rebalance dates: filter to chosen frequency
     # 2026-05-16 加 '2W' (bi-weekly): 用日序對 14 取整 → 每 14 個交易日換一次
+    # 2026-05-22 加 M15/M11/MIXED: rebal timing 實驗 (sell-the-news vs early-data)
     if args.rebalance_freq == 'M':
         feat['_period'] = feat['date'].dt.to_period('M')
     elif args.rebalance_freq == 'Q':
@@ -1023,6 +1028,22 @@ def main():
         weeks = feat['date'].dt.isocalendar().week
         years = feat['date'].dt.isocalendar().year
         feat['_period'] = years.astype(str) + '-' + (weeks // 2).astype(str).str.zfill(2)
+    elif args.rebalance_freq == 'M15':
+        # Mid-15 each month: keep last trading row on or before day 15
+        feat = feat[feat['date'].dt.day <= 15].copy()
+        feat['_period'] = feat['date'].dt.to_period('M')
+    elif args.rebalance_freq == 'M11':
+        # Day-11 each month (revenue-disclosure aware, 上月營收 10 號公告)
+        feat = feat[feat['date'].dt.day <= 11].copy()
+        feat['_period'] = feat['date'].dt.to_period('M')
+    elif args.rebalance_freq == 'MIXED':
+        # 季報月 (3/5/8/11) → month-end (avoid sell-the-news)
+        # 非季報月 → mid-15 (capture monthly revenue freshness)
+        quarter_months = {3, 5, 8, 11}
+        is_q = feat['date'].dt.month.isin(quarter_months)
+        keep_mask = is_q | (~is_q & (feat['date'].dt.day <= 15))
+        feat = feat[keep_mask].copy()
+        feat['_period'] = feat['date'].dt.to_period('M')
     else:
         feat['_period'] = feat['date']
     feat = feat.sort_values(['stock_id', 'date'])
@@ -1251,8 +1272,9 @@ def main():
     stage8_rows = []
     stage8_rows.append({'strategy': 'B&H TWII', **twii_metrics})
     # Annualization factor for current rebalance freq
-    freq_factor = {'M': 12, 'Q': 4, 'W': 52, '2W': 26, 'D': 252}.get(args.rebalance_freq, 12)
-    hold_period = args.rebalance_freq
+    freq_factor = {'M': 12, 'Q': 4, 'W': 52, '2W': 26, 'D': 252,
+                   'M15': 12, 'M11': 12, 'MIXED': 12}.get(args.rebalance_freq, 12)
+    hold_period = 'M' if args.rebalance_freq in ('M15', 'M11', 'MIXED') else args.rebalance_freq
     for K in [10, 20]:
         for f in stage7_features:
             rets = portfolio_topk_returns(feat, f, K, holding_period=hold_period)
