@@ -1866,6 +1866,8 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 
    搜尋結果用於補充 bull_bear / industry / valuation 三區塊的質化敘事與最新催化；系統 [NEWS_DATA] / [NEWS_THEMES] 為歷史快取，必須以 WebSearch 補今日最新資訊。
 
+   ⚠️ **數值欄位禁用 WebSearch 結果覆蓋**：valuation.peer_comparison / valuation.pe_history / summary.fundamentals 的 PE/PB/DY/ROE 數字必須**直接抄錄** [PEER_COMPARISON] / [FUNDAMENTAL_DATA] 系統供應值（單一 TradingView snapshot 確保跨報告一致），禁止用搜尋到的數字覆蓋，避免「A 報告引用 B 的 PE=X，但 B 自家報告 PE=Y」矛盾。
+
 2. **輸出嚴格符合 schema 的純 JSON**，必含 5 個頂層物件：meta / summary / technical / chip / valuation / bull_bear
 
 3. **第一個字元必為 `{{`，最後一個字元必為 `}}`**。禁止輸出 markdown 程式碼圍欄、說明文字、或任何非 JSON 內容。"""

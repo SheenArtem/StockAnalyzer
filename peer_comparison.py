@@ -335,10 +335,15 @@ def get_tw_peer_comparison(stock_id, max_peers=10):
 
 def get_us_peer_comparison(ticker, max_peers=8):
     """
-    Get peer comparison for a US stock using Finviz sector data.
+    Get peer comparison for a US stock via TradingView Screener.
+
+    Single-source TV query：先取得 target 的 industry，再用同 industry 篩
+    top market-cap peers，PE/PB/DY 一次抓齊，避免 Claude 跨檔腦補不一致
+    (2026-05-22 fix：原 Finviz 路徑只回 target 沒 peers)。
 
     Returns:
-        dict similar to tw version
+        dict similar to tw version：
+        {industry, industry_source='tv', target, peers DataFrame, rank, total_in_industry}
     """
     cache_key = f"peer_us_{ticker}"
     cached = _cache_get(cache_key)
@@ -346,46 +351,125 @@ def get_us_peer_comparison(ticker, max_peers=8):
         return cached
 
     try:
-        from finviz_data import FinvizAnalyzer
-        fv = FinvizAnalyzer()
-        target_data, _ = fv.get_stock_data(ticker)
-        if not target_data:
+        from tradingview_screener import Query, Column
+    except ImportError:
+        logger.debug("tradingview-screener not installed, US peer comparison disabled")
+        return None
+
+    # TV 欄位 (PE/PB/DY/market cap + 分類 + 名字)
+    _cols = [
+        'name', 'description', 'industry', 'sector', 'close',
+        'price_earnings_ttm', 'price_book_fq', 'dividend_yield_recent',
+        'market_cap_basic',
+    ]
+
+    try:
+        # Step 1: 取得 target 自家 industry + 估值
+        target_q = (Query()
+            .select(*_cols)
+            .set_markets('america')
+            .where(Column('name') == ticker)
+            .limit(1)
+            .get_scanner_data())
+
+        if target_q[0] == 0 or target_q[1].empty:
+            logger.warning("TV target lookup empty for %s", ticker)
             return None
 
-        overview = target_data.get('overview', {})
-        industry = overview.get('industry', '')
-        sector = overview.get('sector', '')
-        valuation = target_data.get('valuation', {})
-
+        target_row = target_q[1].iloc[0]
+        industry = target_row.get('industry') or ''
+        sector = target_row.get('sector') or ''
         if not industry:
+            logger.warning("TV target %s has no industry", ticker)
             return None
 
-        # Finviz doesn't have a bulk peer API, so we use yfinance
-        import yfinance as yf
-        info = yf.Ticker(ticker).info
-        peers_list = info.get('comprisonPeers', []) or info.get('recommendationKey', [])
+        target_data = {
+            'stock_id': ticker,
+            'name': str(target_row.get('description', '') or '')[:24],
+            'PE': float(target_row.get('price_earnings_ttm') or 0),
+            'PB': float(target_row.get('price_book_fq') or 0),
+            'DY': float(target_row.get('dividend_yield_recent') or 0),
+        }
 
-        # Simple approach: use known sector ETF constituents or just report the target
+        # Step 2: 同 industry top market-cap peers
+        peers_q = (Query()
+            .select(*_cols)
+            .set_markets('america')
+            .where(Column('industry') == industry,
+                   Column('market_cap_basic') > 1e9)  # 至少 $1B 過濾 micro-cap
+            .order_by('market_cap_basic', ascending=False)
+            .limit(max_peers * 2 + 5)  # 預留 target/無效 PE 過濾餘量
+            .get_scanner_data())
+
+        peer_rows = []
+        _seen_desc = set()  # 去重：同公司 ADR / 多 share class (PROSF/PROSY, BABA/BABAF, TCEHY)
+        if peers_q[0] > 0 and not peers_q[1].empty:
+            for _, r in peers_q[1].iterrows():
+                _name = str(r.get('name') or '').strip()
+                if not _name:
+                    continue
+                # 過濾特別股 / depository receipt（含 '/' 或 '.' 後綴如 ORCL/PD, BRK.B）
+                if '/' in _name or _name.endswith('.PD'):
+                    continue
+                _pe = float(r.get('price_earnings_ttm') or 0)
+                _pb = float(r.get('price_book_fq') or 0)
+                _dy = float(r.get('dividend_yield_recent') or 0)
+                if _pe <= 0:  # 虧損股略過
+                    continue
+                _desc = str(r.get('description', '') or '').strip()
+                # 同公司多 share / ADR 只留 market-cap 最大那筆 (TV 已按 market_cap desc 排序，第一個進的優先)
+                if _desc and _desc in _seen_desc and _name != ticker:
+                    continue
+                if _desc:
+                    _seen_desc.add(_desc)
+                peer_rows.append({
+                    'stock_id': _name,
+                    'name': _desc[:24],
+                    'PE': _pe,
+                    'PB': _pb,
+                    'DY': _dy,
+                    'is_target': _name == ticker,
+                })
+
+        peers_df = pd.DataFrame(peer_rows)
+        if peers_df.empty:
+            # 至少塞 target 一筆免下游 .empty 判斷掛掉
+            peers_df = pd.DataFrame([{**target_data, 'is_target': True}])
+
+        peers_df.sort_values('PE', inplace=True)
+        peers_df.reset_index(drop=True, inplace=True)
+
+        # 限制最大 peer 數，確保 target 在內
+        if len(peers_df) > max_peers:
+            target_mask = peers_df['stock_id'] == ticker
+            target_slice = peers_df[target_mask]
+            other_slice = peers_df[~target_mask].head(max_peers - 1)
+            peers_df = pd.concat([target_slice, other_slice]).sort_values('PE').reset_index(drop=True)
+
+        # Rank
+        rank = {}
+        if target_data['PE'] > 0:
+            pe_rank = peers_df[peers_df['PE'] <= target_data['PE']].shape[0]
+            rank = {
+                'pe_rank': pe_rank,
+                'total_peers': len(peers_df),
+                'pe_percentile': round(pe_rank / len(peers_df) * 100, 1) if len(peers_df) else 0,
+            }
+
         result = {
             'industry': f"{sector} / {industry}",
-            'target': {
-                'stock_id': ticker,
-                'PE': valuation.get('pe', 0),
-                'PB': valuation.get('pb', 0),
-                'DY': valuation.get('dividend_yield', 0),
-                'forward_pe': valuation.get('forward_pe', 0),
-                'peg': valuation.get('peg', 0),
-            },
-            'peers': pd.DataFrame(),  # TODO: bulk peer data
-            'rank': {},
-            'total_in_industry': 0,
+            'industry_source': 'tv',
+            'target': target_data,
+            'peers': peers_df,
+            'rank': rank,
+            'total_in_industry': len(peers_df),
         }
 
         _cache_set(cache_key, result)
         return result
 
     except Exception as e:
-        logger.warning("US peer comparison failed: %s", e)
+        logger.warning("US peer comparison via TV failed for %s: %s", ticker, e)
         return None
 
 
