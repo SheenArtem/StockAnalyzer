@@ -66,12 +66,17 @@ set YT_EC3=%ERRORLEVEL%
 echo [%date% %time%] YT sync done (EC1=%YT_EC1% EC2=%YT_EC2% EC3=%YT_EC3%) >> scanner.log
 
 REM ------------------------------------------------------------
-REM Brokerage YT sync (added 2026-05-21): Taiwan brokerage analyst channels
-REM (Moore Securities 8 analysts). Independent pipeline from TV-show YT above.
-REM Outputs: data/yt_brokerage_mentions.parquet + yt_brokerage_videos.parquet
-REM UI: sidebar mode "brokerage_yt" -> brokerage_view.render_brokerage_yt()
-REM Best-effort: failures do not affect PY_EXIT.
+REM Brokerage YT sync (added 2026-05-21, DISABLED 2026-05-22 per user request):
+REM Taiwan brokerage analyst channels (Moore 8 + Yuanta 1).
+REM Disabled to reduce codex/Sonnet LLM usage ahead of 6/15 SDK Credit pool switch.
+REM Manual trigger still works:
+REM   run_yt_brokerage_sync.bat
+REM   python tools\fetch_yt_brokerage.py --end 3
+REM   python tools\extract_yt_brokerage.py --all
+REM   python tools\build_yt_brokerage_panel.py
+REM To re-enable scheduled run: remove the "goto skip_brokerage_yt" line below.
 REM ------------------------------------------------------------
+goto skip_brokerage_yt
 echo [%date% %time%] Brokerage YT sync Stage 1 fetch starting >> scanner.log
 python tools\fetch_yt_brokerage.py --end 3 >> scanner.log 2>&1
 set BYT_EC1=%ERRORLEVEL%
@@ -86,6 +91,7 @@ echo [%date% %time%] Brokerage YT Stage 3 panel starting >> scanner.log
 python tools\build_yt_brokerage_panel.py >> scanner.log 2>&1
 set BYT_EC3=%ERRORLEVEL%
 echo [%date% %time%] Brokerage YT done (EC1=%BYT_EC1% EC2=%BYT_EC2% EC3=%BYT_EC3%) >> scanner.log
+:skip_brokerage_yt
 
 REM ------------------------------------------------------------
 REM RAG #4 Path A POC removed 2026-05-01: verdict MARGINAL +0.074 (N=1 TSMC),
@@ -277,12 +283,11 @@ REM Daily compute keeps UI fresh (4/8 factors update daily: price/volume).
 REM Push only on last business day of month (matches backtest monthly rebal).
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
-REM DISABLED 2026-05-21 per user request: whale_picks feature shelved (also removed from UI).
-REM screener + alerts both skipped. Manual trigger still works:
+REM RE-ENABLED 2026-05-22 per user request: whale_picks pure Python, no LLM quota.
+REM K-grid validated: K=10 composite_score Sharpe 1.52 / MDD -9%% production-grade.
+REM Manual trigger:
 REM   python tools\whale_picks_screener.py --silent --push-if-month-end
 REM   python tools\whale_picks_alerts.py
-REM To re-enable scheduled run: remove the "goto skip_whale_picks" line below.
-goto skip_whale_picks
 echo [%date% %time%] Whale picks selector starting >> scanner.log
 python tools\whale_picks_screener.py --silent --push-if-month-end >> scanner.log 2>&1
 echo [%date% %time%] Whale picks done >> scanner.log
@@ -293,7 +298,6 @@ REM holdings drop >= 15%% from month-end rebalance close. Best-effort.
 echo [%date% %time%] Whale picks alerts starting >> scanner.log
 python tools\whale_picks_alerts.py >> scanner.log 2>&1
 echo [%date% %time%] Whale picks alerts done >> scanner.log
-:skip_whale_picks
 
 REM ------------------------------------------------------------
 REM Chip history institutional resume (daily).
