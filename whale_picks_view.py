@@ -49,14 +49,21 @@ def _list_snapshots() -> list[str]:
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def _fetch_live_quote_cached(stock_id: str) -> dict | None:
-    """mis.twse 即時報價 cache 5min (盤中即時 / 盤後 prev_close)。
-    回 dict {'price', 'date', 'price_source', ...} 或 None。"""
+def _load_latest_snapshot_close() -> tuple[date | None, dict[str, float]]:
+    """讀最新 daily snapshot, 回 (snapshot_date, {stock_id: Close}).
+
+    2026-05-22 取代 mis.twse 即時報價：whale_picks 是 monthly hold，秒級即時沒必要，
+    daily snapshot Close 已夠用且 instant (0 API call / 0 rate limit / 0 cold-start).
+    """
+    snapshots = _list_snapshots()
+    if not snapshots:
+        return None, {}
+    latest_str = snapshots[0]
     try:
-        from mis_twse_client import get_quote
-        return get_quote(stock_id)
+        df = pd.read_parquet(SNAPSHOT_DIR / f"{latest_str}.parquet", columns=['stock_id', 'Close'])
+        return date.fromisoformat(latest_str), df.set_index('stock_id')['Close'].to_dict()
     except Exception:
-        return None
+        return None, {}
 
 
 # =============================================================================
@@ -208,7 +215,7 @@ def _render_current_holdings(obj: dict) -> None:
 # =============================================================================
 
 def _render_current_holdings_pnl() -> None:
-    """當前 _active_holdings.json 對照即時報價算 PnL。"""
+    """當前 _active_holdings.json 對照最新 daily snapshot 收盤算 PnL + 顯示進場理由。"""
     holdings = _load_active_holdings()
     if not holdings or not holdings.get('tickers'):
         st.info("📭 尚未產生當前持倉清單 (`_active_holdings.json`)。等下次 M15 rebalance (每月 15 號或之前最後交易日) 或手動跑 `python tools/whale_picks_alerts.py --update-holdings`。")
@@ -218,18 +225,20 @@ def _render_current_holdings_pnl() -> None:
     reason = holdings.get('reason', '?')
     tickers = holdings['tickers']
 
-    st.subheader("💼 當前持倉即時損益")
+    snapshot_date, snapshot_close = _load_latest_snapshot_close()
+    snapshot_date_str = snapshot_date.isoformat() if snapshot_date else '?'
+
+    st.subheader("💼 當前持倉損益")
     st.caption(
-        f"上次 rebalance: **{rebalance_date}** ({reason}) / 持有 **{len(tickers)}** 檔。"
-        f" 即時價走 mis.twse (盤中即時 / 盤後 prev_close)，cache 5 分鐘 TTL。"
+        f"進場日: **{rebalance_date}** ({reason}) / 最近收盤: **{snapshot_date_str}** / 持有 **{len(tickers)}** 檔。"
+        f" 純 EOD 收盤對比 (monthly hold 不需秒級即時)，盤中即時價請查券商 app。"
     )
 
     rows = []
     for t in tickers:
         sid = str(t.get('stock_id', ''))
         entry = t.get('entry_close')
-        quote = _fetch_live_quote_cached(sid) if sid else None
-        latest = quote.get('price') if quote else None
+        latest = snapshot_close.get(sid)
         if entry and latest and entry > 0:
             pnl_pct = (latest - entry) / entry
         else:
@@ -240,7 +249,7 @@ def _render_current_holdings_pnl() -> None:
             'industry': t.get('industry', ''),
             'entry_close': entry,
             'latest': latest,
-            'source': quote.get('price_source') if quote else None,
+            'entry_drivers': t.get('entry_drivers', 'n/a'),
             'pnl_pct': pnl_pct,
         })
 
@@ -249,7 +258,7 @@ def _render_current_holdings_pnl() -> None:
     # 加總指標
     closed = df.dropna(subset=['pnl_pct'])
     cM1, cM2, cM3, cM4 = st.columns(4)
-    cM1.metric("持倉檔數", f"{len(df)}", help=f"成功抓到報價: {len(closed)} 檔")
+    cM1.metric("持倉檔數", f"{len(df)}", help=f"有最新收盤: {len(closed)} 檔")
     if len(closed):
         avg_pnl = closed['pnl_pct'].mean() * 100
         cM2.metric("平均報酬", f"{avg_pnl:+.2f}%")
@@ -261,29 +270,35 @@ def _render_current_holdings_pnl() -> None:
         cM3.metric("勝率", "n/a")
         cM4.metric("最佳/最差", "n/a")
 
-    # 顯示表格
+    # 顯示表格 (損益% 用 numeric 讓 Streamlit 排序正常)
     display = pd.DataFrame({
         '股票': df['stock_id'] + ' ' + df['stock_name'].fillna(''),
         '產業': df['industry'].fillna(''),
-        '進場價': df['entry_close'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—"),
-        '即時價': df['latest'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—"),
-        '價源': df['source'].fillna('—'),
-        '損益%': df['pnl_pct'].apply(
-            lambda v: ("🟢 +{:.1f}%".format(v*100) if pd.notna(v) and v > 0
-                       else ("🔴 {:.1f}%".format(v*100) if pd.notna(v) and v < 0
-                             else ("⚪ {:.1f}%".format(v*100) if pd.notna(v) else "—")))
-        ),
+        '進場價': df['entry_close'],
+        '最近收盤': df['latest'],
+        '損益%': df['pnl_pct'] * 100,  # numeric 給 column_config 排序
+        '進場理由': df['entry_drivers'].fillna('n/a'),
     })
-    display = display.sort_values('損益%', ascending=False).reset_index(drop=True)
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    display = display.sort_values('損益%', ascending=False, na_position='last').reset_index(drop=True)
+    st.dataframe(
+        display,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            '進場價': st.column_config.NumberColumn('進場價', format="%.2f"),
+            '最近收盤': st.column_config.NumberColumn('最近收盤', format="%.2f"),
+            '損益%': st.column_config.NumberColumn('損益%', format="%+.1f%%",
+                                                  help="(最近收盤 − 進場價) / 進場價"),
+        },
+    )
 
-    with st.expander("ℹ️ 價源說明", expanded=False):
+    with st.expander("ℹ️ 進場理由說明", expanded=False):
         st.markdown(
-            "- **z** = 該秒成交價 (盤中即時)\n"
-            "- **pz** = 上次成交價 (盤中無撮合 fallback)\n"
-            "- **mid** = 五檔買賣 1 中點 (停撮 fallback)\n"
-            "- **prev_close** = 昨收 (盤後 / 停牌)\n"
-            "- 報價來源 mis.twse 5 sec/3 req 限制 → 用 streamlit cache 5 min TTL 包"
+            "- 進場理由 = 進場日當天 composite_score 8 因子裡，"
+            "對該股 ranking 貢獻最大的前 3 個（factor × weight 為正且最大）\n"
+            "- 例如「近 52 週低點 / 上 20 日上半部 / Piotroski F-Score」= "
+            "進場時這檔因為「股價接近年低 + 近期股價偏強 + 財務體質好」被選中\n"
+            "- 完整因子對照表見 `tools/whale_picks_trade_ledger.py::FACTOR_LABEL_ZH`"
         )
 
 
@@ -362,23 +377,23 @@ def _render_trade_ledger() -> None:
         st.info("篩選後無 position。")
         return
 
-    # Display table
+    # Display table (損益% 用 numeric 讓 Streamlit 排序正常)
+    # 持有中的 pnl_pct 設 NaN (空白顯示, 排序時 na_position='last')
+    pnl_numeric = fdf.apply(
+        lambda r: float('nan') if r['still_holding'] else float(r['pnl_pct']) * 100,
+        axis=1,
+    )
     display = pd.DataFrame({
         '股票': fdf['stock_id'] + ' ' + fdf['stock_name'].fillna(''),
         '產業': fdf['industry'].fillna(''),
-        '🟢 進場日': pd.to_datetime(fdf['entry_date']).dt.strftime('%Y-%m-%d'),
-        '進場價': fdf['entry_price'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—"),
-        '🔴 出場日': fdf['exit_date'].apply(
+        '進場日': pd.to_datetime(fdf['entry_date']).dt.strftime('%Y-%m-%d'),
+        '進場價': fdf['entry_price'],
+        '出場日': fdf['exit_date'].apply(
             lambda v: pd.Timestamp(v).strftime('%Y-%m-%d') if pd.notna(v) else "持有中"
         ),
-        '出場價': fdf['exit_price'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "—"),
+        '出場價': fdf['exit_price'],
         '持有月': fdf['holding_months'],
-        '損益%': fdf.apply(
-            lambda r: ("持有中" if r['still_holding']
-                       else (f"🟢 +{r['pnl_pct'] * 100:.1f}%" if r['pnl_pct'] > 0
-                             else f"🔴 {r['pnl_pct'] * 100:.1f}%")),
-            axis=1
-        ),
+        '損益%': pnl_numeric,
         '進場理由 (top driver)': fdf['entry_top_drivers'].fillna(''),
         '出場理由 (top driver)': fdf['exit_top_drivers'].fillna(''),
     })
@@ -386,7 +401,21 @@ def _render_trade_ledger() -> None:
         display['🤖 LLM 進場理由'] = fdf['entry_reason_zh'].fillna('')
         display['🤖 LLM 出場理由'] = fdf['exit_reason_zh'].fillna('')
 
-    st.dataframe(display.reset_index(drop=True), use_container_width=True, hide_index=True, height=500)
+    st.dataframe(
+        display.reset_index(drop=True),
+        use_container_width=True,
+        hide_index=True,
+        height=500,
+        column_config={
+            '進場價': st.column_config.NumberColumn('進場價', format="%.2f"),
+            '出場價': st.column_config.NumberColumn('出場價', format="%.2f"),
+            '損益%': st.column_config.NumberColumn(
+                '損益%', format="%+.1f%%",
+                help="(出場價 − 進場價) / 進場價。持有中的部位顯示空白，排序時排到最後。",
+            ),
+            '持有月': st.column_config.NumberColumn('持有月', format="%d"),
+        },
+    )
 
     with st.expander("ℹ️ 回測 metadata + 方法論", expanded=False):
         if meta:

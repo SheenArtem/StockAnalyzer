@@ -46,6 +46,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("whale_picks_alerts")
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
 SNAPSHOT_DIR = REPO / "data" / "whale_picks"
 HOLDINGS_PATH = SNAPSHOT_DIR / "_active_holdings.json"
 
@@ -302,9 +303,30 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
 
     score_col = _pick_score_col(snap)
     top_k = snap.dropna(subset=[score_col]).nlargest(PRODUCTION_K, score_col)
+
+    # 2026-05-22: 計算 top-3 entry drivers (factor * weight 最大的 3 個, 給 UI 顯示用)
+    from tools.whale_picks_trade_ledger import (
+        FACTOR_LABEL_ZH,
+        _get_composite_dict,
+    )
+    composite_weights = _get_composite_dict(score_col)
+    factor_cols = list(composite_weights.keys())
+
+    def _compute_drivers(row) -> str:
+        contribs = []
+        for c in factor_cols:
+            v = row.get(c)
+            if pd.isna(v):
+                continue
+            contribs.append((c, float(v) * composite_weights[c]))
+        contribs.sort(key=lambda x: x[1], reverse=True)
+        top = [c for c, val in contribs[:3] if val > 0]
+        return " / ".join(FACTOR_LABEL_ZH.get(c, c) for c in top) if top else "n/a"
+
     holdings = {
         'rebalance_date': snap_date.isoformat(),
         'reason': 'm15_rebal' if is_rebal_day else ('forced' if force else ('k_drift' if k_drift else 'bootstrap')),
+        'composite_name': score_col,
         'tickers': [
             {
                 'stock_id': r['stock_id'],
@@ -312,6 +334,7 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
                 'industry': r.get('industry_category', ''),
                 'entry_close': float(r.get('Close', np.nan)),
                 'entry_composite': float(r[score_col]),
+                'entry_drivers': _compute_drivers(r),
             }
             for _, r in top_k.iterrows()
         ],

@@ -1,76 +1,87 @@
 {
   "rebalance_date": "2026-05-15",
   "reason": "m15_rebal",
+  "composite_name": "composite_score",
   "tickers": [
     {
       "stock_id": "3045",
       "stock_name": "台灣大",
       "industry": "通信網路業",
-      "entry_close": 110.0,
-      "entry_composite": 0.43415957000445043
+      "entry_close": 114.5,
+      "entry_composite": 0.3596581371178752,
+      "entry_drivers": "距 52 週高點 (近高扣分) / 近 20 日上半部收盤 % (強勢) / 負債比率"
     },
     {
-      "stock_id": "2347",
-      "stock_name": "聯強",
+      "stock_id": "9933",
+      "stock_name": "中鼎",
+      "industry": "其他",
+      "entry_close": 37.6,
+      "entry_composite": 0.35422979149257805,
+      "entry_drivers": "距 52 週高點 (近高扣分) / 負債比率 / 近 20 日上半部收盤 % (強勢)"
+    },
+    {
+      "stock_id": "6414",
+      "stock_name": "樺漢",
       "industry": "電子工業",
-      "entry_close": 82.0,
-      "entry_composite": 0.39361076849027915
+      "entry_close": 319.5,
+      "entry_composite": 0.31168364554054656,
+      "entry_drivers": "近 20 日上半部收盤 % (強勢) / Altman Z-Score (破產風險) / 負債比率"
+    },
+    {
+      "stock_id": "2610",
+      "stock_name": "華航",
+      "industry": "航運業",
+      "entry_close": 18.5,
+      "entry_composite": 0.3107767763633364,
+      "entry_drivers": "近 20 日上半部收盤 % (強勢) / 負債比率 / 距 52 週低點 (近底加分)"
     },
     {
       "stock_id": "2633",
       "stock_name": "台灣高鐵",
       "industry": "航運業",
-      "entry_close": 26.899999618530273,
-      "entry_composite": 0.38382300746558196
+      "entry_close": 25.7,
+      "entry_composite": 0.29618012421368817,
+      "entry_drivers": "距 52 週高點 (近高扣分) / 負債比率 / 距 52 週低點 (近底加分)"
     },
     {
-      "stock_id": "5483",
-      "stock_name": "中美晶",
-      "industry": "半導體業",
-      "entry_close": 120.0,
-      "entry_composite": 0.3499593241247566
+      "stock_id": "6658",
+      "stock_name": "聯策",
+      "industry": "其他電子業",
+      "entry_close": 194.0,
+      "entry_composite": 0.2904403702047827,
+      "entry_drivers": "近 20 日上半部收盤 % (強勢) / 營收 6 月改善 / 距 52 週高點 (近高扣分)"
     },
     {
-      "stock_id": "6278",
-      "stock_name": "台表科",
-      "industry": "光電業",
-      "entry_close": 114.0,
-      "entry_composite": 0.33368424286253956
-    },
-    {
-      "stock_id": "3711",
-      "stock_name": "日月光投控",
-      "industry": "半導體業",
-      "entry_close": 417.5,
-      "entry_composite": 0.3323518708056218
-    },
-    {
-      "stock_id": "2460",
-      "stock_name": "建通",
+      "stock_id": "3209",
+      "stock_name": "全科",
       "industry": "電子工業",
-      "entry_close": 33.70000076293945,
-      "entry_composite": 0.31918634416919645
+      "entry_close": 46.3,
+      "entry_composite": 0.2873838411131241,
+      "entry_drivers": "負債比率 / 近 20 日上半部收盤 % (強勢) / 距 52 週高點 (近高扣分)"
     },
     {
-      "stock_id": "6488",
-      "stock_name": "環球晶",
-      "industry": "半導體業",
-      "entry_close": 499.5,
-      "entry_composite": 0.293892866259916
+      "stock_id": "3033",
+      "stock_name": "威健",
+      "industry": "電子工業",
+      "entry_close": 47.9,
+      "entry_composite": 0.2792842178240079,
+      "entry_drivers": "距 52 週高點 (近高扣分) / 負債比率 / 近 20 日上半部收盤 % (強勢)"
     },
     {
-      "stock_id": "2379",
-      "stock_name": "瑞昱",
-      "industry": "半導體業",
-      "entry_close": 525.0,
-      "entry_composite": 0.29033609439487895
+      "stock_id": "2356",
+      "stock_name": "英業達",
+      "industry": "電子工業",
+      "entry_close": 52.2,
+      "entry_composite": 0.273215725711196,
+      "entry_drivers": "距 52 週高點 (近高扣分) / 負債比率 / 近 20 日上半部收盤 % (強勢)"
     },
     {
-      "stock_id": "3532",
-      "stock_name": "台勝科",
-      "industry": "半導體業",
-      "entry_close": 182.0,
-      "entry_composite": 0.2873284440047355
+      "stock_id": "2376",
+      "stock_name": "技嘉",
+      "industry": "電子工業",
+      "entry_close": 326.5,
+      "entry_composite": 0.2726141817730253,
+      "entry_drivers": "距 52 週高點 (近高扣分) / 營收 6 月改善 / 負債比率"
     }
   ]
 }

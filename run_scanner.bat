@@ -289,8 +289,19 @@ REM 2026-05-22 switched to M15 rebal: composite_parsi Sharpe 0.60 -> 1.18 (+96%)
 REM walk-forward 0.20 -> 0.63 (+0.43). Sell-the-news hypothesis falsified by MIXED arm.
 REM See reports/whale_picks_rebal_timing/REPORT.md for full controlled experiment.
 REM Manual trigger:
+REM   python tools\refresh_backtest_panels.py
 REM   python tools\whale_picks_screener.py --silent --push-if-month-end
 REM   python tools\whale_picks_alerts.py
+
+REM 2026-05-22 added refresh_backtest_panels to fix pipeline staleness bug.
+REM value_sim_indicators.parquet + ohlcv_tw.parquet + fwd_returns had no daily refresh job
+REM (last manual refresh was 5 weeks ago, left indicators at 4/13 while {sid}_price.csv was 5/21).
+REM Each run aggregates ~1000 csv -> parquet (~10s) + precompute indicators (~5 min)
+REM + fwd_returns (~2 min). Total ~7 min. Best-effort: failures do not affect scanner exit.
+echo [%date% %time%] Refresh backtest panels starting >> scanner.log
+python tools\refresh_backtest_panels.py >> scanner.log 2>&1
+echo [%date% %time%] Refresh backtest panels done >> scanner.log
+
 echo [%date% %time%] Whale picks selector starting >> scanner.log
 python tools\whale_picks_screener.py --silent --push-if-month-end >> scanner.log 2>&1
 echo [%date% %time%] Whale picks done >> scanner.log
