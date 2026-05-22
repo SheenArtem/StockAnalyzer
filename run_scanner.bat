@@ -259,24 +259,6 @@ set SS_EC3=%ERRORLEVEL%
 :skip_strong_stocks_ai
 echo [%date% %time%] Strong stocks done (EC1=%SS_EC1% EC2=%SS_EC2% EC3=%SS_EC3%) >> scanner.log
 
-REM ------------------------------------------------------------
-REM C3 Phase C: Deep Research auto-trigger (2026-05-17).
-REM Reads data/latest/qm_result.json, runs multi-agent debate on
-REM high-priority picks (rank<=3 + scenario A / trigger>7 / regime shift),
-REM writes data/deep_research/{date}_{ticker}.json (24h cache).
-REM Max 3 picks/day, 11 quota calls each, ~8-10 min each.
-REM ------------------------------------------------------------
-REM DISABLED 2026-05-17 per user request: save Team Plan quota.
-REM Manual trigger still works via:
-REM   - UI button: individual_view / Mode D Pick "Deep Research" expander
-REM   - CLI: python tools\scanner_deep_research_trigger.py --max-picks 3
-REM To re-enable scheduled auto-trigger: remove the goto line below.
-goto skip_deep_research
-echo [%date% %time%] Deep research trigger starting >> scanner.log
-python tools\scanner_deep_research_trigger.py --max-picks 3 >> scanner.log 2>&1
-echo [%date% %time%] Deep research trigger done (EC=%ERRORLEVEL%) >> scanner.log
-:skip_deep_research
-
 REM Discord daily summary DISABLED 2026-05-04 per user request: cancel scan-result
 REM Discord pushes (covers QM Top 5 + Step-A alerts + paper trade summary block).
 REM To re-enable: remove the "goto skip_discord_summary" line directly below.
