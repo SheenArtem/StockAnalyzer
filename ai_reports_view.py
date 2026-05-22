@@ -168,15 +168,24 @@ def render_ai_reports():
                 "💡 把下面整段貼到 claude.ai 對話框（建議用 Opus 4.7 / Extended Thinking）。"
                 "HTML 格式回傳 JSON 後可貼回個股 tab 或自行用 prompts/report_dashboard_template.html 渲染。"
             )
-            st.text_area(
-                "Prompt (點右上 Copy icon 複製)",
-                value=_pr['prompt'],
-                height=400,
-                key='ai_prompt_textarea',
-            )
-            if st.button("🗑️ 清除 prompt 顯示", key='ai_prompt_clear'):
-                del st.session_state['ai_prompt_result']
-                st.rerun()
+            # st.code 才有 hover-to-show 的 Copy icon (右上角)；text_area 沒有
+            st.code(_pr['prompt'], language=None)
+
+            _col_dl, _col_clr = st.columns([1, 1])
+            with _col_dl:
+                _ext = 'json.txt' if _pr['format'] == 'html' else 'md.txt'
+                st.download_button(
+                    "💾 下載 .txt (備援)",
+                    data=_pr['prompt'],
+                    file_name=f"prompt_{_pr['ticker']}_{_pr['format']}.{_ext}",
+                    mime='text/plain',
+                    key='ai_prompt_dl',
+                    help="若 Copy icon 沒出現可下載 .txt 再貼",
+                )
+            with _col_clr:
+                if st.button("🗑️ 清除 prompt 顯示", key='ai_prompt_clear', width='stretch'):
+                    del st.session_state['ai_prompt_result']
+                    st.rerun()
 
     # --- Tab 2: Library ---
     with _report_tab_lib:
