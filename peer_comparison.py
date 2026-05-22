@@ -12,7 +12,8 @@ Multi-theme 增量（2026-04-27）：
   - 估值 peer (P1) 與題材 themes 解耦：估值同業看 business 同性，題材看共振 catalyst
   - 用途：AI 報告同業比較標註目標屬於哪些題材；Pair Divergence 驗證
 
-美股: Finviz sector/industry
+美股（2026-05-22 起）：TradingView Screener 同 industry + market cap > $1B + dedup ADR
+（原 Finviz 只回 target、peers 空表導致 Claude 跨報告腦補 PE 矛盾，已棄用）
 """
 
 import json
