@@ -222,47 +222,57 @@ def render_ai_reports():
                     del st.session_state['ai_prompt_result']
                     st.rerun()
 
-            # === 貼回區塊：把 claude.ai 輸出存進報告庫 ===
-            st.markdown("---")
-            st.markdown("#### 📥 貼回 claude.ai 輸出")
-            st.caption(
-                f"把 claude.ai 的回傳貼到下方文字框 → 點「處理並儲存」會解析 + 灌模板 + 存到報告庫。"
-                f"目前 prompt 格式：`{_fmt_label}` (HTML→需 JSON、Markdown→純文字)。"
-            )
-            _paste = st.text_area(
-                "貼上 claude.ai 輸出",
-                value="",
-                height=200,
-                placeholder='{"meta": {...}, "summary": {...}, ...}  (HTML) 或 markdown 報告全文 (MD)',
-                key='ai_paste_textarea',
-            )
-            if st.button("📥 處理並儲存到報告庫", type='primary', key='ai_paste_save_btn'):
-                if not _paste or not _paste.strip():
-                    st.error("請先貼上 claude.ai 輸出")
+        # === 貼回區塊：永遠顯示，使用上面 form 的 _ai_ticker + _ai_format ===
+        st.markdown("---")
+        st.markdown("#### 📥 貼回 claude.ai 輸出")
+        _paste_fmt_label = '📊 儀表板 (HTML JSON)' if _ai_format == 'html' else '📝 Markdown'
+        _paste_ticker_show = _ai_ticker.strip().upper() if _ai_ticker and _ai_ticker.strip() else "(未填)"
+        st.caption(
+            f"把 claude.ai 的回傳貼到下方文字框 → 點「處理並儲存」會解析 + 灌模板 + 存到報告庫。"
+            f"使用上方輸入：股票代號=`{_paste_ticker_show}` / 格式=`{_paste_fmt_label}`"
+            f"（HTML 需 JSON、Markdown 純文字）。"
+        )
+        _paste = st.text_area(
+            "貼上 claude.ai 輸出",
+            value="",
+            height=200,
+            placeholder='{"meta": {...}, "summary": {...}, ...}  (HTML) 或 markdown 報告全文 (MD)',
+            key='ai_paste_textarea',
+        )
+        if st.button("📥 處理並儲存到報告庫", type='primary', key='ai_paste_save_btn',
+                     disabled=_is_running):
+            _save_ticker = _ai_ticker.strip().upper() if _ai_ticker else ""
+            if not _save_ticker:
+                st.error("請在上方「股票代號」欄輸入代號")
+            elif not _paste or not _paste.strip():
+                st.error("請先貼上 claude.ai 輸出")
+            else:
+                is_valid, err_msg = validate_ticker(_save_ticker)
+                if not is_valid:
+                    st.error(f"代號格式不正確: {err_msg}")
                 else:
                     try:
-                        if _pr['format'] == 'html':
+                        if _ai_format == 'html':
                             from ai_report import render_html_from_claude_output, save_report_html
                             with st.spinner("解析 JSON + 灌模板..."):
                                 _ok, _html_or_err, _json_data = render_html_from_claude_output(
-                                    _pr['ticker'], _paste
+                                    _save_ticker, _paste
                                 )
                             if not _ok:
                                 st.error(f"處理失敗: {_html_or_err}")
                             else:
                                 _rid = save_report_html(
-                                    _pr['ticker'], _html_or_err,
+                                    _save_ticker, _html_or_err,
                                     json_data=_json_data,
                                 )
                                 st.success(f"✅ 已存到報告庫 (ID: `{_rid}`)，切到「📚 報告庫」tab 查看")
-                                del st.session_state['ai_prompt_result']
-                                st.rerun()
+                                # 不清 ai_prompt_result：使用者可能還想複製 prompt 跑別檔
+                                st.session_state.pop('ai_paste_textarea', None)
                         else:
                             from ai_report import save_report
-                            _rid = save_report(_pr['ticker'], _paste)
+                            _rid = save_report(_save_ticker, _paste)
                             st.success(f"✅ 已存到報告庫 (ID: `{_rid}`)，切到「📚 報告庫」tab 查看")
-                            del st.session_state['ai_prompt_result']
-                            st.rerun()
+                            st.session_state.pop('ai_paste_textarea', None)
                     except Exception as _save_err:
                         st.error(f"儲存失敗: {type(_save_err).__name__}: {_save_err}")
 
