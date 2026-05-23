@@ -313,6 +313,12 @@ echo [%date% %time%] Whale picks alerts starting >> scanner.log
 python tools\whale_picks_alerts.py >> scanner.log 2>&1
 echo [%date% %time%] Whale picks alerts done >> scanner.log
 
+REM Portfolio-level backtest vs TWII (refresh NAV / annual stats for UI).
+REM Reads trade_ledger.parquet + ohlcv_tw.parquet. ~2-3 sec. Best-effort.
+echo [%date% %time%] Whale picks portfolio backtest starting >> scanner.log
+python tools\whale_picks_portfolio_backtest.py --start 2016-01-15 >> scanner.log 2>&1
+echo [%date% %time%] Whale picks portfolio backtest done >> scanner.log
+
 REM ------------------------------------------------------------
 REM Chip history institutional resume (daily).
 REM Added 2026-05-02: 5yr panel was one-shot backfill, no daily cron, so

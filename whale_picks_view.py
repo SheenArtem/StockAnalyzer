@@ -21,6 +21,9 @@ SNAPSHOT_DIR = REPO / "data" / "whale_picks"
 HOLDINGS_PATH = SNAPSHOT_DIR / "_active_holdings.json"
 LEDGER_PATH = SNAPSHOT_DIR / "trade_ledger.parquet"
 LEDGER_META_PATH = SNAPSHOT_DIR / "trade_ledger_meta.json"
+PORTFOLIO_NAV_PATH = SNAPSHOT_DIR / "portfolio_nav.parquet"
+PORTFOLIO_ANNUAL_PATH = SNAPSHOT_DIR / "portfolio_annual.parquet"
+PORTFOLIO_STATS_PATH = SNAPSHOT_DIR / "portfolio_stats.json"
 
 
 def _load_latest_json() -> dict | None:
@@ -453,7 +456,83 @@ def _render_trade_ledger() -> None:
 
 
 # =============================================================================
-# Section 4 — 任意兩日 snapshot diff (進階)
+# Section 4 — Portfolio-level backtest vs TWII
+# =============================================================================
+
+def _render_portfolio_backtest() -> None:
+    """Equal-weight K=10 monthly portfolio NAV vs TWII benchmark."""
+    if not PORTFOLIO_STATS_PATH.exists():
+        return
+    try:
+        stats = json.loads(PORTFOLIO_STATS_PATH.read_text(encoding='utf-8'))
+        nav = pd.read_parquet(PORTFOLIO_NAV_PATH)
+        annual = pd.read_parquet(PORTFOLIO_ANNUAL_PATH)
+    except Exception as e:
+        st.warning(f"Portfolio backtest 讀取失敗: {e}")
+        return
+
+    st.subheader("📈 Portfolio-level Backtest vs TWII (B&H)")
+    st.caption(
+        f"K=10 equal-weight 每月 M15 rebal / 期間 {stats.get('start_date', '?')} ~ "
+        f"{stats.get('end_date', '?')} / 未扣手續費 / 未含股息 / "
+        f"資料生成於 {stats.get('generated_at', '?')[:10]}"
+    )
+
+    wp = stats.get('whale_picks', {})
+    tw = stats.get('twii', {})
+    dlt = stats.get('delta', {})
+
+    # Headline metrics
+    cA, cB, cC, cD, cE = st.columns(5)
+    cA.metric("Whale Picks CAGR", f"{wp.get('cagr', 0)*100:+.2f}%",
+              delta=f"{dlt.get('cagr_pp', 0):+.2f}pp vs TWII")
+    cB.metric("Sharpe", f"{wp.get('sharpe', 0):.3f}",
+              delta=f"{dlt.get('sharpe', 0):+.3f}")
+    cC.metric("MDD", f"{wp.get('mdd', 0)*100:.2f}%",
+              delta=f"{dlt.get('mdd_pp', 0):+.2f}pp", delta_color="inverse")
+    cD.metric("Vol", f"{wp.get('vol', 0)*100:.2f}%",
+              delta=f"{dlt.get('vol_pp', 0):+.2f}pp", delta_color="inverse")
+    cE.metric("Beats TWII",
+              f"{stats.get('annual_wins', 0)}/{stats.get('annual_years', 0)} 年",
+              delta=f"{stats.get('annual_hit_rate', 0)*100:.0f}% hit rate")
+
+    st.caption(
+        f"Whale Picks total {wp.get('total_return', 0)*100:+.1f}% vs "
+        f"TWII {tw.get('total_return', 0)*100:+.1f}% / "
+        f"{wp.get('years', 0)} 年 {wp.get('days', 0)} 個交易日"
+    )
+
+    # NAV chart
+    nav_chart = nav[['date', 'wp_nav', 'twii_nav']].dropna().copy()
+    nav_chart = nav_chart.rename(columns={'wp_nav': 'Whale Picks', 'twii_nav': 'TWII (B&H)'})
+    nav_chart = nav_chart.set_index('date')
+    st.line_chart(nav_chart, height=350,
+                  y_label='NAV (cumulative return + 1)')
+
+    # Year-by-year alpha bar chart
+    annual_display = annual.copy()
+    annual_display['year'] = annual_display['year'].astype(str)
+    annual_display['Alpha (pp)'] = (annual_display['alpha'] * 100).round(2)
+    annual_display['Whale Picks (%)'] = (annual_display['whale_picks'] * 100).round(2)
+    annual_display['TWII (%)'] = (annual_display['twii'] * 100).round(2)
+
+    cTab1, cTab2 = st.columns([2, 1])
+    with cTab1:
+        st.markdown("**📊 Year-by-year alpha (Whale Picks − TWII, pp)**")
+        st.bar_chart(annual_display.set_index('year')['Alpha (pp)'], height=250)
+    with cTab2:
+        st.markdown("**🏆 Year-by-year hits**")
+        display_yr = annual_display[['year', 'Whale Picks (%)', 'TWII (%)', 'Alpha (pp)']]
+        styled = display_yr.style.map(_color_pnl_tw, subset=['Whale Picks (%)', 'TWII (%)', 'Alpha (pp)'])
+        st.dataframe(styled, use_container_width=True, hide_index=True, height=300)
+
+    with st.expander("ℹ️ Caveats / 限制"):
+        for c in stats.get('caveats', []):
+            st.markdown(f"- {c}")
+
+
+# =============================================================================
+# Section 5 — 任意兩日 snapshot diff (進階)
 # =============================================================================
 
 def _render_history_diff() -> None:
@@ -537,6 +616,8 @@ def render_whale_picks() -> None:
     _render_current_holdings(obj)
     st.divider()
     _render_trade_ledger()
+    st.divider()
+    _render_portfolio_backtest()
     st.divider()
     _render_history_diff()
 

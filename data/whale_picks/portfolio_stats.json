@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-05-23T15:08:51",
+  "start_date": "2016-01-15",
+  "end_date": "2026-05-23",
+  "whale_picks": {
+    "name": "Whale Picks",
+    "cagr": 0.2803855847534238,
+    "sharpe": 1.7130538479424018,
+    "vol": 0.15103783329247042,
+    "mdd": -0.27746706798209325,
+    "total_return": 10.795162759603457,
+    "days": 2516,
+    "years": 9.98
+  },
+  "twii": {
+    "name": "TWII",
+    "cagr": 0.1733742556215525,
+    "sharpe": 0.9974923015043027,
+    "vol": 0.17590519850387512,
+    "mdd": -0.3163186281026474,
+    "total_return": 3.8447645017839216,
+    "days": 2487,
+    "years": 9.87
+  },
+  "delta": {
+    "cagr_pp": 10.7,
+    "sharpe": 0.716,
+    "vol_pp": -2.49,
+    "mdd_pp": 3.89
+  },
+  "annual_wins": 8,
+  "annual_years": 11,
+  "annual_hit_rate": 0.727,
+  "caveats": [
+    "未扣交易成本 (估 ~6 round-trips/年 × 0.3% = -1.8%/年 haircut)",
+    "未扣 slippage (估 -0.5%/年)",
+    "未含台股股息 (TWII/Whale Picks 兩邊都未計，殖利率 ~3-5%/年)",
+    "11 年回測，含 2018 熊 / 2020 covid / 2022 Fed / 2024 AI 多個 regime",
+    "PIT universe 1958 stocks 已 survivor-bias 修正"
+  ]
+}
