@@ -586,9 +586,46 @@ def _render_history_diff() -> None:
 def render_whale_picks() -> None:
     st.title("🐋 主力選股 (Whale Picks) — BUY/SELL 訊號")
     st.caption(
-        "7-feature composite_score / industry-neutral / **M15 rebalance** K=10 (composite_parsi Sharpe 1.18 / walk-forward 0.63) / "
-        "每日 alerts (急升 BUY + drawdown SELL)。"
+        "7-feature composite_score / industry-neutral / **M15 rebalance** K=10 / "
+        "11 年 portfolio backtest CAGR 28% vs TWII 17% (Sharpe 1.67 vs 0.99)。"
     )
+
+    with st.expander("📋 **operational SOP — 100% Whale Picks** (展開)", expanded=False):
+        st.markdown("""
+**這是 production 推薦策略**（2026-05-23 用戶拍板 simplified mode）
+
+**資金配置**：
+- 全資金 / 10 檔 = 每檔等權
+- Cash buffer: 0%
+
+**每月 1 件事 — M15 rebal day (每月 15 號或之前最後交易日)**：
+1. 開「📡 今日訊號 (BUY/SELL)」看 BUY/SELL 名單
+2. 開盤 ~10:00 執行：先全 SELL 再全 BUY（市價）
+3. 結束，下月再來
+
+**全年時數**：12 次 × 30 min ≈ 6 小時
+
+**強制紀律**：
+- M15 那天**強制換股**，不擇時、不情緒
+- 月中任何信號（QM / 新聞 / Discord push）= **informational only**
+- 看 NAV「年度」單位，不看「月度」
+
+**完全不用做的事**：
+- 每日盯盤 / 停損停利 / 個股研究 / 經濟新聞解讀 / Buy-sell timing
+
+**預期表現** (10-11 年實證, 含手續費 + 股息估算)：
+- CAGR ~20-25% (扣 -1.8% 交易成本 + 加 3-5% 股息)
+- Sharpe ~1.5-1.7
+- MDD ~-25-28%
+- 8/11 年勝 TWII (73%)
+
+**會略輸 TWII 的情境**：
+- covid V 反彈 (2020) / AI bubble (2025) 那種急速上漲
+- 略輸範圍 -1~-14pp，不大爆損
+- **不要 panic 換策略** — 長期 alpha 來自其他 8/11 年
+
+**詳細回測**：見下方「📈 Portfolio-level Backtest vs TWII」section
+        """)
 
     obj = _load_latest_json()
     if obj is None:

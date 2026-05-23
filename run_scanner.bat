@@ -200,20 +200,30 @@ REM Chain: QM skips tracking; Value runs tracking last.
 REM --regime-filter: VF-G4 DRY-RUN logs today's regime vs volatile filter
 REM (audit only, does not drop picks).
 REM --notify removed 2026-05-04 per user request: cancel scan-result Discord pushes.
-REM To re-enable: append --notify back to both invocations.
+REM
+REM DISABLED 2026-05-23 per user request: 100%% Whale Picks is production strategy
+REM (CAGR 28%% / Sharpe 1.67), QM + Value scanner downgraded to informational only.
+REM qm_result.json and value picks no longer refresh daily, UI may show stale data
+REM but does not affect Whale Picks pipeline.
+REM To re-enable: remove the "goto skip_qm_value_scan" line below.
+set PY_EXIT_QM=SKIP
+set PY_EXIT_VAL=SKIP
+goto skip_qm_value_scan
 python scanner_job.py --mode qm --market tw --no-tracking --regime-filter volatile --push >> scanner.log 2>&1
 set PY_EXIT_QM=%ERRORLEVEL%
 
 python scanner_job.py --mode value --market tw --regime-filter volatile --push >> scanner.log 2>&1
 set PY_EXIT_VAL=%ERRORLEVEL%
+:skip_qm_value_scan
 
 REM US Value scan removed 2026-04-22 after VF-Value-ex2 EDGAR walk-forward D reverse
 REM (F>=8 alpha -10%% annualized on 52K panel). US signals unvalidated -- restore
 REM when US QM/Value VF verification completes with A/B-grade signals.
 
-REM Take worst exit code
-set PY_EXIT=%PY_EXIT_QM%
-if not "%PY_EXIT_VAL%"=="0" set PY_EXIT=%PY_EXIT_VAL%
+REM Take worst exit code (SKIP sentinel treated as success)
+set PY_EXIT=0
+if not "%PY_EXIT_QM%"=="0" if not "%PY_EXIT_QM%"=="SKIP" set PY_EXIT=%PY_EXIT_QM%
+if not "%PY_EXIT_VAL%"=="0" if not "%PY_EXIT_VAL%"=="SKIP" set PY_EXIT=%PY_EXIT_VAL%
 
 REM ------------------------------------------------------------
 REM Mode D Phase 2 Wave 2/3 pipeline (2026-04-25):
@@ -221,7 +231,14 @@ REM   1. Step-A engine -> daily_alerts.json (forced/suggested/info)
 REM   2. Paper trade engine -> open_trades.json + trade_log.jsonl
 REM   3. Discord daily summary -> single code block 1 push/day
 REM Best-effort: failures do not affect scanner exit code.
+REM
+REM DISABLED 2026-05-23 per user request: 100%% Whale Picks is production strategy,
+REM Mode D + paper trade engine downgraded to informational only.
+REM open_trades.json + trade_log.jsonl no longer refresh daily, Mode D UI may show
+REM stale data.
+REM To re-enable: remove the "goto skip_mode_d" line below.
 REM ------------------------------------------------------------
+goto skip_mode_d
 echo [%date% %time%] Step-A engine starting >> scanner.log
 python tools\step_a_engine.py >> scanner.log 2>&1
 echo [%date% %time%] Step-A engine done >> scanner.log
@@ -229,6 +246,7 @@ echo [%date% %time%] Step-A engine done >> scanner.log
 echo [%date% %time%] Paper trade engine starting >> scanner.log
 python tools\paper_trade_engine.py >> scanner.log 2>&1
 echo [%date% %time%] Paper trade engine done >> scanner.log
+:skip_mode_d
 
 REM ------------------------------------------------------------
 REM Strong stocks daily report (PDF mimicking the user-supplied template).
@@ -239,10 +257,18 @@ REM   3. strong_stocks_render.py   -- Jinja2 HTML + Playwright PDF
 REM Output: data\strong_stocks_reports\YYYY-MM-DD.{html,pdf}
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
+REM DISABLED 2026-05-23 per user request: Stage 2 + 3 already disabled 2026-05-21
+REM (Opus 6/15 billing cut), Stage 1 (data enrich only) is orphaned with no
+REM downstream consumer, so stopped together.
+REM 100%% Whale Picks production strategy does not depend on strong_stocks_*.
+REM To re-enable: remove the "goto skip_strong_stocks_all" line below.
+set SS_EC1=SKIP
+goto skip_strong_stocks_all
 echo [%date% %time%] Strong stocks Stage 1 enrich+bucket starting >> scanner.log
 python tools\strong_stocks_daily.py >> scanner.log 2>&1
 set SS_EC1=%ERRORLEVEL%
 echo [%date% %time%] Strong stocks Stage 1 done (exit=%SS_EC1%) >> scanner.log
+:skip_strong_stocks_all
 
 REM DISABLED 2026-05-21 per user request: save Agent SDK Credit quota (Anthropic billing split effective 2026-06-15).
 REM Stage 2 (Opus AI analysis) + Stage 3 (HTML+PDF render) skipped.

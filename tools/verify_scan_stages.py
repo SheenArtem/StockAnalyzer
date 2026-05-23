@@ -39,11 +39,10 @@ REQUIRED_STAGES = [
     # Re-add ('MOPS probe done', r'\] MOPS probe done') when reactivating.
     ('RF-1 consistency done',  r'\] RF-1 consistency check done'),
     ('Market regime done',     r'\] Market regime logger done'),
-    ('Step-A engine done',     r'\] Step-A engine done'),
-    ('Paper trade engine done', r'\] Paper trade engine done'),
+    # Step-A engine + Paper trade engine markers disabled 2026-05-23 (goto skip_mode_d).
+    # 100% Whale Picks production 不依賴 Mode D pipeline。
+    # Re-add ('Step-A engine done', ...) + ('Paper trade engine done', ...) when reactivating.
     # Discord daily summary disabled 2026-05-04 (run_scanner.bat goto skip_discord_summary).
-    # Re-add ('Discord daily summary done', r'\] Discord daily summary done') here
-    # when re-enabling the stage.
     # Substack sync stage removed 2026-05-21 (v2026.05.21.3 整套 rm, marker no longer fires).
     ('Chip history resume done', r'\] Chip history resume done'),
     ('News flow anomaly done', r'\] News flow anomaly done'),
@@ -63,7 +62,10 @@ REQUIRED_STAGES = [
 #   - 'No changes to push' (gitignored daily output, nothing to push but scan did run)
 # 2026-05-21 daily output gitignore policy 後 daily 全 "No changes to push",
 # 改抓兩個 marker 任一都算 success.
-EXPECTED_PUSH_MIN = 2
+#
+# 2026-05-23: QM + Value scanner_job disabled (goto skip_qm_value_scan)，不再 push。
+# EXPECTED_PUSH_MIN 改 0 (不檢查 push markers)；可日後重啟 scanner_job 再調回 2。
+EXPECTED_PUSH_MIN = 0
 PUSH_MARKER_RE = r'(Pushed: scan:|No changes to push)'
 
 
