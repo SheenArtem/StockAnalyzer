@@ -48,6 +48,17 @@ def _list_snapshots() -> list[str]:
     return sorted([f.stem for f in SNAPSHOT_DIR.glob('20*.parquet')], reverse=True)
 
 
+def _color_pnl_tw(val):
+    """TW 慣例：正報酬 = 紅、負報酬 = 綠 (跟歐美顏色相反)。NaN 不上色。"""
+    if pd.isna(val):
+        return ''
+    if val > 0:
+        return 'color: #d62728'  # 紅
+    if val < 0:
+        return 'color: #2ca02c'  # 綠
+    return ''
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def _load_latest_snapshot_close() -> tuple[date | None, dict[str, float]]:
     """讀最新 daily snapshot, 回 (snapshot_date, {stock_id: Close}).
@@ -280,8 +291,10 @@ def _render_current_holdings_pnl() -> None:
         '進場理由': df['entry_drivers'].fillna('n/a'),
     })
     display = display.sort_values('損益%', ascending=False, na_position='last').reset_index(drop=True)
+    # TW 慣例配色：正報酬 = 紅、負報酬 = 綠
+    styled = display.style.map(_color_pnl_tw, subset=['損益%'])
     st.dataframe(
-        display,
+        styled,
         use_container_width=True,
         hide_index=True,
         column_config={
@@ -401,8 +414,10 @@ def _render_trade_ledger() -> None:
         display['🤖 LLM 進場理由'] = fdf['entry_reason_zh'].fillna('')
         display['🤖 LLM 出場理由'] = fdf['exit_reason_zh'].fillna('')
 
+    # TW 慣例配色：正報酬 = 紅、負報酬 = 綠
+    styled = display.reset_index(drop=True).style.map(_color_pnl_tw, subset=['損益%'])
     st.dataframe(
-        display.reset_index(drop=True),
+        styled,
         use_container_width=True,
         hide_index=True,
         height=500,
