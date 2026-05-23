@@ -210,17 +210,42 @@ def _parse_batch_result(raw_df, tickers, universe_row_map):
 # Parquet I/O
 # ============================================================
 def _flush_to_parquet(results_list):
-    """合併 batch results 寫進 parquet（upsert：同 ticker+date 以新的為準）。"""
+    """合併 batch results 寫進 parquet（upsert：同 stock_id+date 以新的為準）。
+
+    2026-05-23 修：原本用 `['yf_ticker', 'date']` 當 dedup subset，但舊 cache 沒
+    `yf_ticker` 欄位 → concat 後 NaN → drop_duplicates 視 NaN 為相等 → 整檔被砍。
+    改用 `['stock_id', 'date']`：兩邊 schema 都有此欄，不會 NaN 災難。
+    """
     if not results_list:
         return
     new_df = pd.concat(results_list, ignore_index=True)
     if OUTPUT_PATH.exists():
         existing = pd.read_parquet(OUTPUT_PATH)
-        combined = pd.concat([existing, new_df], ignore_index=True)
-        combined = combined.drop_duplicates(subset=['yf_ticker', 'date'], keep='last')
+        # 防線 1: stock_id 必須存在於兩邊
+        if 'stock_id' not in existing.columns or 'stock_id' not in new_df.columns:
+            raise RuntimeError(
+                f"Schema mismatch: stock_id missing. existing cols={list(existing.columns)}, "
+                f"new cols={list(new_df.columns)}"
+            )
+        # 防線 2: 對齊 schema，缺欄位補 NA (避免 concat NaN-explosion)
+        all_cols = list(set(existing.columns) | set(new_df.columns))
+        for c in all_cols:
+            if c not in existing.columns:
+                existing[c] = pd.NA
+            if c not in new_df.columns:
+                new_df[c] = pd.NA
+        combined = pd.concat([existing[all_cols], new_df[all_cols]], ignore_index=True)
+        before = len(combined)
+        combined = combined.drop_duplicates(subset=['stock_id', 'date'], keep='last')
+        after = len(combined)
+        # 防線 3: dedup 後若砍掉超過 10% 嚴重警告 (這次的 25K vs 3M case 會擋)
+        if after < before * 0.5:
+            raise RuntimeError(
+                f"Dedup 砍掉超過 50% rows ({before} -> {after}) — 可能 schema bug，已停止寫入"
+            )
     else:
         combined = new_df
-    combined = combined.sort_values(['yf_ticker', 'date']).reset_index(drop=True)
+    combined = combined.sort_values(['stock_id', 'date']).reset_index(drop=True)
     combined.to_parquet(OUTPUT_PATH, engine='pyarrow', compression='snappy')
     size_mb = OUTPUT_PATH.stat().st_size / 1e6
     logger.info(f"Flushed {len(new_df):,} new rows → parquet total {len(combined):,} rows ({size_mb:.1f} MB)")
