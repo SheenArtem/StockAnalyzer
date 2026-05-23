@@ -67,25 +67,27 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.caption("Version: v2026.05.23.3")
+    st.caption("Version: v2026.05.23.4")
 
     # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:
         st.session_state['ticker_input'] = '2330'
 
-    # Mode toggle: 個股分析 / 自動選股 / 市場掃描 / AI 報告 / 主力選股 / 總經大盤風向
+    # Mode toggle: 個股分析 / 市場掃描 / AI 報告 / 主力選股 / 總經大盤風向
     # 2026-05-22: whale_picks 重啟上 UI; brokerage_yt 從 UI 移除 (節省 LLM quota)
     # 強勢股報告仍停用 (Opus 6/15 後改 SDK Credit pool)
+    # 2026-05-23: 'screener' (自動選股 QM/Value/Mode D) 從 UI 移除 — daily scheduler 已停
+    # (commit 56dcc6c)，UI 顯示會 stale 且 100% Whale Picks 拍板後不再需要。
     # 復原方式：把對應 mode 名加回 _mode_options + idx_map (render handler/label 保留為死代碼)
-    _mode_options = ['individual', 'screener', 'market_scan', 'ai_reports', 'whale_picks', 'macro']
+    _mode_options = ['individual', 'market_scan', 'ai_reports', 'whale_picks', 'macro']
     _mode_labels = {'individual': '📈 個股分析', 'screener': '🔍 自動選股',
                     'market_scan': '📡 市場掃描', 'ai_reports': '📝 AI 報告',
                     'strong_stocks': '🌟 強勢股報告', 'whale_picks': '🐋 主力選股',
                     'macro': '🧭 總經大盤風向',
                     'brokerage_yt': '📺 投顧追蹤'}
     _current_mode = st.session_state.get('app_mode', 'analysis')
-    _mode_idx_map = {'screener': 1, 'market_scan': 2, 'ai_reports': 3,
-                     'whale_picks': 4, 'macro': 5}
+    _mode_idx_map = {'market_scan': 1, 'ai_reports': 2,
+                     'whale_picks': 3, 'macro': 4}
     _mode_idx = _mode_idx_map.get(_current_mode, 0)
     app_mode = st.radio(
         "功能模式",
@@ -96,9 +98,8 @@ with st.sidebar:
         horizontal=True,
         label_visibility="collapsed",
     )
-    if app_mode == 'screener':
-        st.session_state['app_mode'] = 'screener'
-    elif app_mode == 'market_scan':
+    # screener (自動選股) 2026-05-23 從 UI 移除；session_state 設回 analysis
+    if app_mode == 'market_scan':
         st.session_state['app_mode'] = 'market_scan'
     elif app_mode == 'ai_reports':
         st.session_state['app_mode'] = 'ai_reports'
@@ -236,11 +237,14 @@ with st.sidebar:
 # ====================================================================
 _banner_slot = st.empty()
 
-if st.session_state.get('app_mode') == 'screener':
-    from screener_view import render_screener
-    render_screener()
+# 自動選股 2026-05-23 從 UI 移除 (commit 56dcc6c 100% Whale Picks 拍板，daily
+# scheduler 已停 QM/Value/Mode D，UI 顯示會 stale)
+# 復原：把以下三行 elif 取消註解 + app_mode 'screener' 加回 _mode_options + idx_map
+# if st.session_state.get('app_mode') == 'screener':
+#     from screener_view import render_screener
+#     render_screener()
 
-elif st.session_state.get('app_mode') == 'ai_reports':
+if st.session_state.get('app_mode') == 'ai_reports':
     from ai_reports_view import render_ai_reports
     render_ai_reports()
 
