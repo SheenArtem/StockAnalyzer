@@ -67,7 +67,7 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.caption("Version: v2026.05.25.3")
+    st.caption("Version: v2026.05.25.4")
 
     # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:

@@ -1107,6 +1107,40 @@ def render_market_banner():
                 c3.markdown("**CNN FGI 歷史**")
                 c3.table(pd.DataFrame(hist_data))
 
+        # ── VIX 期限結構 (vol_complex archiver, IC 4.06x lift @ red) ──
+        try:
+            vc_path = SENTIMENT_DIR / "vol_complex_history.parquet"
+            if vc_path.exists():
+                vc_df = pd.read_parquet(vc_path)
+                if not vc_df.empty:
+                    latest = vc_df.iloc[-1]
+                    ratio = float(latest['vix_vix3m_ratio'])
+                    light = str(latest['vix_vix3m_ratio_light'])
+                    vix_v = float(latest['vix'])
+                    vix3m_v = float(latest['vix3m'])
+                    vc_date = pd.Timestamp(latest['date']).strftime('%m/%d')
+
+                    color_map = {'green': '#00AA00', 'yellow': '#FFD700',
+                                 'orange': '#FF8800', 'red': '#FF4444'}
+                    label_map = {'green': '深度 contango (正常)',
+                                 'yellow': '期限平坦化',
+                                 'orange': 'backwardation 恐慌',
+                                 'red': '急性恐慌期'}
+                    color = color_map.get(light, '#888')
+                    label = label_map.get(light, '')
+                    tip = (f"^VIX {vix_v:.1f} / ^VIX3M {vix3m_v:.1f}（{vc_date}）；"
+                           f">=1.00 backwardation；台股 IC 驗證 red 級 fwd 20d hit -10% 機率 27%（4.06x baseline）")
+                    c3.markdown(
+                        f'<div style="font-size:0.95rem;line-height:1.6" title="{tip}">'
+                        f'VIX/VIX3M <span style="color:{color};font-weight:bold">'
+                        f'{ratio:.3f} {label}</span> '
+                        f'<span style="color:#888;font-size:0.85em">({vc_date})</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+        except Exception as e:
+            logger.warning("VIX term tile render failed: %s", e)
+
         # ── C4: CNN FGI + 進度條 + 子指標表格 ──
         cnn_score = cnn_fgi.get('score')
         cnn_label = cnn_fgi.get('label', '')
