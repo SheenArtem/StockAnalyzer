@@ -527,6 +527,51 @@ def _render_liquidity(macro: dict, banner_data: dict):
     if not any([r, dxy, walcl]):
         st.info("⏳ 流動性面板資料尚未建立，請執行 `python tools/fetch_fred_macro.py`")
 
+    # ----------------------------------------------------------
+    #  台灣總定存餘額 (CBC EF15M01 月頻)
+    #  訊號邏輯：定存 MoM 連 2 月為負 → 錢離開銀行體系 → risk-on 強化
+    # ----------------------------------------------------------
+    td_df = _safe_read_parquet(SENT_DIR / "time_deposits_history.parquet")
+    if td_df is not None and not td_df.empty:
+        st.markdown("##### 🏦 台灣總定存餘額 (CBC, 月頻, 1.5-2 月 lag)")
+        latest = td_df.iloc[-1]
+        td_cols = st.columns(4)
+
+        td_cols[0].metric(
+            "定存餘額",
+            f"{latest['time_deposits_mil_twd']/1e6:.2f} 兆",
+            delta=f"period {latest['period']}",
+            help="定期存款 + 定期儲蓄存款；中央銀行 EF15M01 月底日平均餘額"
+        )
+
+        mom = latest['time_deposits_mom_pct']
+        td_cols[1].metric(
+            "定存 MoM",
+            f"{mom:+.2f}%",
+            delta='錢離開存款' if mom < 0 else '錢持續進存款',
+            delta_color="inverse" if mom < 0 else "normal",
+            help="月增率為負 = 定存外流，可能流入股市/房市 (risk-on 訊號)"
+        )
+
+        yoy = latest['time_deposits_yoy_pct']
+        td_cols[2].metric("定存 YoY", f"{yoy:+.2f}%")
+
+        ratio = latest['m1b_to_time_deposits_ratio']
+        ratio_label = '偏活期化' if ratio > 1.3 else ('偏定存' if ratio < 1.0 else '正常')
+        td_cols[3].metric(
+            "M1B / 定存 比",
+            f"{ratio:.3f}",
+            delta=ratio_label,
+            help=">1.3 偏活期化 (流動性過剩, 偏熱) / <1.0 偏定存 (資金鎖死)"
+        )
+
+        # 連續月變動判讀
+        last3 = td_df.tail(3)['time_deposits_mom_pct'].tolist()
+        if len(last3) == 3 and all(v < 0 for v in last3):
+            st.warning(f"⚠️ 定存 MoM 連 3 月為負 ({last3[0]:+.2f} / {last3[1]:+.2f} / {last3[2]:+.2f} %) — 資金離開存款體系，risk-on 強訊號")
+        elif len(last3) >= 2 and all(v < 0 for v in last3[-2:]):
+            st.info(f"💡 定存 MoM 連 2 月為負 ({last3[-2]:+.2f} / {last3[-1]:+.2f} %) — 觀察是否續為第 3 月")
+
 
 # ============================================================
 #  Section 5：信用與景氣

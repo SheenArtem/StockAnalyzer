@@ -77,6 +77,9 @@ python tools\archive_tw_fgi.py >> taifex_afterclose.log 2>&1
 echo [%date% %time%] [stage]Banner M1B ratio archive (CBC + TWSE FMTQIK) >> taifex_afterclose.log
 python tools\archive_m1b_ratio.py >> taifex_afterclose.log 2>&1
 
+echo [%date% %time%] [stage]CBC time deposits monthly fetch + notify (1.5-2mo lag) >> taifex_afterclose.log
+python tools\fetch_cbc_time_deposits.py --notify >> taifex_afterclose.log 2>&1
+
 echo [%date% %time%] [stage]System 2 daily check (informational tier) >> taifex_afterclose.log
 python tools\system2_daily_check.py >> taifex_afterclose.log 2>&1
 
