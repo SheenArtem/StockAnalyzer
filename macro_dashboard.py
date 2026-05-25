@@ -442,6 +442,55 @@ def _render_sentiment_section():
     except Exception as e:
         st.error(f"Banner 載入失敗：{e}")
 
+    # ----------------------------------------------------------
+    #  Vol Complex 共振面板 (informational tier, 2026-05-25)
+    #  美股 4 訊號 → VIX/VIX3M 期限結構 + VVIX + SKEW + OVX
+    #  ⚠️ 美股經驗閾值，未在台股 IC 驗證；用戶 framework 直接接觀察
+    # ----------------------------------------------------------
+    vc_df = _safe_read_parquet(SENT_DIR / "vol_complex_history.parquet")
+    if vc_df is not None and not vc_df.empty:
+        latest = vc_df.iloc[-1]
+        regime = latest['regime']
+        lit = int(latest['lit_count'])
+        regime_color = {'green': '🟢', 'monitor': '🟡', 'warning': '🟠',
+                        'high_alert': '🔴', 'defensive': '🔴'}.get(regime, '⚪')
+
+        st.markdown(f"##### {regime_color} Vol Complex 共振 (US, informational) — regime: **{regime}** (lit {lit}/4)")
+        st.caption(f"資料日期：{_fmt_date(latest['date'])} / "
+                   f"⚠️ 美股經驗閾值未經台股 IC 驗證，僅觀察用不接 portfolio")
+
+        light_emoji = {'green': '🟢', 'yellow': '🟡', 'orange': '🟠', 'red': '🔴'}
+        vc_cols = st.columns(4)
+
+        vc_cols[0].metric(
+            "VIX/VIX3M 期限",
+            f"{latest['vix_vix3m_ratio']:.3f}",
+            delta=f"{light_emoji[latest['vix_vix3m_ratio_light']]} >1.00 = backwardation",
+            help="近月/3個月 VIX 比；>1.00 急性恐慌，<0.95 contango 正常"
+        )
+        vc_cols[1].metric(
+            "VVIX",
+            f"{latest['vvix']:.1f}",
+            delta=f"{light_emoji[latest['vvix_light']]} 尾端對沖需求",
+            help="VIX 選擇權隱波；>110 機構搶尾端保險"
+        )
+        vc_cols[2].metric(
+            "CBOE SKEW",
+            f"{latest['skew']:.1f}",
+            delta=f"{light_emoji[latest['skew_light']]} 左尾溢價",
+            help="OTM put 相對價格；>145 機構偷偷對沖"
+        )
+        vc_cols[3].metric(
+            "OVX (原油 vol)",
+            f"{latest['ovx']:.1f}",
+            delta=f"{light_emoji[latest['ovx_light']]} 地緣事件 lead",
+            help="CBOE Crude Oil VIX；中東衝突常領先 VIX"
+        )
+
+        if lit >= 2:
+            st.warning(f"⚠️ Vol Complex {lit}/4 訊號亮燈 — 用戶 framework 建議: "
+                       f"{'2 燈減倉 30%' if lit == 2 else '3 燈減倉 60% + 買保護' if lit == 3 else '4 燈防禦模式'}（美股經驗值未驗 TW）")
+
 
 # ============================================================
 #  Section 4：流動性與資金

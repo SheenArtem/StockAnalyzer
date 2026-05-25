@@ -40,6 +40,10 @@ SYMBOLS = {
     "vix": "^VIX",
     "vix3m": "^VIX3M",
     "hyg": "HYG",
+    # 2026-05-25 vol complex 追加 (VIX 期限結構共振 / 跨資產波動率)
+    "vvix": "^VVIX",     # VIX 的 VIX (VIX 選擇權隱波)，反映尾端對沖需求
+    "skew": "^SKEW",     # CBOE SKEW，OTM put 相對價格 = 左尾溢價
+    "ovx": "^OVX",       # CBOE Crude Oil ETF VIX，地緣事件領先指標
 }
 
 

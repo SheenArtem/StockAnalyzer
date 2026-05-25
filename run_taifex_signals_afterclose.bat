@@ -83,6 +83,10 @@ python tools\fetch_cbc_time_deposits.py --notify >> taifex_afterclose.log 2>&1
 echo [%date% %time%] [stage]System 2 daily check (informational tier) >> taifex_afterclose.log
 python tools\system2_daily_check.py >> taifex_afterclose.log 2>&1
 
+echo [%date% %time%] [stage]Vol Complex archive (VIX termstruct / VVIX / SKEW / OVX, informational) >> taifex_afterclose.log
+python tools\fred_fetcher.py --refresh >> taifex_afterclose.log 2>&1
+python tools\archive_vol_complex.py --notify >> taifex_afterclose.log 2>&1
+
 echo [%date% %time%] [stage]System 3 daily check (1w-1mo early warning) >> taifex_afterclose.log
 python tools\system3_daily_check.py >> taifex_afterclose.log 2>&1
 
