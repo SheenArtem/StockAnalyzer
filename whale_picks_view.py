@@ -138,7 +138,7 @@ def _render_today_signals(obj: dict) -> None:
                 buy_rows['分數'] = buy_rows['分數'].apply(lambda v: f"{v:+.2f}" if pd.notna(v) else "n/a")
                 buy_rows['當前收盤'] = buy_rows['當前收盤'].apply(lambda v: f"{v:.2f}" if pd.notna(v) else "n/a")
                 st.markdown("**🟢 今日 BUY 候選**")
-                st.dataframe(buy_rows.reset_index(drop=True), use_container_width=True, hide_index=True)
+                st.dataframe(buy_rows.reset_index(drop=True), width='stretch', hide_index=True)
 
             if sells:
                 prev_lookup = top_prev.set_index('stock_id')
@@ -156,7 +156,7 @@ def _render_today_signals(obj: dict) -> None:
                         })
                 if sell_data:
                     st.markdown("**🔴 今日 SELL 候選**")
-                    st.dataframe(pd.DataFrame(sell_data), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(sell_data), width='stretch', hide_index=True)
 
             if not buys and not sells:
                 st.info(f"與上次 snapshot ({prev_d}) 相比沒有新的 BUY/SELL 訊號。")
@@ -216,7 +216,7 @@ def _render_current_holdings(obj: dict) -> None:
         'Close':                    '當前收盤',
     })
 
-    st.dataframe(df_show, use_container_width=True)
+    st.dataframe(df_show, width='stretch')
     st.caption(
         "**(反向)** 標記的因子：分數越**高**反而**扣分**（例：成交值大 = 大型股不利、"
         "距 52 週高近 = 動能已盡、Capex 重 = 資本黑洞）。綜合分數已經是 7 因子加權後的結果，"
@@ -271,7 +271,7 @@ def _render_pnl_table(df: pd.DataFrame, show_entry_date: bool = False) -> None:
     styled = display.style.map(_color_pnl_tw, subset=['損益%'])
     st.dataframe(
         styled,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             '進場價': st.column_config.NumberColumn('進場價', format="%.2f"),
@@ -452,7 +452,7 @@ def _render_trade_ledger() -> None:
     styled = display.reset_index(drop=True).style.map(_color_pnl_tw, subset=['損益%'])
     st.dataframe(
         styled,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         height=500,
         column_config={
@@ -555,7 +555,7 @@ def _render_portfolio_backtest() -> None:
         st.markdown("**🏆 Year-by-year hits**")
         display_yr = annual_display[['year', 'Whale Picks (%)', 'TWII (%)', 'Alpha (pp)']]
         styled = display_yr.style.map(_color_pnl_tw, subset=['Whale Picks (%)', 'TWII (%)', 'Alpha (pp)'])
-        st.dataframe(styled, use_container_width=True, hide_index=True, height=300)
+        st.dataframe(styled, width='stretch', hide_index=True, height=300)
 
     with st.expander("ℹ️ Caveats / 限制"):
         for c in stats.get('caveats', []):
@@ -601,11 +601,11 @@ def _render_history_diff() -> None:
                 if entered:
                     st.markdown(f"**📈 新進 (A→B, {len(entered)})**")
                     rows_in = [{'stock_id': s, 'stock_name': name_lookup.get(s, '?')} for s in sorted(entered)]
-                    st.dataframe(pd.DataFrame(rows_in), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(rows_in), width='stretch', hide_index=True)
                 if exited:
                     st.markdown(f"**📉 掉出 (A→B, {len(exited)})**")
                     rows_out = [{'stock_id': s, 'stock_name': name_lookup_a.get(s, '?')} for s in sorted(exited)]
-                    st.dataframe(pd.DataFrame(rows_out), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(rows_out), width='stretch', hide_index=True)
         except Exception as e:
             st.error(f"diff 計算失敗: {e}")
 

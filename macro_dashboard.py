@@ -360,7 +360,7 @@ def _render_systemic_chip(sys_chip: dict):
                     "說明": desc,
                 })
         if rows:
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
 
 # ============================================================
@@ -774,7 +774,7 @@ def _render_credit_cycle(macro: dict):
                     "說明": desc,
                 })
             if rows:
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
             st.caption("資料源：國發會 (NDC) `index.ndc.gov.tw` private JSON API；歷史 1967-01+，all-7 from 2013-07")
 
 

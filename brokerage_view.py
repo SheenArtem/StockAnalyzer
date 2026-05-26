@@ -142,7 +142,7 @@ def _render_overview_tab(df_m: pd.DataFrame, df_v: pd.DataFrame,
                 "mention_count": "提及次數", "analyst_count": "分析師數",
                 "sentiment_avg": "平均情緒", "confidence_avg": "平均信心",
             }),
-            use_container_width=True, hide_index=True,
+            width='stretch', hide_index=True,
         )
     else:
         st.caption("（無有效 ticker mention）")
@@ -161,7 +161,7 @@ def _render_overview_tab(df_m: pd.DataFrame, df_v: pd.DataFrame,
                 sorted(theme_counts.items(), key=lambda x: -x[1])[:20],
                 columns=["題材", "影片數"],
             )
-            st.dataframe(theme_df, use_container_width=True, hide_index=True)
+            st.dataframe(theme_df, width='stretch', hide_index=True)
         else:
             st.caption("（無題材資料）")
 
@@ -208,7 +208,7 @@ def _render_overview_tab(df_m: pd.DataFrame, df_v: pd.DataFrame,
                 "entry": "進場", "stop": "停損", "target": "目標",
                 "timeframe": "週期", "thesis": "論述",
             }),
-            use_container_width=True, hide_index=True,
+            width='stretch', hide_index=True,
         )
 
 
@@ -293,7 +293,7 @@ def _render_analyst_tab(df_m: pd.DataFrame, df_v: pd.DataFrame,
                             "entry": "進場", "stop": "停損", "target": "目標",
                             "timeframe": "週期", "thesis": "論述",
                         }),
-                        use_container_width=True, hide_index=True,
+                        width='stretch', hide_index=True,
                     )
 
     # 該分析師近期 ticker 熱度
@@ -310,7 +310,7 @@ def _render_analyst_tab(df_m: pd.DataFrame, df_v: pd.DataFrame,
                     "ticker": "代號", "name": "公司",
                     "count": "次數", "sentiment_avg": "平均情緒",
                 }),
-                use_container_width=True, hide_index=True,
+                width='stretch', hide_index=True,
             )
 
 
@@ -355,7 +355,7 @@ def _render_ticker_lookup_tab(df_m: pd.DataFrame, df_v: pd.DataFrame,
             "entry": "進場", "stop": "停損", "target": "目標",
             "timeframe": "週期", "thesis": "論述", "video_id": "影片 ID",
         }),
-        use_container_width=True, hide_index=True,
+        width='stretch', hide_index=True,
     )
 
 

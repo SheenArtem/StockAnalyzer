@@ -1608,7 +1608,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                         else:
                             df = df[['stock_id', 'close', 'meanrev', 'rsi', 'bias']]
                             df.columns = ['Ticker', 'Price', 'MeanRev', 'RSI', 'BIAS%']
-                        st.dataframe(df, use_container_width=True, column_config={
+                        st.dataframe(df, width='stretch', column_config={
                             'MeanRev': st.column_config.NumberColumn(format="%+.3f"),
                             'RSI': st.column_config.NumberColumn(format="%.0f"),
                             'BIAS%': st.column_config.NumberColumn(format="%+.1f"),
@@ -1848,7 +1848,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                         })
 
                     if _rows:
-                        st.dataframe(_pd_d.DataFrame(_rows), use_container_width=True, hide_index=True)
+                        st.dataframe(_pd_d.DataFrame(_rows), width='stretch', hide_index=True)
                         st.caption("劇本 A=現價可進 / B=等拉回 5-10MA / C=觀望 / D=空頭避開 | C1 ✅ = 月營收 YoY 拐點 (×1.2 加分) | YT 7d = 近 7 日節目提及次數 | 週榜 = 本週三大法人榜上標記 | 題材 = AI era sector tag (manual + News 30d + YT 180d + TV industry 四層融合)")
                     else:
                         st.info("無 pick 資料")
@@ -1879,7 +1879,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                     _display = _agg[['ticker', 'name', 'mentions', 'shows', 'sentiment', 'confidence_avg']].copy()
                     _display['confidence_avg'] = _display['confidence_avg'].round(0).astype(int)
                     _display.columns = ['代號', '名稱', '提及次數', '節目數', '情感', '平均信心']
-                    st.dataframe(_display, use_container_width=True, hide_index=True)
+                    st.dataframe(_display, width='stretch', hide_index=True)
                     st.caption(f"近 {_window} 日 top 30，來源: 錢線百分百 + 鈔錢部署")
 
         # ---- Sub 3: C1 拐點清單 ----
@@ -1896,7 +1896,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                     _c1_display[_col] = _c1_display[_col].apply(
                         lambda v: f"{v:+.1f}%" if _pd_d.notna(v) else '—'
                     )
-                st.dataframe(_c1_display.head(50), use_container_width=True, hide_index=True)
+                st.dataframe(_c1_display.head(50), width='stretch', hide_index=True)
                 st.caption("近 3 月月營收 YoY 從負轉正 (T-2<-2% AND T>+2% or T-1>+2%)。QM 選股在 AI era 自動 ×1.2 加分。")
 
         # ---- Sub 4: Thesis Panel (Wave 0 skeleton, Wave 1 填實) ----
@@ -1974,7 +1974,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                         '適用': '✓' if _suit else '✗',
                     })
                 if _pair_rows:
-                    st.dataframe(_pd_d.DataFrame(_pair_rows), use_container_width=True, hide_index=True)
+                    st.dataframe(_pd_d.DataFrame(_pair_rows), width='stretch', hide_index=True)
                     st.caption(
                         "B-A > +3% = Convergence (B 追上 A) / < -3% = Divergence (B 落後) / 其他 = Neutral | "
                         "**適用 ✗** = V12 驗過該題材無 pair signal alpha，僅觀察不當進場依據"
@@ -2144,7 +2144,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                                     'YT 7d': _yt_md,
                                 })
                         if _buy_rows:
-                            st.dataframe(_pd_d.DataFrame(_buy_rows), hide_index=True, use_container_width=True)
+                            st.dataframe(_pd_d.DataFrame(_buy_rows), hide_index=True, width='stretch')
                     with _col_md_sell:
                         st.markdown("**🔴 機構在賣**")
                         _seen_sell = set()
@@ -2166,7 +2166,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
                                     'YT 7d': _yt_md,
                                 })
                         if _sell_rows:
-                            st.dataframe(_pd_d.DataFrame(_sell_rows), hide_index=True, use_container_width=True)
+                            st.dataframe(_pd_d.DataFrame(_sell_rows), hide_index=True, width='stretch')
 
                     st.caption("YT 7d ×N = 近 7 日節目提及次數（🟢正面 / 🔴負面 / ⚪中性）。機構買 + YT 高提及 = 強共振 thesis 候選。")
             except Exception as _wc_md_err:

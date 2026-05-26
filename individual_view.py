@@ -72,7 +72,7 @@ def render_individual():
         )
     with _col_btn:
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-        if st.button("🚀 開始分析", type="primary", use_container_width=True):
+        if st.button("🚀 開始分析", type="primary", width='stretch'):
             st.session_state['analysis_active'] = True
             st.session_state['force_run'] = False
             st.session_state['app_mode'] = 'analysis'

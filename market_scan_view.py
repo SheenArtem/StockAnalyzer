@@ -192,7 +192,7 @@ def render_market_scan():
                             '連續日': st.column_config.NumberColumn(width='small'),
                             '張數(千)': st.column_config.NumberColumn(format="%+.1f"),
                         }
-                    st.dataframe(_disp, hide_index=True, use_container_width=True,
+                    st.dataframe(_disp, hide_index=True, width='stretch',
                                   column_config=_col_cfg)
 
             st.markdown("---")
@@ -254,7 +254,7 @@ def render_market_scan():
                                      'weekly_amount_b', 'weekly_volume_lots']].copy()
                 _disp_amt.columns = ['#', 'ID', '名稱', '交易日', '週成交額(億)', '週成交量(張)']
                 # 30 rows: row=35px, header=38px, +3px padding = 1091
-                st.dataframe(_disp_amt, hide_index=True, use_container_width=True,
+                st.dataframe(_disp_amt, hide_index=True, width='stretch',
                              column_config=_col_cfg_amt,
                              height=35 * (len(_disp_amt) + 1) + 3)
             with _ms_col_b:
@@ -262,7 +262,7 @@ def render_market_scan():
                 _disp_vol = _df_vol[['rank', 'stock_id', 'stock_name', 'days',
                                      'weekly_volume_lots', 'weekly_amount_b']].copy()
                 _disp_vol.columns = ['#', 'ID', '名稱', '交易日', '週成交量(張)', '週成交額(億)']
-                st.dataframe(_disp_vol, hide_index=True, use_container_width=True,
+                st.dataframe(_disp_vol, hide_index=True, width='stretch',
                              column_config=_col_cfg_vol,
                              height=35 * (len(_disp_vol) + 1) + 3)
 
