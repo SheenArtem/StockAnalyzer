@@ -11,5 +11,6 @@ if exist app.log (
 echo.
 echo Starting StockAnalyzer... (log: app.log)
 echo Open http://localhost:8501 in your browser manually.
+set PYTHONUNBUFFERED=1
 streamlit run app.py >> app.log 2>&1
 pause
