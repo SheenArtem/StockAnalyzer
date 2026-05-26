@@ -49,7 +49,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("phase1_backfill")
 
-START_DATE = '2015-01-01'  # 給 2018-Q1 features 留 ~3 年 lookback (52w high / MA200 / F-Score)
+START_DATE = '2013-01-01'  # 給 2015-Q1 features 留 2 年 lookback (52w high / MA200)
 MANIFEST_PATH = OUTPUT_DIR / "_phase1_missing_active.json"
 
 
