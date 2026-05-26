@@ -15,6 +15,7 @@ tools/screenshots_*/
 
 # 一次性 UI smoke test 腳本
 tools/ui_test_*.py
+tools/ui_smoke_*.py
 tools/*_smoke_test.py
 
 # 一次性 audit 腳本（驗證後丟，結論寫進 memory）
@@ -36,6 +37,7 @@ local/
 # IDE
 .vscode/
 .idea/
+.antigravitycli/
 
 # OS
 Thumbs.db
@@ -73,6 +75,7 @@ data/breadth/*.parquet
 reports/screenshots/macro_*
 reports/screenshots/banner_full_page_*
 reports/screenshots/banner_phase_*
+reports/screenshots/brokerage_yt_*
 
 # Root-level scratch (PDF dump etc.)
 /temp_*.txt

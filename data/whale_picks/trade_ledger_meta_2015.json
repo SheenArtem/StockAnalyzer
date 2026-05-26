@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-05-23T13:26:25",
+  "start": "2015-01-01",
+  "end": "2015-12-31",
+  "K": 10,
+  "rebal_mode": "M15",
+  "min_avg_tv_twd": 10000000.0,
+  "composite_name": "composite_score",
+  "composite": {
+    "low52w_prox_adj": -0.066,
+    "dist_52w_high": -0.071,
+    "f_score": 0.042,
+    "z_score": -0.038,
+    "upper_half_close_20d_pct": 0.051,
+    "revenue_score_6m_delta": 0.031,
+    "debt_ratio": 0.046
+  },
+  "standardization": "industry-neutral",
+  "with_llm_reasons": false,
+  "n_positions": 44,
+  "n_stocks": 35,
+  "n_still_holding": 10,
+  "win_rate": 0.22727272727272727,
+  "avg_pnl_pct": -0.02953324171935204,
+  "median_pnl_pct": -0.018361367628713876,
+  "best_pnl_pct": 0.1829268264316648,
+  "worst_pnl_pct": -0.20574162679425834,
+  "spec_note": "永遠 informational tier per docs/whale_picks_spec.md §13"
+}

@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-05-23T15:08:51",
+  "generated_at": "2026-05-26T00:51:23",
   "start_date": "2016-01-15",
-  "end_date": "2026-05-23",
+  "end_date": "2026-05-26",
   "whale_picks": {
     "name": "Whale Picks",
-    "cagr": 0.2803855847534238,
-    "sharpe": 1.7130538479424018,
-    "vol": 0.15103783329247042,
-    "mdd": -0.27746706798209325,
-    "total_return": 10.795162759603457,
-    "days": 2516,
-    "years": 9.98
+    "cagr": Infinity,
+    "sharpe": 0.0,
+    "vol": NaN,
+    "mdd": -0.1334793174471539,
+    "total_return": Infinity,
+    "days": 2522,
+    "years": 10.01
   },
   "twii": {
     "name": "TWII",
@@ -23,14 +23,14 @@
     "years": 9.87
   },
   "delta": {
-    "cagr_pp": 10.7,
-    "sharpe": 0.716,
-    "vol_pp": -2.49,
-    "mdd_pp": 3.89
+    "cagr_pp": Infinity,
+    "sharpe": -0.997,
+    "vol_pp": NaN,
+    "mdd_pp": 18.28
   },
-  "annual_wins": 8,
+  "annual_wins": 10,
   "annual_years": 11,
-  "annual_hit_rate": 0.727,
+  "annual_hit_rate": 0.909,
   "caveats": [
     "未扣交易成本 (估 ~6 round-trips/年 × 0.3% = -1.8%/年 haircut)",
     "未扣 slippage (估 -0.5%/年)",
