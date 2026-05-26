@@ -306,6 +306,7 @@ def build_positions(feat: pd.DataFrame, K: int = K_DEFAULT,
                 'composite_at_entry': float(entry_row[composite_name]) if pd.notna(entry_row[composite_name]) else np.nan,
                 'composite_at_exit': float(exit_row[composite_name]) if pd.notna(exit_row[composite_name]) else np.nan,
                 'rank_at_entry': int(entry_row['_rank']) if pd.notna(entry_row.get('_rank')) else None,
+                'entry_type': 'system',
             }
             # Standardized factor scores (for top-driver calc)
             for c in factor_cols:
@@ -637,6 +638,9 @@ def main():
     parser.add_argument('--rebal-mode', default='M15', choices=['M', 'M15'],
                         help='Rebalance day: M15 (default, 2026-05-22 切換, 15 號或之前最後交易日) '
                              'or M (legacy, 月底最後交易日)')
+    parser.add_argument('--preserve-manual', action='store_true',
+                        help='Full rebuild 時保留現有 entry_type IN (alert, upgraded) 的 rows '
+                             '(防止 manual alert add 被 wipe，預設關閉避免誤觸)')
     args = parser.parse_args()
 
     if args.reasons_only:
@@ -651,6 +655,14 @@ def main():
                     composite_name=args.composite, rebal_mode=args.rebal_mode)
         return
 
+    # Preserve manual alert/upgraded rows BEFORE rebuild wipes them
+    manual_rows = pd.DataFrame()
+    if args.preserve_manual and LEDGER_PATH.exists():
+        existing = pd.read_parquet(LEDGER_PATH)
+        if 'entry_type' in existing.columns:
+            manual_rows = existing[existing['entry_type'].isin(['alert', 'upgraded'])].copy()
+            log.info("Preserving %d manual rows (alert/upgraded) from existing ledger", len(manual_rows))
+
     feat = build_v13_feat(args.start, args.end, composite_name=args.composite,
                             rebal_mode=args.rebal_mode)
     df = build_positions(feat, K=args.k, composite_name=args.composite)
@@ -664,6 +676,31 @@ def main():
     if args.with_reasons:
         df = generate_reasons(df, batch_size=args.reasons_batch_size,
                               composite_name=args.composite, K=args.k)
+
+    # Merge preserved manual rows back; dedupe overlapping system positions
+    # (if upgraded pos exists for same stock_id covering a date range, skip system rebuild that overlaps)
+    if len(manual_rows) > 0:
+        upgraded_mask = manual_rows['entry_type'] == 'upgraded'
+        if upgraded_mask.any():
+            up_rows = manual_rows[upgraded_mask]
+            drop_idx = []
+            for _, ur in up_rows.iterrows():
+                u_sid = ur['stock_id']
+                u_entry = pd.Timestamp(ur['entry_date'])
+                u_exit = pd.Timestamp(ur['exit_date']) if pd.notna(ur.get('exit_date')) else pd.Timestamp.max
+                ovr = df[
+                    (df['stock_id'] == u_sid)
+                    & (pd.to_datetime(df['entry_date']) <= u_exit)
+                    & (df['exit_date'].apply(lambda x: pd.Timestamp(x) if pd.notna(x) else pd.Timestamp.max) >= u_entry)
+                ]
+                drop_idx.extend(ovr.index.tolist())
+            if drop_idx:
+                log.info("Dropping %d system positions overlapping with upgraded rows", len(drop_idx))
+                df = df.drop(drop_idx).reset_index(drop=True)
+        df = pd.concat([df, manual_rows], ignore_index=True)
+        df = df.sort_values(['stock_id', 'entry_date']).reset_index(drop=True)
+        log.info("Final ledger: %d rows (%d system + %d manual)",
+                 len(df), len(df) - len(manual_rows), len(manual_rows))
 
     save_ledger(df, args.start, args.end, args.k, with_reasons=args.with_reasons,
                 composite_name=args.composite, rebal_mode=args.rebal_mode)

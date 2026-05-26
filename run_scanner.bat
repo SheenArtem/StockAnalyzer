@@ -339,6 +339,16 @@ echo [%date% %time%] Whale picks alerts starting >> scanner.log
 python tools\whale_picks_alerts.py >> scanner.log 2>&1
 echo [%date% %time%] Whale picks alerts done >> scanner.log
 
+REM 2026-05-26: Whale picks ledger incremental append (M15 self-gated).
+REM Runs daily but only reconciles when today == M15 rebal day AND holdings
+REM was just refreshed (rebalance_date == today). Otherwise no-op.
+REM Reconciles alert_adds (mid-month manual adds): upgrade->'system' if entered
+REM new top-10, else force-exit. Closes still_holding 'upgraded' rows if they
+REM fell out of top-10. Best-effort.
+echo [%date% %time%] Whale picks ledger append starting >> scanner.log
+python tools\whale_picks_ledger_append.py --rebal >> scanner.log 2>&1
+echo [%date% %time%] Whale picks ledger append done >> scanner.log
+
 REM Portfolio-level backtest vs TWII (refresh NAV / annual stats for UI).
 REM Reads trade_ledger.parquet + ohlcv_tw.parquet. ~2-3 sec. Best-effort.
 echo [%date% %time%] Whale picks portfolio backtest starting >> scanner.log

@@ -323,6 +323,12 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
         top = [c for c, val in contribs[:3] if val > 0]
         return " / ".join(FACTOR_LABEL_ZH.get(c, c) for c in top) if top else "n/a"
 
+    # Preserve alert_adds across refresh (only system tickers get overwritten);
+    # ledger_append --rebal handles alert_adds upgrade/close downstream
+    preserved_alert_adds = []
+    if existing and isinstance(existing.get('alert_adds'), list):
+        preserved_alert_adds = existing['alert_adds']
+
     holdings = {
         'rebalance_date': snap_date.isoformat(),
         'reason': 'm15_rebal' if is_rebal_day else ('forced' if force else ('k_drift' if k_drift else 'bootstrap')),
@@ -335,12 +341,15 @@ def _maybe_update_holdings(today: date, snapshots: List[date], force: bool = Fal
                 'entry_close': float(r.get('Close', np.nan)),
                 'entry_composite': float(r[score_col]),
                 'entry_drivers': _compute_drivers(r),
+                'entry_type': 'system',
             }
             for _, r in top_k.iterrows()
         ],
+        'alert_adds': preserved_alert_adds,
     }
     HOLDINGS_PATH.write_text(json.dumps(holdings, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
-    log.info("Updated holdings (%s): %d tickers", holdings['reason'], len(holdings['tickers']))
+    log.info("Updated holdings (%s): %d tickers (preserved %d alert_adds)",
+             holdings['reason'], len(holdings['tickers']), len(preserved_alert_adds))
     return holdings
 
 
@@ -404,11 +413,12 @@ def format_discord_alert(entries: List[Dict], exits: List[Dict],
 
     if mid_buys:
         lines.append(f"\n🚀 **Mid-rebal BUY 候選 — rank {MID_RANK_LOW + 1}-{MID_RANK_HIGH} + 5d 漲 ≥ {MID_5D_RET_THRESHOLD*100:.0f}%**")
-        lines.append(f"_M15 rebal 漏抓的 mid-cycle 爆發候選；不自動進場，僅提醒手動評估_")
+        lines.append(f"_M15 rebal 漏抓的 mid-cycle 爆發候選；不自動進場，user 自帶外部資金手動下單_")
         for m in mid_buys[:10]:
             lines.append(f"• **{m['stock_id']}** {m['stock_name']}  rank {m['rank_now']}  5d {m['ret_5d']*100:+.1f}%  close {m['close_5d_ago']:.1f}→{m['close_now']:.1f}")
         if len(mid_buys) > 10:
             lines.append(f"_...另 {len(mid_buys)-10} 檔_")
+        lines.append(f"_買進後執行 `python tools/whale_picks_ledger_append.py --alert-add <stock_id>` 記入 ledger_")
 
     if exits:
         lines.append(f"\n📉 **持股早期警報 — Drawdown ≥ {abs(DROP_THRESHOLD)*100:.0f}%**")

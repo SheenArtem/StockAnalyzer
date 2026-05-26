@@ -228,26 +228,8 @@ def _render_current_holdings(obj: dict) -> None:
 # Section 3a — 當前持倉即時損益 (Live Holdings PnL)
 # =============================================================================
 
-def _render_current_holdings_pnl() -> None:
-    """當前 _active_holdings.json 對照最新 daily snapshot 收盤算 PnL + 顯示進場理由。"""
-    holdings = _load_active_holdings()
-    if not holdings or not holdings.get('tickers'):
-        st.info("📭 尚未產生當前持倉清單 (`_active_holdings.json`)。等下次 M15 rebalance (每月 15 號或之前最後交易日) 或手動跑 `python tools/whale_picks_alerts.py --update-holdings`。")
-        return
-
-    rebalance_date = holdings.get('rebalance_date', '?')
-    reason = holdings.get('reason', '?')
-    tickers = holdings['tickers']
-
-    snapshot_date, snapshot_close = _load_latest_snapshot_close()
-    snapshot_date_str = snapshot_date.isoformat() if snapshot_date else '?'
-
-    st.subheader("💼 當前持倉損益")
-    st.caption(
-        f"進場日: **{rebalance_date}** ({reason}) / 最近收盤: **{snapshot_date_str}** / 持有 **{len(tickers)}** 檔。"
-        f" 純 EOD 收盤對比 (monthly hold 不需秒級即時)，盤中即時價請查券商 app。"
-    )
-
+def _build_pnl_rows(tickers: list, snapshot_close: dict, default_drivers: str = 'n/a') -> pd.DataFrame:
+    """Build PnL rows for either system tickers or alert adds."""
     rows = []
     for t in tickers:
         sid = str(t.get('stock_id', ''))
@@ -263,38 +245,29 @@ def _render_current_holdings_pnl() -> None:
             'industry': t.get('industry', ''),
             'entry_close': entry,
             'latest': latest,
-            'entry_drivers': t.get('entry_drivers', 'n/a'),
+            'entry_drivers': t.get('entry_drivers') or t.get('entry_date') or default_drivers,
+            'entry_date': t.get('entry_date', ''),
             'pnl_pct': pnl_pct,
         })
+    return pd.DataFrame(rows)
 
-    df = pd.DataFrame(rows)
 
-    # 加總指標
-    closed = df.dropna(subset=['pnl_pct'])
-    cM1, cM2, cM3, cM4 = st.columns(4)
-    cM1.metric("持倉檔數", f"{len(df)}", help=f"有最新收盤: {len(closed)} 檔")
-    if len(closed):
-        avg_pnl = closed['pnl_pct'].mean() * 100
-        cM2.metric("平均報酬", f"{avg_pnl:+.2f}%")
-        cM3.metric("勝率", f"{(closed['pnl_pct'] > 0).mean() * 100:.0f}%",
-                   help=f"{int((closed['pnl_pct'] > 0).sum())}/{len(closed)} 檔正報酬")
-        cM4.metric("最佳/最差", f"{closed['pnl_pct'].max()*100:+.1f}% / {closed['pnl_pct'].min()*100:+.1f}%")
-    else:
-        cM2.metric("平均報酬", "n/a")
-        cM3.metric("勝率", "n/a")
-        cM4.metric("最佳/最差", "n/a")
-
-    # 顯示表格 (損益% 用 numeric 讓 Streamlit 排序正常)
-    display = pd.DataFrame({
+def _render_pnl_table(df: pd.DataFrame, show_entry_date: bool = False) -> None:
+    """Render PnL table with TW color convention (red=+ / green=-)."""
+    if len(df) == 0:
+        return
+    cols = {
         '股票': df['stock_id'] + ' ' + df['stock_name'].fillna(''),
         '產業': df['industry'].fillna(''),
         '進場價': df['entry_close'],
         '最近收盤': df['latest'],
-        '損益%': df['pnl_pct'] * 100,  # numeric 給 column_config 排序
-        '進場理由': df['entry_drivers'].fillna('n/a'),
-    })
+        '損益%': df['pnl_pct'] * 100,
+    }
+    if show_entry_date:
+        cols['進場日'] = df['entry_date'].fillna('')
+    cols['進場理由'] = df['entry_drivers'].fillna('n/a')
+    display = pd.DataFrame(cols)
     display = display.sort_values('損益%', ascending=False, na_position='last').reset_index(drop=True)
-    # TW 慣例配色：正報酬 = 紅、負報酬 = 綠
     styled = display.style.map(_color_pnl_tw, subset=['損益%'])
     st.dataframe(
         styled,
@@ -308,13 +281,71 @@ def _render_current_holdings_pnl() -> None:
         },
     )
 
+
+def _render_current_holdings_pnl() -> None:
+    """當前 _active_holdings.json 對照最新 daily snapshot 收盤算 PnL + 顯示進場理由。
+
+    2026-05-26 加 alert_adds 分組: 系統選股 (10) + Alert 加碼 (N) 分組顯示，PnL 總和算。
+    """
+    holdings = _load_active_holdings()
+    if not holdings or not holdings.get('tickers'):
+        st.info("📭 尚未產生當前持倉清單 (`_active_holdings.json`)。等下次 M15 rebalance (每月 15 號或之前最後交易日) 或手動跑 `python tools/whale_picks_alerts.py --update-holdings`。")
+        return
+
+    rebalance_date = holdings.get('rebalance_date', '?')
+    reason = holdings.get('reason', '?')
+    tickers = holdings['tickers']
+    alert_adds = holdings.get('alert_adds') or []
+
+    snapshot_date, snapshot_close = _load_latest_snapshot_close()
+    snapshot_date_str = snapshot_date.isoformat() if snapshot_date else '?'
+
+    total_n = len(tickers) + len(alert_adds)
+
+    st.subheader("💼 當前持倉損益")
+    st.caption(
+        f"進場日: **{rebalance_date}** ({reason}) / 最近收盤: **{snapshot_date_str}** / "
+        f"持有 **{total_n}** 檔 (系統 {len(tickers)} + Alert 加碼 {len(alert_adds)})。"
+        f" 純 EOD 收盤對比 (monthly hold 不需秒級即時)，盤中即時價請查券商 app。"
+    )
+
+    sys_df = _build_pnl_rows(tickers, snapshot_close)
+    alert_df = _build_pnl_rows(alert_adds, snapshot_close)
+    all_df = pd.concat([sys_df, alert_df], ignore_index=True) if len(alert_df) else sys_df
+
+    # 加總指標 (合計所有持倉)
+    closed = all_df.dropna(subset=['pnl_pct'])
+    cM1, cM2, cM3, cM4 = st.columns(4)
+    cM1.metric("持倉檔數", f"{total_n}", help=f"有最新收盤: {len(closed)} 檔")
+    if len(closed):
+        avg_pnl = closed['pnl_pct'].mean() * 100
+        cM2.metric("平均報酬", f"{avg_pnl:+.2f}%")
+        cM3.metric("勝率", f"{(closed['pnl_pct'] > 0).mean() * 100:.0f}%",
+                   help=f"{int((closed['pnl_pct'] > 0).sum())}/{len(closed)} 檔正報酬")
+        cM4.metric("最佳/最差", f"{closed['pnl_pct'].max()*100:+.1f}% / {closed['pnl_pct'].min()*100:+.1f}%")
+    else:
+        cM2.metric("平均報酬", "n/a")
+        cM3.metric("勝率", "n/a")
+        cM4.metric("最佳/最差", "n/a")
+
+    # 系統選股表
+    st.markdown(f"#### 📡 系統選股 ({len(tickers)})")
+    _render_pnl_table(sys_df, show_entry_date=False)
+
+    # Alert 加碼表 (only render if any)
+    if len(alert_adds):
+        st.markdown(f"#### 🔔 Alert 加碼 ({len(alert_adds)})")
+        st.caption("Mid-month BUY alert 觸發後 user 自帶外部資金手動加碼，下月 M15 rebal 強制結算或升級系統選股。")
+        _render_pnl_table(alert_df, show_entry_date=True)
+
     with st.expander("ℹ️ 進場理由說明", expanded=False):
         st.markdown(
-            "- 進場理由 = 進場日當天 composite_score 8 因子裡，"
+            "- 進場理由 = 進場日當天 composite_score 7 因子裡，"
             "對該股 ranking 貢獻最大的前 3 個（factor × weight 為正且最大）\n"
             "- 例如「近 52 週低點 / 上 20 日上半部 / Piotroski F-Score」= "
             "進場時這檔因為「股價接近年低 + 近期股價偏強 + 財務體質好」被選中\n"
-            "- 完整因子對照表見 `tools/whale_picks_trade_ledger.py::FACTOR_LABEL_ZH`"
+            "- 完整因子對照表見 `tools/whale_picks_trade_ledger.py::FACTOR_LABEL_ZH`\n"
+            "- Alert 加碼透過 `python tools/whale_picks_ledger_append.py --alert-add <stock_id>` 記入 ledger"
         )
 
 
