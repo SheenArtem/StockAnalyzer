@@ -254,40 +254,47 @@ def _render_analyst_tab(df_m: pd.DataFrame, df_v: pd.DataFrame,
     name = df_va["analyst_name"].iloc[0]
     st.markdown(f"## 👤 {name}（近 {window_days} 日）")
 
-    # 影片摘要列表
-    st.markdown("### 📹 影片列表")
-    for _, row in df_va.sort_values("date", ascending=False).iterrows():
-        with st.expander(
-            f"{row['date']} — {row['title'][:50]} "
-            f"({row.get('recommended_action', '')})",
-            expanded=False,
-        ):
-            if row.get("analyst_view"):
-                st.markdown(f"**大盤觀點**: {row['analyst_view']}")
-            if row.get("macro_views"):
-                st.markdown(f"**美股/Fed**: {row['macro_views']}")
-            if row.get("risk_warning"):
-                st.markdown(f"**⚠️ 風險**: {row['risk_warning']}")
-            themes = row.get("themes_discussed", [])
-            if isinstance(themes, (list, tuple)) and len(themes) > 0:
-                st.markdown(f"**題材**: {', '.join(themes)}")
-            video_url = f"https://www.youtube.com/watch?v={row['video_id']}"
-            st.markdown(f"[🔗 看原影片]({video_url})")
+    # 影片摘要列表（預設收起，避免 Tab 一打開就被一長串影片洗版）
+    # Streamlit 不允許 nested expander，改用 toggle 控制外層顯隱
+    video_count = df_va["video_id"].nunique()
+    show_videos = st.toggle(
+        f"📹 展開影片列表（{video_count} 部）",
+        value=False,
+        key=f"brokerage_show_videos_{brokerage}_{sel}",
+    )
+    if show_videos:
+        for _, row in df_va.sort_values("date", ascending=False).iterrows():
+            with st.expander(
+                f"{row['date']} — {row['title'][:50]} "
+                f"({row.get('recommended_action', '')})",
+                expanded=False,
+            ):
+                if row.get("analyst_view"):
+                    st.markdown(f"**大盤觀點**: {row['analyst_view']}")
+                if row.get("macro_views"):
+                    st.markdown(f"**美股/Fed**: {row['macro_views']}")
+                if row.get("risk_warning"):
+                    st.markdown(f"**⚠️ 風險**: {row['risk_warning']}")
+                themes = row.get("themes_discussed", [])
+                if isinstance(themes, (list, tuple)) and len(themes) > 0:
+                    st.markdown(f"**題材**: {', '.join(themes)}")
+                video_url = f"https://www.youtube.com/watch?v={row['video_id']}"
+                st.markdown(f"[🔗 看原影片]({video_url})")
 
-            # 該影片的 mentions
-            v_mentions = df_ma[df_ma["video_id"] == row["video_id"]]
-            if not v_mentions.empty:
-                st.dataframe(
-                    v_mentions[["ticker", "name", "sentiment", "confidence",
-                                "entry", "stop", "target", "timeframe", "thesis"]]
-                    .rename(columns={
-                        "ticker": "代號", "name": "公司",
-                        "sentiment": "情緒", "confidence": "信心",
-                        "entry": "進場", "stop": "停損", "target": "目標",
-                        "timeframe": "週期", "thesis": "論述",
-                    }),
-                    use_container_width=True, hide_index=True,
-                )
+                # 該影片的 mentions
+                v_mentions = df_ma[df_ma["video_id"] == row["video_id"]]
+                if not v_mentions.empty:
+                    st.dataframe(
+                        v_mentions[["ticker", "name", "sentiment", "confidence",
+                                    "entry", "stop", "target", "timeframe", "thesis"]]
+                        .rename(columns={
+                            "ticker": "代號", "name": "公司",
+                            "sentiment": "情緒", "confidence": "信心",
+                            "entry": "進場", "stop": "停損", "target": "目標",
+                            "timeframe": "週期", "thesis": "論述",
+                        }),
+                        use_container_width=True, hide_index=True,
+                    )
 
     # 該分析師近期 ticker 熱度
     if not df_ma.empty:
