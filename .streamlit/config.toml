@@ -4,3 +4,6 @@
 # Trade-off: editing .py files no longer auto-reloads the app — click "Rerun" in the
 # Streamlit menu, or restart run_app.bat, after code changes.
 fileWatcherType = "none"
+
+# Do not auto-open browser on startup.
+headless = true
