@@ -1,0 +1,7 @@
+universe,variant,n_samples,cagr_mean,cagr_median,sharpe_mean,mdd_mean,beat_bh_pct,bh_cagr_mean,bh_mdd_mean
+bottom_20,V0_baseline,16,0.5,-0.96,0.1,-53.52,18.75,9.86,-71.79
+bottom_20,V4_switch_1.5+adx,16,0.98,-1.0,0.1,-53.04,18.75,10.06,-71.79
+random_20,V0_baseline,18,-0.67,-1.44,0.08,-49.55,11.11,12.12,-68.68
+random_20,V4_switch_1.5+adx,18,-0.21,-1.06,0.08,-47.29,11.11,12.14,-68.68
+top_20,V0_baseline,20,0.93,0.37,0.03,-36.47,5.0,10.95,-48.97
+top_20,V4_switch_1.5+adx,20,1.17,0.38,0.06,-35.35,10.0,10.97,-48.97

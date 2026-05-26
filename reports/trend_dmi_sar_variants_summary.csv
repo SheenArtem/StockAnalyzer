@@ -1,0 +1,6 @@
+variant,n_trades_mean,win_rate_pct_mean,cagr_pct_mean,cagr_pct_median,sharpe_mean,mdd_pct_mean,beat_bh_pct
+V0_baseline,61.538,43.272,-2.55,0.46,0.037,-37.94,0.0
+V1_switch_1.5,57.462,45.482,-1.764,1.055,0.125,-35.333,0.0
+V2_switch_2.0,54.769,44.565,-1.863,0.815,0.12,-36.922,0.0
+V3_adx_exit,66.462,42.69,0.961,-0.46,0.014,-35.18,0.0
+V4_switch_1.5+adx,63.577,43.789,1.458,0.295,0.074,-33.358,0.0
