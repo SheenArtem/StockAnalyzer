@@ -360,8 +360,8 @@ def render_ai_reports():
                     '日期': f"{_r.get('date', '')} {_r.get('time', '')[:5]}",
                     '股票': _r['ticker'],
                     '格式': _fmt_label,
-                    '觸發分數': _r.get('trigger_score') or '',
-                    '趨勢分數': _r.get('trend_score') or '',
+                    '觸發分數': _r.get('trigger_score'),
+                    '趨勢分數': _r.get('trend_score'),
                     'ID': _r['report_id'],
                 })
             if _list_rows:

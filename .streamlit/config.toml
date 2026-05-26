@@ -1,0 +1,6 @@
+[server]
+# Disable file watcher to avoid Streamlit walking sys.modules and triggering
+# transformers' lazy vision processors (which require torchvision we don't install).
+# Trade-off: editing .py files no longer auto-reloads the app — click "Rerun" in the
+# Streamlit menu, or restart run_app.bat, after code changes.
+fileWatcherType = "none"
