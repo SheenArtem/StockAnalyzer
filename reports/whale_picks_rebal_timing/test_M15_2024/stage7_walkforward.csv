@@ -1,0 +1,11 @@
+feature,wf_ic_mean,wf_ic_pos_pct,wf_n_windows,looy_min_ic,looy_max_ic,looy_range,regime_bull_ic,regime_bear_ic,regime_sideways_ic
+composite_score,,,0,,,,0.1314264866103854,,
+close_to_ma240,,,0,,,,-0.12179685699556186,,
+vol_compression_60_252,,,0,,,,-0.10959766550481874,,
+roe,,,0,,,,0.07314605871468438,,
+low52w_prox_adj,,,0,,,,-0.06993468337186337,,
+ma60_slope_20d,,,0,,,,-0.04443516750920698,,
+stock_rs_in_sector_60d,,,0,,,,-0.025391916053762065,,
+body_strength_20d,,,0,,,,-0.0012371701271582608,,
+composite_wf_score,,,0,,,,,,
+composite_parsi,,,0,,,,0.056335089819357274,,
