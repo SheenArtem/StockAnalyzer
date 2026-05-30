@@ -180,37 +180,57 @@ def collect_context() -> str:
 #  Prompt 組裝
 # ============================================================
 
-def build_prompt(context: str) -> str:
+def build_prompt(context: str, fmt: str = "html") -> str:
+    """組裝報告 prompt。
+
+    fmt='html'：本地 LLM pipeline 用（要求輸出 HTML body 內嵌 iframe）。
+    fmt='md'  ：使用者複製到 claude.ai 用（要求輸出 Markdown，網頁端較好讀）。
+    兩版段落內容相同，只有標題語法 + 輸出格式指示不同（2026-05-30 加 md 匯出）。
+    """
+    if fmt == "md":
+        directive = ("請產出一份「總經大盤風向研究報告」，用 **Markdown** 表達"
+                     "（## 主標 / ### 次標 / 段落 / `-` 條列），內容必須包含以下五段：")
+        def H(n, t):
+            return f"## {n}. {t}"
+        out_fmt_rule = "- 用台灣繁體中文，Markdown 格式輸出"
+    else:
+        directive = ("請產出一份「總經大盤風向研究報告」，內容必須包含以下五段"
+                     "（用 HTML <h2>/<h3>/<p>/<ul> 表達，最後輸出整段乾淨的 HTML body 即可，"
+                     "不要 <html>/<head>/<body> wrapper）：")
+        def H(n, t):
+            return f"<h2>{n}. {t}</h2>"
+        out_fmt_rule = "- 用台灣繁體中文"
+
     return f"""你是一位資深總體經濟與量化研究員，以下是台股 + 美股大盤的當前完整資料面板。
 
 【資料面板】
 {context}
 
 【任務】
-請產出一份「總經大盤風向研究報告」，內容必須包含以下五段（用 HTML <h2>/<h3>/<p>/<ul> 表達，最後輸出整段乾淨的 HTML body 即可，不要 <html>/<head>/<body> wrapper）：
+{directive}
 
-<h2>1. 當前風險定調</h2>
-- 5 階燈號：危機/嚴重/警戒/留意/安全 — 給出明確選一
+{H(1, "當前風險定調")}
+- 5 階燈號：危機/嚴重/警戒/留意/安全 -- 給出明確選一
 - 一句話定調 (50 字內)
 - 主要驅動訊號 top 3 (依重要性排序，每條附「為何重要」)
 
-<h2>2. 1-4 週情境推演</h2>
+{H(2, "1-4 週情境推演")}
 - Scenario A (基本情境，機率 % 估計)：什麼會發生 + 觸發條件
 - Scenario B (悲觀情境)：同上
 - Scenario C (樂觀情境)：同上
 
-<h2>3. 訊號交叉驗證</h2>
+{H(3, "訊號交叉驗證")}
 - 哪些訊號互相印證？(例：HY OAS 高 + 廣度轉弱 + SBL 增 = 多重共振)
 - 哪些訊號彼此衝突？怎麼解讀？
 - 每個訊號的 false positive 風險 (歷史上幾次假警報？)
 
-<h2>4. 操作建議 (informational only, SOP-14)</h2>
+{H(4, "操作建議 (informational only, SOP-14)")}
 - 部位水位建議區間（如 5-7 成）
 - 避險工具建議（PUT / 反向 ETF / 提高現金）
 - 進場/觀察條件 trigger price 或 indicator level
-- ⚠️ 強調這是 informational tier，非自動 portfolio rebalance gate
+- 強調這是 informational tier，非自動 portfolio rebalance gate
 
-<h2>5. 資料缺口與下一步建議</h2>
+{H(5, "資料缺口與下一步建議")}
 這段最重要，請仔細思考：
 - 當前 panel 缺什麼資料？(列 5-10 個指標)
 - 哪些資料能讓 1-4 週 lead 更可靠？(列出具體 FRED ID / 資料源 / 取得方式)
@@ -219,12 +239,31 @@ def build_prompt(context: str) -> str:
 - 是否有跨市場資料（中國/日本/歐洲）能加強？
 
 【輸出規範】
-- 用台灣繁體中文
+{out_fmt_rule}
 - 數字精準到小數點 2 位
 - 文字嚴謹但不過度套話，避免空話
 - 必須引用 panel 的具體數字（不能說「市場可能波動」這種空話）
 - 第 5 段是真正的價值，不要敷衍
 """
+
+
+def export_prompt(fmt: str = "md") -> Path:
+    """只組 prompt 不呼叫任何 LLM，寫檔供使用者複製到 claude.ai 自行產生報告。
+    （2026-05-30：避免本地 Opus CLI 消耗 Agent SDK Credit。）"""
+    context = collect_context()
+    prompt = build_prompt(context, fmt="md")  # claude.ai 端用 markdown 輸出較好讀
+    if fmt == "json":
+        out_path = OUT_DIR / "latest_prompt.json"
+        out_path.write_text(json.dumps(
+            {"generated_at": datetime.now().isoformat(timespec="seconds"),
+             "panel_context": context,
+             "report_prompt": prompt},
+            ensure_ascii=False, indent=2), encoding="utf-8")
+    else:
+        out_path = OUT_DIR / "latest_prompt.md"
+        out_path.write_text(prompt, encoding="utf-8")
+    logger.info("Prompt exported (%s, %d chars) -> %s", fmt, len(prompt), out_path)
+    return out_path
 
 
 # ============================================================
@@ -513,7 +552,17 @@ def main():
     parser.add_argument('--no-claude', action='store_true')
     parser.add_argument('--no-gemini', action='store_true')
     parser.add_argument('--no-council', action='store_true')
+    parser.add_argument('--export-prompt', action='store_true',
+                        help='只匯出 prompt 供複製到 claude.ai，不呼叫本地 LLM')
+    parser.add_argument('--format', choices=['md', 'json'], default='md',
+                        help='--export-prompt 格式 (預設 md)')
     args = parser.parse_args()
+
+    if args.export_prompt:
+        out = export_prompt(fmt=args.format)
+        sys.stdout.write(f"\n[OK] Prompt exported: {out}\n")
+        sys.stdout.flush()
+        return
 
     out = run(
         use_claude=not args.no_claude,

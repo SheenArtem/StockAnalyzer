@@ -845,57 +845,71 @@ def _render_valuation(val: dict):
 # ============================================================
 
 def _render_ai_report_section():
-    """AI 風向研究報告 — 雙 LLM (Claude Opus + Gemini 3.1 Pro) + Sonnet council。"""
+    """AI 風向研究報告 -- 匯出 claude.ai 提示詞 (Markdown/JSON)。
+
+    2026-05-30：從本地 Opus CLI 改為「匯出提示詞」工作流 -- 把完整資料面板 +
+    報告指示組成 prompt，使用者複製貼到 claude.ai 由網頁端產生報告（不消耗本地
+    Agent SDK Credit）。本地 LLM 版仍可手動跑 `python tools/macro_compass_report.py`。
+    """
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    with st.expander("🤖 AI 風向研究報告 (Claude Opus + Gemini 雙視角)", expanded=False):
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            if st.button("🚀 產生新報告", type="primary",
-                         help="呼叫 Claude Opus + Gemini 3.1 Pro，再用 Sonnet council 統整。約 5-15 分鐘。"):
-                _run_ai_report_async()
+    with st.expander("🤖 AI 風向研究報告 (匯出 claude.ai 提示詞)", expanded=False):
+        st.caption("產生含完整資料面板的提示詞 -> 複製/下載後貼到 claude.ai，"
+                   "由它產生報告（不消耗本地 LLM 額度）。")
+        c1, c2 = st.columns([1, 1])
+        gen_md = c1.button("📋 產生提示詞 (MD)", type="primary",
+                           help="組裝資料面板 + 報告指示為 Markdown 提示詞")
+        gen_json = c2.button("產生提示詞 (JSON)",
+                             help="JSON 含 panel_context + report_prompt 兩欄")
 
-        with col2:
-            # 顯示最新報告 metadata
-            metas = sorted(REPORTS_DIR.glob("*.meta.json"))
-            if metas:
-                import json
-                latest_meta = json.loads(metas[-1].read_text(encoding='utf-8'))
-                st.caption(
-                    f"最新報告：{latest_meta.get('datetime', 'N/A')[:19]} | "
-                    f"Claude: {'✅' if latest_meta.get('claude_ok') else '❌'} "
-                    f"Gemini: {'✅' if latest_meta.get('gemini_ok') else '❌'} "
-                    f"Council: {'✅' if latest_meta.get('council_ok') else '❌'}"
-                )
-            else:
-                st.caption("尚無報告。點選左方「產生新報告」啟動 5-15 分鐘的雙 LLM 分析。")
+        if gen_md or gen_json:
+            try:
+                import sys as _sys
+                _tools = str(REPO / "tools")
+                if _tools not in _sys.path:
+                    _sys.path.insert(0, _tools)
+                from macro_compass_report import collect_context, build_prompt
+                with st.spinner("組裝資料面板中（約數秒）..."):
+                    ctx = collect_context()
+                    prompt = build_prompt(ctx, fmt="md")
+                if gen_json:
+                    import json as _json
+                    st.session_state['macro_prompt'] = _json.dumps(
+                        {"panel_context": ctx, "report_prompt": prompt},
+                        ensure_ascii=False, indent=2)
+                    st.session_state['macro_prompt_fmt'] = 'json'
+                else:
+                    st.session_state['macro_prompt'] = prompt
+                    st.session_state['macro_prompt_fmt'] = 'md'
+            except Exception as e:
+                st.error(f"產生提示詞失敗：{e}")
 
-        # 報告選單
+        prompt_txt = st.session_state.get('macro_prompt')
+        if prompt_txt:
+            fmt = st.session_state.get('macro_prompt_fmt', 'md')
+            st.success(f"已產生 {fmt.upper()} 提示詞（{len(prompt_txt):,} 字）。"
+                       "點程式碼框右上角複製鈕，或下載後貼到 claude.ai。")
+            st.download_button(
+                f"⬇️ 下載 macro_compass_prompt.{fmt}",
+                data=prompt_txt.encode('utf-8'),
+                file_name=f"macro_compass_prompt.{fmt}",
+                mime="application/json" if fmt == 'json' else "text/markdown",
+            )
+            st.code(prompt_txt, language="json" if fmt == 'json' else "markdown")
+
+        # 歷史本地 LLM 報告（legacy；新流程改匯出提示詞）
         htmls = sorted(REPORTS_DIR.glob("*.html"), reverse=True)
         htmls = [h for h in htmls if h.name != 'latest.html']
         if htmls:
-            options = ['(最新)'] + [h.stem for h in htmls[:20]]
-            sel = st.selectbox("查看歷史報告", options=options, index=0)
-            target = REPORTS_DIR / "latest.html" if sel == '(最新)' else REPORTS_DIR / f"{sel}.html"
-            if target.exists():
-                html = target.read_text(encoding='utf-8')
-                st.components.v1.html(html, height=900, scrolling=True)
-
-
-def _run_ai_report_async():
-    """背景呼叫 macro_compass_report.py，通過 session_state 顯示進度。"""
-    import subprocess
-    import sys as _sys
-
-    cmd = [_sys.executable, str(REPO / "tools" / "macro_compass_report.py")]
-    st.info(f"🔄 已啟動報告產生器（{datetime.now().strftime('%H:%M:%S')}）。"
-            "預計 5-15 分鐘，請保持頁面開啟，完成後重新整理本 expander 即可看到。")
-
-    # 用 Popen 不阻塞 UI
-    log_path = REPO / "macro_compass_report.log"
-    with open(log_path, 'w', encoding='utf-8') as f:
-        subprocess.Popen(cmd, stdout=f, stderr=subprocess.STDOUT, cwd=str(REPO))
-    st.caption(f"日誌：{log_path}")
+            with st.expander("查看歷史本地 LLM 報告 (legacy)", expanded=False):
+                options = ['(最新)'] + [h.stem for h in htmls[:20]]
+                sel = st.selectbox("歷史報告", options=options, index=0,
+                                   key='macro_hist_report')
+                target = (REPORTS_DIR / "latest.html" if sel == '(最新)'
+                          else REPORTS_DIR / f"{sel}.html")
+                if target.exists():
+                    st.components.v1.html(target.read_text(encoding='utf-8'),
+                                          height=900, scrolling=True)
 
 
 def render_macro_dashboard():
