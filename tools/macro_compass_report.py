@@ -135,7 +135,8 @@ def collect_context() -> str:
         lines.append(f"資料日期 last={breadth['date'].iloc[-1]}")
         for col in ['advances', 'declines', 'adl', 'mcclellan_oscillator',
                     'up_down_vol_ratio', 'breadth_thrust_10d', 'new_high_minus_low',
-                    'new_highs_52w', 'new_lows_52w', 'pct_above_50dma', 'pct_above_200dma']:
+                    'new_highs_52w', 'new_lows_52w', 'pct_above_50dma', 'pct_above_200dma',
+                    'avg_correlation_20d', 'return_dispersion_20d']:
             lines.append(_format_series_summary(breadth, col))
     else:
         lines.append("  (尚未建立 - 執行 tools/build_tw_breadth.py)")

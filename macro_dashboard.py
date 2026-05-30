@@ -384,6 +384,8 @@ def _load_breadth() -> dict:
         'breadth_thrust': last.get('breadth_thrust_10d'),
         'advances': last.get('advances'),
         'declines': last.get('declines'),
+        'avg_correlation_20d': last.get('avg_correlation_20d'),
+        'return_dispersion_20d': last.get('return_dispersion_20d'),
     }
 
 
@@ -431,6 +433,23 @@ def _render_breadth(breadth: dict):
     declines = breadth.get('declines')
     if advances is not None and declines is not None:
         st.caption(f"今日漲家數 {int(advances)} / 跌家數 {int(declines)}")
+
+    # 市場結構：平均成對相關 + 報酬離散度 (P3 2026-05-30)
+    corr = breadth.get('avg_correlation_20d')
+    disp = breadth.get('return_dispersion_20d')
+    if corr is not None and not pd.isna(corr):
+        st.markdown("##### 🔗 市場結構 (相關性 / 離散度)")
+        s_cols = st.columns(2)
+        c_corr = '#FF4444' if corr > 0.4 else '#FF8800' if corr > 0.25 else '#00AA00'
+        s_cols[0].markdown(
+            f'<div style="font-size:0.9rem">平均成對相關係數 (20日)</div>'
+            f'<div style="font-size:1.5rem;color:{c_corr};font-weight:bold">{corr:.3f}</div>'
+            f'<div style="font-size:0.75rem;color:#888">高=齊漲齊跌(系統性脆弱) / 低=分散(選股環境)</div>',
+            unsafe_allow_html=True,
+        )
+        if disp is not None and not pd.isna(disp):
+            s_cols[1].metric("個股報酬離散度 (20日均)", f"{disp:.2f}%",
+                             help="個股漲跌幅橫斷面標準差；低離散+高相關=齊漲齊跌脆弱，高離散=個股分化")
 
     # 大盤位階：指數對均線乖離率 (從 systemic_chip 讀 twii_dist_ma*；補 trigger price)
     sc = _safe_read_parquet(MACRO_DIR / "systemic_chip.parquet")

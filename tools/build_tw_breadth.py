@@ -120,6 +120,24 @@ def compute_breadth(close_df: pd.DataFrame, vol_df: pd.DataFrame) -> pd.DataFram
     pct_above_50dma = above_50dma_count / valid_count.replace(0, np.nan) * 100
     pct_above_200dma = above_200dma_count / valid_count.replace(0, np.nan) * 100
 
+    # 相關性 / 離散度 (市場結構，P3 2026-05-30)
+    #   平均成對相關 proxy 用變異數比公式 (O(T*N) 可滾動，避免 1548^2 全相關矩陣)：
+    #   等權市場變異數 var_mkt vs 平均單股變異數 avg_var_single
+    #   rho_bar = (N*var_mkt/avg_var_single - 1)/(N-1)
+    #   離散度 = 每日橫斷面報酬 std (%)；低離散+高相關 = 個股齊漲齊跌(脆弱,回檔前兆)
+    logger.info("Computing correlation / dispersion...")
+    W_corr = 20
+    r_mkt = chg.mean(axis=1)
+    var_mkt = r_mkt.rolling(W_corr).var()
+    avg_var_single = chg.rolling(W_corr).var().mean(axis=1)
+    n_valid = chg.notna().sum(axis=1)
+    avg_correlation_20d = (
+        (n_valid * var_mkt / avg_var_single.replace(0, np.nan) - 1)
+        / (n_valid - 1).replace(0, np.nan)
+    ).clip(-1, 1)
+    return_dispersion = chg.std(axis=1) * 100          # 每日橫斷面 std (%)
+    return_dispersion_20d = return_dispersion.rolling(W_corr).mean()
+
     out = pd.DataFrame({
         'date': close_df.index,
         'advances': advances.values,
@@ -136,6 +154,9 @@ def compute_breadth(close_df: pd.DataFrame, vol_df: pd.DataFrame) -> pd.DataFram
         'new_high_minus_low': new_high_minus_low.values,
         'pct_above_50dma': pct_above_50dma.values,
         'pct_above_200dma': pct_above_200dma.values,
+        'avg_correlation_20d': avg_correlation_20d.values,
+        'return_dispersion': return_dispersion.values,
+        'return_dispersion_20d': return_dispersion_20d.values,
     })
 
     return out
