@@ -170,6 +170,17 @@ def collect_context() -> str:
         lines.append("  風險燈號 (low/mid/high): " + " | ".join(flag_parts))
     else:
         lines.append("  (尚未建立 - 執行 tools/build_systemic_chip_panel.py)")
+    # 台指期基差 (live TAIFEX；real-time 快訊號，不存歷史故無百分位)
+    try:
+        from taifex_data import TAIFEXData
+        _b = TAIFEXData().get_futures_basis()
+        if _b and _b.get('futures_price'):
+            lines.append(
+                f"  台指期基差 (正逆價差, 即時): {_b.get('basis'):+.1f} 點 "
+                f"({_b.get('basis_pct'):+.3f}%) — 期 {_b.get('futures_price'):.0f} vs 現貨 "
+                f"{_b.get('spot_price'):.0f}；正價差=偏多/逆價差=避險情緒升")
+    except Exception as e:
+        logger.warning("futures basis fetch failed: %s", e)
     lines.append("")
 
     # Banner risk
