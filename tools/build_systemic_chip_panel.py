@@ -283,14 +283,16 @@ def build_panel() -> pd.DataFrame:
     else:
         panel['foreign_net_oi'] = np.nan
 
-    # Group C：投信動能 (institutional_total)
-    # trust_buy_streak 已在 institutional_total 預計算；trust_net 用於 z-score
+    # Group C：投信動能 + 外資現貨日買賣超 (institutional_total)
+    # trust_* = 投信動能；foreign_* = 外資現貨流量(快流量)，與 foreign_net_oi(期貨)
+    # 併看可直接驗證「多現貨、空期貨」避險結構 vs 方向性看空 (報告 §3 核心論點)
     if not inst_total.empty:
-        c_cols = []
-        if 'trust_buy_streak' in inst_total.columns:
-            c_cols.append('trust_buy_streak')
-        if 'trust_net' in inst_total.columns:
-            c_cols.append('trust_net')
+        c_cols = [c for c in (
+            'trust_buy_streak', 'trust_net',
+            'foreign_investor_net', 'foreign_total_net',
+            'foreign_buy_streak', 'foreign_sell_streak',
+            'foreign_cum_5d', 'foreign_cum_20d',
+        ) if c in inst_total.columns]
         if c_cols:
             panel = panel.join(inst_total[c_cols], how='left')
 
@@ -325,6 +327,9 @@ def build_panel() -> pd.DataFrame:
         'sbl_total', 'margin_long_total', 'margin_short_total',
         'foreign_holding_avg', 'pcr_oi', 'foreign_net_oi',
         'trust_buy_streak', 'trust_net',
+        'foreign_investor_net', 'foreign_total_net',
+        'foreign_buy_streak', 'foreign_sell_streak',
+        'foreign_cum_5d', 'foreign_cum_20d',
         'option_top1_concentration',
         'hyg_volume_z_252d', 'tlt_spy_chg_4w',
     ]

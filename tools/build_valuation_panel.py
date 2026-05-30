@@ -26,6 +26,7 @@ from datetime import datetime, timedelta
 from io import BytesIO, StringIO
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 import urllib3
@@ -289,6 +290,12 @@ def build_panel():
     for col in ['tw_market_pe', 'tw_market_pb', 'tw_market_yield']:
         if col in panel.columns:
             panel[col] = panel[col].ffill()
+
+    # 盈餘殖利率 = 1/PE (純面板,無外部輸入)。原擬算 ERP(=盈餘殖利率 - TW10年公債),
+    # 但 TW 10Y 無免費 daily 來源 (FRED 無 / yfinance 無 ticker / FinMind 付費),硬編
+    # 常數會 silent 過期,故只呈現盈餘殖利率,由報告 LLM 自行對照公債/現金殖利率判斷貴賤。
+    if 'tw_market_pe' in panel.columns:
+        panel['tw_earnings_yield'] = 100.0 / panel['tw_market_pe'].replace(0, np.nan)
 
     return panel
 

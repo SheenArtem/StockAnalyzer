@@ -121,7 +121,8 @@ def collect_context() -> str:
         val = val.sort_values('date').reset_index(drop=True)
         lines.append(f"資料日期 last={val['date'].iloc[-1]}")
         for col in ['buffett_indicator_us', 'buffett_rank_us', 'buffett_indicator_tw',
-                    'buffett_rank_tw', 'tw_market_pe', 'tw_market_pb', 'tw_market_yield']:
+                    'buffett_rank_tw', 'tw_market_pe', 'tw_market_pb', 'tw_market_yield',
+                    'tw_earnings_yield']:
             lines.append(_format_series_summary(val, col))
     else:
         lines.append("  (尚未建立 - 執行 tools/build_valuation_panel.py)")
@@ -152,6 +153,7 @@ def collect_context() -> str:
                     'sbl_total', 'foreign_holding_avg', 'foreign_holding_chg_4w',
                     'sbl_change_4w_pct', 'margin_to_index_ratio', 'margin_ratio_z_252d',
                     'short_to_long_ratio', 'pcr_oi', 'foreign_net_oi', 'foreign_fut_net_chg_4w',
+                    'foreign_investor_net', 'foreign_cum_5d', 'foreign_cum_20d',
                     'trust_buy_streak', 'trust_net', 'trust_5d_zscore', 'option_top1_concentration']:
             lines.append(_format_series_summary(sys_chip, col))
         last = sys_chip.iloc[-1]
@@ -262,6 +264,19 @@ def collect_context() -> str:
         lines.append("指數價位 / 外資台指期淨 OI:")
         lines.append(last7)
 
+    # Leadership / 跨市場領先 (SOX 相對強弱 + TSM ADR 溢價) -- 窄幅領漲 regime 下
+    # 「領頭羊鬆動」的早期裂痕警報 (informational, 1 日 lead)
+    lead = _safe_read_parquet(DATA / "macro" / "leadership_panel.parquet")
+    lines.append("")
+    lines.append("### J. 領頭羊 / 跨市場領先 (SOX 相對強弱 + TSM ADR 溢價, informational)")
+    if lead is not None and not lead.empty:
+        lead = lead.sort_values('date').reset_index(drop=True)
+        lines.append(f"資料日期 last={lead['date'].iloc[-1]}")
+        for col in ['sox_to_twii_ratio', 'sox_rs_chg_4w', 'tsm_adr_premium_pct']:
+            lines.append(_format_series_summary(lead, col))
+    else:
+        lines.append("  (尚未建立 - 執行 tools/build_leadership_panel.py)")
+
     return "\n".join(lines)
 
 
@@ -296,19 +311,21 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 {context}
 
 【本系統已維護資料清單 — 第 5 段請勿把以下「已有」項目當成缺口重複推薦】
-上方面板 A-I 已涵蓋：
-- 美國 macro/信用/流動性：HY OAS、殖利率曲線(10Y-2Y/10Y-3M)、DXY、USDJPY、USDTWD、VIX、芝加哥 NFCI/ANFCI、聖路易 FSI、失業率/初請/消費信心/耐久財、Fed 資產負債表
-- 估值：美股 Buffett 指標+rank、台股估值(指數 proxy)+rank、台股大盤 PE/PB/殖利率
-- 台股廣度：漲跌家數、ADL、McClellan、上漲量/下跌量比、廣度衝力、52週新高低、站上 50/200 日均線比例
-- 機構/籌碼：借券餘額、融資/指數比 z-score、券資比、PCR-OI/Volume、外資台指期淨 OI、外資持股、投信買賣超、選擇權集中度
+上方面板 A-J 已涵蓋：
+- 美國 macro/信用/流動性：HY OAS、CCC 級 OAS、殖利率曲線(10Y-2Y/10Y-3M)、DXY、USDJPY、USDTWD、VIX、芝加哥 NFCI/ANFCI、聖路易 FSI、失業率/初請/消費信心/耐久財、Fed 資產負債表、RRP/TGA/SOFR + 淨流動性(net_liquidity)
+- 估值：美股 Buffett 指標+rank、台股估值(指數 proxy)+rank、台股大盤 PE/PB/殖利率、盈餘殖利率(1/PE)
+- 台股廣度：漲跌家數、ADL、McClellan、上漲量/下跌量比、廣度衝力、52週新高低、站上 50/200 日均線比例、個股平均相關性/報酬離散度(20日)
+- 機構/籌碼：借券餘額、融資/指數比 z-score、券資比、PCR-OI/Volume、外資台指期淨 OI、外資持股、外資現貨日買賣超(當日+5/20日累積)、投信買賣超、選擇權集中度
 - 風險偏好/波動：HYG/LQD、長債/股票比(TLT/SPY)、MOVE、EEM/SPY、VIX 期限結構(VIX3M)、SKEW、VVIX、OVX
-- 加權指數價位 twii_close（含近 7 日 trend）
-→ 以上皆「已有」。第 5 段只列「上方面板沒有」的真缺口（候選：指數均線乖離 20/50/200、台指期基差、RRP/TGA/SOFR 流動性 plumbing、CCC 級 OAS、盈餘上修廣度、個股相關性/離散度、TSM ADR 隔夜溢價、中國信用脈衝/CNH）。
+- 加權指數位階：twii_close + 20/50/200 日均線及乖離率（含近 7 日 trend）、台指期基差(即時正逆價差)
+- 領頭羊/跨市場：費城半導體 SOX 對台股相對強弱、TSM ADR 對 2330 隔夜溢價
+→ 以上皆「已有」。第 5 段只列「上方面板沒有」的真缺口（候選：盈餘上修/下修廣度〔TEJ/IBES 付費〕、JGB 10年殖利率+JPY 套利壓力〔FRED IRLTLT01JPM156N，月頻〕、銀行準備金 WRESBAL/SRF 使用〔FRED〕、CDX HY/IG 信用違約交換〔付費〕、中國信用脈衝/CNH、VIX 前月期貨 roll VX1/VX2、0DTE 短天期選擇權占比）。
 
 【指標領先性分類（本系統已做 IC 驗證，請據此區分「預警」與「確認」）】
 - 真領先（1-4 週 lead，可作預警）：美股 Buffett 估值(~10d)、長債/股票比 TLT/SPY(~3d)、美耐久財 YoY(~1d)、聖路易 FSI(~12d)、融資比 z-score(~13d)、外資持股 4 週變化(~16d)
 - 同步（lag≈0，只能「確認」當下狀態，不可當「即將發生」的領先訊號）：VIX、殖利率曲線、漲跌家數、McClellan、ADL、廣度衝力、PCR
 - 慢速領先（30-60d）：HY OAS、台股 Buffett、Fed 資產負債表
+- 未經 IC 驗證（informational，僅供研判背景，勿當成已驗證的領先訊號）：SOX/台股相對強弱、TSM ADR 溢價、外資現貨流量、SKEW/VVIX/OVX、機構撤退 A-E 燈號（註：SKEW 在台股經 IC 驗證為反向，高 SKEW 不等於跌深）
 → 情境推演的觸發條件請優先押在「真領先」指標；同步指標只用來描述當下，不要寫成預測未來的領先警訊。
 
 【任務】
