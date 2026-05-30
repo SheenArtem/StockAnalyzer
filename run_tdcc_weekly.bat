@@ -55,6 +55,13 @@ python tools/chip_history_dl.py --dataset margin --resume >> tdcc_weekly.log 2>&
 python tools/chip_history_dl.py --dataset short_sale --resume >> tdcc_weekly.log 2>&1
 echo [%date% %time%] Chip history margin/short_sale resume done >> tdcc_weekly.log
 
+REM Foreign holding ratio for the 23 TW0050_FIXED_UNIVERSE tickers that
+REM systemic_chip Group A foreign_holding uses. These *_shareholding_chip.csv rode in
+REM the QM/Value scan (stopped 56dcc6c 2026-05-23) so froze; ~23 FinMind calls weekly.
+echo [%date% %time%] Foreign holding ratio (23-universe) refresh started >> tdcc_weekly.log
+python tools/refresh_foreign_holding.py >> tdcc_weekly.log 2>&1
+echo [%date% %time%] Foreign holding ratio refresh done >> tdcc_weekly.log
+
 echo. >> tdcc_weekly.log
 REM Use TDCC exit code as final to preserve original schedule failure semantics
 exit /b %PY_EXIT%

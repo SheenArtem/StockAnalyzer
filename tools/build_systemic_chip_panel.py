@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent.parent
 CACHE = REPO / "data_cache"
+CHIP_HISTORY = CACHE / "chip_history"  # chip_history_dl.py 輸出 {margin,short_sale,institutional}.parquet
 SENT = REPO / "data" / "sentiment"
 MACRO = REPO / "data" / "macro"
 OUT = MACRO / "systemic_chip.parquet"
@@ -42,59 +43,53 @@ def _safe_read_csv(path: Path, parse_dates: bool = True) -> pd.DataFrame | None:
         return None
 
 
-def _aggregate_consistent_sample(
-    glob_pattern: str, col_name: str, file_suffix: str,
+def _aggregate_consistent_sample_parquet(
+    parquet_path: Path, value_col: str,
 ) -> pd.Series:
-    """通用：合併所有股票某欄位的市場總和，用 stable-sample 防漂移。
+    """同 _aggregate_consistent_sample，但讀 chip_history long-format parquet
+    (date, stock_id, <value_col>, ...) 而非 legacy per-stock CSV。
 
-    Bug fix 2026-05-09 (sbl + margin)：原版每天簡單 sum 但 ticker 集合不一致，
-    任何一檔當天沒更新就把 total 拉低，造成 sbl_total 5/4 591M → 5/8 5.4M
-    -99% 偽訊號。新版同 aggregate_foreign_holding：
-      1. pivot 成 date × ticker matrix
-      2. ffill 每檔股票（補單日缺值，limit=10）
-      3. 只 sum 過去 252 天 ≥ 200 個交易日有資料的 ticker 子集（穩定樣本）
+    Repoint 2026-05-30 (df53942 後續)：legacy *_margin_chip.csv / *_sbl_chip.csv
+    自 2026-05-23 scanner 瘦身後停更（per-stock chip 抓取搭在已停的 QM/Value 掃描
+    裡），而 chip_history/{margin,short_sale}.parquet 由 TDCC weekly bat (margin/
+    short_sale --resume) + daily scanner 刷到最新。改吃 parquet 才不會卡舊資料。
+    universe 較大 (1842 vs 106) 但 stable-sample 邏輯不變；parquet 起點 2021-04，
+    早於此的 margin/sbl 值為 NaN（dashboard 看現值，252d 視窗 2022+ 即完整）。
     """
-    files = sorted(CACHE.glob(glob_pattern))
-    logger.info("Aggregating %s from %d files", col_name, len(files))
-    series_list = []
-    for f in files:
-        df = _safe_read_csv(f)
-        if df is None or col_name not in df.columns:
-            continue
-        ticker = f.stem.replace(file_suffix, '')
-        s = pd.to_numeric(df[col_name], errors='coerce').dropna()
-        if len(s) < 100:
-            continue
-        s.name = ticker
-        series_list.append(s)
-    if not series_list:
+    if not parquet_path.exists():
+        logger.warning("  %s not found, returning empty", parquet_path.name)
         return pd.Series(dtype=float)
-
-    wide = pd.concat(series_list, axis=1).sort_index()
+    df = pd.read_parquet(parquet_path, columns=['date', 'stock_id', value_col])
+    df['date'] = pd.to_datetime(df['date'])
+    # pivot date x stock_id（aggfunc=last 防同日重複）
+    wide = df.pivot_table(index='date', columns='stock_id', values=value_col,
+                          aggfunc='last').sort_index()
     wide = wide.ffill(limit=10)
-
-    # 穩定樣本：過去 252d 至少 200 天有資料才納入該日總和
+    # 穩定樣本：過去 252d 至少 200 天有資料才納入該日總和（同 CSV 版）
     has_data_252d = wide.rolling(252, min_periods=200).count() >= 200
     valid = wide.where(has_data_252d)
-    total = valid.sum(axis=1, min_count=1)  # min_count=1 避免空 row 變 0
-
-    sample_size_last = int(has_data_252d.iloc[-1].sum())
-    logger.info("  %s: %d days, sample stocks last day = %d",
-                col_name, len(total), sample_size_last)
+    total = valid.sum(axis=1, min_count=1)
+    sample_size_last = int(has_data_252d.iloc[-1].sum()) if len(has_data_252d) else 0
+    logger.info("  %s (parquet): %d days, sample stocks last day = %d",
+                value_col, len(total), sample_size_last)
     return total
 
 
 def aggregate_sbl() -> pd.Series:
-    """SBL 借券賣出餘額大盤總額（穩定樣本版，2026-05-09 fix）。"""
-    s = _aggregate_consistent_sample('*_sbl_chip.csv', '借券賣出餘額', '_sbl_chip')
+    """SBL 借券賣出餘額大盤總額（穩定樣本版；2026-05-30 改吃 chip_history parquet）。"""
+    s = _aggregate_consistent_sample_parquet(
+        CHIP_HISTORY / "short_sale.parquet", 'sbl_balance')
     s.name = 'sbl_total'
     return s
 
 
 def aggregate_margin() -> pd.DataFrame:
-    """融資/融券餘額大盤總額（穩定樣本版，2026-05-09 fix）。"""
-    long_total = _aggregate_consistent_sample('*_margin_chip.csv', '融資餘額', '_margin_chip')
-    short_total = _aggregate_consistent_sample('*_margin_chip.csv', '融券餘額', '_margin_chip')
+    """融資/融券餘額大盤總額（穩定樣本版；2026-05-30 改吃 chip_history parquet）。
+    margin_balance=融資餘額 / short_balance=融券餘額（已對 2330 cross-check 同尺度）。"""
+    long_total = _aggregate_consistent_sample_parquet(
+        CHIP_HISTORY / "margin.parquet", 'margin_balance')
+    short_total = _aggregate_consistent_sample_parquet(
+        CHIP_HISTORY / "margin.parquet", 'short_balance')
     df = pd.DataFrame({
         'margin_long_total': long_total,
         'margin_short_total': short_total,
@@ -248,7 +243,18 @@ def build_panel() -> pd.DataFrame:
     atm_put = load_atm_put_premium()
     etf = load_etf_flows()
 
-    panel = pd.DataFrame(index=sbl.index)
+    # 2026-05-30: panel index 改用所有來源的 union，不再只錨定 sbl。
+    # sbl/margin 改吃 chip_history parquet 後起點 2021-04，若仍錨 sbl.index 會把
+    # institutional_total(2014+) 等較長歷史一起截斷（2532->1245 rows）。union 後
+    # margin/sbl 在 2021 前自然為 NaN，其餘 group 保留完整歷史。
+    # union 只取核心籌碼序列 (sbl/margin/foreign/institutional)，不含 pcr/etf/fut
+    # (那些是 left-join 補充，pcr 有 2002+ 深歷史會把 panel 灌成稀疏 6000+ 列)。
+    # 給出 ~2014+ (institutional_total 起點)，接近原版 2016 起點。
+    idx = sbl.index
+    for _src in (margin, foreign, inst_total):
+        if _src is not None and len(getattr(_src, 'index', [])):
+            idx = idx.union(_src.index)
+    panel = pd.DataFrame(index=idx.sort_values())
     panel['sbl_total'] = sbl
     panel = panel.join(margin, how='outer')
     # 注意：欄名保留 foreign_holding_avg 但實際是 stable-sample median (2026-05-09 fix)
