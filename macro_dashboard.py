@@ -560,6 +560,26 @@ def _render_liquidity(macro: dict, banner_data: dict):
         cols[3].metric("Fed 資產負債表", f"${walcl:.2f}T",
                        delta=f"{walcl_chg:+.2f}% (4w)" if walcl_chg is not None else None)
 
+    # Net Liquidity plumbing (Fed BS - RRP - TGA + RRP/TGA/SOFR, 2026-05-30 P3 added)
+    net_liq = macro.get('net_liquidity_bil')
+    if net_liq is not None and not pd.isna(net_liq):
+        st.markdown("##### 🚰 淨流動性 plumbing (Fed BS − RRP − TGA)")
+        nl_cols = st.columns(4)
+        nl_chg = macro.get('net_liquidity_chg_4w')
+        nl_cols[0].metric(
+            "淨流動性 (Net Liquidity)", f"${net_liq/1000:.2f}T",
+            delta=f"{nl_chg:+.0f}B (4w)" if nl_chg is not None and not pd.isna(nl_chg) else None,
+            help="Fed 資產 − 逆回購RRP − 國庫帳TGA；升=注水 risk-on，降=抽水")
+        rrp = macro.get('rrp_balance')
+        tga = macro.get('tga_balance')
+        sofr = macro.get('sofr')
+        if rrp is not None and not pd.isna(rrp):
+            nl_cols[1].metric("逆回購 RRP", f"${rrp:,.0f}B", help="隔夜逆回購餘額；升=資金回籠到 Fed (抽流動性)")
+        if tga is not None and not pd.isna(tga):
+            nl_cols[2].metric("國庫帳 TGA", f"${tga:,.0f}B", help="財政部國庫帳；升=抽走銀行準備金")
+        if sofr is not None and not pd.isna(sofr):
+            nl_cols[3].metric("SOFR", f"{sofr:.2f}%", help="擔保隔夜融資利率；飆升=短期資金面緊張")
+
     # Tier 1 ETF flows (HYG/JNK/TLT/SPY)
     etf = _safe_read_parquet(MACRO_DIR / "etf_flows.parquet")
     if etf is not None and not etf.empty:
@@ -649,7 +669,7 @@ def _render_liquidity(macro: dict, banner_data: dict):
 
 def _render_credit_cycle(macro: dict):
     st.markdown("### 📉 信用與景氣 (Credit & Business Cycle, 1-3mo lead)")
-    cols = st.columns(4)
+    cols = st.columns(5)
 
     # HY OAS
     hy = macro.get('hy_oas')
@@ -695,6 +715,19 @@ def _render_credit_cycle(macro: dict):
         label = '高壓力' if fsi > 1 else '中度' if fsi > 0 else '低壓力'
         cols[3].metric("聖路易Fed 金融壓力指數", f"{fsi:+.2f}", delta=label,
                        help="St. Louis Fed Financial Stress Index — 18 個市場指標複合，0 = 歷史均值")
+
+    # CCC OAS — 尾部信用 (HY OAS 的高風險層，2026-05-30 P3 added)
+    ccc = macro.get('ccc_oas')
+    ccc_rank = macro.get('ccc_oas_rank')
+    if ccc is not None and not pd.isna(ccc):
+        cc = _color_rank(ccc_rank, hi_is_bad=True)
+        rank_str = f"rank {ccc_rank:.0f}" if ccc_rank is not None and not pd.isna(ccc_rank) else ""
+        cols[4].markdown(
+            f'<div style="font-size:0.9rem">CCC OAS (尾部信用)</div>'
+            f'<div style="font-size:1.5rem;color:{cc};font-weight:bold">{ccc:.2f}</div>'
+            f'<div style="font-size:0.8rem;color:#888">{rank_str}</div>',
+            unsafe_allow_html=True,
+        )
 
     # Tier 1 (2026-05-09) 補充：失業/初請/消費者信心/嚴格 Buffett
     st.markdown("##### 🇺🇸 美國經濟先行 (Tier 1, 2026-05-09 added)")
