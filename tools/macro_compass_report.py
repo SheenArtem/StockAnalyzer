@@ -319,7 +319,7 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 - 風險偏好/波動：HYG/LQD、長債/股票比(TLT/SPY)、MOVE、EEM/SPY、VIX 期限結構(VIX3M)、SKEW、VVIX、OVX
 - 加權指數位階：twii_close + 20/50/200 日均線及乖離率（含近 7 日 trend）、台指期基差(即時正逆價差)
 - 領頭羊/跨市場：費城半導體 SOX 對台股相對強弱、TSM ADR 對 2330 隔夜溢價
-→ 以上皆「已有」。第 5 段只列「上方面板沒有、且不在下方『已評估、決定不補』清單」的真缺口（候選：JGB 10年殖利率+JPY 套利壓力〔FRED IRLTLT01JPM156N，月頻〕、銀行準備金 WRESBAL/SRF 使用〔FRED 免費〕、中國信用脈衝/CNH、VIX 前月期貨 roll VX1/VX2、0DTE 短天期選擇權占比）。
+→ 以上皆「已有」。第 5 段只列「上方面板沒有、且不在下方『已評估、決定不補』清單」的真缺口（候選：JGB 10年殖利率+JPY 套利壓力〔FRED IRLTLT01JPM156N，月頻〕、銀行準備金 WRESBAL/SRF 使用〔FRED 免費〕、中國信用脈衝/CNH、0DTE 短天期選擇權占比）。
 
 【已評估、決定不補 — 第 5 段請勿重複推薦（已查證：無免費源 / 付費 / IC 否決）】
 - 盈餘上修/下修廣度：TEJ/IBES 付費
@@ -327,6 +327,7 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 - 台股 ERP：TW 10年公債無免費 daily 源(FRED/yfinance/TPEx/FinMind 皆無或付費)，已改呈現盈餘殖利率(1/PE) 供自行對照公債，勿再要求補 ERP
 - SKEW 當崩盤擇時 gate：台股 IC 驗證為反向(高 SKEW→反而跌少)，僅 informational，勿建議當預警門檻
 - 北向資金 / 韓國半導體相對強弱：已評估，前者資料源跳過、後者效益不足
+- VIX 前月期貨 roll (VX1/VX2)：VIX/VIX3M 期限結構已覆蓋且經 IC 驗證(vix_vix3m_ratio 是唯一 marginal-pass 的 vol 訊號)；VX1/VX2 與之高度相關、增量低，且 vol_complex 多數 vol 訊號台股 IC FAIL
 
 【指標領先性分類（本系統已做 IC 驗證，請據此區分「預警」與「確認」）】
 - 真領先（1-4 週 lead，可作預警）：美股 Buffett 估值(~10d)、長債/股票比 TLT/SPY(~3d)、美耐久財 YoY(~1d)、聖路易 FSI(~12d)、融資比 z-score(~13d)、外資持股 4 週變化(~16d)
