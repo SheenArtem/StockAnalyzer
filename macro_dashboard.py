@@ -432,6 +432,23 @@ def _render_breadth(breadth: dict):
     if advances is not None and declines is not None:
         st.caption(f"今日漲家數 {int(advances)} / 跌家數 {int(declines)}")
 
+    # 大盤位階：指數對均線乖離率 (從 systemic_chip 讀 twii_dist_ma*；補 trigger price)
+    sc = _safe_read_parquet(MACRO_DIR / "systemic_chip.parquet")
+    if sc is not None and not sc.empty and 'twii_dist_ma200' in sc.columns:
+        last_sc = sc.sort_values('date').iloc[-1]
+        st.markdown("##### 📈 大盤位階 (指數對均線乖離率)")
+        m_cols = st.columns(4)
+        m_cols[0].metric("加權指數", f"{last_sc['twii_close']:,.0f}")
+        for i, w in enumerate((20, 50, 200), start=1):
+            d = last_sc.get(f'twii_dist_ma{w}')
+            ma = last_sc.get(f'twii_ma{w}')
+            if d is not None and not pd.isna(d):
+                m_cols[i].metric(
+                    f"對 MA{w} 乖離率", f"{d:+.2f}%",
+                    delta=f"MA{w}={ma:,.0f}", delta_color="off",
+                    help=f"(指數−{w}日均線)/{w}日均線；MA{w} 點位可作 trigger price 參考",
+                )
+
 
 # ============================================================
 #  Section 3：情緒與波動（呼叫 market_banner）

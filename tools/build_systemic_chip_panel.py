@@ -365,6 +365,16 @@ def build_panel() -> pd.DataFrame:
     else:
         panel['trust_5d_zscore'] = np.nan
 
+    # 指數均線乖離率 (twii_close vs 20/50/200 日均線) -- 補「trigger price」缺口
+    # 乖離率 = (close - MA) / MA * 100；公式同 system3 ma_dist。panel 已 date-sorted
+    # (上方 margin_ratio_z_252d 用 rolling(252) 已隱含)。MA 絕對值供報告引用具體點位。
+    if 'twii_close' in panel.columns:
+        c = panel['twii_close']
+        for w in (20, 50, 200):
+            ma = c.rolling(w, min_periods=max(5, w // 2)).mean()
+            panel[f'twii_ma{w}'] = ma
+            panel[f'twii_dist_ma{w}'] = (c - ma) / ma.replace(0, np.nan) * 100
+
     # ============================================================
     # Flags (簡化版規則：未經 IC 驗證；下一階段 Phase B 再校準)
     # ============================================================

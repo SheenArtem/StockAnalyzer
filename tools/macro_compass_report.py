@@ -145,12 +145,18 @@ def collect_context() -> str:
     if sys_chip is not None and not sys_chip.empty:
         sys_chip = sys_chip.sort_values('date').reset_index(drop=True)
         lines.append(f"資料日期 last={sys_chip['date'].iloc[-1]}")
-        for col in ['twii_close', 'sbl_total', 'foreign_holding_avg', 'foreign_holding_chg_4w',
+        for col in ['twii_close', 'twii_dist_ma20', 'twii_dist_ma50', 'twii_dist_ma200',
+                    'sbl_total', 'foreign_holding_avg', 'foreign_holding_chg_4w',
                     'sbl_change_4w_pct', 'margin_to_index_ratio', 'margin_ratio_z_252d',
                     'short_to_long_ratio', 'pcr_oi', 'foreign_net_oi', 'foreign_fut_net_chg_4w',
                     'trust_buy_streak', 'trust_net', 'trust_5d_zscore', 'option_top1_concentration']:
             lines.append(_format_series_summary(sys_chip, col))
         last = sys_chip.iloc[-1]
+        # 指數均線「絕對點位」供報告引用具體 trigger price（乖離率上方 col 已給）
+        if all(c in sys_chip.columns for c in ['twii_ma20', 'twii_ma50', 'twii_ma200']):
+            lines.append(f"  指數均線點位 (trigger price 參考): MA20={last.get('twii_ma20'):.0f} "
+                         f"/ MA50={last.get('twii_ma50'):.0f} / MA200={last.get('twii_ma200'):.0f} "
+                         f"(現價 twii_close={last.get('twii_close'):.0f})")
         group_names = {'a': '外資撤退', 'b': '籌碼鬆動', 'c': '投信動能',
                        'd': '期權對沖', 'e': 'ETF流動'}
         flag_parts = []
