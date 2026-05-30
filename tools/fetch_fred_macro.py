@@ -69,6 +69,11 @@ SERIES = {
     # Phase 3-C P1 (2026-05-09 AI 報告建議)
     'DEXJPUS':      'usdjpy_close',          # USD/JPY exchange rate (日) - carry trade 風向
     'DEXTAUS':      'usdtwd_close',          # USD/TWD exchange rate (日) - 台幣
+    # P3 (2026-05-30 AI 報告建議): 尾部信用 + 流動性 plumbing
+    'BAMLH0A3HYC':  'ccc_oas',               # ICE BofA CCC & Lower US HY OAS (尾部信用壓力,領先 broad HY)
+    'RRPONTSYD':    'rrp_balance',           # 隔夜逆回購餘額 ($B,升=流動性回籠)
+    'WTREGEN':      'tga_balance',           # 財政部 TGA 國庫帳 ($B,升=抽走銀行準備)
+    'SOFR':         'sofr',                  # 擔保隔夜融資利率 (%,飆升=資金面緊張)
 }
 
 
@@ -167,6 +172,20 @@ def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
     # rolling rank for HY OAS (10yr 滾動百分位，hi=danger)
     if 'hy_oas' in panel.columns:
         panel['hy_oas_rank'] = panel['hy_oas'].rolling(2520, min_periods=252).rank(pct=True) * 100
+    if 'ccc_oas' in panel.columns:
+        panel['ccc_oas_rank'] = panel['ccc_oas'].rolling(2520, min_periods=252).rank(pct=True) * 100
+
+    # 單位統一成「十億美元 ($B)」：WTREGEN(TGA) FRED 原單位是百萬，RRPONTSYD(RRP) 原即十億
+    if 'tga_balance' in panel.columns:
+        panel['tga_balance'] = panel['tga_balance'] / 1000.0  # 百萬 -> 十億
+
+    # Net Liquidity ($B) = Fed BS - RRP - TGA (真實流動性 plumbing；升=注水 risk-on)
+    # fed_bs_million_usd(百萬) / 1000 = 十億；rrp/tga 已統一為十億
+    if all(c in panel.columns for c in ['fed_bs_million_usd', 'rrp_balance', 'tga_balance']):
+        panel['net_liquidity_bil'] = (
+            panel['fed_bs_million_usd'] / 1000.0 - panel['rrp_balance'] - panel['tga_balance']
+        )
+        panel['net_liquidity_chg_4w'] = panel['net_liquidity_bil'].diff(20)
 
     # yield curve inverted flag
     if 'yield_curve_10y_2y' in panel.columns:

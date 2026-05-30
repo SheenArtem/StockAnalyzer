@@ -102,11 +102,13 @@ def collect_context() -> str:
     if fred is not None and not fred.empty:
         fred = fred.sort_values('date').reset_index(drop=True)
         lines.append(f"資料日期 last={fred['date'].iloc[-1]}")
-        for col in ['hy_oas', 'hy_oas_rank', 'yield_curve_10y_2y', 'yield_curve_10y_3m',
+        for col in ['hy_oas', 'hy_oas_rank', 'ccc_oas', 'ccc_oas_rank',
+                    'yield_curve_10y_2y', 'yield_curve_10y_3m',
                     'dxy_close', 'dxy_chg_4w', 'usdjpy_close', 'usdjpy_chg_4w', 'usdtwd_close',
                     'vix_close', 'chicago_nfci', 'chicago_anfci', 'st_louis_fsi',
                     'us_durable_yoy', 'us_unemployment_rate', 'us_initial_claims',
-                    'us_consumer_sentiment', 'sp500_close', 'fed_bs_trillion', 'fed_bs_chg_4w']:
+                    'us_consumer_sentiment', 'sp500_close', 'fed_bs_trillion', 'fed_bs_chg_4w',
+                    'net_liquidity_bil', 'net_liquidity_chg_4w', 'rrp_balance', 'tga_balance', 'sofr']:
             lines.append(_format_series_summary(fred, col))
     else:
         lines.append("  (尚未建立 - 執行 tools/fetch_fred_macro.py)")
