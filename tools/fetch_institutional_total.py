@@ -141,9 +141,24 @@ def aggregate_panel(raw: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--from-year', type=int, default=2014)
+    parser.add_argument('--from-year', type=int, default=2014,
+                        help='全量 backfill 起始年 (跟 --days 互斥)')
+    parser.add_argument('--days', type=int, default=None,
+                        help='Incremental: 只抓最近 N 天，merge 進現有 parquet (daily 排程用，'
+                             '建議 30，覆蓋週末/長假補資料)')
     args = parser.parse_args()
-    start_date = f"{args.from_year}-01-01"
+
+    incremental = args.days is not None and OUT.exists()
+    if incremental:
+        # Re-fetch streak/cumulative 需要前段資料，所以多拉 60 天 buffer 重算
+        # 但最終 merge 時只覆寫最近 args.days 天，避免改寫遠端歷史
+        fetch_days = max(args.days + 60, 90)
+        start_dt = pd.Timestamp.now().normalize() - pd.Timedelta(days=fetch_days)
+        start_date = start_dt.strftime('%Y-%m-%d')
+        logger.info("Incremental mode: fetch last %d days (buffer for streak/rolling)",
+                    fetch_days)
+    else:
+        start_date = f"{args.from_year}-01-01"
 
     raw = fetch(start_date)
     if raw.empty:
@@ -155,7 +170,26 @@ def main():
                 sorted(raw['name'].unique()))
 
     panel = aggregate_panel(raw)
-    logger.info("Wide panel: %d rows × %d cols", len(panel), len(panel.columns))
+    logger.info("Wide panel: %d rows x %d cols", len(panel), len(panel.columns))
+
+    if incremental:
+        existing = pd.read_parquet(OUT)
+        existing['date'] = pd.to_datetime(existing['date'])
+        keep_cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(days=args.days)
+        # 保留 existing 中 < cutoff 的歷史，用 panel 中 >= cutoff 的新資料覆寫
+        old_part = existing[existing['date'] < keep_cutoff]
+        new_part = panel[panel['date'] >= keep_cutoff]
+        # 對齊欄位
+        all_cols = list(dict.fromkeys(list(old_part.columns) + list(new_part.columns)))
+        old_part = old_part.reindex(columns=all_cols)
+        new_part = new_part.reindex(columns=all_cols)
+        merged = pd.concat([old_part, new_part], ignore_index=True)
+        merged = merged.drop_duplicates(subset=['date'], keep='last').sort_values('date').reset_index(drop=True)
+        logger.info("Merged: %d old (< %s) + %d new (>= %s) -> %d total",
+                    len(old_part), keep_cutoff.date(),
+                    len(new_part), keep_cutoff.date(), len(merged))
+        panel = merged
+
     last = panel.iloc[-1]
     for col in ['foreign_total_net', 'trust_net', 'dealer_total_net',
                 'three_majors_total_net', 'foreign_buy_streak', 'foreign_sell_streak',

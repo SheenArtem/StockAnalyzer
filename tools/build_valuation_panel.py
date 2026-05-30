@@ -129,11 +129,51 @@ def fetch_twse_market_pe_official(year_month: str) -> dict | None:
 def build_twse_market_pe_history(
     start_year: int = 2010,
     end_year: int | None = None,
+    incremental: bool = True,
 ) -> pd.DataFrame:
     """Backfill TWSE 大盤 PE/PB/Yield 月歷史（官方市值加權）。
 
     起點 2010-01 — 2009 以前 XLS schema 不同（cols=21 / 個股式），不處理。
+
+    回傳 sparse monthly DataFrame (一個月一 row，date = month-end)，跟原版相容。
+
+    Incremental (2026-05-28)：預設只抓現有 parquet 推導出來的「缺少 + 當月」月份；
+    daily 跑時通常 0-1 ZIP；首次無 parquet 時退回完整 backfill (192 ZIPs)。
+    重建 sparse panel 用 month-period dedup，避開現有 parquet 為 daily-ffill 的混淆。
     """
+    existing_monthly: pd.DataFrame | None = None
+    have_months: set[str] = set()
+    if incremental and OUT.exists():
+        try:
+            existing = pd.read_parquet(OUT)
+            if 'tw_market_pe' in existing.columns:
+                pe_rows = existing.dropna(subset=['tw_market_pe']).copy()
+                if not pe_rows.empty:
+                    pe_rows['date'] = pd.to_datetime(pe_rows['date'])
+                    pe_rows['_ym'] = pe_rows['date'].dt.to_period('M')
+                    # 每月取「最後一筆」daily row 的 PE 值：
+                    # build_panel 對 tw_market_pe 是月底寫入 + ffill，所以
+                    #   first(2026-04) = 4/1 ffilled = 前月底值 (錯)
+                    #   last(2026-04)  = 4/30 month-end actual = 該月實際值 (對)
+                    monthly = pe_rows.groupby('_ym').agg(
+                        tw_market_pe=('tw_market_pe', 'last'),
+                        tw_market_pb=('tw_market_pb', 'last'),
+                        tw_market_yield=('tw_market_yield', 'last'),
+                    ).reset_index()
+                    monthly['date'] = monthly['_ym'].dt.to_timestamp(how='end').dt.normalize()
+                    monthly = monthly[['date', 'tw_market_pe', 'tw_market_pb', 'tw_market_yield']]
+                    existing_monthly = monthly
+                    # 除了當月以外的全部跳過 (當月強制重抓以涵蓋月底 publish)
+                    now_ym = pd.Timestamp.now().to_period('M')
+                    have_months = {
+                        str(p) for p in pe_rows['_ym'].unique()
+                        if p != now_ym
+                    }
+                    logger.info("Incremental: existing has %d monthly rows, skip %d already-fetched months",
+                                len(existing_monthly), len(have_months))
+        except Exception as e:
+            logger.warning("Failed to read existing parquet for incremental: %s", e)
+
     if end_year is None:
         end_year = datetime.now().year
     rows = []
@@ -143,6 +183,9 @@ def build_twse_market_pe_history(
             if pd.Timestamp(y, m, 1) > now_ts:
                 break
             ym = f"{y:04d}{m:02d}"
+            ym_period = f"{y:04d}-{m:02d}"
+            if ym_period in have_months:
+                continue  # incremental: 已有資料的月份直接跳過
             rec = fetch_twse_market_pe_official(ym)
             if rec:
                 rows.append(rec)
@@ -152,11 +195,24 @@ def build_twse_market_pe_history(
                                 rec.get('tw_market_pb') or 0,
                                 rec.get('tw_market_yield') or 0)
             time.sleep(1.5)  # TWSE rate limit
+
     if not rows:
+        if existing_monthly is not None and not existing_monthly.empty:
+            logger.info("No new TWSE PE months fetched; reusing existing monthly panel (%d rows)",
+                        len(existing_monthly))
+            return existing_monthly
         logger.warning("No TWSE PE data fetched")
         return pd.DataFrame()
-    df = pd.DataFrame(rows).sort_values('date').reset_index(drop=True)
-    return df
+
+    df_new = pd.DataFrame(rows).sort_values('date').reset_index(drop=True)
+    if existing_monthly is not None and not existing_monthly.empty:
+        # new 覆寫 existing 同月份 (當月強制重抓)
+        df = pd.concat([existing_monthly, df_new], ignore_index=True)
+        df = df.sort_values('date').drop_duplicates(subset=['date'], keep='last').reset_index(drop=True)
+        logger.info("Merged incremental: %d existing + %d new -> %d monthly rows",
+                    len(existing_monthly), len(df_new), len(df))
+        return df
+    return df_new
 
 
 def build_buffett_tw(twii_close: pd.Series, gdp_tw_quarterly: pd.DataFrame) -> pd.DataFrame:

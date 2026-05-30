@@ -2,15 +2,31 @@
 REM ============================================================
 REM  StockAnalyzer Auto Scanner - Windows Task Scheduler
 REM
-REM  Schedule: TUE-SAT 00:00 (midnight after each market day, so late-upload
-REM            YT shows from previous evening are captured; chip data is fully
-REM            settled by ~21:30 same day). Changed from MON-FRI 22:00 on
-REM            2026-04-25 when YT sync was folded into scanner.
+REM  Schedule: DAILY 00:00 -- every day, including Sun/Mon (registered as a
+REM            Daily trigger since 2026-04-11; the "TUE-SAT" label this comment
+REM            used to claim never matched the actual trigger).
+REM
+REM  Why DAILY and not TUE-SAT (load-bearing -- do NOT narrow to weekdays):
+REM    The Whale Picks production strategy rebalances on M15 = the last weekday
+REM    on or before the 15th of the month (whale_picks_screener.py
+REM    _is_mid_month_rebal_day). When the 15th falls on a MONDAY, M15 IS that
+REM    Monday. A TUE-SAT schedule skips Monday, so in those months
+REM    whale_picks_screener.py --push-if-month-end AND
+REM    whale_picks_ledger_append.py --rebal (both self-gate on today==M15)
+REM    would NEVER fire -- the entire monthly rebalance push + ledger reconcile
+REM    is silently lost (~1-2 months/year, whenever the 15th is a Monday).
+REM    Running every day guarantees the M15 day is always hit. (M15 is never
+REM    Sat/Sun by definition, so Monday is the only at-risk weekday.)
+REM
+REM    Everything else is safe to re-run on non-trading days: TAIFEX/chip
+REM    archivers dedup by data_date; YT/news stages are best-effort.
+REM
+REM  History: MON-FRI 22:00 -> 00:00 on 2026-04-25 when YT sync was folded in.
 REM
 REM  Setup:
 REM    1. Win+R -> taskschd.msc
 REM    2. Create Basic Task -> "StockAnalyzer Scanner"
-REM    3. Trigger: Weekly TUE-SAT, 00:00
+REM    3. Trigger: Daily, recur every 1 day, 00:00 (see "Why DAILY" above)
 REM    4. Action: Start a program
 REM       Program: C:\GIT\StockAnalyzer\run_scanner.bat
 REM       Start in: C:\GIT\StockAnalyzer
@@ -324,6 +340,32 @@ REM value_sim_indicators.parquet + ohlcv_tw.parquet + fwd_returns had no daily r
 REM (last manual refresh was 5 weeks ago, left indicators at 4/13 while {sid}_price.csv was 5/21).
 REM Each run aggregates ~1000 csv -> parquet (~10s) + precompute indicators (~5 min)
 REM + fwd_returns (~2 min). Total ~7 min. Best-effort: failures do not affect scanner exit.
+REM ------------------------------------------------------------
+REM Universe price refresh (RESTORED 2026-05-30).
+REM Per-stock data_cache/{sid}_price.csv daily incremental update. This rode
+REM INSIDE scanner_job.py --mode qm/value before 2026-05-23: commit 56dcc6c
+REM disabled the QM/Value scan to save CPU/LLM, which silently froze the price
+REM cache too (1740 CSVs stuck at 5/23) -- breadth + Whale Picks + valuation
+REM all went stale on old prices. Pure price fetch, no QM/Value scoring, no LLM.
+REM Uses yfinance batch (.TW then .TWO retry), NOT per-stock FinMind: FinMind
+REM free tier 600/hr hard-pauses ~35min at 580/600, so 1964 stocks would take
+REM ~4.5h; yfinance batch has no quota and finishes in ~2 min. MUST run BEFORE
+REM refresh_backtest_panels (which only AGGREGATES these CSVs
+REM into ohlcv_tw.parquet) so Whale Picks screens on fresh prices. Best-effort.
+REM ------------------------------------------------------------
+echo [%date% %time%] Universe price refresh starting >> scanner.log
+python tools\refresh_universe_prices.py >> scanner.log 2>&1
+echo [%date% %time%] Universe price refresh done >> scanner.log
+
+REM Market breadth panel rebuild (RESTORED 2026-05-30). Reads the fresh
+REM data_cache/*_price.csv above; feeds macro_dashboard "Market Breadth"
+REM section (ADL / McClellan / new-high-low). build_tw_breadth.py was never
+REM wired into any scheduler before, so it sat frozen at 2026-05-08. ~10s
+REM local aggregate. Best-effort: failure does not affect scanner exit.
+echo [%date% %time%] TW breadth panel starting >> scanner.log
+python tools\build_tw_breadth.py >> scanner.log 2>&1
+echo [%date% %time%] TW breadth panel done >> scanner.log
+
 echo [%date% %time%] Refresh backtest panels starting >> scanner.log
 python tools\refresh_backtest_panels.py >> scanner.log 2>&1
 echo [%date% %time%] Refresh backtest panels done >> scanner.log
