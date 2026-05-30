@@ -27,6 +27,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from macro_field_glossary import FIELD_GLOSSARY
+
 logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent
@@ -347,7 +349,7 @@ def _render_systemic_chip(sys_chip: dict):
             for k, v in g.items():
                 if k in ('flag', 'reason'):
                     continue
-                label, unit, desc = metric_meta.get(k, (k, '', ''))
+                label, unit, desc = metric_meta.get(k) or FIELD_GLOSSARY.get(k, (k, '', ''))
                 try:
                     val_str = f"{float(v):.3f}" if v is not None else "—"
                 except (TypeError, ValueError):
@@ -400,28 +402,30 @@ def _render_breadth(breadth: dict):
     adl_ma20 = breadth.get('adl_ma20')
     if adl is not None:
         delta = (adl - adl_ma20) if adl_ma20 is not None else None
-        c1.metric("ADL", f"{adl:,.0f}",
+        c1.metric("累積騰落線 ADL", f"{adl:,.0f}",
                   delta=f"{delta:+,.0f} vs MA20" if delta is not None else None)
 
     mco = breadth.get('mcclellan')
     if mco is not None:
         mco_color = "🔴" if mco < -100 else "🟠" if mco < -50 else "🟢" if mco > 50 else "⚪"
-        c2.metric("McClellan", f"{mco:.0f}", delta=mco_color)
+        c2.metric("麥克連震盪指標", f"{mco:.0f}", delta=mco_color)
 
     ad = breadth.get('ad_ratio')
     if ad is not None:
         ad_label = "強" if ad > 1.5 else "弱" if ad < 0.6 else "中"
-        c3.metric("A/D 量比", f"{ad:.2f}", delta=ad_label)
+        c3.metric("上漲量/下跌量比", f"{ad:.2f}", delta=ad_label,
+                  help="上漲股成交量 ÷ 下跌股成交量（成交「量」比，非漲跌家數比；家數見下方漲跌家數）")
 
     nh_nl = breadth.get('new_high_low_diff')
     if nh_nl is not None:
-        c4.metric("52w 新高-新低", f"{nh_nl:+.0f}",
+        c4.metric("52週新高減新低家數", f"{nh_nl:+.0f}",
                   delta="多頭" if nh_nl > 0 else "空頭")
 
     bt = breadth.get('breadth_thrust')
     if bt is not None:
         bt_label = "🚀 啟動" if bt > 0.65 else "正常"
-        c5.metric("Breadth Thrust 10d", f"{bt:.2%}", delta=bt_label)
+        c5.metric("Zweig 廣度衝力 10日", f"{bt:.2%}", delta=bt_label,
+                  help="Zweig Breadth Thrust 10 日；>61.5% = 強勢起漲訊號")
 
     advances = breadth.get('advances')
     declines = breadth.get('declines')
@@ -463,25 +467,25 @@ def _render_sentiment_section():
         vc_cols = st.columns(4)
 
         vc_cols[0].metric(
-            "VIX/VIX3M 期限",
+            "VIX/VIX3M 期限結構",
             f"{latest['vix_vix3m_ratio']:.3f}",
             delta=f"{light_emoji[latest['vix_vix3m_ratio_light']]} >1.00 = backwardation",
             help="近月/3個月 VIX 比；>1.00 急性恐慌，<0.95 contango 正常"
         )
         vc_cols[1].metric(
-            "VVIX",
+            "VVIX 波動率的波動率",
             f"{latest['vvix']:.1f}",
             delta=f"{light_emoji[latest['vvix_light']]} 尾端對沖需求",
             help="VIX 選擇權隱波；>110 機構搶尾端保險"
         )
         vc_cols[2].metric(
-            "CBOE SKEW",
+            "CBOE SKEW 偏態指數",
             f"{latest['skew']:.1f}",
             delta=f"{light_emoji[latest['skew_light']]} 左尾溢價",
             help="OTM put 相對價格；>145 機構偷偷對沖"
         )
         vc_cols[3].metric(
-            "OVX (原油 vol)",
+            "OVX 原油波動指數",
             f"{latest['ovx']:.1f}",
             delta=f"{light_emoji[latest['ovx_light']]} 地緣事件 lead",
             help="CBOE Crude Oil VIX；中東衝突常領先 VIX"
@@ -513,21 +517,21 @@ def _render_liquidity(macro: dict, banner_data: dict):
     m1b = (banner_data or {}).get('m1b_ratio') or {}
     r = m1b.get('ratio_pct')
     if r is not None:
-        cols[0].metric("成交量 / M1B", f"{r:.1f}%",
+        cols[0].metric("近20日成交值/M1B 比", f"{r:.1f}%",
                        delta=m1b.get('label', ''))
 
     # DXY
     dxy = macro.get('dxy_close')
     dxy_chg = macro.get('dxy_chg_4w')
     if dxy is not None:
-        cols[1].metric("DXY (美元指數)", f"{dxy:.2f}",
+        cols[1].metric("美元指數 DXY", f"{dxy:.2f}",
                        delta=f"{dxy_chg:+.2f}% (4w)" if dxy_chg is not None else None)
 
     # NFCI Chicago Fed (取代 USDTWD 因為更高訊號)
     nfci = macro.get('chicago_nfci')
     if nfci is not None:
         c_nfci = '#FF4444' if nfci > 0.5 else '#FF8800' if nfci > 0 else '#00AA00'
-        cols[2].metric("Chicago NFCI", f"{nfci:+.2f}",
+        cols[2].metric("芝加哥Fed 金融情勢指數 NFCI", f"{nfci:+.2f}",
                        delta='收緊' if nfci > 0 else '寬鬆',
                        delta_color="inverse" if nfci > 0 else "normal",
                        help="Chicago Fed National Financial Conditions Index — 105 個市場指標複合，>0=收緊 <0=寬鬆")
@@ -536,7 +540,7 @@ def _render_liquidity(macro: dict, banner_data: dict):
     walcl = macro.get('fed_bs_trillion')
     walcl_chg = macro.get('fed_bs_chg_4w')
     if walcl is not None:
-        cols[3].metric("Fed BS", f"${walcl:.2f}T",
+        cols[3].metric("Fed 資產負債表", f"${walcl:.2f}T",
                        delta=f"{walcl_chg:+.2f}% (4w)" if walcl_chg is not None else None)
 
     # Tier 1 ETF flows (HYG/JNK/TLT/SPY)
@@ -549,28 +553,28 @@ def _render_liquidity(macro: dict, banner_data: dict):
         hyg_chg = last.get('hyg_chg_4w')
         if hyg_chg is not None and not pd.isna(hyg_chg):
             c = '#FF4444' if hyg_chg < -3 else '#00AA00' if hyg_chg > 0 else '#888'
-            f_cols[0].metric("HYG 4w", f"{hyg_chg:+.2f}%",
+            f_cols[0].metric("高收益債HYG 4週變化", f"{hyg_chg:+.2f}%",
                              delta='避險' if hyg_chg < -1 else '冒險',
                              help="iShares HY Bond 4w 變化；負值大 = 信用避險升溫")
 
         hyg_lqd = last.get('hyg_to_lqd_ratio')
         hyg_lqd_chg = last.get('hyg_to_lqd_chg_4w')
         if hyg_lqd is not None and not pd.isna(hyg_lqd):
-            f_cols[1].metric("HYG/LQD 比", f"{hyg_lqd:.4f}",
+            f_cols[1].metric("高收益債/投資級債 比 (HYG/LQD)", f"{hyg_lqd:.4f}",
                              delta=f"{hyg_lqd_chg:+.2f}% 4w" if hyg_lqd_chg is not None and not pd.isna(hyg_lqd_chg) else None,
                              help="HY/IG 相對表現；下跌 = HY 弱於 IG = 信用避險")
 
         tlt_spy = last.get('tlt_spy_ratio')
         tlt_spy_chg = last.get('tlt_spy_chg_4w')
         if tlt_spy is not None and not pd.isna(tlt_spy):
-            f_cols[2].metric("TLT/SPY 比", f"{tlt_spy:.4f}",
+            f_cols[2].metric("長債/股票 比 (TLT/SPY)", f"{tlt_spy:.4f}",
                              delta=f"{tlt_spy_chg:+.2f}% 4w" if tlt_spy_chg is not None and not pd.isna(tlt_spy_chg) else None,
                              help="長債/股票相對；上升 = risk-off")
 
         hyg_vol_z = last.get('hyg_volume_z_252d')
         if hyg_vol_z is not None and not pd.isna(hyg_vol_z):
             c = '#FF4444' if abs(hyg_vol_z) > 2 else '#888'
-            f_cols[3].metric("HYG 量 z-score", f"{hyg_vol_z:+.2f}",
+            f_cols[3].metric("高收益債HYG成交量 z-score", f"{hyg_vol_z:+.2f}",
                              help="HYG 成交量相對 252 日 z-score；極端值 = 流動性事件")
 
     if not any([r, dxy, walcl]):
@@ -672,7 +676,7 @@ def _render_credit_cycle(macro: dict):
     if fsi is not None:
         c = '#FF4444' if fsi > 1 else '#FF8800' if fsi > 0 else '#00AA00'
         label = '高壓力' if fsi > 1 else '中度' if fsi > 0 else '低壓力'
-        cols[3].metric("STL FSI 金融壓力", f"{fsi:+.2f}", delta=label,
+        cols[3].metric("聖路易Fed 金融壓力指數", f"{fsi:+.2f}", delta=label,
                        help="St. Louis Fed Financial Stress Index — 18 個市場指標複合，0 = 歷史均值")
 
     # Tier 1 (2026-05-09) 補充：失業/初請/消費者信心/嚴格 Buffett
@@ -732,10 +736,10 @@ def _render_credit_cycle(macro: dict):
         tw_cols = st.columns(3)
         if yoy is not None:
             c = '#FF4444' if yoy < 0 else '#00AA00'
-            tw_cols[0].metric("LEI Composite YoY", f"{yoy:+.2f}%",
+            tw_cols[0].metric("景氣領先指標 YoY", f"{yoy:+.2f}%",
                               delta="衰退" if yoy < 0 else "擴張")
         if mom is not None:
-            tw_cols[1].metric("LEI Composite MoM", f"{mom:+.2f}%",
+            tw_cols[1].metric("景氣領先指標 MoM", f"{mom:+.2f}%",
                               delta="加速" if mom > 0 else "減速")
         tw_cols[2].caption(f"資料日期：{_fmt_date(last_dt)}")
 

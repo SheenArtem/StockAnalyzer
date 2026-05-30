@@ -39,6 +39,8 @@ logger = logging.getLogger(__name__)
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
+from macro_field_glossary import label, label_with_code  # noqa: E402
+
 DATA = REPO / "data"
 OUT_DIR = DATA / "macro_reports"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -76,7 +78,7 @@ def _format_series_summary(df: pd.DataFrame, col: str, n_recent: int = 30) -> st
     n = min(n_recent, len(s))
     recent = s.tail(n)
     p_now = (s <= last).mean() * 100  # 全期百分位
-    return (f"  {col}: 當前 {last:.4g} "
+    return (f"  {label_with_code(col)}: 當前 {last:.4g} "
             f"(全期百分位 {p_now:.0f}%；"
             f"近{n}天 min={recent.min():.4g} max={recent.max():.4g} "
             f"avg={recent.mean():.4g})")
@@ -88,6 +90,9 @@ def collect_context() -> str:
         "=" * 70,
         f"市場日期：{datetime.now().strftime('%Y-%m-%d %H:%M')}",
         "=" * 70,
+        "格式說明：每列為「中文正式名稱 [程式變數名]: 當前值 (全期百分位；近N期區間)」。",
+        "全期百分位 = 該指標在全部歷史中的位置 (0%=史上最低，100%=史上最高)。",
+        "請以中文名稱判讀語意；[方括號內] 為程式變數名，可用於 trigger 條件引用。",
         "",
     ]
 
@@ -98,21 +103,37 @@ def collect_context() -> str:
         fred = fred.sort_values('date').reset_index(drop=True)
         lines.append(f"資料日期 last={fred['date'].iloc[-1]}")
         for col in ['hy_oas', 'hy_oas_rank', 'yield_curve_10y_2y', 'yield_curve_10y_3m',
-                    'dxy_close', 'dxy_chg_4w', 'vix_close', 'fed_bs_trillion', 'fed_bs_chg_4w']:
+                    'dxy_close', 'dxy_chg_4w', 'usdjpy_close', 'usdjpy_chg_4w', 'usdtwd_close',
+                    'vix_close', 'chicago_nfci', 'chicago_anfci', 'st_louis_fsi',
+                    'us_durable_yoy', 'us_unemployment_rate', 'us_initial_claims',
+                    'us_consumer_sentiment', 'sp500_close', 'fed_bs_trillion', 'fed_bs_chg_4w']:
             lines.append(_format_series_summary(fred, col))
     else:
         lines.append("  (尚未建立 - 執行 tools/fetch_fred_macro.py)")
     lines.append("")
 
+    # Valuation (Buffett US/TW) -- 專案 IC 最強單一特徵 (buffett_indicator_us 60d IC -0.371)
+    val = _safe_read_parquet(DATA / "macro" / "valuation_panel.parquet")
+    lines.append("### B. 估值 (Buffett US/TW + 台股 PE/PB/殖利率, 2011-2026)")
+    if val is not None and not val.empty:
+        val = val.sort_values('date').reset_index(drop=True)
+        lines.append(f"資料日期 last={val['date'].iloc[-1]}")
+        for col in ['buffett_indicator_us', 'buffett_rank_us', 'buffett_indicator_tw',
+                    'buffett_rank_tw', 'tw_market_pe', 'tw_market_pb', 'tw_market_yield']:
+            lines.append(_format_series_summary(val, col))
+    else:
+        lines.append("  (尚未建立 - 執行 tools/build_valuation_panel.py)")
+    lines.append("")
+
     # Breadth
     breadth = _safe_read_parquet(DATA / "breadth" / "tw_breadth.parquet")
-    lines.append("### B. 台股市場廣度 (1548 檔聚合, 2006-2026)")
+    lines.append("### C. 台股市場廣度 (1548 檔聚合, 2006-2026)")
     if breadth is not None and not breadth.empty:
         breadth = breadth.sort_values('date').reset_index(drop=True)
         lines.append(f"資料日期 last={breadth['date'].iloc[-1]}")
         for col in ['advances', 'declines', 'adl', 'mcclellan_oscillator',
                     'ad_ratio', 'breadth_thrust_10d', 'new_high_minus_low',
-                    'new_highs_52w', 'new_lows_52w']:
+                    'new_highs_52w', 'new_lows_52w', 'pct_above_50dma', 'pct_above_200dma']:
             lines.append(_format_series_summary(breadth, col))
     else:
         lines.append("  (尚未建立 - 執行 tools/build_tw_breadth.py)")
@@ -120,18 +141,25 @@ def collect_context() -> str:
 
     # Systemic chip
     sys_chip = _safe_read_parquet(DATA / "macro" / "systemic_chip.parquet")
-    lines.append("### C. 機構撤退訊號 / Systemic Chip (2016-2026)")
+    lines.append("### D. 機構撤退訊號 / Systemic Chip (含指數價位 twii_close + 外資台指期 OI, 2016-2026)")
     if sys_chip is not None and not sys_chip.empty:
         sys_chip = sys_chip.sort_values('date').reset_index(drop=True)
         lines.append(f"資料日期 last={sys_chip['date'].iloc[-1]}")
-        for col in ['sbl_total', 'foreign_holding_avg', 'foreign_holding_chg_4w',
+        for col in ['twii_close', 'sbl_total', 'foreign_holding_avg', 'foreign_holding_chg_4w',
                     'sbl_change_4w_pct', 'margin_to_index_ratio', 'margin_ratio_z_252d',
-                    'short_to_long_ratio', 'pcr_oi']:
+                    'short_to_long_ratio', 'pcr_oi', 'foreign_net_oi', 'foreign_fut_net_chg_4w',
+                    'trust_buy_streak', 'trust_net', 'trust_5d_zscore', 'option_top1_concentration']:
             lines.append(_format_series_summary(sys_chip, col))
         last = sys_chip.iloc[-1]
-        lines.append(f"  flags: A={last.get('group_a_flag')} ({last.get('group_a_reason', '')}) | "
-                     f"B={last.get('group_b_flag')} ({last.get('group_b_reason', '')}) | "
-                     f"D={last.get('group_d_flag')}")
+        group_names = {'a': '外資撤退', 'b': '籌碼鬆動', 'c': '投信動能',
+                       'd': '期權對沖', 'e': 'ETF流動'}
+        flag_parts = []
+        for g in ['a', 'b', 'c', 'd', 'e']:
+            fl = last.get(f'group_{g}_flag')
+            rs = last.get(f'group_{g}_reason', '') or ''
+            flag_parts.append(f"{g.upper()}.{group_names[g]}={fl}"
+                              + (f" ({rs})" if rs else " (driver 未填/stub)"))
+        lines.append("  風險燈號 (low/mid/high): " + " | ".join(flag_parts))
     else:
         lines.append("  (尚未建立 - 執行 tools/build_systemic_chip_panel.py)")
     lines.append("")
@@ -142,35 +170,76 @@ def collect_context() -> str:
         banner = _get_banner_data()
         risk = (banner or {}).get('risk_score', {}) or {}
         if risk.get('composite') is not None:
-            lines.append("### D. Banner 綜合風險 (v3 calibration, 2002-2026)")
-            lines.append(f"  composite={risk.get('composite'):.1f} zone={risk.get('zone')}")
+            lines.append("### E. Banner 綜合風險 (v3 calibration, 2002-2026)")
+            lines.append(f"  {label('composite')}={risk.get('composite'):.1f} zone={risk.get('zone')}")
             for sig, info in (risk.get('breakdown') or {}).items():
-                lines.append(f"  {sig}: rank={info.get('rank')} weight={info.get('weight')}")
+                rk = info.get('rank')
+                rk_s = f"{rk:.1f}" if isinstance(rk, (int, float)) else rk
+                lines.append(f"  {label_with_code(sig)}: rank={rk_s} weight={info.get('weight')}")
             lines.append("")
     except Exception as e:
         logger.warning("banner data fetch failed: %s", e)
 
+    # ETF flows / 風險偏好 (tlt_spy_ratio 是最佳短 lead, 60d IC +0.317 lag=3d)
+    etf = _safe_read_parquet(DATA / "macro" / "etf_flows.parquet")
+    lines.append("### F. ETF 流動 / 風險偏好 (HYG/LQD/TLT/SPY/MOVE/EEM, 2011-2026)")
+    if etf is not None and not etf.empty:
+        etf = etf.sort_values('date').reset_index(drop=True)
+        lines.append(f"資料日期 last={etf['date'].iloc[-1]}")
+        for col in ['tlt_spy_ratio', 'tlt_spy_chg_4w', 'hyg_to_lqd_ratio', 'hyg_to_lqd_chg_4w',
+                    'hyg_dollar_flow_z_252d', 'move_close', 'move_z_252d',
+                    'eem_to_spy_ratio', 'eem_to_spy_chg_4w']:
+            lines.append(_format_series_summary(etf, col))
+    else:
+        lines.append("  (尚未建立 - 執行 tools/fetch_etf_flows.py)")
+    lines.append("")
+
+    # Vol complex (VIX 期限結構 + skew) -- spot VIX 之外的高品質壓力擇時訊號
+    volc = _safe_read_parquet(DATA / "sentiment" / "vol_complex_history.parquet")
+    lines.append("### G. VIX 期限結構 + skew (vol complex, 2007-2026)")
+    if volc is not None and not volc.empty:
+        volc = volc.sort_values('date').reset_index(drop=True)
+        lines.append(f"資料日期 last={volc['date'].iloc[-1]}")
+        for col in ['vix', 'vix3m', 'vix_vix3m_ratio', 'vvix', 'skew', 'ovx']:
+            lines.append(_format_series_summary(volc, col))
+    else:
+        lines.append("  (尚未建立 - 執行 tools/archive_vol_complex.py)")
+    lines.append("")
+
     # Sentiment 既有
     pcr = _safe_read_parquet(DATA / "sentiment" / "pcr_history.parquet")
     if pcr is not None and not pcr.empty and 'pcr_oi' in pcr.columns:
-        lines.append("### E. 情緒/期權 (pcr_history)")
+        lines.append("### H. 情緒/期權 (pcr_history)")
         for col in ['pcr_oi', 'pcr_volume']:
             if col in pcr.columns:
                 lines.append(_format_series_summary(pcr, col))
         lines.append("")
 
-    # 最後 7 天 trend table
-    lines.append("### F. 近 7 個交易日重點指標 trend")
+    # 最後 7 天 trend table (表頭用精簡中文，避免表格過寬)
+    trend_hdr = {
+        'date': '日期', 'advances': '上漲家數', 'declines': '下跌家數',
+        'mcclellan_oscillator': '麥克連', 'new_high_minus_low': '新高減新低',
+        'hy_oas': 'HY利差', 'yield_curve_10y_2y': '殖利率10Y-2Y',
+        'vix_close': 'VIX', 'dxy_close': '美元指數',
+        'twii_close': '加權指數', 'foreign_net_oi': '外資期淨OI(口)',
+    }
+    lines.append("### I. 近 7 個交易日重點指標 trend")
     if breadth is not None:
         last7 = breadth.tail(7)[['date', 'advances', 'declines', 'mcclellan_oscillator',
-                                  'new_high_minus_low']].to_string(index=False)
+                                  'new_high_minus_low']].rename(columns=trend_hdr).to_string(index=False)
         lines.append("廣度:")
         lines.append(last7)
         lines.append("")
     if fred is not None:
         last7 = fred.tail(7)[['date', 'hy_oas', 'yield_curve_10y_2y',
-                              'vix_close', 'dxy_close']].to_string(index=False)
+                              'vix_close', 'dxy_close']].rename(columns=trend_hdr).to_string(index=False)
         lines.append("Macro:")
+        lines.append(last7)
+    if sys_chip is not None and 'twii_close' in sys_chip.columns:
+        cols = [c for c in ['date', 'twii_close', 'foreign_net_oi'] if c in sys_chip.columns]
+        last7 = sys_chip.tail(7)[cols].rename(columns=trend_hdr).to_string(index=False)
+        lines.append("")
+        lines.append("指數價位 / 外資台指期淨 OI:")
         lines.append(last7)
 
     return "\n".join(lines)
@@ -206,6 +275,22 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 【資料面板】
 {context}
 
+【本系統已維護資料清單 — 第 5 段請勿把以下「已有」項目當成缺口重複推薦】
+上方面板 A-I 已涵蓋：
+- 美國 macro/信用/流動性：HY OAS、殖利率曲線(10Y-2Y/10Y-3M)、DXY、USDJPY、USDTWD、VIX、芝加哥 NFCI/ANFCI、聖路易 FSI、失業率/初請/消費信心/耐久財、Fed 資產負債表
+- 估值：美股 Buffett 指標+rank、台股估值(指數 proxy)+rank、台股大盤 PE/PB/殖利率
+- 台股廣度：漲跌家數、ADL、McClellan、上漲量/下跌量比、廣度衝力、52週新高低、站上 50/200 日均線比例
+- 機構/籌碼：借券餘額、融資/指數比 z-score、券資比、PCR-OI/Volume、外資台指期淨 OI、外資持股、投信買賣超、選擇權集中度
+- 風險偏好/波動：HYG/LQD、長債/股票比(TLT/SPY)、MOVE、EEM/SPY、VIX 期限結構(VIX3M)、SKEW、VVIX、OVX
+- 加權指數價位 twii_close（含近 7 日 trend）
+→ 以上皆「已有」。第 5 段只列「上方面板沒有」的真缺口（候選：指數均線乖離 20/50/200、台指期基差、RRP/TGA/SOFR 流動性 plumbing、CCC 級 OAS、盈餘上修廣度、個股相關性/離散度、TSM ADR 隔夜溢價、中國信用脈衝/CNH）。
+
+【指標領先性分類（本系統已做 IC 驗證，請據此區分「預警」與「確認」）】
+- 真領先（1-4 週 lead，可作預警）：美股 Buffett 估值(~10d)、長債/股票比 TLT/SPY(~3d)、美耐久財 YoY(~1d)、聖路易 FSI(~12d)、融資比 z-score(~13d)、外資持股 4 週變化(~16d)
+- 同步（lag≈0，只能「確認」當下狀態，不可當「即將發生」的領先訊號）：VIX、殖利率曲線、漲跌家數、McClellan、ADL、廣度衝力、PCR
+- 慢速領先（30-60d）：HY OAS、台股 Buffett、Fed 資產負債表
+→ 情境推演的觸發條件請優先押在「真領先」指標；同步指標只用來描述當下，不要寫成預測未來的領先警訊。
+
 【任務】
 {directive}
 
@@ -227,15 +312,15 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 {H(4, "操作建議 (informational only, SOP-14)")}
 - 部位水位建議區間（如 5-7 成）
 - 避險工具建議（PUT / 反向 ETF / 提高現金）
-- 進場/觀察條件 trigger price 或 indicator level
+- 進場/觀察條件：面板已含加權指數價位 twii_close（含近 7 日 trend），請盡量給「具體指數點位區間」（例如跌破/站上某點位）；確實無資料可定價處（如均線）再以 indicator level 表達
 - 強調這是 informational tier，非自動 portfolio rebalance gate
 
 {H(5, "資料缺口與下一步建議")}
-這段最重要，請仔細思考：
-- 當前 panel 缺什麼資料？(列 5-10 個指標)
-- 哪些資料能讓 1-4 週 lead 更可靠？(列出具體 FRED ID / 資料源 / 取得方式)
-- 哪些指標應該優先補（按 IC 預期 + 取得難度排序）
-- 哪些訊號目前是 stub（如 group_c/e_flag = low），怎麼填補
+這段最重要，請仔細思考（務必對照上方「本系統已維護資料清單」，不要把清單內已有的當成缺口）：
+- 對照已維護清單，真正「上方面板沒有」的資料缺口是什麼？(列 5-10 個)
+- 這些缺口中哪些能讓 1-4 週 lead 更可靠？(列出具體 FRED ID / 資料源 / 取得方式)
+- 按 IC 預期 + 取得難度排序，優先補哪些
+- 目前哪些 flag 是 stub（風險燈號 group A/C/D/E 的 driver 字串空白），怎麼用規則式邏輯填補
 - 是否有跨市場資料（中國/日本/歐洲）能加強？
 
 【輸出規範】

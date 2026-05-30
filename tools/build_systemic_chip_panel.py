@@ -384,7 +384,7 @@ def build_panel() -> pd.DataFrame:
             return 'high', ' / '.join(reasons)
         if len(reasons) == 1:
             return 'mid', reasons[0]
-        return 'low', ''
+        return 'low', '外資持股/借券/外資期貨淨部位 4w 變化均未達撤退門檻'
 
     def flag_b(row):
         z = row.get('margin_ratio_z_252d')
@@ -398,7 +398,7 @@ def build_panel() -> pd.DataFrame:
             return 'high', ' / '.join(reasons)
         if len(reasons) == 1:
             return 'mid', reasons[0]
-        return 'low', ''
+        return 'low', '融資/指數 z-score 與券資比均未達鬆動門檻'
 
     def flag_c(row):
         streak = row.get('trust_buy_streak')
@@ -418,7 +418,7 @@ def build_panel() -> pd.DataFrame:
             if streak is not None and not pd.isna(streak) and streak >= 5 and 'zscore' not in reasons[0]:
                 return 'high', reasons[0]
             return 'mid', reasons[0]
-        return 'low', ''
+        return 'low', '投信連買天數與 5 日 z-score 均未達動能門檻'
 
     def flag_d(row):
         pcr_val = row.get('pcr_oi')
@@ -435,7 +435,7 @@ def build_panel() -> pd.DataFrame:
             return 'high', ' / '.join(reasons)
         if len(reasons) == 1:
             return 'mid', reasons[0]
-        return 'low', ''
+        return 'low', 'PCR-OI 與選擇權集中度均未達對沖門檻'
 
     def flag_e(row):
         hyg_z = row.get('hyg_volume_z_252d')
@@ -452,7 +452,7 @@ def build_panel() -> pd.DataFrame:
             return 'high', ' / '.join(reasons)
         if len(reasons) == 1:
             return 'mid', reasons[0]
-        return 'low', ''
+        return 'low', 'HYG 成交量 z 與 TLT/SPY 4 週變化均未達流動門檻'
 
     flags_a = panel.apply(flag_a, axis=1)
     flags_b = panel.apply(flag_b, axis=1)
