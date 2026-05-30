@@ -379,7 +379,7 @@ def _load_breadth() -> dict:
         'adl': last.get('adl'),
         'adl_ma20': last.get('adl_ma20'),
         'mcclellan': last.get('mcclellan_oscillator'),
-        'ad_ratio': last.get('ad_ratio'),
+        'up_down_vol_ratio': last.get('up_down_vol_ratio'),
         'new_high_low_diff': last.get('new_high_minus_low'),
         'breadth_thrust': last.get('breadth_thrust_10d'),
         'advances': last.get('advances'),
@@ -410,11 +410,11 @@ def _render_breadth(breadth: dict):
         mco_color = "🔴" if mco < -100 else "🟠" if mco < -50 else "🟢" if mco > 50 else "⚪"
         c2.metric("麥克連震盪指標", f"{mco:.0f}", delta=mco_color)
 
-    ad = breadth.get('ad_ratio')
+    ad = breadth.get('up_down_vol_ratio')
     if ad is not None:
         ad_label = "強" if ad > 1.5 else "弱" if ad < 0.6 else "中"
-        c3.metric("上漲量/下跌量比", f"{ad:.2f}", delta=ad_label,
-                  help="上漲股成交量 ÷ 下跌股成交量（成交「量」比，非漲跌家數比；家數見下方漲跌家數）")
+        c3.metric("上漲下跌量能比 (UVOL/DVOL)", f"{ad:.2f}", delta=ad_label,
+                  help="上漲股成交量 ÷ 下跌股成交量（量能版漲跌比，非漲跌家數比；家數見下方漲跌家數）；Up/Down Volume Ratio，亦為 Arms Index/TRIN 分母")
 
     nh_nl = breadth.get('new_high_low_diff')
     if nh_nl is not None:

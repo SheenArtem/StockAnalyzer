@@ -81,13 +81,14 @@ def compute_breadth(close_df: pd.DataFrame, vol_df: pd.DataFrame) -> pd.DataFram
     declines = (chg < 0).sum(axis=1)
     unchanged = ((chg == 0) | chg.isna()).sum(axis=1)
 
-    # volume-weighted A/D ratio
-    logger.info("Computing volume-weighted A/D...")
+    # Up/Down Volume Ratio (UVOL/DVOL): 上漲股總成交量 / 下跌股總成交量
+    # 量能版漲跌比，非漲跌「家數」比(家數見 advances/declines)；亦為 Arms Index/TRIN 的分母
+    logger.info("Computing Up/Down Volume Ratio (UVOL/DVOL)...")
     up_mask = chg > 0
     dn_mask = chg < 0
     up_vol = (vol_df * up_mask.reindex_like(vol_df).astype(float)).sum(axis=1)
     dn_vol = (vol_df * dn_mask.reindex_like(vol_df).astype(float)).sum(axis=1)
-    ad_ratio = up_vol / dn_vol.replace(0, np.nan)
+    up_down_vol_ratio = up_vol / dn_vol.replace(0, np.nan)
 
     # ADL = cumulative (A - D)
     ad_diff = advances - declines
@@ -128,7 +129,7 @@ def compute_breadth(close_df: pd.DataFrame, vol_df: pd.DataFrame) -> pd.DataFram
         'adl': adl.values,
         'adl_ma20': adl_ma20.values,
         'mcclellan_oscillator': mco.values,
-        'ad_ratio': ad_ratio.values,
+        'up_down_vol_ratio': up_down_vol_ratio.values,
         'breadth_thrust_10d': bt.values,
         'new_highs_52w': new_highs.values,
         'new_lows_52w': new_lows.values,

@@ -132,7 +132,7 @@ def collect_context() -> str:
         breadth = breadth.sort_values('date').reset_index(drop=True)
         lines.append(f"資料日期 last={breadth['date'].iloc[-1]}")
         for col in ['advances', 'declines', 'adl', 'mcclellan_oscillator',
-                    'ad_ratio', 'breadth_thrust_10d', 'new_high_minus_low',
+                    'up_down_vol_ratio', 'breadth_thrust_10d', 'new_high_minus_low',
                     'new_highs_52w', 'new_lows_52w', 'pct_above_50dma', 'pct_above_200dma']:
             lines.append(_format_series_summary(breadth, col))
     else:

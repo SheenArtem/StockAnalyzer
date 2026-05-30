@@ -6,7 +6,7 @@
 
 設計原則：
   - 中文名要可 google（即使使用者不熟，貼進搜尋引擎查得到正式術語）
-  - 名稱會「騙人」的（ad_ratio 其實是量比、buffett_indicator_tw 其實是指數值）
+  - 名稱會「騙人」的（up_down_vol_ratio 舊名 ad_ratio 其實是量比、buffett_indicator_tw 其實是指數值）
     把警語直接寫進中文名，讓任何 reader / LLM 第一眼就讀到正確語意
   - 純 dict + helper，無 streamlit / pandas 依賴，CLI 與 UI 皆可 import
 
@@ -50,7 +50,7 @@ FIELD_GLOSSARY = {
     'declines': ('下跌家數', '家', ''),
     'adl': ('累積騰落線 ADL', '家(累積)', '上漲減下跌家數累計；探底=底部參與度流失'),
     'mcclellan_oscillator': ('麥克連震盪指標 McClellan Oscillator', '', '正=廣度轉強，負=轉弱'),
-    'ad_ratio': ('上漲量除以下跌量比 (成交「量」比，非漲跌家數比)', '比', '注意：這是成交量比；漲跌家數請看上漲家數/下跌家數'),
+    'up_down_vol_ratio': ('上漲下跌量能比 (Up/Down Volume Ratio, UVOL/DVOL)', '比', '上漲股總成交量÷下跌股總成交量；量能版漲跌比，非漲跌「家數」比(家數見上漲家數/下跌家數)；亦為 Arms Index/TRIN 的分母。舊欄名 ad_ratio'),
     'breadth_thrust_10d': ('Zweig 廣度衝力 10日', '', '>0.615=強勢起漲訊號'),
     'new_high_minus_low': ('52週新高家數 減 新低家數', '家', '正=創高占優'),
     'new_highs_52w': ('52週新高家數', '家', ''),
