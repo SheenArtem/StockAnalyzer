@@ -40,6 +40,27 @@ if exist scanner_weekly.log ren scanner_weekly.log scanner_weekly_prev.log
 
 echo [%date% %time%] Weekly scanner started >> scanner_weekly.log
 
+REM ============================================================
+REM DISABLED 2026-05-30 per user request: the strong stocks feature is fully
+REM stopped. The daily report was already disabled 2026-05-21/05-23 (Opus
+REM 6/15 billing cut); the weekly report runs the SAME now-dead pipeline and
+REM Stage 2 still called Opus every Sunday, so it kept burning Agent SDK
+REM Credit for output nobody consumes. All 3 stages + the auto git push are
+REM skipped here, and the Windows scheduled task "StockAnalyzer Weekly
+REM Scanner" was REMOVED (Unregister-ScheduledTask, 2026-05-30), so this
+REM BAT is no longer wired to any schedule.
+REM
+REM Manual trigger still works (all original logic preserved below):
+REM   python tools\strong_stocks_weekly_screener.py
+REM   python tools\strong_stocks_ai_analysis.py --weekly
+REM   python tools\strong_stocks_render.py --weekly
+REM To re-enable the scheduled run: remove the "goto skip_weekly_all" line
+REM below AND re-create the task (Register-ScheduledTask, or via taskschd.msc:
+REM Weekly Sun 12:00 -> this BAT; see the Setup section in the header above).
+REM ============================================================
+echo [%date% %time%] Weekly scanner DISABLED (strong stocks feature stopped) - skipping all stages >> scanner_weekly.log
+goto skip_weekly_all
+
 REM ------------------------------------------------------------
 REM Stage 1: weekly screener (universe scan + scoring + 5d chip)
 REM
@@ -95,3 +116,8 @@ set FINAL_EXIT=%EC1%
 if not "%EC2%"=="0" set FINAL_EXIT=%EC2%
 if not "%EC3%"=="0" set FINAL_EXIT=%EC3%
 exit /b %FINAL_EXIT%
+
+:skip_weekly_all
+echo [%date% %time%] Weekly scanner finished (DISABLED no-op, exit=0) >> scanner_weekly.log
+echo. >> scanner_weekly.log
+exit /b 0
