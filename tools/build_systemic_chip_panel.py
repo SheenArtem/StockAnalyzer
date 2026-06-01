@@ -428,16 +428,26 @@ def build_panel() -> pd.DataFrame:
     def flag_b(row):
         z = row.get('margin_ratio_z_252d')
         sl = row.get('short_to_long_ratio')
+        mpct = row.get('margin_to_mktcap_pct')
+        mz = row.get('margin_mktcap_z_252d')
         reasons = []
         if z is not None and not pd.isna(z) and z > 1.5:
             reasons.append(f"融資/指數 z {z:+.2f}")
         if sl is not None and not pd.isna(sl) and sl < 0.05:
             reasons.append(f"短/多比 {sl:.3f} (極低)")
+        # 融資餘額佔市值比 危險帶 (informational, 非 IC composite)。實測 2018-2025 各大頂
+        # /崩盤前 0.43-0.53%, >=0.48 為當代頂部帶下緣。⚠️ 絕對門檻為 2024-2026 校準, 此比值
+        # 長期結構性下降(2000 ~4% -> 現 0.38%), 需每 1-2 年 review; mz>2.5 (相對 252d z) 為
+        # 自適應備援, 不與絕對門檻雙計(elif)。當前 0.38%/z1.87 兩者皆未觸發。
+        if mpct is not None and not pd.isna(mpct) and mpct >= 0.48:
+            reasons.append(f"融資佔市值 {mpct:.2f}% (>=0.48 當代頂部帶)")
+        elif mz is not None and not pd.isna(mz) and mz > 2.5:
+            reasons.append(f"融資佔市值 z {mz:+.2f} (急升)")
         if len(reasons) >= 2:
             return 'high', ' / '.join(reasons)
         if len(reasons) == 1:
             return 'mid', reasons[0]
-        return 'low', '融資/指數 z-score 與券資比均未達鬆動門檻'
+        return 'low', '融資/指數 z、券資比、融資佔市值比 均未達鬆動門檻'
 
     def flag_c(row):
         streak = row.get('trust_buy_streak')

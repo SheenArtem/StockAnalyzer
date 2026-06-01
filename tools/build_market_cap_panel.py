@@ -97,6 +97,16 @@ def build_market_cap_series(shares: pd.Series) -> pd.Series:
     cnt.index = pd.to_datetime(cnt.index)
     # 覆蓋率守門：partial-update 日 (檔數 << 近期中位數) 會給偏低總市值 -> 砍成 NaN，
     # 避免假的 margin/mktcap 比值尖峰污染 z-score (e.g. 2025-08-01 僅 452 檔 vs ~900)。
+    # (a) 絕對覆蓋 floor：上市市值覆蓋 2016+ 才達 ~86-97%；2015 僅 ~511 檔 (~54% 覆蓋)
+    #     -> 比值假性偏高 (2015-10~2016-01 衝到 0.9-1.0% 是 artifact 非真實) -> 砍 NaN。
+    #     ⚠️ 即便 2016+ 仍 ~86-97% 覆蓋 (比值略偏高 ~10-16%, 逐年收斂)，但與危險帶校準
+    #     同基礎故可用；2015 (54%) 失真過大必砍。
+    MIN_STOCKS = 800
+    low_abs = cnt < MIN_STOCKS
+    if low_abs.any():
+        logger.info("  絕對覆蓋 floor: 砍 %d 個 <%d 檔的日 (市值覆蓋不足, e.g. 2015)", int(low_abs.sum()), MIN_STOCKS)
+        mktcap[low_abs] = np.nan
+    # (b) 相對守門：partial-update 日 (檔數 << 近期中位數) 也砍
     med = cnt.rolling(60, min_periods=20).median()
     low_cov = cnt < (0.7 * med)
     if low_cov.any():
