@@ -1063,22 +1063,11 @@ def render_market_banner():
                 elif name == 'volatility':
                     actual = f"{val.get('volatility_20d', 0):.1f}%"
                 elif name == 'margin_balance':
-                    # 融資金額(仟元) / 估計大盤市值 → 百分比
-                    # margin_balance 來自 MI_MARGN，單位是張(shares)
-                    # 但 _calc_margin_score 回傳的 change_rate_pct 是變化率
-                    # 直接用 margin 金額計算市值比需要另外抓金額
-                    # 這裡用回傳的 margin_balance(張) 搭配大盤指數粗估
-                    mb = val.get('margin_balance', 0)
-                    tw_price = tw.get('price', 0)
-                    if tw_price > 0 and mb > 0:
-                        # 融資金額(仟元) → 億TWD：/1e5
-                        # 大盤市值(億TWD) ≈ 指數 × 15（每點約15億）
-                        margin_bil = mb / 1e5
-                        mktcap_bil = tw_price * 15
-                        ratio = margin_bil / mktcap_bil * 100
-                        actual = f"{ratio:.2f}%"
-                    else:
-                        actual = f"{mb:,.0f}"
+                    # FGI 融資分項衡量的是「融資餘額日變化率」(增=貪婪/減=恐懼)，狀態即由此算。
+                    # 數值顯示變化率本身 (與狀態一致)；絕對水位「融資佔市值比」另列下方一行
+                    # (走 build_market_cap_panel 官方金額/上市總市值，不用粗估的 指數x15)。
+                    cr = val.get('change_rate_pct')
+                    actual = f"日 {cr:+.2f}%" if cr is not None else "N/A"
                 else:
                     actual = f"{score:.0f}" if score is not None else "N/A"
                 label_map = {
@@ -1090,6 +1079,23 @@ def render_market_banner():
                 }
                 comp_data.append({"指標": label_map.get(name, name),
                                   "數值": actual, "狀態": status})
+            # 附加一行：融資餘額佔上市總市值 (官方 MI_MARGN 融資金額 / 上市總市值,
+            # build_market_cap_panel.py)。與上方 FGI「融資餘額」分項(日變化率)互補：
+            # 這行是絕對槓桿水位 + 252d z 偏離 (informational, 非 FGI 計分項)。
+            try:
+                _mc = REPO / "data" / "macro" / "market_cap.parquet"
+                if _mc.exists():
+                    _df = pd.read_parquet(_mc).dropna(subset=['margin_to_mktcap_pct'])
+                    if not _df.empty:
+                        _r = _df.iloc[-1]
+                        _z = _r.get('margin_mktcap_z_252d')
+                        _st = ("偏高" if pd.notna(_z) and _z > 1.5
+                               else "偏低" if pd.notna(_z) and _z < -1.5 else "中性")
+                        comp_data.append({"指標": "融資/上市總市值",
+                                          "數值": f"{_r['margin_to_mktcap_pct']:.2f}%",
+                                          "狀態": _st})
+            except Exception:
+                pass
             if comp_data:
                 c2.table(pd.DataFrame(comp_data))
 
