@@ -6,7 +6,8 @@ build_systemic_chip_panel.py -- 機構撤退訊號 (Systemic Chip)
 
 5 組訊號：
   Group A 外資撤退：foreign_holding_chg_4w / sbl_change_4w_pct / foreign_fut_net_chg_4w
-  Group B 籌碼鬆動：margin_to_index_ratio (zscore) / short_to_long_ratio
+  Group B 籌碼鬆動：margin_to_index_ratio (zscore) / short_to_long_ratio /
+                    margin_to_mktcap_pct (融資餘額佔市值比, 官方金額/上市總市值) + z
   Group C 投信動能：trust_buy_streak / trust_5d_zscore (data/macro/institutional_total.parquet)
   Group D 期權對沖：pcr_oi / option_top1_concentration (data/sentiment/atm_put_premium.parquet)
   Group E ETF 流動：hyg_volume_z_252d / tlt_spy_chg_4w (data/macro/etf_flows.parquet)
@@ -233,6 +234,19 @@ def load_etf_flows() -> pd.DataFrame:
     return df
 
 
+def load_market_cap() -> pd.DataFrame:
+    """上市總市值 + 融資餘額佔市值比 (data/macro/market_cap.parquet,
+    由 build_market_cap_panel.py 產：官方 MI_MARGN 融資金額 / Sum(收盤x發行股數))。
+    回 DataFrame index=date, cols=[margin_to_mktcap_pct, margin_mktcap_z_252d, total_market_cap]。"""
+    p = MACRO / "market_cap.parquet"
+    if not p.exists():
+        logger.warning("  market_cap.parquet not found (run tools/build_market_cap_panel.py)")
+        return pd.DataFrame()
+    df = pd.read_parquet(p)
+    df['date'] = pd.to_datetime(df['date'])
+    return df.set_index('date').sort_index()
+
+
 def build_panel() -> pd.DataFrame:
     sbl = aggregate_sbl()
     margin = aggregate_margin()
@@ -360,6 +374,16 @@ def build_panel() -> pd.DataFrame:
     panel['short_to_long_ratio'] = (
         panel['margin_short_total'] / panel['margin_long_total'].replace(0, np.nan)
     )
+
+    # Group B 補：融資餘額佔市值比 (官方融資金額 / 上市總市值, build_market_cap_panel.py)
+    # 真實可讀 % (vs margin_to_index_ratio 因分母是指數點數只能看 z)。
+    # margin_mktcap_z_252d 為其 252d z-score；訊號上與 margin_ratio_z_252d 高度一致。
+    mcap = load_market_cap()
+    for _c in ('margin_to_mktcap_pct', 'margin_mktcap_z_252d', 'total_market_cap'):
+        if not mcap.empty and _c in mcap.columns:
+            panel[_c] = mcap[_c].reindex(panel.index).ffill()
+        else:
+            panel[_c] = np.nan
 
     # Group C 投信動能：trust_5d_zscore
     if 'trust_net' in panel.columns:

@@ -152,7 +152,8 @@ def collect_context() -> str:
         for col in ['twii_close', 'twii_dist_ma20', 'twii_dist_ma50', 'twii_dist_ma200',
                     'sbl_total', 'foreign_holding_avg', 'foreign_holding_chg_4w',
                     'sbl_change_4w_pct', 'margin_to_index_ratio', 'margin_ratio_z_252d',
-                    'short_to_long_ratio', 'pcr_oi', 'foreign_net_oi', 'foreign_fut_net_chg_4w',
+                    'short_to_long_ratio', 'margin_to_mktcap_pct', 'margin_mktcap_z_252d',
+                    'pcr_oi', 'foreign_net_oi', 'foreign_fut_net_chg_4w',
                     'foreign_investor_net', 'foreign_cum_5d', 'foreign_cum_20d',
                     'trust_buy_streak', 'trust_net', 'trust_5d_zscore', 'option_top1_concentration']:
             lines.append(_format_series_summary(sys_chip, col))

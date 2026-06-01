@@ -15,9 +15,12 @@ REM    1. fetch_fred_macro      : 18 FRED CSV + ICE DXY (daily/weekly/monthly)
 REM    2. build_leadership_panel: SOX/TWII rel-strength + TSM ADR premium
 REM                               (yfinance; reuses fred_panel usdtwd)
 REM    3. fetch_etf_flows       : 10 yfinance ETF (HYG/JNK/LQD/TLT/SPY/...)
-REM    4. build_systemic_chip   : aggregate chip CSV + sentiment + ETF flows
-REM                               into 5-group (A/B/C/D/E) macro_dashboard
-REM                               Section 1 panel
+REM    4. build_market_cap      : listed total mktcap (reuse ohlcv_tw x
+REM                               t187ap03_L shares) + official MI_MARGN
+REM                               margin value -> margin/mktcap pct + z
+REM    5. build_systemic_chip   : aggregate chip CSV + sentiment + ETF flows
+REM                               + market_cap into 5-group (A/B/C/D/E)
+REM                               macro_dashboard Section 1 panel
 REM
 REM  NOTE: fred_fetcher.py --refresh stays in run_taifex_signals_
 REM  afterclose.bat (writes data_cache/fred/ for vol_complex tile,
@@ -29,6 +32,7 @@ REM    institutional_total (evening 17:30) -> systemic_chip Group C
 REM    atm_put_premium     (afterclose 14:35) -> systemic_chip Group D
 REM    etf_flows           (this bat)          -> systemic_chip Group E
 REM    chip CSV            (scanner ~04:00)    -> systemic_chip Group A/B
+REM    ohlcv_tw            (scanner ~04:00)    -> build_market_cap denominator (total mktcap)
 REM
 REM  ASCII-only per project rule.
 REM
@@ -62,6 +66,9 @@ python tools\build_leadership_panel.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]ETF flows (HYG/JNK/LQD/TLT/SPY/MOVE/EEM/EMB/FXI/EWJ) >> macro_panels.log
 python tools\fetch_etf_flows.py >> macro_panels.log 2>&1
+
+echo [%date% %time%] [stage]Market cap panel (listed total mktcap + margin/mktcap pct) >> macro_panels.log
+python tools\build_market_cap_panel.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]Systemic chip panel (5-group aggregate, depends on above) >> macro_panels.log
 python tools\build_systemic_chip_panel.py >> macro_panels.log 2>&1

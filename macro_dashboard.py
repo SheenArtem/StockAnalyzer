@@ -265,6 +265,8 @@ def _load_systemic_chip() -> dict:
             'reason': last.get('group_a_reason', ''),
         },
         'group_b': {  # 籌碼鬆動
+            'margin_to_mktcap_pct': last.get('margin_to_mktcap_pct'),
+            'margin_mktcap_z_252d': last.get('margin_mktcap_z_252d'),
             'margin_ratio_z_252d': last.get('margin_ratio_z_252d'),
             'short_to_long_ratio': last.get('short_to_long_ratio'),
             'flag': last.get('group_b_flag', 'low'),
@@ -329,7 +331,9 @@ def _render_systemic_chip(sys_chip: dict):
         'sbl_change_4w_pct': ('借券餘額 4 週變化', '%', '可借券餘額 4 週變化；正值大 = 空方準備加碼'),
         'foreign_fut_net_chg_4w': ('外資期貨淨部位 4 週變化', '口', '台指期 + 小台外資多空淨口數 4 週變化；負值大 = 外資轉空'),
         # Group B
-        'margin_ratio_z_252d': ('融資維持率 z-score', 'z (252 日)', '融資維持率相對過去 252 日的 z-score；負值大 = 散戶資金緊'),
+        'margin_to_mktcap_pct': ('融資餘額佔市值比重', '% (上市)', '官方融資金額 ÷ 上市總市值；越高 = 散戶槓桿越重(過熱)；台積電灌大市值後結構性偏低 (近期約 0.4%)'),
+        'margin_mktcap_z_252d': ('融資佔市值比 z-score', 'z (252 日)', '融資佔市值比相對過去 252 日的 z-score；正值大 = 槓桿擴張'),
+        'margin_ratio_z_252d': ('融資/指數比 z-score', 'z (252 日)', '融資餘額÷加權指數 相對過去 252 日的 z-score；正值大 = 散戶槓桿擴張(與融資佔市值比訊號高度一致)'),
         'short_to_long_ratio': ('券資比', '比', '融券餘額 ÷ 融資餘額；上升 = 空方相對強'),
         # Group C
         'trust_buy_streak': ('投信連續買賣超', '天', '正 = 連續買超天數，負 = 連續賣超天數'),
