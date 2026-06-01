@@ -1311,40 +1311,41 @@ class TaiwanFearGreedIndex:
         """
         try:
             today = datetime.now()
-            date_str = today.strftime('%Y%m%d')
-
-            # TWSE 融資融券統計
-            url = (
-                'https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN'
-                f'?date={date_str}&selectType=MS&response=json'
-            )
-            resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False)
-            resp.raise_for_status()
-            data = resp.json()
 
             margin_balance = 0
             margin_prev = 0
             matched_date = None
 
-            # 解析融資餘額
-            # MI_MARGN 欄位: [項目, 買進, 賣出, 現金償還, 前日餘額, 今日餘額]
-            # 最後一行是「融資金額(仟元)」，取 row[5]=今日餘額, row[4]=前日餘額
-            if 'tables' in data:
-                for table in data['tables']:
-                    rows = table.get('data', [])
-                    for row in rows:
-                        if isinstance(row, list) and len(row) >= 6:
-                            name = str(row[0]).strip()
-                            if '融資金額' in name:
-                                try:
-                                    margin_balance = int(str(row[5]).replace(',', '').strip())
-                                    margin_prev = int(str(row[4]).replace(',', '').strip())
-                                    matched_date = today.date()
-                                except (ValueError, IndexError):
-                                    pass
-                                break
+            # 1) 先試 today（盤後 20:00 才更新）。
+            # !! 非交易日 (週末/假日) 此 endpoint 回 404 -> 不可讓 raise_for_status 拋出
+            #    中斷整個函式，否則下方往回 5 交易日的 fallback 永遠跑不到 (2026-05-30
+            #    週六 archive 即因此存成 margin=None/0)。包 nested try 吞掉 today 失敗。
+            try:
+                date_str = today.strftime('%Y%m%d')
+                url = (
+                    'https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN'
+                    f'?date={date_str}&selectType=MS&response=json'
+                )
+                resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    # MI_MARGN 欄位: [項目, 買進, 賣出, 現金償還, 前日餘額, 今日餘額]
+                    # 「融資金額(仟元)」row: row[5]=今日餘額, row[4]=前日餘額
+                    if 'tables' in data:
+                        for table in data['tables']:
+                            for row in table.get('data', []):
+                                if isinstance(row, list) and len(row) >= 6 and '融資金額' in str(row[0]):
+                                    try:
+                                        margin_balance = int(str(row[5]).replace(',', '').strip())
+                                        margin_prev = int(str(row[4]).replace(',', '').strip())
+                                        matched_date = today.date()
+                                    except (ValueError, IndexError):
+                                        pass
+                                    break
+            except requests.RequestException as e:
+                logger.debug("FGI margin today-fetch failed (將走 fallback): %s", e)
 
-            # 若 TWSE 即時資料不足，用 yfinance ^TWII 的 margin 趨勢替代
+            # 2) today 無資料 (非交易日/盤前/20:00 前) -> 往回 5 交易日 fallback
             if margin_balance == 0:
                 # 備用方案: 使用融資成長率的替代指標
                 # 嘗試不同日期 (往回最多 5 個交易日)
