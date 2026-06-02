@@ -15,6 +15,8 @@ REM    1. fetch_fred_macro      : 18 FRED CSV + ICE DXY (daily/weekly/monthly)
 REM    2. build_leadership_panel: SOX/TWII rel-strength + TSM ADR premium
 REM                               (yfinance; reuses fred_panel usdtwd)
 REM    3. fetch_etf_flows       : 10 yfinance ETF (HYG/JNK/LQD/TLT/SPY/...)
+REM    3b. fetch_cnn_fgi        : CNN US Fear-Greed history (GitHub mirror +
+REM                               CNN endpoint top-up); offline IC panel only
 REM    4. build_market_cap      : listed total mktcap (reuse ohlcv_tw x
 REM                               t187ap03_L shares) + official MI_MARGN
 REM                               margin value -> margin/mktcap pct + z
@@ -29,6 +31,7 @@ REM  refreshes via fetch_fred_macro.py).
 REM
 REM  Dependency order matters:
 REM    institutional_total (evening 17:30) -> systemic_chip Group C
+REM    futures_institutional (evening 17:30) -> systemic_chip Group A (S2-A)
 REM    atm_put_premium     (afterclose 14:35) -> systemic_chip Group D
 REM    etf_flows           (this bat)          -> systemic_chip Group E
 REM    chip CSV            (scanner ~04:00)    -> systemic_chip Group A/B
@@ -66,6 +69,9 @@ python tools\build_leadership_panel.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]ETF flows (HYG/JNK/LQD/TLT/SPY/MOVE/EEM/EMB/FXI/EWJ) >> macro_panels.log
 python tools\fetch_etf_flows.py >> macro_panels.log 2>&1
+
+echo [%date% %time%] [stage]CNN Fear-Greed history (US sentiment; GitHub mirror + CNN endpoint top-up; offline IC panel) >> macro_panels.log
+python tools\fetch_cnn_fgi.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]Market cap panel (listed total mktcap + margin/mktcap pct) >> macro_panels.log
 python tools\build_market_cap_panel.py >> macro_panels.log 2>&1

@@ -11,6 +11,8 @@ REM           (TWSE ZIP, FinMind 90d window, NDC API) does not
 REM           block the 14:35 TAIFEX archive path.
 REM
 REM    1. fetch_institutional_total --days 30  : TW three-major daily
+REM    1b. fetch_futures_institutional         : TAIFEX TXF 3-major daily
+REM                                              (feeds dawn systemic_chip Group A)
 REM    2. fetch_aaii_sentiment                 : weekly Thursday XLS
 REM    3. fetch_tw_lei_panel                   : monthly NDC LEI
 REM    4. build_valuation_panel (incremental)  : monthly TWSE PE
@@ -42,6 +44,9 @@ echo [%date% %time%] Macro panels evening starting >> macro_panels.log
 
 echo [%date% %time%] [stage]Institutional total (TW 3 majors, FinMind --days 30) >> macro_panels.log
 python tools\fetch_institutional_total.py --days 30 >> macro_panels.log 2>&1
+
+echo [%date% %time%] [stage]Futures institutional (TAIFEX TXF 3 majors, feeds systemic_chip Group A) >> macro_panels.log
+python tools\fetch_futures_institutional.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]AAII sentiment (weekly Thursday XLS) >> macro_panels.log
 python tools\fetch_aaii_sentiment.py >> macro_panels.log 2>&1
