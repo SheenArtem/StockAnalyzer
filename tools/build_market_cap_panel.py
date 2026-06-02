@@ -89,6 +89,11 @@ def build_market_cap_series(shares: pd.Series) -> pd.Series:
     df = pd.read_parquet(OHLCV_TW, columns=['stock_id', 'date', 'Close'])
     df['stock_id'] = df['stock_id'].astype(str)
     df = df[df['stock_id'].isin(shares.index)]  # 上市 only
+    # 防呆：剔除 NaN 收盤 (yfinance 偶有「有量無價」列, e.g. 2026-06-01)。若不剔，
+    # NaN*股數=NaN 被 sum 當 0 跳過 -> 總市值塌陷，但下方 cnt 仍把該列計入 ->
+    # MIN_STOCKS 覆蓋守門失效, 寫出 0 總市值 / inf 比值。剔掉後 cnt 反映真實有價檔數,
+    # partial/全 NaN 日自然落在 MIN_STOCKS floor 之下被砍成 NaN。
+    df = df.dropna(subset=['Close'])
     df['cap'] = df['Close'] * df['stock_id'].map(shares)
     grp = df.groupby('date')
     mktcap = grp['cap'].sum().sort_index()
@@ -197,6 +202,9 @@ def main():
     panel = mktcap.to_frame()
     panel['margin_value'] = margin_val.reindex(panel.index)
     panel['margin_to_mktcap_pct'] = panel['margin_value'] / panel['total_market_cap'] * 100.0
+    # 防呆雙重保險：total_market_cap=0 (理應已被 build_market_cap_series 的 floor 砍成 NaN)
+    # 會讓比值 inf。一律轉 NaN，絕不寫 inf 進 parquet 污染 z-score / dashboard tile。
+    panel['margin_to_mktcap_pct'] = panel['margin_to_mktcap_pct'].replace([np.inf, -np.inf], np.nan)
     # 252d z-score (只在 ratio 有值處)
     # z-score: min_periods=120 (需 ~6 月歷史才算, 避免 startup 低變異窗口放大成假極端 z;
     # 此比值很穩定 0.3-0.5%, 早期窗口 std 過小會噴極端值)

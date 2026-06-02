@@ -50,6 +50,7 @@ def _yf_batch(sids, suffix, start_date, chunk):
     只收有資料的；空的（如 .TW 抓不到的 TPEX 股）留給上層改 .TWO 重試。"""
     import yfinance as yf
     out = {}
+    dropped_nanclose = 0
     for i in range(0, len(sids), chunk):
         batch = sids[i:i + chunk]
         tickers = [f"{s}{suffix}" for s in batch]
@@ -71,11 +72,22 @@ def _yf_batch(sids, suffix, start_date, chunk):
                 sub = sub.dropna(how="all")
             except Exception:
                 continue
+            # 防呆：yfinance 偶爾回「有量無收盤價」的列 (實測 2026-06-01 全市場 Close=NaN
+            # 但 Volume 正常)。此列對 OHLCV 下游是毒：Close*股數=NaN -> 總市值塌成 0 ->
+            # 融資佔市值 inf；breadth 算不出漲跌。直接砍掉不寫進 CSV，留待下次 yfinance
+            # 補上真收盤再進 (dropna(how=all) 擋不掉，因 Volume 在故非全 NaN 列)。
+            if sub is not None and "Close" in getattr(sub, "columns", []):
+                before = len(sub)
+                sub = sub[sub["Close"].notna()]
+                dropped_nanclose += before - len(sub)
             if sub is not None and len(sub):
                 # yfinance 偶有 tz-aware index；cache CSV 為 tz-naive
                 if getattr(sub.index, "tz", None) is not None:
                     sub.index = sub.index.tz_localize(None)
                 out[s] = sub
+    if dropped_nanclose:
+        log.warning("  [%s] 砍 %d 個有量無價列 (yfinance Close=NaN, 不寫入 CSV)",
+                    suffix, dropped_nanclose)
     return out
 
 
@@ -109,6 +121,22 @@ def main():
         data2 = _yf_batch(missing, ".TWO", start_date, args.chunk)
         data.update(data2)
         log.info("  .TWO retry: +%d/%d (%.0fs)", len(data2), len(missing), time.time() - t0)
+
+    # 2b. 防呆：盤中 (TW 收盤 13:30) 手動/早班執行時 yfinance 會回當日「未完成」盤中 bar，
+    #     臨時收盤價會被寫進 CSV 污染當日資料。排程都在收盤後跑不受影響；此處只擋手動早跑。
+    now = pd.Timestamp.now()
+    if now < now.normalize() + pd.Timedelta(hours=13, minutes=35):
+        today = now.normalize()
+        n_trim = 0
+        for s in list(data.keys()):
+            sub = data[s]
+            keep = sub[sub.index.normalize() != today]
+            if len(keep) != len(sub):
+                data[s] = keep
+                n_trim += 1
+        if n_trim:
+            log.info("盤中執行 (%s)：剔除 %d 檔今日(%s)未完成 bar，待收盤後排程補",
+                     now.strftime("%H:%M"), n_trim, today.date())
 
     # 3. 合併進每檔 CSV（沿用 cache_manager 格式）
     ok = fail = skipped = 0
