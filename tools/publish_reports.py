@@ -129,14 +129,13 @@ def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
 
 
 def ensure_repo(publish_repo: Path) -> None:
-    """publish repo 不存在就 clone (走 credential manager)。"""
+    """publish repo 不存在就 clone (走 credential manager)。失敗 raise。"""
     if (publish_repo / ".git").is_dir():
         return
-    print(f"[clone] {PUBLISH_REPO_URL} -> {publish_repo}")
     r = subprocess.run(["git", "clone", PUBLISH_REPO_URL, str(publish_repo)],
                        capture_output=True, text=True)
     if r.returncode != 0:
-        sys.exit(f"[FATAL] clone 失敗:\n{r.stderr.strip()}")
+        raise RuntimeError(f"clone 失敗: {r.stderr.strip()}")
 
 
 def sync_files(publish_repo: Path) -> int:
@@ -154,6 +153,51 @@ def sync_files(publish_repo: Path) -> int:
     return n
 
 
+def publish(repo: Path = DEFAULT_PUBLISH_REPO, dry_run: bool = False) -> dict:
+    """同步 + 重生 index + (非 dry-run 才) commit/push。
+
+    回傳 {ok, message, url, copied, pushed}；不 sys.exit，供 UI / CLI 共用。
+    """
+    publish_repo = Path(repo).resolve()
+    try:
+        if not dry_run:
+            ensure_repo(publish_repo)
+        elif not (publish_repo / ".git").is_dir():
+            return {"ok": False, "message": f"dry-run 需 repo 已存在: {publish_repo}",
+                    "url": PAGES_URL, "copied": 0, "pushed": False}
+
+        copied = sync_files(publish_repo)
+        (publish_repo / "index.html").write_text(build_index(publish_repo), encoding="utf-8")
+
+        if dry_run:
+            return {"ok": True, "message": f"[dry-run] 複製 {copied} 份 HTML + 重生 index，未 push。",
+                    "url": PAGES_URL, "copied": copied, "pushed": False}
+
+        status = _run_git(["status", "--porcelain"], publish_repo)
+        if not status.stdout.strip():
+            return {"ok": True, "message": f"無變更（{copied} 份已是最新），跳過 push。",
+                    "url": PAGES_URL, "copied": copied, "pushed": False}
+
+        _run_git(["add", "-A"], publish_repo)
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        commit = _run_git(["-c", "commit.gpgsign=false", "commit",
+                           "-m", f"Publish reports {ts}"], publish_repo)
+        if commit.returncode != 0:
+            return {"ok": False, "message": f"commit 失敗: {commit.stdout.strip()} {commit.stderr.strip()}",
+                    "url": PAGES_URL, "copied": copied, "pushed": False}
+
+        push = _run_git(["push"], publish_repo)
+        if push.returncode != 0:
+            return {"ok": False, "message": f"push 失敗 (檢查 git 認證): {push.stderr.strip()}",
+                    "url": PAGES_URL, "copied": copied, "pushed": False}
+
+        return {"ok": True, "message": f"已發佈 {copied} 份報告，Pages 約 30-60 秒後更新。",
+                "url": PAGES_URL, "copied": copied, "pushed": True}
+    except Exception as e:  # clone 失敗等
+        return {"ok": False, "message": f"發佈失敗: {e}",
+                "url": PAGES_URL, "copied": 0, "pushed": False}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="發佈報告 HTML 到 sa-reports (GitHub Pages)")
     ap.add_argument("--repo", type=Path, default=DEFAULT_PUBLISH_REPO,
@@ -162,41 +206,11 @@ def main() -> None:
                     help="只複製 + 重生 index，不 commit/push")
     args = ap.parse_args()
 
-    publish_repo: Path = args.repo.resolve()
-
-    if not args.dry_run:
-        ensure_repo(publish_repo)
-    elif not (publish_repo / ".git").is_dir():
-        sys.exit(f"[FATAL] dry-run 需 repo 已存在: {publish_repo}")
-
-    copied = sync_files(publish_repo)
-    (publish_repo / "index.html").write_text(build_index(publish_repo), encoding="utf-8")
-    print(f"[sync] 複製 {copied} 份 HTML + 重生 index.html")
-
-    if args.dry_run:
-        print("[dry-run] 跳過 commit/push。")
-        return
-
-    # 無變更就跳過 commit
-    status = _run_git(["status", "--porcelain"], publish_repo)
-    if not status.stdout.strip():
-        print("[git] 無變更，跳過 commit/push。")
-        print(f"線上入口: {PAGES_URL}")
-        return
-
-    _run_git(["add", "-A"], publish_repo)
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-    commit = _run_git(["-c", "commit.gpgsign=false", "commit",
-                       "-m", f"Publish reports {ts}"], publish_repo)
-    if commit.returncode != 0:
-        sys.exit(f"[FATAL] commit 失敗:\n{commit.stdout}\n{commit.stderr}")
-
-    push = _run_git(["push"], publish_repo)
-    if push.returncode != 0:
-        sys.exit(f"[FATAL] push 失敗 (檢查 git 認證):\n{push.stderr.strip()}")
-
-    print(f"[git] commit + push 完成。")
-    print(f"線上入口: {PAGES_URL} (Pages 重新部署約需 30-60 秒)")
+    res = publish(repo=args.repo, dry_run=args.dry_run)
+    print(("[OK] " if res["ok"] else "[FATAL] ") + res["message"])
+    print(f"線上入口: {res['url']}")
+    if not res["ok"]:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

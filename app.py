@@ -67,7 +67,7 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.caption("Version: v2026.06.03.2")
+    st.caption("Version: v2026.06.03.3")
 
     # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:
@@ -116,7 +116,30 @@ with st.sidebar:
         st.session_state['app_mode'] = 'analysis'
 
     st.markdown("---")
-    
+
+    # === 一鍵同步報告到 sa-reports (GitHub Pages) ===
+    if st.button("🌐 同步報告到 sa-reports", key='publish_reports_btn', width='stretch',
+                 help="把 data/ai_reports + data/macro_reports 的 HTML 發佈到 "
+                      "sa-reports repo (GitHub Pages)，走 git 認證不需 token"):
+        try:
+            import sys as _sys
+            from pathlib import Path as _P
+            _tools = str(_P(__file__).resolve().parent / "tools")
+            if _tools not in _sys.path:
+                _sys.path.insert(0, _tools)
+            from publish_reports import publish as _publish_reports
+            with st.spinner("同步報告中（複製 + 重生 index + push）..."):
+                _res = _publish_reports()
+            if _res['ok']:
+                st.success(_res['message'])
+                st.caption(f"🔗 {_res['url']}")
+            else:
+                st.error(_res['message'])
+        except Exception as _e:
+            st.error(f"同步失敗：{_e}")
+
+    st.markdown("---")
+
     # === 免責聲明 + 數據來源 + 風險提示（2026-05-06 從主畫面移到 sidebar）===
     with st.expander("⚠️ 投資風險提示 (請詳閱)",
                      expanded=not st.session_state['disclaimer_shown']):
