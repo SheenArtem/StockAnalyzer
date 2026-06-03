@@ -67,7 +67,7 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.caption("Version: v2026.06.03.1")
+    st.caption("Version: v2026.06.03.2")
 
     # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:
@@ -79,17 +79,17 @@ with st.sidebar:
     # 2026-05-23: 'screener' (自動選股 QM/Value/Mode D) 從 UI 移除 — daily scheduler 已停
     # (commit 56dcc6c)，UI 顯示會 stale 且 100% Whale Picks 拍板後不再需要。
     # 復原方式：把對應 mode 名加回 _mode_options + idx_map (render handler/label 保留為死代碼)
-    _mode_options = ['whale_picks', 'individual', 'market_scan', 'ai_reports', 'macro']
+    _mode_options = ['individual', 'whale_picks', 'market_scan', 'ai_reports', 'macro']
     _mode_labels = {'individual': '📈 個股分析', 'screener': '🔍 自動選股',
                     'market_scan': '📡 市場掃描', 'ai_reports': '📝 AI 報告',
                     'strong_stocks': '🌟 強勢股報告', 'whale_picks': '🐋 主力選股',
                     'macro': '🧭 總經大盤風向',
                     'brokerage_yt': '📺 投顧追蹤'}
     _current_mode = st.session_state.get('app_mode', 'analysis')
-    _mode_idx_map = {'whale_picks': 0, 'market_scan': 2,
+    _mode_idx_map = {'whale_picks': 1, 'market_scan': 2,
                      'ai_reports': 3, 'macro': 4}
-    # 預設 (analysis / individual) 對應 individual 在新順序的位置 = 1
-    _mode_idx = _mode_idx_map.get(_current_mode, 1)
+    # 預設 (analysis / individual) 對應 individual 在順序中的位置 = 0
+    _mode_idx = _mode_idx_map.get(_current_mode, 0)
     app_mode = st.radio(
         "功能模式",
         options=_mode_options,

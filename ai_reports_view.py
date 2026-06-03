@@ -204,21 +204,6 @@ def render_ai_reports():
             with st.expander("📄 顯示 prompt 全文（檢視/手動選取）", expanded=False):
                 st.code(_pr['prompt'], language=None)
 
-            _col_dl, _col_clr = st.columns([1, 1])
-            with _col_dl:
-                _ext = 'json.txt' if _pr['format'] == 'html' else 'md.txt'
-                st.download_button(
-                    "💾 下載 .txt (備援)",
-                    data=_pr['prompt'],
-                    file_name=f"prompt_{_pr['ticker']}_{_pr['format']}.{_ext}",
-                    mime='text/plain',
-                    key='ai_prompt_dl',
-                )
-            with _col_clr:
-                if st.button("🗑️ 清除 prompt 顯示", key='ai_prompt_clear', width='stretch'):
-                    del st.session_state['ai_prompt_result']
-                    st.rerun()
-
         # === 貼回區塊：永遠顯示 ===
         # HTML 模式：從 JSON meta.ticker 自動抓代號（claude.ai 真值優先），form ticker 是 MD fallback
         st.markdown("---")
