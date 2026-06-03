@@ -922,77 +922,111 @@ def _render_valuation(val: dict):
 # ============================================================
 
 def _render_ai_report_section():
-    """AI 風向研究報告 -- 匯出 claude.ai 提示詞 (Markdown/JSON)。
+    """AI 風向研究報告 -- 匯出 claude.ai 提示詞 (單檔 HTML 網頁) + 貼回存檔。
 
-    2026-05-30：從本地 Opus CLI 改為「匯出提示詞」工作流 -- 把完整資料面板 +
-    報告指示組成 prompt，使用者複製貼到 claude.ai 由網頁端產生報告（不消耗本地
-    Agent SDK Credit）。本地 LLM 版仍可手動跑 `python tools/macro_compass_report.py`。
+    2026-05-30：從本地 Opus CLI 改為「匯出提示詞」工作流。提示詞要求 claude.ai
+    輸出單檔自包含 HTML 網頁（可當 Artifact 預覽/下載），使用者再把整頁 HTML 貼回
+    下方存進報告庫（data/macro_reports/）。不消耗本地 Agent SDK Credit。
+    本地 LLM 版仍可手動跑 `python tools/macro_compass_report.py`。
     """
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    with st.expander("🤖 AI 風向研究報告 (匯出 claude.ai 提示詞)", expanded=False):
-        st.caption("產生含完整資料面板的提示詞 -> 複製/下載後貼到 claude.ai，"
-                   "由它產生報告（不消耗本地 LLM 額度）。")
-        c1, c2 = st.columns([1, 1])
-        gen_md = c1.button("📋 產生提示詞 (MD)", type="primary",
-                           help="組裝資料面板 + 報告指示為 Markdown 提示詞")
-        gen_json = c2.button("產生提示詞 (JSON)",
-                             help="JSON 含 panel_context + report_prompt 兩欄")
+    # 標題 + 產生按鈕緊鄰（標題左、按鈕貼著放，右側留白），不折疊
+    hcol, bcol, _sp = st.columns([2, 1.3, 4], vertical_alignment="bottom")
+    hcol.markdown("### 🤖 AI 風向研究報告")
+    gen_html = bcol.button("📋 產生 HTML 提示詞", type="primary",
+                           help="組裝資料面板 + 報告指示為提示詞（要求 claude.ai "
+                                "輸出單檔 HTML 網頁），複製/下載後貼到 claude.ai")
 
-        if gen_md or gen_json:
-            try:
-                import sys as _sys
-                _tools = str(REPO / "tools")
-                if _tools not in _sys.path:
-                    _sys.path.insert(0, _tools)
-                from macro_compass_report import collect_context, build_prompt
-                with st.spinner("組裝資料面板中（約數秒）..."):
-                    ctx = collect_context()
-                    prompt = build_prompt(ctx, fmt="md")
-                if gen_json:
-                    import json as _json
-                    st.session_state['macro_prompt'] = _json.dumps(
-                        {"panel_context": ctx, "report_prompt": prompt},
-                        ensure_ascii=False, indent=2)
-                    st.session_state['macro_prompt_fmt'] = 'json'
-                else:
-                    st.session_state['macro_prompt'] = prompt
-                    st.session_state['macro_prompt_fmt'] = 'md'
-            except Exception as e:
-                st.error(f"產生提示詞失敗：{e}")
+    if gen_html:
+        try:
+            import sys as _sys
+            _tools = str(REPO / "tools")
+            if _tools not in _sys.path:
+                _sys.path.insert(0, _tools)
+            from macro_compass_report import collect_context, build_prompt
+            with st.spinner("組裝資料面板中（約數秒）..."):
+                ctx = collect_context()
+                st.session_state['macro_prompt'] = build_prompt(ctx, fmt="webpage")
+        except Exception as e:
+            st.error(f"產生提示詞失敗：{e}")
 
-        prompt_txt = st.session_state.get('macro_prompt')
-        if prompt_txt:
-            fmt = st.session_state.get('macro_prompt_fmt', 'md')
-            st.success(f"已產生 {fmt.upper()} 提示詞（{len(prompt_txt):,} 字）。"
-                       "點程式碼框右上角複製鈕，或下載後貼到 claude.ai。")
-            st.download_button(
-                f"⬇️ 下載 macro_compass_prompt.{fmt}",
-                data=prompt_txt.encode('utf-8'),
-                file_name=f"macro_compass_prompt.{fmt}",
-                mime="application/json" if fmt == 'json' else "text/markdown",
-            )
-            st.code(prompt_txt, language="json" if fmt == 'json' else "markdown")
+    prompt_txt = st.session_state.get('macro_prompt')
+    if prompt_txt:
+        st.success(f"已產生 HTML 提示詞（{len(prompt_txt):,} 字）。點下方按鈕複製 → 貼到 "
+                   "claude.ai → 它會生出 HTML 網頁，把整頁 HTML 貼回下方存檔。")
+        import html as _htmlmod
+        _esc = _htmlmod.escape(prompt_txt)  # 防 </textarea>/</script> 注入
+        _btn = f"""
+        <textarea id="macro_prompt_src" style="position:absolute;left:-9999px;">{_esc}</textarea>
+        <button id="macro_copy_btn"
+          style="background:#2563eb;color:#fff;border:none;padding:8px 18px;border-radius:8px;
+                 font-size:15px;font-weight:600;cursor:pointer;">
+          📋 一鍵複製提示詞到剪貼簿
+        </button>
+        <span id="macro_copy_status" style="margin-left:12px;color:#0f9d58;font-weight:600;"></span>
+        <script>
+          document.getElementById("macro_copy_btn").addEventListener("click", async () => {{
+            const src = document.getElementById("macro_prompt_src");
+            const status = document.getElementById("macro_copy_status");
+            try {{
+              if (navigator.clipboard && navigator.clipboard.writeText) {{
+                await navigator.clipboard.writeText(src.value);
+              }} else {{
+                src.style.left = "0"; src.select(); document.execCommand("copy"); src.style.left = "-9999px";
+              }}
+              status.textContent = "✅ 已複製 " + src.value.length.toLocaleString() + " chars";
+            }} catch (e) {{
+              status.textContent = "❌ 複製失敗: " + e.message;
+            }}
+          }});
+        </script>
+        """
+        st.components.v1.html(_btn, height=56)
+        with st.expander("📄 顯示提示詞全文（檢視/手動選取）", expanded=False):
+            st.code(prompt_txt, language="markdown")
 
-        # 歷史本地 LLM 報告（legacy；新流程改匯出提示詞）
-        htmls = sorted(REPORTS_DIR.glob("*.html"), reverse=True)
-        htmls = [h for h in htmls if h.name != 'latest.html']
-        if htmls:
-            with st.expander("查看歷史本地 LLM 報告 (legacy)", expanded=False):
-                options = ['(最新)'] + [h.stem for h in htmls[:20]]
-                sel = st.selectbox("歷史報告", options=options, index=0,
-                                   key='macro_hist_report')
-                target = (REPORTS_DIR / "latest.html" if sel == '(最新)'
-                          else REPORTS_DIR / f"{sel}.html")
-                if target.exists():
-                    st.components.v1.html(target.read_text(encoding='utf-8'),
-                                          height=900, scrolling=True)
+    # 貼回 claude.ai 的 HTML 輸出 → 存進報告庫
+    st.markdown("##### 📥 貼回 claude.ai 的 HTML 輸出")
+    st.caption("把 claude.ai 生成的整頁 HTML 貼到下方 → 存進報告庫 "
+               "（data/macro_reports/，並更新 latest.html）。")
+    paste = st.text_area("貼上整頁 HTML", value="", height=180,
+                         placeholder="<!DOCTYPE html><html>...</html>",
+                         key='macro_paste_html')
+    if st.button("📥 儲存到報告庫", type='primary', key='macro_paste_save'):
+        if not paste or not paste.strip():
+            st.error("請先貼上 claude.ai 生成的 HTML")
+        elif '<html' not in paste.lower():
+            st.error("貼上的內容看起來不是完整 HTML（找不到 <html> 標籤）")
+        else:
+            ts = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+            out = REPORTS_DIR / f"{ts}.html"
+            out.write_text(paste, encoding='utf-8')
+            (REPORTS_DIR / "latest.html").write_text(paste, encoding='utf-8')
+            st.success(f"已存成 {out.name} 並更新 latest.html。可在下方歷史報告查看。")
+
+    # 歷史報告（含剛貼回存檔的，與本地 LLM legacy 報告）
+    htmls = sorted(REPORTS_DIR.glob("*.html"), reverse=True)
+    htmls = [h for h in htmls if h.name != 'latest.html']
+    if htmls:
+        with st.expander("查看歷史報告", expanded=False):
+            options = ['(最新)'] + [h.stem for h in htmls[:20]]
+            sel = st.selectbox("歷史報告", options=options, index=0,
+                               key='macro_hist_report')
+            target = (REPORTS_DIR / "latest.html" if sel == '(最新)'
+                      else REPORTS_DIR / f"{sel}.html")
+            if target.exists():
+                st.components.v1.html(target.read_text(encoding='utf-8'),
+                                      height=900, scrolling=True)
 
 
 def render_macro_dashboard():
     """總經大盤風向 tab 主入口。"""
     st.markdown("# 🧭 總經大盤風向 (Macro Compass)")
     st.caption("整合 籌碼 / 廣度 / 情緒 / 流動性 / 信用景氣 / 估值 — informational tier (SOP-14)")
+
+    # AI 風向研究報告（置頂，最先呈現）
+    _render_ai_report_section()
 
     # 載入所有資料
     try:
@@ -1007,11 +1041,36 @@ def render_macro_dashboard():
     macro = _load_macro()
     valuation = _load_valuation()
 
-    # Section 0: 總風向
+    # 總風向
     compass = _compute_compass_verdict(banner_data, sys_chip, breadth, macro, valuation)
     _render_compass_card(compass)
+    st.markdown("---")
 
-    # Section 0.5: Slow Track 60d composite (Banner v4，IC-validated leading features)
+    # 情緒與波動（緊接總風向下方）
+    _render_sentiment_section()
+    st.markdown("---")
+
+    # 估值（接情緒與波動下方）
+    _render_valuation(valuation)
+    st.markdown("---")
+
+    # 機構撤退
+    _render_systemic_chip(sys_chip)
+    st.markdown("---")
+
+    # 市場廣度
+    _render_breadth(breadth)
+    st.markdown("---")
+
+    # 流動性與資金
+    _render_liquidity(macro, banner_data)
+    st.markdown("---")
+
+    # 信用與景氣
+    _render_credit_cycle(macro)
+    st.markdown("---")
+
+    # Slow Track 60d composite (Banner v4，IC-validated)：移至最下方
     try:
         from banner_risk_score_v4_slow import compute_slow_track_score, render as render_slow
         st.markdown("### 🐢 Slow Track Composite (60d 區間警示, IC-validated)")
@@ -1019,32 +1078,6 @@ def render_macro_dashboard():
         render_slow(slow_score)
     except Exception as e:
         logger.warning("Slow track render failed: %s", e)
-
-    # AI 報告（緊接總風向卡片）
-    _render_ai_report_section()
-
-    # Section 1: 機構撤退
-    _render_systemic_chip(sys_chip)
-    st.markdown("---")
-
-    # Section 2: 市場廣度
-    _render_breadth(breadth)
-    st.markdown("---")
-
-    # Section 3: 情緒與波動
-    _render_sentiment_section()
-    st.markdown("---")
-
-    # Section 4: 流動性與資金
-    _render_liquidity(macro, banner_data)
-    st.markdown("---")
-
-    # Section 5: 信用與景氣
-    _render_credit_cycle(macro)
-    st.markdown("---")
-
-    # Section 6: 估值
-    _render_valuation(valuation)
 
     # footer
     st.markdown("---")

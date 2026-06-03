@@ -288,11 +288,24 @@ def collect_context() -> str:
 def build_prompt(context: str, fmt: str = "html") -> str:
     """組裝報告 prompt。
 
-    fmt='html'：本地 LLM pipeline 用（要求輸出 HTML body 內嵌 iframe）。
-    fmt='md'  ：使用者複製到 claude.ai 用（要求輸出 Markdown，網頁端較好讀）。
-    兩版段落內容相同，只有標題語法 + 輸出格式指示不同（2026-05-30 加 md 匯出）。
+    fmt='html'   ：本地 LLM pipeline 用（要求輸出 HTML body 內嵌 iframe）。
+    fmt='md'     ：使用者複製到 claude.ai 用（要求輸出 Markdown，網頁端較好讀）。
+    fmt='webpage'：使用者複製到 claude.ai 用（要求輸出單檔自包含 HTML 網頁，
+                   可當 Artifact 預覽 + 下載，再貼回報告庫）。
+    各版段落內容相同，只有標題語法 + 輸出格式指示不同。
     """
-    if fmt == "md":
+    if fmt == "webpage":
+        directive = (
+            "請產出一份「總經大盤風向研究報告」，並輸出**一個自包含的完整 HTML 網頁**"
+            "（完整 `<!DOCTYPE html>` ... `</html>`，所有樣式用 inline `<style>`，"
+            "深色主題、卡片式排版、可直接用瀏覽器開啟、也能在 claude.ai Artifact 預覽）。"
+            "內容必須包含以下五段：")
+        def H(n, t):
+            return f"<h2>{n}. {t}</h2>"
+        out_fmt_rule = ("- 用台灣繁體中文\n"
+                        "- **只輸出 HTML 本身**，HTML 前後不要加任何說明文字、不要包 markdown code fence\n"
+                        "- 深色主題（背景 #0a0f1e、文字 #e2e8f0），標題/卡片清楚分區，行動裝置也可讀")
+    elif fmt == "md":
         directive = ("請產出一份「總經大盤風向研究報告」，用 **Markdown** 表達"
                      "（## 主標 / ### 次標 / 段落 / `-` 條列），內容必須包含以下五段：")
         def H(n, t):

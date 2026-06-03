@@ -98,15 +98,12 @@ def render_ai_reports():
                 horizontal=False,
             )
 
-        _col_btn1, _col_btn2 = st.columns([1, 1])
-        with _col_btn1:
-            _gen_clicked = st.button("🤖 生成研究報告", type="primary",
-                                     key='ai_gen_btn', disabled=_is_running,
-                                     help="呼叫 claude -p CLI 自動跑完整報告（消耗 Agent SDK Credit）")
-        with _col_btn2:
-            _prompt_clicked = st.button("📋 產生 Prompt (貼到 claude.ai)",
-                                         key='ai_prompt_btn', disabled=_is_running,
-                                         help="只組裝 prompt 不呼叫 CLI；複製貼到 claude.ai 網頁手動跑（用訂閱 quota，不吃 Agent SDK Credit）")
+        # 「🤖 生成研究報告」(本地 CLI) 按鈕隱藏 -- 只保留「產生 Prompt 貼 claude.ai」流程
+        # (本地 CLI 會吃 Agent SDK Credit；生成邏輯保留待用，僅不顯示按鈕)
+        _gen_clicked = False
+        _prompt_clicked = st.button("📋 產生 Prompt (貼到 claude.ai)", type="primary",
+                                    key='ai_prompt_btn', disabled=_is_running,
+                                    help="組裝 prompt 複製貼到 claude.ai 網頁手動跑（用訂閱 quota，不吃 Agent SDK Credit）")
 
         if _gen_clicked:
             if not _ai_ticker or not _ai_ticker.strip():
