@@ -23,7 +23,7 @@ import logging
 import time
 import zipfile
 from datetime import datetime, timedelta
-from io import BytesIO, StringIO
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
@@ -40,20 +40,6 @@ REPO = Path(__file__).resolve().parent.parent
 OUT = REPO / "data" / "macro" / "valuation_panel.parquet"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
-FRED_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}"
-
-
-def fetch_fred(sid: str) -> pd.DataFrame:
-    url = FRED_BASE.format(sid=sid)
-    r = requests.get(url, timeout=30, verify=False)
-    r.raise_for_status()
-    df = pd.read_csv(StringIO(r.text))
-    df.columns = ['date', sid]
-    df['date'] = pd.to_datetime(df['date'])
-    df[sid] = pd.to_numeric(df[sid], errors='coerce')
-    return df.dropna(subset=[sid])
-
-
 def build_buffett_us() -> pd.DataFrame:
     """巴菲特指標 (US, rank-based proxy)：SP500 / US GDP × 100。
 
@@ -61,17 +47,23 @@ def build_buffett_us() -> pd.DataFrame:
     本實作使用 SP500 ÷ GDP × constant 作 rank-based proxy：
       - SP500 跟 Wilshire 5000 相關 0.99+，rank 結果幾乎一致
       - 重點是相對位置（過去 10 年 P85/P50 等），絕對值有偏差但不影響告警邏輯
-    """
-    logger.info("Fetching FRED SP500 + GDP for US Buffett proxy...")
-    sp = fetch_fred('SP500')   # SP500 daily index, 2014+
-    gdp = fetch_fred('GDP')    # US Nominal GDP, quarterly billions
 
-    sp = sp.set_index('date').rename(columns={'SP500': 'sp500_close'})
-    gdp = gdp.set_index('date').rename(columns={'GDP': 'us_gdp_billion'})
-    df = sp.join(gdp, how='outer').sort_index()
-    df['us_gdp_billion'] = df['us_gdp_billion'].ffill()
-    df['sp500_close'] = df['sp500_close'].ffill()
-    df = df.dropna(subset=['sp500_close', 'us_gdp_billion'])
+    2026-06-04 改讀 fred_panel.parquet（fetch_fred_macro 產出，已含 chunked fallback
+    + carry-forward 三層防禦），不再自抓 FRED：原自抓 SP500 撞上 FRED 大範圍 504
+    時會 silent 掉 buffett_us 整欄（本專案最強 IC 特徵），且與 fred_panel 重複抓取
+    違反 reuse-upstream 原則。fred_panel 缺欄時 fail loud。
+    """
+    fred_path = REPO / "data" / "macro" / "fred_panel.parquet"
+    if not fred_path.exists():
+        raise RuntimeError("fred_panel.parquet 不存在 — 先跑 tools/fetch_fred_macro.py")
+    fred = pd.read_parquet(fred_path)
+    missing = [c for c in ('sp500_close', 'us_gdp_billion') if c not in fred.columns]
+    if missing:
+        raise RuntimeError(f"fred_panel 缺 {missing} — 先跑 tools/fetch_fred_macro.py")
+
+    df = (fred[['date', 'sp500_close', 'us_gdp_billion']]
+          .dropna(subset=['sp500_close', 'us_gdp_billion'])
+          .sort_values('date').set_index('date'))
 
     # rank-based proxy: sp500 / gdp × 100
     df['buffett_indicator_us'] = df['sp500_close'] / df['us_gdp_billion'] * 100

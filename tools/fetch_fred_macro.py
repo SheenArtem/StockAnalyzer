@@ -86,6 +86,48 @@ SERIES = {
 }
 
 
+def _parse_fred_csv(text: str, series_id: str) -> pd.DataFrame:
+    """fredgraph.csv 回應 -> (date, series_id) df。FRED 用 '.' 表示缺值。"""
+    df = pd.read_csv(StringIO(text))
+    df.columns = ['date', series_id]
+    df['date'] = pd.to_datetime(df['date'])
+    df[series_id] = pd.to_numeric(df[series_id], errors='coerce')
+    return df.dropna(subset=[series_id])
+
+
+def fetch_chunked(series_id: str, start: str, years_per_chunk: int = 3) -> pd.DataFrame:
+    """全範圍 fetch 失敗時的分段 fallback。
+
+    2026-06-04 實測：FRED 後端對部分熱門 daily 序列 (VIXCLS/DEXJPUS/SOFR/T10Y2Y...)
+    大範圍 CSV 生成逾時回 504 (換 IP/VPN 同樣 504 = 全球性)，但小日期範圍 200/數秒
+    -> 按 cosd/coed 切 3 年一塊各自抓再 concat 可繞過。
+    """
+    logger.warning("%s full-range failed -> chunked fallback (%dyr/chunk)", series_id, years_per_chunk)
+    start_year = int(start[:4])
+    end_year = datetime.now().year
+    parts = []
+    for y0 in range(start_year, end_year + 1, years_per_chunk):
+        y1 = min(y0 + years_per_chunk - 1, end_year)
+        url = FRED_BASE.format(sid=series_id, start=f"{y0}-01-01") + f"&coed={y1}-12-31"
+        for attempt in range(3):
+            try:
+                r = requests.get(url, timeout=FRED_TIMEOUT, verify=False)
+                r.raise_for_status()
+                parts.append(_parse_fred_csv(r.text, series_id))
+                break
+            except Exception as e:
+                logger.warning("chunk %d-%d attempt %d failed for %s: %s", y0, y1, attempt + 1, series_id, e)
+                if attempt < 2:
+                    time.sleep(2)
+                else:
+                    raise  # 連分段都失敗 -> 交給 build_panel 的 carry-forward
+        time.sleep(1)  # 塊間禮貌間隔，避免觸發 FRED 限流
+    out = (pd.concat(parts, ignore_index=True)
+           .drop_duplicates(subset='date').sort_values('date').reset_index(drop=True))
+    logger.info("%s chunked OK: %d rows", series_id, len(out))
+    return out
+
+
 def fetch_one(series_id: str, start: str) -> pd.DataFrame:
     """從 FRED 抓單一序列，回傳 (date, value) df。"""
     url = FRED_BASE.format(sid=series_id, start=start)
@@ -94,19 +136,14 @@ def fetch_one(series_id: str, start: str) -> pd.DataFrame:
         try:
             r = requests.get(url, timeout=FRED_TIMEOUT, verify=False)
             r.raise_for_status()
-            df = pd.read_csv(StringIO(r.text))
-            df.columns = ['date', series_id]
-            df['date'] = pd.to_datetime(df['date'])
-            # FRED 用 "." 表示缺值
-            df[series_id] = pd.to_numeric(df[series_id], errors='coerce')
-            df = df.dropna(subset=[series_id])
-            return df
+            return _parse_fred_csv(r.text, series_id)
         except Exception as e:
             logger.warning("Attempt %d failed for %s: %s", attempt + 1, series_id, e)
             if attempt < 2:
                 time.sleep(2)
             else:
-                raise
+                # 全範圍 3 次皆失敗 (FRED 大 CSV 504 degradation 模式) -> 分段抓取 fallback
+                return fetch_chunked(series_id, start)
 
 
 def fetch_dxy_yfinance(start: str) -> pd.DataFrame:
