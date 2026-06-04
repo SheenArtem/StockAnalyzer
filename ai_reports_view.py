@@ -77,26 +77,15 @@ def render_ai_reports():
         st.markdown("輸入股票代號，Claude AI 將根據系統所有數據生成深度研究報告。")
         _is_running = _job is not None and _job.get('status') == 'running'
 
-        _col_t, _col_f = st.columns([3, 2])
+        _col_t, _ = st.columns([3, 2])
         with _col_t:
             _ai_ticker = st.text_input(
                 "股票代號", placeholder="例: 2330, AAPL",
                 key='ai_report_ticker',
                 disabled=_is_running,
             )
-        with _col_f:
-            _format_labels = {
-                'html': '📊 互動儀表板 (HTML)',
-                'md': '📝 傳統報告 (Markdown)',
-            }
-            _ai_format = st.radio(
-                "產出格式",
-                options=['html', 'md'],
-                format_func=lambda x: _format_labels[x],
-                key='ai_report_format',
-                disabled=_is_running,
-                horizontal=False,
-            )
+        # 「產出格式」radio 隱藏 (2026-06-04)：一律 HTML（MD 生成/儲存邏輯保留待用，還原 radio 即可切回）
+        _ai_format = 'html'
 
         # 「🤖 生成研究報告」(本地 CLI) 按鈕隱藏 -- 只保留「產生 Prompt 貼 claude.ai」流程
         # (本地 CLI 會吃 Agent SDK Credit；生成邏輯保留待用，僅不顯示按鈕)
@@ -208,19 +197,8 @@ def render_ai_reports():
         # HTML 模式：從 JSON meta.ticker 自動抓代號（claude.ai 真值優先），form ticker 是 MD fallback
         st.markdown("---")
         st.markdown("#### 📥 貼回 claude.ai 輸出")
-        # HTML 格式底下再切「JSON 灌本地模板」vs「整頁 HTML 直存」(2026-05-22 新增)
-        _paste_html_mode = 'json'  # 預設給 MD 模式用（不會讀到）
-        if _ai_format == 'html':
-            _paste_html_mode = st.radio(
-                "貼回類型",
-                options=['json', 'fullhtml'],
-                format_func=lambda x: {
-                    'json': '📐 JSON 灌本地模板 (預設)',
-                    'fullhtml': '📄 整頁 HTML (claude.ai 已生好)',
-                }[x],
-                key='ai_paste_html_mode',
-                horizontal=True,
-            )
+        # 「貼回類型」radio 隱藏 (2026-06-04)：一律「整頁 HTML 直存」（JSON 灌模板/MD 路徑邏輯保留待用，還原 radio 即可切回）
+        _paste_html_mode = 'fullhtml'
         if _ai_format == 'html' and _paste_html_mode == 'json':
             st.caption(
                 "把 claude.ai 的 JSON 回傳貼到下方 → 點「處理並儲存」會自動解析 + 灌模板 + 存到報告庫。"
