@@ -333,6 +333,8 @@ def build_panel() -> pd.DataFrame:
             e_cols.append('hyg_volume_z_252d')
         if 'tlt_spy_chg_4w' in etf.columns:
             e_cols.append('tlt_spy_chg_4w')
+        if 'hyg_dollar_flow_z_252d' in etf.columns:  # 報告 §5: 金額流向比成交量 z 更直接的資金流訊號
+            e_cols.append('hyg_dollar_flow_z_252d')
         if e_cols:
             panel = panel.join(etf[e_cols], how='left')
 
@@ -345,7 +347,7 @@ def build_panel() -> pd.DataFrame:
         'foreign_buy_streak', 'foreign_sell_streak',
         'foreign_cum_5d', 'foreign_cum_20d',
         'option_top1_concentration',
-        'hyg_volume_z_252d', 'tlt_spy_chg_4w',
+        'hyg_volume_z_252d', 'tlt_spy_chg_4w', 'hyg_dollar_flow_z_252d',
     ]
     for col in ffill_cols:
         if col in panel.columns:
@@ -404,26 +406,52 @@ def build_panel() -> pd.DataFrame:
             panel[f'twii_ma{w}'] = ma
             panel[f'twii_dist_ma{w}'] = (c - ma) / ma.replace(0, np.nan) * 100
 
+    # 絕對百分位 (rolling 10yr rank, 無 look-ahead) -- 供 flag 的「絕對極值閘」。
+    # 報告 §5: A/D/E 原規則只看 4w 變化 / 固定絕對門檻, 會漏掉史上極值(外資期淨OI 0%、
+    # 選擇權集中度 95%); 補百分位閘讓燈號反映史上尾部。pattern 同 hy_oas_rank。
+    if 'foreign_net_oi' in panel.columns:  # 期貨史長(2016+), min_periods=252 足夠
+        panel['foreign_net_oi_pctile'] = (
+            panel['foreign_net_oi'].rolling(2520, min_periods=252).rank(pct=True) * 100
+        )
+    # option_top1_concentration 資料稀疏(atm_put_premium 僅近期數十日)，min_periods=252 會全 NaN
+    # 害集中度閘永遠不觸發；改用其自身有效史 min_periods=10 計 rank (此 leg 資料薄,informational)
+    if 'option_top1_concentration' in panel.columns:
+        _conc = panel['option_top1_concentration'].dropna()
+        if len(_conc) >= 10:
+            _cr = _conc.rolling(2520, min_periods=10).rank(pct=True) * 100
+            panel['option_concentration_pctile'] = _cr.reindex(panel.index)
+        else:
+            panel['option_concentration_pctile'] = np.nan
+    else:
+        panel['option_concentration_pctile'] = np.nan
+
     # ============================================================
     # Flags (簡化版規則：未經 IC 驗證；下一階段 Phase B 再校準)
+    # 變化型門檻維持原值(未校準,informational); 報告 §5 補「絕對百分位閘」避免漏史上極值。
     # ============================================================
 
     def flag_a(row):
         h = row.get('foreign_holding_chg_4w')
         sbl = row.get('sbl_change_4w_pct')
         fut_chg = row.get('foreign_fut_net_chg_4w')
-        reasons = []
+        oi_pct = row.get('foreign_net_oi_pctile')
+        reasons = []  # 變化型 (門檻維持原值)
         if h is not None and not pd.isna(h) and h < -0.3:
             reasons.append(f"外資持股率 4w {h:+.2f}pp")
         if sbl is not None and not pd.isna(sbl) and sbl > 15:
             reasons.append(f"借券賣出 4w +{sbl:.0f}%")
         if fut_chg is not None and not pd.isna(fut_chg) and fut_chg < -20000:
             reasons.append(f"外資期貨淨部位 4w {fut_chg:+.0f}口")
-        if len(reasons) >= 2:
+        n_change = len(reasons)
+        # 絕對極值閘 (報告 §5)：外資期淨OI <= 5 百分位(史上極空) -> 至少 mid，補「只看 4w 變化」之漏
+        ext = oi_pct is not None and not pd.isna(oi_pct) and oi_pct <= 5
+        if ext:
+            reasons.append(f"外資期淨OI {oi_pct:.0f} 百分位(史上極空)")
+        if n_change >= 2:
             return 'high', ' / '.join(reasons)
-        if len(reasons) == 1:
-            return 'mid', reasons[0]
-        return 'low', '外資持股/借券/外資期貨淨部位 4w 變化均未達撤退門檻'
+        if n_change == 1 or ext:
+            return 'mid', ' / '.join(reasons)
+        return 'low', '外資持股/借券/外資期貨淨部位 4w 變化、外資期淨OI 百分位 均未達撤退門檻'
 
     def flag_b(row):
         z = row.get('margin_ratio_z_252d')
@@ -472,7 +500,8 @@ def build_panel() -> pd.DataFrame:
     def flag_d(row):
         pcr_val = row.get('pcr_oi')
         conc = row.get('option_top1_concentration')
-        reasons = []
+        conc_pct = row.get('option_concentration_pctile')
+        reasons = []  # 變化/絕對值型 (門檻維持原值)
         if pcr_val is not None and not pd.isna(pcr_val):
             if pcr_val > 1.3:
                 reasons.append(f"PCR_OI {pcr_val:.2f} (避險高)")
@@ -480,28 +509,47 @@ def build_panel() -> pd.DataFrame:
                 reasons.append(f"PCR_OI {pcr_val:.2f}")
         if conc is not None and not pd.isna(conc) and conc > 0.4:
             reasons.append(f"Put OI top1集中度 {conc:.2f}")
-        if len(reasons) >= 2:
+        n_base = len(reasons)
+        # 集中度絕對極值閘 (報告 §5)：集中度 >= 90 百分位 -> 至少 mid(持倉脆弱)，
+        # 補原規則「只看絕對值 0.4」會漏掉高百分位(如集中度 95% 卻仍 low)之缺
+        ext = conc_pct is not None and not pd.isna(conc_pct) and conc_pct >= 90
+        if ext:
+            reasons.append(f"選擇權集中度 {conc_pct:.0f} 百分位(持倉脆弱)")
+        if n_base >= 2:
             return 'high', ' / '.join(reasons)
-        if len(reasons) == 1:
-            return 'mid', reasons[0]
-        return 'low', 'PCR-OI 與選擇權集中度均未達對沖門檻'
+        if n_base == 1 or ext:
+            return 'mid', ' / '.join(reasons)
+        return 'low', 'PCR-OI、選擇權集中度(絕對值與百分位) 均未達對沖門檻'
 
     def flag_e(row):
         hyg_z = row.get('hyg_volume_z_252d')
         tlt_spy = row.get('tlt_spy_chg_4w')
+        flow_z = row.get('hyg_dollar_flow_z_252d')
         reasons = []
+        n_change = 0
         # hyg_volume_z_252d 高位（|z| > 1.5）代表恐慌性拋售或追捧，方向看 hyg 本身
         if hyg_z is not None and not pd.isna(hyg_z) and abs(hyg_z) > 1.5:
-            dir_str = "放量" if hyg_z > 0 else "縮量"
-            reasons.append(f"HYG成交量z {hyg_z:.2f} ({dir_str})")
+            reasons.append(f"HYG成交量z {hyg_z:.2f} ({'放量' if hyg_z > 0 else '縮量'})")
+            n_change += 1
         # tlt_spy_chg_4w > 0 代表資金避險（TLT 跑贏 SPY）
         if tlt_spy is not None and not pd.isna(tlt_spy) and tlt_spy > 3:
             reasons.append(f"TLT/SPY 4w {tlt_spy:+.2f}% (避險)")
-        if len(reasons) >= 2:
+            n_change += 1
+        # HY 金額流向 z (報告 §5)：比成交量 z 更直接的資金流訊號。z<=-1.5 強流出->high；
+        # z in [-1.5,-0.75] 輕度外流->mid (現 -0.99 應為 mid, 原規則漏接)
+        flow_level = None
+        if flow_z is not None and not pd.isna(flow_z):
+            if flow_z <= -1.5:
+                reasons.append(f"HYG金額流向z {flow_z:.2f} (強流出)")
+                flow_level = 'high'
+            elif flow_z <= -0.75:
+                reasons.append(f"HYG金額流向z {flow_z:.2f} (資金外流)")
+                flow_level = 'mid'
+        if n_change >= 2 or flow_level == 'high':
             return 'high', ' / '.join(reasons)
-        if len(reasons) == 1:
-            return 'mid', reasons[0]
-        return 'low', 'HYG 成交量 z 與 TLT/SPY 4 週變化均未達流動門檻'
+        if n_change == 1 or flow_level == 'mid':
+            return 'mid', ' / '.join(reasons)
+        return 'low', 'HYG 成交量z、TLT/SPY 4週變化、HYG 金額流向z 均未達流動門檻'
 
     flags_a = panel.apply(flag_a, axis=1)
     flags_b = panel.apply(flag_b, axis=1)

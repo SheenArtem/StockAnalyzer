@@ -108,7 +108,10 @@ def collect_context() -> str:
                     'vix_close', 'chicago_nfci', 'chicago_anfci', 'st_louis_fsi',
                     'us_durable_yoy', 'us_unemployment_rate', 'us_initial_claims',
                     'us_consumer_sentiment', 'sp500_close', 'fed_bs_trillion', 'fed_bs_chg_4w',
-                    'net_liquidity_bil', 'net_liquidity_chg_4w', 'rrp_balance', 'tga_balance', 'sofr']:
+                    'net_liquidity_bil', 'net_liquidity_chg_4w', 'rrp_balance', 'tga_balance', 'sofr',
+                    'iorb', 'sofr_iorb_spread', 'bank_reserves', 'bank_reserves_chg_4w',
+                    'us_real_yield_10y', 'us_real_yield_10y_chg_4w', 'us_breakeven_10y',
+                    'ig_oas', 'ig_oas_rank']:
             lines.append(_format_series_summary(fred, col))
     else:
         lines.append("  (尚未建立 - 執行 tools/fetch_fred_macro.py)")
@@ -211,7 +214,8 @@ def collect_context() -> str:
         lines.append(f"資料日期 last={etf['date'].iloc[-1]}")
         for col in ['tlt_spy_ratio', 'tlt_spy_chg_4w', 'hyg_to_lqd_ratio', 'hyg_to_lqd_chg_4w',
                     'hyg_dollar_flow_z_252d', 'move_close', 'move_z_252d',
-                    'eem_to_spy_ratio', 'eem_to_spy_chg_4w']:
+                    'eem_to_spy_ratio', 'eem_to_spy_chg_4w',
+                    'copper_gold_ratio', 'copper_gold_chg_4w', 'cl_close', 'cl_chg_4w']:
             lines.append(_format_series_summary(etf, col))
     else:
         lines.append("  (尚未建立 - 執行 tools/fetch_etf_flows.py)")
@@ -278,6 +282,25 @@ def collect_context() -> str:
     else:
         lines.append("  (尚未建立 - 執行 tools/build_leadership_panel.py)")
 
+    # 台灣總經/基本面領先指標 (國發會 LEI, 月頻) -- 補「面板零台灣基本面」缺口；
+    # 月頻=改善 1-3 月基本面背景，非 1-4 週戰術預警，請勿當近端領先訊號
+    lei = _safe_read_parquet(DATA / "macro" / "tw_lei_panel.parquet")
+    lines.append("")
+    lines.append("### K. 台灣總經/基本面領先指標 (國發會 LEI, 月頻, 慢速領先 1-3 月)")
+    if lei is not None and not lei.empty:
+        if lei.index.name == 'date':
+            lei = lei.reset_index()
+        if 'date' in lei.columns:
+            lei = lei.sort_values('date').reset_index(drop=True)
+            lines.append(f"資料月份 last={pd.to_datetime(lei['date'].iloc[-1]).date()}")
+        for col in ['lei_composite', 'leading_export_order_idx', 'leading_m1b',
+                    'leading_semi_equip_import']:
+            lines.append(_format_series_summary(lei, col))
+        lines.append("  註：月頻慢速領先（改善 1-3 月基本面背景，非 1-4 週戰術預警）；"
+                     "外銷訂單為「動向指數」(>50=擴張) 而非訂單金額 YoY")
+    else:
+        lines.append("  (尚未建立 - 執行 tools/fetch_tw_lei_panel.py)")
+
     return "\n".join(lines)
 
 
@@ -326,14 +349,15 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 
 【本系統已維護資料清單 — 第 5 段請勿把以下「已有」項目當成缺口重複推薦】
 上方面板 A-J 已涵蓋：
-- 美國 macro/信用/流動性：HY OAS、CCC 級 OAS、殖利率曲線(10Y-2Y/10Y-3M)、DXY、USDJPY、USDTWD、VIX、芝加哥 NFCI/ANFCI、聖路易 FSI、失業率/初請/消費信心/耐久財、Fed 資產負債表、RRP/TGA/SOFR + 淨流動性(net_liquidity)
+- 美國 macro/信用/流動性：HY OAS、CCC 級 OAS、IG 投資級公司債 OAS(BAMLC0A0CM)、殖利率曲線(10Y-2Y/10Y-3M)、DXY、USDJPY、USDTWD、VIX、芝加哥 NFCI/ANFCI、聖路易 FSI、失業率/初請/消費信心/耐久財、Fed 資產負債表、RRP/TGA/SOFR + 淨流動性(net_liquidity)、銀行存準餘額(WRESBAL)、IORB + SOFR-IORB 利差、10年實質殖利率(DFII10)、10年通膨預期 breakeven(T10YIE)
 - 估值：美股 Buffett 指標+rank、台股估值(指數 proxy)+rank、台股大盤 PE/PB/殖利率、盈餘殖利率(1/PE)
 - 台股廣度：漲跌家數、ADL、McClellan、上漲量/下跌量比、廣度衝力、52週新高低、站上 50/200 日均線比例、個股平均相關性/報酬離散度(20日)
 - 機構/籌碼：借券餘額、融資/指數比 z-score、券資比、PCR-OI/Volume、外資台指期淨 OI、外資持股、外資現貨日買賣超(當日+5/20日累積)、投信買賣超、選擇權集中度
-- 風險偏好/波動：HYG/LQD、長債/股票比(TLT/SPY)、MOVE、EEM/SPY、VIX 期限結構(VIX3M)、SKEW、VVIX、OVX
+- 風險偏好/波動：HYG/LQD、長債/股票比(TLT/SPY)、MOVE、EEM/SPY、VIX 期限結構(VIX3M)、SKEW、VVIX、OVX、銅金比(HG/GC,成長代理)、原油價格(CL=WTI)
 - 加權指數位階：twii_close + 20/50/200 日均線及乖離率（含近 7 日 trend）、台指期基差(即時正逆價差)
 - 領頭羊/跨市場：費城半導體 SOX 對台股相對強弱、TSM ADR 對 2330 隔夜溢價
-→ 以上皆「已有」。第 5 段只列「上方面板沒有、且不在下方『已評估、決定不補』清單」的真缺口（候選：JGB 10年殖利率+JPY 套利壓力〔FRED IRLTLT01JPM156N，月頻〕、銀行準備金 WRESBAL/SRF 使用〔FRED 免費〕、中國信用脈衝(PBoC TSF YoY,月頻慢速)、0DTE 短天期選擇權占比）。
+- 台灣總經/基本面領先指標(月頻)：國發會 LEI 綜合指數、外銷訂單動向指數、M1B、半導體設備進口值（註：外銷訂單為「動向指數」非訂單金額 YoY）
+→ 以上皆「已有」。第 5 段只列「上方面板沒有、且不在下方『已評估、決定不補』清單」的真缺口（仍缺候選：JGB 10年殖利率「日頻」+JPY 套利壓力〔FRED 僅月頻落後，日頻無乾淨免費源〕、中國信用脈衝(PBoC TSF YoY,月頻慢速)、0DTE 短天期選擇權占比、台積電月營收〔MOPS〕、外銷訂單「金額」YoY + S&P Global 台灣 PMI〔LEI 只有動向指數〕、美 ISM 新訂單〔NAPMNOI 已從 FRED 下架，需 ISM 官方〕）。
 
 【已評估、決定不補 — 第 5 段請勿重複推薦（已查證：無免費源 / 付費 / IC 否決）】
 - 盈餘上修/下修廣度：TEJ/IBES 付費

@@ -35,7 +35,11 @@ TICKERS = ['HYG', 'JNK', 'LQD', 'TLT', 'SPY', '^MOVE',
            'EEM',   # iShares MSCI Emerging Markets ETF
            'EMB',   # iShares JPM USD EM Bond ETF
            'FXI',   # iShares China Large-Cap ETF (中國)
-           'EWJ']   # iShares MSCI Japan ETF (日股)
+           'EWJ',   # iShares MSCI Japan ETF (日股)
+           # 第 5 段缺口補充 (2026-06-03 macro 報告建議): 成長/通膨代理商品
+           'HG=F',  # 銅期貨 (Dr. Copper,景氣成長代理)
+           'GC=F',  # 黃金期貨 (避險)
+           'CL=F']  # WTI 原油期貨 (面板有 OVX 油波動卻無油價本身)
 
 
 def fetch_one(ticker: str) -> pd.DataFrame:
@@ -46,8 +50,8 @@ def fetch_one(ticker: str) -> pd.DataFrame:
         return pd.DataFrame()
     df = df.reset_index()
     df['date'] = pd.to_datetime(df['Date'].dt.date) if 'Date' in df.columns else pd.to_datetime(df.index.date)
-    # ^MOVE 沒有有意義的 volume，用 close
-    safe_ticker = ticker.lstrip('^').lower()
+    # ^MOVE 沒有有意義的 volume，用 close；HG=F/GC=F/CL=F 商品期貨去掉 '=F' 後綴 (HG=F->hg)
+    safe_ticker = ticker.lstrip('^').replace('=F', '').lower()
     cols = ['date', 'Close']
     rename = {'Close': f'{safe_ticker}_close'}
     if 'Volume' in df.columns and df['Volume'].sum() > 0:
@@ -138,6 +142,13 @@ def main():
     if 'spy_close' in panel.columns and 'eem_close' in panel.columns:
         panel['eem_to_spy_ratio'] = panel['eem_close'] / panel['spy_close']
         panel['eem_to_spy_chg_4w'] = panel['eem_to_spy_ratio'].pct_change(20) * 100
+
+    # 銅金比 (銅/金；成長預期 vs 避險需求,景氣循環代理) + 原油價格 level (2026-06-03 報告建議)
+    if 'hg_close' in panel.columns and 'gc_close' in panel.columns:
+        panel['copper_gold_ratio'] = panel['hg_close'] / panel['gc_close']
+        panel['copper_gold_chg_4w'] = panel['copper_gold_ratio'].pct_change(20) * 100
+    if 'cl_close' in panel.columns:
+        panel['cl_chg_4w'] = panel['cl_close'].pct_change(20) * 100
 
     logger.info("Panel rows=%d cols=%d", len(panel), len(panel.columns))
     logger.info("Last row keys: %s", list(panel.iloc[-1].dropna().keys())[:15])

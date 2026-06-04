@@ -61,13 +61,13 @@ set PYTHONIOENCODING=utf-8
 
 echo [%date% %time%] Macro panels dawn starting >> macro_panels.log
 
-echo [%date% %time%] [stage]FRED macro panel (18 FRED CSV + ICE DXY) >> macro_panels.log
+echo [%date% %time%] [stage]FRED macro panel (27 FRED CSV + ICE DXY) >> macro_panels.log
 python tools\fetch_fred_macro.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]Leadership panel (SOX/TWII RS + TSM ADR premium) >> macro_panels.log
 python tools\build_leadership_panel.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]ETF flows (HYG/JNK/LQD/TLT/SPY/MOVE/EEM/EMB/FXI/EWJ) >> macro_panels.log
+echo [%date% %time%] [stage]ETF flows (HYG/JNK/LQD/TLT/SPY/MOVE/EEM/EMB/FXI/EWJ + HG/GC/CL commodities) >> macro_panels.log
 python tools\fetch_etf_flows.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]CNN Fear-Greed history (US sentiment; GitHub mirror + CNN endpoint top-up; offline IC panel) >> macro_panels.log

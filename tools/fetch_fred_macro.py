@@ -45,6 +45,9 @@ OUT = REPO / "data" / "macro" / "fred_panel.parquet"
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
 FRED_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd={start}"
+# FRED fredgraph.csv 從本機 latency 高(實測 20-50s/序列，大型 daily 序列尤甚)；
+# timeout=30 會讓 T10Y2Y/VIXCLS/SOFR 等慢序列 timeout → 整欄被 drop。提高到 60s。
+FRED_TIMEOUT = 60
 
 SERIES = {
     'BAMLH0A0HYM2': 'hy_oas',                # ICE BofA US HY OAS (1996+)
@@ -74,6 +77,12 @@ SERIES = {
     'RRPONTSYD':    'rrp_balance',           # 隔夜逆回購餘額 ($B,升=流動性回籠)
     'WTREGEN':      'tga_balance',           # 財政部 TGA 國庫帳 ($B,升=抽走銀行準備)
     'SOFR':         'sofr',                  # 擔保隔夜融資利率 (%,飆升=資金面緊張)
+    # 第 5 段資料缺口補充 (2026-06-03 macro 報告建議): 實質利率/通膨預期/準備金/IORB/IG OAS
+    'DFII10':       'us_real_yield_10y',     # 10年期 TIPS 實質殖利率 (日,估值折現率核心)
+    'T10YIE':       'us_breakeven_10y',      # 10年期 breakeven 通膨預期 (日)
+    'WRESBAL':      'bank_reserves',         # 銀行存款準備金餘額 (週,RRP 乾涸後的邊際流動性緩衝)
+    'IORB':         'iorb',                  # 存款準備金利率 (日,2021-07+;SOFR-IORB 利差看資金壓力)
+    'BAMLC0A0CM':   'ig_oas',                # ICE BofA 美投資級公司債 OAS (日,補信用品質階梯 IG->HY->CCC)
 }
 
 
@@ -83,7 +92,7 @@ def fetch_one(series_id: str, start: str) -> pd.DataFrame:
     logger.info("Fetching %s from %s", series_id, start)
     for attempt in range(3):
         try:
-            r = requests.get(url, timeout=30, verify=False)
+            r = requests.get(url, timeout=FRED_TIMEOUT, verify=False)
             r.raise_for_status()
             df = pd.read_csv(StringIO(r.text))
             df.columns = ['date', series_id]
@@ -125,13 +134,27 @@ def fetch_dxy_yfinance(start: str) -> pd.DataFrame:
 
 
 def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
-    """抓所有序列、merge 成日頻 panel、補 derived columns。"""
+    """抓所有序列、merge 成日頻 panel、補 derived columns。
+
+    Robustness (2026-06-04)：FRED 個別序列抓失敗 (本機 latency 高常 timeout) 時，
+    不再 silent drop 整欄 (曾害報告掉 VIX/USDJPY/SOFR)，改從既有 panel carry-forward
+    最後好值 + log ERROR (fail loud)。新序列若失敗則本輪缺欄，待下次成功。
+    """
+    prev = None
+    if OUT.exists():
+        try:
+            prev = pd.read_parquet(OUT)
+        except Exception as e:
+            logger.warning("讀既有 panel 供 carry-forward 失敗: %s", e)
+
     panel = None
-    for sid, _col in SERIES.items():
+    failed = []  # (sid, friendly_col) 抓失敗者，rename 後從 prev carry-forward
+    for sid, col in SERIES.items():
         try:
             df = fetch_one(sid, start)
         except Exception as e:
-            logger.error("Failed to fetch %s: %s", sid, e)
+            logger.error("Failed to fetch %s (%s): %s", sid, col, e)
+            failed.append((sid, col))
             continue
         if panel is None:
             panel = df
@@ -155,6 +178,14 @@ def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
     rename_map = {sid: name for sid, name in SERIES.items() if sid in panel.columns}
     panel = panel.rename(columns=rename_map)
 
+    # carry-forward 抓失敗的序列 (避免 silent 掉欄；置於 ffill/derived 前，使 derived 能用沿用值)
+    for sid, col in failed:
+        if prev is not None and col in prev.columns and col not in panel.columns:
+            panel = panel.merge(prev[['date', col]], on='date', how='left')
+            logger.error("CARRY-FORWARD %s (%s): fetch 失敗 -> 沿用既有 panel 最後好值 (stale，非當日抓取)", col, sid)
+        else:
+            logger.error("MISSING %s (%s): fetch 失敗且既有 panel 無此欄 -> 本輪缺欄，待下次成功", col, sid)
+
     # forward fill (處理 weekly/monthly 序列 align 到日頻)
     for col in panel.columns:
         if col == 'date':
@@ -174,6 +205,8 @@ def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
         panel['hy_oas_rank'] = panel['hy_oas'].rolling(2520, min_periods=252).rank(pct=True) * 100
     if 'ccc_oas' in panel.columns:
         panel['ccc_oas_rank'] = panel['ccc_oas'].rolling(2520, min_periods=252).rank(pct=True) * 100
+    if 'ig_oas' in panel.columns:
+        panel['ig_oas_rank'] = panel['ig_oas'].rolling(2520, min_periods=252).rank(pct=True) * 100
 
     # 單位統一成「十億美元 ($B)」：WTREGEN(TGA) FRED 原單位是百萬，RRPONTSYD(RRP) 原即十億
     if 'tga_balance' in panel.columns:
@@ -186,6 +219,22 @@ def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
             panel['fed_bs_million_usd'] / 1000.0 - panel['rrp_balance'] - panel['tga_balance']
         )
         panel['net_liquidity_chg_4w'] = panel['net_liquidity_bil'].diff(20)
+
+    # 銀行存準 WRESBAL：FRED 單位歷史在百萬/十億間變動過，統一正規化到十億 ($B) 與 RRP/TGA 一致
+    # (準備金 ~$3T：百萬級會是 ~3,000,000、十億級 ~3,000；門檻 1e5 兩者間隔極大故安全)
+    if 'bank_reserves' in panel.columns:
+        _med = panel['bank_reserves'].dropna().median()
+        if pd.notna(_med) and _med > 1e5:
+            panel['bank_reserves'] = panel['bank_reserves'] / 1000.0
+        panel['bank_reserves_chg_4w'] = panel['bank_reserves'].diff(20)  # $B 近4週變化(負=準備金流失)
+
+    # SOFR - IORB 利差 (資金壓力在「利差」非「水位」；走闊=回購市場緊/準備金稀缺早警；IORB 2021-07+)
+    if 'sofr' in panel.columns and 'iorb' in panel.columns:
+        panel['sofr_iorb_spread'] = panel['sofr'] - panel['iorb']
+
+    # 10年實質殖利率近4週變化 (實質利率上行=估值折現率升,壓抑高估值)
+    if 'us_real_yield_10y' in panel.columns:
+        panel['us_real_yield_10y_chg_4w'] = panel['us_real_yield_10y'].diff(20)
 
     # yield curve inverted flag
     if 'yield_curve_10y_2y' in panel.columns:
