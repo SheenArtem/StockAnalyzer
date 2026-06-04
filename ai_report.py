@@ -94,6 +94,16 @@ def _build_stock_info(ticker, report, fund_data, df_day):
         last = df_day.iloc[-1]
         price = last.get('Close', 0)
         lines.append(f"最新收盤價: {_safe_val(price)}")
+        # 餵前一日收盤價 + 當日漲跌幅，供 meta.change_pct 直接抄錄 (否則 LLM 缺前收盤價只能填 0.0)
+        if len(df_day) >= 2:
+            prev_close = df_day.iloc[-2].get('Close', 0)
+            try:
+                if prev_close and float(prev_close) > 0:
+                    chg = (float(price) - float(prev_close)) / float(prev_close) * 100
+                    lines.append(f"前一日收盤價: {_safe_val(prev_close)}")
+                    lines.append(f"當日漲跌幅: {chg:+.2f}%")
+            except (ValueError, TypeError):
+                pass
         if 'Volume' in df_day.columns:
             lines.append(f"最新成交量: {_safe_val(last.get('Volume', 0), '.0f')}")
 

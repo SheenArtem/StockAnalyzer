@@ -188,11 +188,19 @@ def get_fundamentals(ticker):
                      except Exception as e:
                          logger.debug(f"Failed to calculate payout ratio for {stock_id}: {e}")
 
-        # Handle Dividend Yield (yfinance returns decimal, e.g. 0.0136 for 1.36%)
-        # 與 ROE/profitMargins 一致，統一 *100 轉為百分比
-        dy = info.get('dividendYield')
-        if dy is not None:
-             data['Dividend Yield'] = f"{dy*100:.2f}%"
+        # Handle Dividend Yield
+        # ⚠️ yfinance 1.0+ 的 dividendYield 已是「百分比數值」(e.g. 0.65 代表 0.65%)，
+        #    不可再 *100，否則 0.65 → 65% (3665 實測 bug)。
+        #    trailingAnnualDividendYield 仍是小數比例 (e.g. 0.0068 = 0.68%)，跨版本穩定，優先採用。
+        # 台股 FinMind 為 primary (上方已填)，僅在其仍為 N/A 時才用 yfinance 補，避免覆蓋。
+        if data['Dividend Yield'] in ('N/A', '', None):
+            dy_ratio = info.get('trailingAnnualDividendYield')
+            if dy_ratio is not None:
+                data['Dividend Yield'] = f"{dy_ratio*100:.2f}%"
+            else:
+                dy = info.get('dividendYield')
+                if dy is not None:
+                    data['Dividend Yield'] = f"{dy:.2f}%"  # 已是百分比，不再 *100
 
         # Handle ROE (Return on Equity)
         roe = info.get('returnOnEquity')
