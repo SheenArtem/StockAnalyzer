@@ -117,7 +117,7 @@ SOP-12: 1) Sharpe(C2) > B ✅ +0.132 / 2) MDD(C2) > B ✅ +18.64pp / 3) Sharpe(C
 | Volume vs prior 20d avg | 爆量 = panic | 當日成交量 / 20d avg |
 | Breadth (跌停家數比) | extreme negative | 從 TWSE bulk 撈每日漲跌 |
 | 三大法人 5d 累積買賣超 | derisk 加速 | 既有 chip data |
-| 融資維持率 | 跌破危險線 → margin call cascade | 從 chip_history/margin |
+| 融資維持率 | 跌破危險線 → margin call cascade | ✅ 2026-06-04 已落地 `market_cap.parquet::margin_maintenance_pct` (MI_MARGN ALL 全表；勿用 chip_history/margin — universe filter 缺 ETF 23% 張數) |
 | 大盤 RSI(14) | 越極端越可能反彈 | 從 close 算 |
 
 #### 政策/外部催化（binary flags）
