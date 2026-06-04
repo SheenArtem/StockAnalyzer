@@ -265,6 +265,7 @@ def _load_systemic_chip() -> dict:
             'reason': last.get('group_a_reason', ''),
         },
         'group_b': {  # 籌碼鬆動
+            'margin_maintenance_pct': last.get('margin_maintenance_pct'),
             'margin_to_mktcap_pct': last.get('margin_to_mktcap_pct'),
             'margin_mktcap_z_252d': last.get('margin_mktcap_z_252d'),
             'margin_ratio_z_252d': last.get('margin_ratio_z_252d'),
@@ -331,6 +332,7 @@ def _render_systemic_chip(sys_chip: dict):
         'sbl_change_4w_pct': ('借券餘額 4 週變化', '%', '可借券餘額 4 週變化；正值大 = 空方準備加碼'),
         'foreign_fut_net_chg_4w': ('外資期貨淨部位 4 週變化', '口', '台指期 + 小台外資多空淨口數 4 週變化；負值大 = 外資轉空'),
         # Group B
+        'margin_maintenance_pct': ('大盤融資維持率', '% (上市)', '融資擔保品市值 ÷ 官方融資金額（自算，同 M平方/XQ 公式）；新倉基準 166.7%（融資成數 6 成）；2021-2026 實測多頭 170~210、空頭壓縮至 125~150；<140% = 追繳壓力區（法定追繳線 130%；2022-10 谷 123 / 2025-04 谷 125）；急跌時驟降 = 斷頭賣壓，恐慌/見底參考、非頂部指標'),
         'margin_to_mktcap_pct': ('融資餘額佔市值比重', '% (上市)', '官方融資金額 ÷ 上市總市值；越高 = 散戶槓桿越重(過熱)；台積電灌大市值後結構性偏低 (近期約 0.4%)'),
         'margin_mktcap_z_252d': ('融資佔市值比 z-score', 'z (252 日)', '融資佔市值比相對過去 252 日的 z-score；正值大 = 槓桿擴張'),
         'margin_ratio_z_252d': ('融資/指數比 z-score', 'z (252 日)', '融資餘額÷加權指數 相對過去 252 日的 z-score；正值大 = 散戶槓桿擴張(與融資佔市值比訊號高度一致)'),

@@ -380,8 +380,11 @@ def build_panel() -> pd.DataFrame:
     # Group B 補：融資餘額佔市值比 (官方融資金額 / 上市總市值, build_market_cap_panel.py)
     # 真實可讀 % (vs margin_to_index_ratio 因分母是指數點數只能看 z)。
     # margin_mktcap_z_252d 為其 252d z-score；訊號上與 margin_ratio_z_252d 高度一致。
+    # margin_maintenance_pct (2026-06-04 加): 大盤融資維持率 = 擔保品市值/官方融資金額,
+    # 急跌時驟降 = 斷頭賣壓 (informational, 非 IC composite)。
     mcap = load_market_cap()
-    for _c in ('margin_to_mktcap_pct', 'margin_mktcap_z_252d', 'total_market_cap'):
+    for _c in ('margin_to_mktcap_pct', 'margin_mktcap_z_252d', 'total_market_cap',
+               'margin_maintenance_pct'):
         if not mcap.empty and _c in mcap.columns:
             panel[_c] = mcap[_c].reindex(panel.index).ffill()
         else:
@@ -458,6 +461,7 @@ def build_panel() -> pd.DataFrame:
         sl = row.get('short_to_long_ratio')
         mpct = row.get('margin_to_mktcap_pct')
         mz = row.get('margin_mktcap_z_252d')
+        mmaint = row.get('margin_maintenance_pct')
         reasons = []
         if z is not None and not pd.isna(z) and z > 1.5:
             reasons.append(f"融資/指數 z {z:+.2f}")
@@ -471,11 +475,17 @@ def build_panel() -> pd.DataFrame:
             reasons.append(f"融資佔市值 {mpct:.2f}% (>=0.48 當代頂部帶)")
         elif mz is not None and not pd.isna(mz) and mz > 2.5:
             reasons.append(f"融資佔市值 z {mz:+.2f} (急升)")
+        # 大盤融資維持率 追繳壓力區 (informational, 非 IC composite)。<140 為斷頭賣壓升溫:
+        # 2022-10-28 谷 123.1 / 2025-04-09 谷 124.9 / 2024-08-05 谷 142.4 (擦邊未觸)。
+        # 與 0.48 絕對門檻不同, 130 法定追繳線 + 166.7 新倉基準 (融資成數6成) 為規則錨定,
+        # 分子分母同 book 自正規化, 無結構性漂移問題, 不需定期下調。
+        if mmaint is not None and not pd.isna(mmaint) and mmaint < 140:
+            reasons.append(f"融資維持率 {mmaint:.0f}% (<140 追繳壓力區, 法定斷頭線 130)")
         if len(reasons) >= 2:
             return 'high', ' / '.join(reasons)
         if len(reasons) == 1:
             return 'mid', reasons[0]
-        return 'low', '融資/指數 z、券資比、融資佔市值比 均未達鬆動門檻'
+        return 'low', '融資/指數 z、券資比、融資佔市值比、融資維持率 均未達鬆動門檻'
 
     def flag_c(row):
         streak = row.get('trust_buy_streak')

@@ -20,6 +20,9 @@ REM                               CNN endpoint top-up); offline IC panel only
 REM    4. build_market_cap      : listed total mktcap (reuse ohlcv_tw x
 REM                               t187ap03_L shares) + official MI_MARGN
 REM                               margin value -> margin/mktcap pct + z
+REM                               + margin maintenance ratio (MI_MARGN ALL
+REM                               units x close / margin value; ETF prices
+REM                               via yfinance gap panel)
 REM    5. build_systemic_chip   : aggregate chip CSV + sentiment + ETF flows
 REM                               + market_cap into 5-group (A/B/C/D/E)
 REM                               macro_dashboard Section 1 panel

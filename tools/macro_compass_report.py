@@ -156,6 +156,7 @@ def collect_context() -> str:
                     'sbl_total', 'foreign_holding_avg', 'foreign_holding_chg_4w',
                     'sbl_change_4w_pct', 'margin_to_index_ratio', 'margin_ratio_z_252d',
                     'short_to_long_ratio', 'margin_to_mktcap_pct', 'margin_mktcap_z_252d',
+                    'margin_maintenance_pct',
                     'pcr_oi', 'foreign_net_oi', 'foreign_fut_net_chg_4w',
                     'foreign_investor_net', 'foreign_cum_5d', 'foreign_cum_20d',
                     'trust_buy_streak', 'trust_net', 'trust_5d_zscore', 'option_top1_concentration']:
