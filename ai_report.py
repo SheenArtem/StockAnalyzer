@@ -1939,7 +1939,7 @@ def assemble_webpage_prompt(ticker, report, chip_data, us_chip_data, fund_data, 
 
    ⚠️ **數值欄位禁用 WebSearch 結果覆蓋**：同業比較表 / PE 歷史 / 基本面卡的 PE/PB/DY/ROE 數字必須**直接抄錄** [PEER_COMPARISON] / [FUNDAMENTAL_DATA] 系統供應值（單一 TradingView snapshot 確保跨報告一致），禁止用搜尋到的數字覆蓋，避免「A 報告引用 B 的 PE=X，但 B 自家報告 PE=Y」矛盾。
 
-2. **輸出一個自包含的完整 HTML 網頁**（深色儀表板，規格依上方「頁面區塊規格」9 區塊全含）
+2. **輸出一個自包含的完整 HTML 互動儀表板**（深色、Header + 5 Tabs，規格依上方「儀表板結構」全含；是 dashboard 不是線性報告頁）
 
 3. **第一個字元必為 `<!DOCTYPE html>` 的 `<`，最後必以 `</html>` 收尾**。禁止輸出 markdown 程式碼圍欄、HTML 前後的任何說明文字。"""
 
