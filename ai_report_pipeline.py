@@ -123,7 +123,8 @@ def assemble_prompt_only(
         inputs = _load_report_inputs(ticker, progress_cb)
         progress_cb("📝 組裝 prompt...")
         if fmt == 'html':
-            # claude.ai 貼上流程：要求整頁自包含 HTML（貼回直存，不灌本地模板）。
+            # claude.ai 貼上流程：點名 stockpulse-analyst skill + 餵數據，
+            # HTML 由 skill 內建模板產出（貼回直存）。格式規格不在 prompt 端重複。
             # 本地 CLI 路徑 (generate_one_report) 仍用 assemble_dashboard_prompt 出 JSON。
             from ai_report import assemble_webpage_prompt
             prompt = assemble_webpage_prompt(ticker, *inputs)
