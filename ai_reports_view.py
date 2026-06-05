@@ -145,16 +145,15 @@ def render_ai_reports():
         # --- 顯示組好的 prompt（如果有）---
         _pr = st.session_state.get('ai_prompt_result')
         if _pr:
-            _fmt_label = '📊 儀表板 (stockpulse-analyst skill)' if _pr['format'] == 'html' else '📝 Markdown'
+            _fmt_label = '📊 儀表板 (HTML JSON)' if _pr['format'] == 'html' else '📝 Markdown'
             st.success(
                 f"✅ **{_pr['ticker']}** prompt 組裝完成 (`{_fmt_label}`, "
                 f"{len(_pr['prompt']):,} chars, {_pr['elapsed_s']:.1f}s)"
             )
             st.caption(
                 "💡 點下方「📋 一鍵複製」按鈕複製 prompt → 貼到 claude.ai 對話框"
-                "（建議用 Opus / Extended Thinking，需開啟檔案建立功能）。"
-                "claude.ai 會觸發 **stockpulse-analyst** skill 產出 `{ticker}_dashboard.html` 檔案 → "
-                "下載後以文字編輯器開啟、全選複製，貼到本頁下方「📥 貼回 claude.ai 輸出」區塊存到報告庫。"
+                "（建議用 Opus 4.7 / Extended Thinking）。Claude 回傳的內容貼到本頁下方"
+                "「📥 貼回 claude.ai 輸出」區塊即可存到報告庫。"
             )
 
             # JS 一鍵複製按鈕 (navigator.clipboard.writeText)
@@ -209,7 +208,7 @@ def render_ai_reports():
         elif _ai_format == 'html' and _paste_html_mode == 'fullhtml':
             _paste_ticker_show = _ai_ticker.strip().upper() if _ai_ticker and _ai_ticker.strip() else "(未填)"
             st.caption(
-                f"把 stockpulse-analyst skill 產出的 `*_dashboard.html` 內容（下載後全選複製）貼到下方 → 直接存檔，不灌本地模板。"
+                f"把 claude.ai 直接生好的完整 HTML 頁面貼到下方 → 直接存檔，不再灌本地模板。"
                 f"**整頁 HTML 模式必須先在上方輸入股票代號**（=`{_paste_ticker_show}`），用作存檔代號。"
             )
             _paste_placeholder = '<!DOCTYPE html><html>...</html>'

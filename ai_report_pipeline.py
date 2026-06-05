@@ -46,7 +46,7 @@ def _load_report_inputs(ticker: str, progress_cb: Callable[[str], None]):
 
     Returns:
         tuple (report, chip_data, us_chip_data, fund_data, df_day) — same shape as
-        assemble_prompt() / assemble_dashboard_prompt() / assemble_webpage_prompt() expect.
+        assemble_prompt() / assemble_dashboard_prompt() expect.
 
     Raises:
         RuntimeError if price data unavailable (downstream cannot proceed).
@@ -123,11 +123,8 @@ def assemble_prompt_only(
         inputs = _load_report_inputs(ticker, progress_cb)
         progress_cb("📝 組裝 prompt...")
         if fmt == 'html':
-            # claude.ai 貼上流程：點名 stockpulse-analyst skill + 餵數據，
-            # HTML 由 skill 內建模板產出（貼回直存）。格式規格不在 prompt 端重複。
-            # 本地 CLI 路徑 (generate_one_report) 仍用 assemble_dashboard_prompt 出 JSON。
-            from ai_report import assemble_webpage_prompt
-            prompt = assemble_webpage_prompt(ticker, *inputs)
+            from ai_report import assemble_dashboard_prompt
+            prompt = assemble_dashboard_prompt(ticker, *inputs)
         else:
             from ai_report import assemble_prompt
             prompt = assemble_prompt(ticker, *inputs)

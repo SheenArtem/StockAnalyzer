@@ -1802,13 +1802,10 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 # Dashboard Mode — 輸出 HTML 互動儀表板
 # ================================================================
 
-def _build_dashboard_data_block(ticker, report, chip_data, us_chip_data, fund_data, df_day):
-    """組裝儀表板/網頁模式共用的 data block + 股名/代號。
-
-    Returns:
-        tuple: (data_block: str, stock_name: str, stock_id: str)
-    """
+def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
+    """組裝儀表板模式 prompt（要求 Claude 輸出 JSON）"""
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    system_prompt = _load_dashboard_prompt()
 
     data_sections = [
         f"[STOCK_INFO]\n{_build_stock_info(ticker, report, fund_data, df_day)}",
@@ -1858,14 +1855,6 @@ def _build_dashboard_data_block(ticker, report, chip_data, us_chip_data, fund_da
                 break
 
     stock_id = ticker.replace('.TW', '') if not is_us else ticker
-    return data_block, stock_name, stock_id
-
-
-def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
-    """組裝儀表板模式 prompt（要求 Claude 輸出 JSON，本地 CLI 灌模板路徑用）"""
-    system_prompt = _load_dashboard_prompt()
-    data_block, stock_name, stock_id = _build_dashboard_data_block(
-        ticker, report, chip_data, us_chip_data, fund_data, df_day)
 
     full_prompt = f"""{system_prompt}
 
@@ -1892,35 +1881,6 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 2. **輸出嚴格符合 schema 的純 JSON**，必含 5 個頂層物件：meta / summary / technical / chip / valuation / bull_bear
 
 3. **第一個字元必為 `{{`，最後一個字元必為 `}}`**。禁止輸出 markdown 程式碼圍欄、說明文字、或任何非 JSON 內容。"""
-
-    return full_prompt
-
-
-def assemble_webpage_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
-    """組裝 claude.ai 貼上流程 prompt（點名 stockpulse-analyst skill + 餵數據）。
-
-    用戶 claude.ai 帳號裝有 `stockpulse-analyst` skill（觸發條件：訊息含 2+ 個
-    [STOCK_INFO] / [TRIGGER_SCORE] 等區塊標籤）。skill 自帶完整工作流：
-    WebSearch 3-5 次 → 產 schema JSON → 注入 skill 內建 HTML 模板 →
-    create_file 輸出單檔 {ticker}_dashboard.html 給用戶下載。
-
-    因此本 prompt 只負責 (1) 點名 skill 拉高觸發率 (2) 提供數據。
-    ⚠️ 不得在此重複任何格式規格 / WebSearch 指示 / hard rules —
-    那些由 skill 單一來源管理，prompt 端重複會與 skill 指令打架
-    （歷史教訓：舊版「輸出嚴格純 JSON」指令壓過 skill 導致輸出 MD/JSON）。
-
-    本地 CLI 路徑 (generate_one_report) 仍用 assemble_dashboard_prompt 出 JSON。
-    """
-    data_block, stock_name, _ = _build_dashboard_data_block(
-        ticker, report, chip_data, us_chip_data, fund_data, df_day)
-
-    full_prompt = f"""請使用 **stockpulse-analyst** skill 處理以下 StockPulse 系統資料，產出 {ticker} ({stock_name}) 的單檔 HTML 儀表板。
-
----
-
-# 以下是 StockPulse 系統提供的 {ticker} ({stock_name}) 完整分析數據
-
-{data_block}"""
 
     return full_prompt
 
