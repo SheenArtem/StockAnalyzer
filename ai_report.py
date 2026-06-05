@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 _PROMPT_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'stock_analysis_system.md')
 _DASHBOARD_PROMPT_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'stock_analysis_dashboard.md')
 _DASHBOARD_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'report_dashboard_template.html')
+_WEBPAGE_PROMPT_PATH = os.path.join(os.path.dirname(__file__), 'prompts', 'stock_analysis_webpage.md')
 
 
 def _load_system_prompt():
@@ -60,6 +61,16 @@ def _load_dashboard_template():
             return f.read()
     except FileNotFoundError:
         logger.error("Dashboard template not found: %s", _DASHBOARD_TEMPLATE_PATH)
+        return ""
+
+
+def _load_webpage_prompt():
+    """載入整頁 HTML 網頁模式的 system prompt（claude.ai 貼上流程用）"""
+    try:
+        with open(_WEBPAGE_PROMPT_PATH, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.error("Webpage prompt not found: %s", _WEBPAGE_PROMPT_PATH)
         return ""
 
 
@@ -1802,10 +1813,13 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 # Dashboard Mode — 輸出 HTML 互動儀表板
 # ================================================================
 
-def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
-    """組裝儀表板模式 prompt（要求 Claude 輸出 JSON）"""
+def _build_dashboard_data_block(ticker, report, chip_data, us_chip_data, fund_data, df_day):
+    """組裝儀表板/網頁模式共用的 data block + 股名/代號。
+
+    Returns:
+        tuple: (data_block: str, stock_name: str, stock_id: str)
+    """
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
-    system_prompt = _load_dashboard_prompt()
 
     data_sections = [
         f"[STOCK_INFO]\n{_build_stock_info(ticker, report, fund_data, df_day)}",
@@ -1855,6 +1869,14 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
                 break
 
     stock_id = ticker.replace('.TW', '') if not is_us else ticker
+    return data_block, stock_name, stock_id
+
+
+def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
+    """組裝儀表板模式 prompt（要求 Claude 輸出 JSON，本地 CLI 灌模板路徑用）"""
+    system_prompt = _load_dashboard_prompt()
+    data_block, stock_name, stock_id = _build_dashboard_data_block(
+        ticker, report, chip_data, us_chip_data, fund_data, df_day)
 
     full_prompt = f"""{system_prompt}
 
@@ -1881,6 +1903,45 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 2. **輸出嚴格符合 schema 的純 JSON**，必含 5 個頂層物件：meta / summary / technical / chip / valuation / bull_bear
 
 3. **第一個字元必為 `{{`，最後一個字元必為 `}}`**。禁止輸出 markdown 程式碼圍欄、說明文字、或任何非 JSON 內容。"""
+
+    return full_prompt
+
+
+def assemble_webpage_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
+    """組裝整頁 HTML 網頁模式 prompt（claude.ai 貼上流程用）。
+
+    與 assemble_dashboard_prompt 共用 data block，差在輸出指示：
+    要求 claude.ai 直接生成自包含完整 HTML 頁面（貼回後整頁直存，不灌本地模板）。
+    """
+    system_prompt = _load_webpage_prompt()
+    data_block, stock_name, stock_id = _build_dashboard_data_block(
+        ticker, report, chip_data, us_chip_data, fund_data, df_day)
+
+    full_prompt = f"""{system_prompt}
+
+---
+
+# 以下是 StockPulse 系統提供的 {ticker} ({stock_name}) 完整分析數據
+
+{data_block}
+
+---
+
+## 你的任務
+
+1. **必須使用 WebSearch 工具搜尋以下資訊**（強制 3-4 次，即使系統數據看似齊全也不得略過）：
+   - "{stock_id} {stock_name} 產業趨勢 2026" — 產業動態、上下游供需
+   - "{stock_id} {stock_name} 法說會 營運展望" — 最新展望、產品線變化
+   - "{stock_id} 競爭對手 比較" — 主要競爭者營收/毛利率比較
+   - 美股請改用英文: "{ticker} industry outlook 2026", "{ticker} competitors analysis", "{ticker} latest earnings guidance"
+
+   搜尋結果用於補充多空對決 / 產業分析 / 估值三區塊的質化敘事與最新催化；系統 [NEWS_DATA] / [NEWS_THEMES] 為歷史快取，必須以 WebSearch 補今日最新資訊。
+
+   ⚠️ **數值欄位禁用 WebSearch 結果覆蓋**：同業比較表 / PE 歷史 / 基本面卡的 PE/PB/DY/ROE 數字必須**直接抄錄** [PEER_COMPARISON] / [FUNDAMENTAL_DATA] 系統供應值（單一 TradingView snapshot 確保跨報告一致），禁止用搜尋到的數字覆蓋，避免「A 報告引用 B 的 PE=X，但 B 自家報告 PE=Y」矛盾。
+
+2. **輸出一個自包含的完整 HTML 網頁**（深色儀表板，規格依上方「頁面區塊規格」9 區塊全含）
+
+3. **第一個字元必為 `<!DOCTYPE html>` 的 `<`，最後必以 `</html>` 收尾**。禁止輸出 markdown 程式碼圍欄、HTML 前後的任何說明文字。"""
 
     return full_prompt
 

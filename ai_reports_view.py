@@ -145,7 +145,7 @@ def render_ai_reports():
         # --- 顯示組好的 prompt（如果有）---
         _pr = st.session_state.get('ai_prompt_result')
         if _pr:
-            _fmt_label = '📊 儀表板 (HTML JSON)' if _pr['format'] == 'html' else '📝 Markdown'
+            _fmt_label = '🌐 完整 HTML 網頁' if _pr['format'] == 'html' else '📝 Markdown'
             st.success(
                 f"✅ **{_pr['ticker']}** prompt 組裝完成 (`{_fmt_label}`, "
                 f"{len(_pr['prompt']):,} chars, {_pr['elapsed_s']:.1f}s)"
