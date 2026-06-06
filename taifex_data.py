@@ -87,6 +87,7 @@ class TAIFEXData:
 
     Methods:
         get_futures_basis()        - 台指期正逆價差
+        get_full_session_quote()   - 台指期(全) 日盤結算 + 夜盤收盤 (隔夜訊號)
         get_put_call_ratio()       - 選擇權 Put/Call Ratio (未平倉)
         get_atm_put_premium()      - 近月 ATM PUT 權利金 + skew + top-OI (避險成本)
         get_minifutures_oi_ratio() - 小台/大台近月 OI 比 (散戶倉位 proxy)
@@ -197,6 +198,105 @@ class TAIFEXData:
             logger.warning("Failed to fetch futures basis (network): %s", e)
         except Exception as e:
             logger.error("Failed to fetch futures basis: %s", e, exc_info=True)
+
+        return result
+
+    # ------------------------------------------------------------------
+    # 台指期(全) -- 日盤結算 + 最新夜盤收盤 (隔夜訊號)
+    # ------------------------------------------------------------------
+    def get_full_session_quote(self) -> Dict[str, Any]:
+        """
+        台指期(全)：近月日盤結算 + 最新夜盤(盤後時段)收盤。
+
+        dlFutDataDown 同一 CSV 以「交易時段」欄區分 一般/盤後；
+        盤後時段 (15:00~次日05:00) 的交易日 = 次一交易日，其漲跌價/漲跌%
+        基準 = 前一日盤結算價 → 直接就是隔夜 gap 訊號 (預示次日開盤跳空)。
+
+        Returns:
+            dict: day_settle / day_date / day_chg_pct (近月日盤)
+                  night_close / night_date / night_chg / night_chg_pct (近月夜盤)
+                  失敗時各值為 0.0 / None。
+        """
+        cached = self._cache.get('full_session_quote')
+        if cached is not None:
+            return cached
+
+        result = {
+            'day_settle': 0.0, 'day_date': None, 'day_chg_pct': None,
+            'night_close': 0.0, 'night_date': None,
+            'night_chg': None, 'night_chg_pct': None,
+        }
+
+        def _f(s: str) -> Optional[float]:
+            s = s.strip().replace('%', '')
+            if not s or s == '-':
+                return None
+            try:
+                return float(s)
+            except ValueError:
+                return None
+
+        try:
+            today = datetime.now()
+            url = 'https://www.taifex.com.tw/cht/3/dlFutDataDown'
+            payload = {
+                'down_type': '1',
+                'commodity_id': 'TX',
+                # 範圍涵蓋 週末/連假：往前 4 天抓最近日盤、往後 4 天抓
+                # 已掛在次一交易日名下的最新夜盤
+                'queryStartDate': (today - timedelta(days=4)).strftime('%Y/%m/%d'),
+                'queryEndDate': (today + timedelta(days=4)).strftime('%Y/%m/%d'),
+            }
+            resp = self._session.post(url, data=payload, timeout=REQUEST_TIMEOUT)
+            resp.raise_for_status()
+            resp.encoding = 'big5'  # CSV 為 Big5；需正確解碼「交易時段」中文欄
+
+            # 各時段分開挑：日期最新 → 同日成交量最大列 = 近月 (價差單自然出局)
+            best = {'一般': (None, 0, None), '盤後': (None, 0, None)}  # (date, vol, fields)
+            for line in resp.text.strip().split('\n')[1:]:
+                fields = [f.strip() for f in line.split(',')]
+                if len(fields) < 18 or '/' in fields[2]:  # 跳過價差單 (202606/202607)
+                    continue
+                session = fields[17]
+                if session not in best:
+                    continue
+                try:
+                    d = datetime.strptime(fields[0], '%Y/%m/%d').date()
+                except ValueError:
+                    continue
+                vol = int(_f(fields[9]) or 0)
+                cur_date, cur_vol, _ = best[session]
+                if cur_date is None or d > cur_date or (d == cur_date and vol > cur_vol):
+                    best[session] = (d, vol, fields)
+
+            d_date, _, d_fields = best['一般']
+            if d_fields is not None:
+                # 優先結算價 (idx 10)，無則收盤價 (idx 6)
+                price = _f(d_fields[10]) or _f(d_fields[6])
+                if price:
+                    result['day_settle'] = round(price, 2)
+                    result['day_date'] = d_date
+                    result['day_chg_pct'] = _f(d_fields[8])
+
+            n_date, _, n_fields = best['盤後']
+            if n_fields is not None:
+                price = _f(n_fields[6])  # 夜盤無結算價，用收盤價
+                if price:
+                    result['night_close'] = round(price, 2)
+                    result['night_date'] = n_date
+                    result['night_chg'] = _f(n_fields[7])
+                    result['night_chg_pct'] = _f(n_fields[8])
+
+            self._cache.set('full_session_quote', result)
+            logger.info("Full session quote: day=%.0f (%s), night=%.0f (%s, %+.2f%%)",
+                        result['day_settle'], result['day_date'],
+                        result['night_close'], result['night_date'],
+                        result['night_chg_pct'] or 0.0)
+
+        except requests.RequestException as e:
+            logger.warning("Failed to fetch full session quote (network): %s", e)
+        except Exception as e:
+            logger.error("Failed to fetch full session quote: %s", e, exc_info=True)
 
         return result
 

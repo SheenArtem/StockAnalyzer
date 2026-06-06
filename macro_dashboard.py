@@ -8,6 +8,7 @@ systemic chip / 估值 等資料源整合，給使用者一個「容易讀」的
   0. 🚦 總風向卡片 (Top Card)：5 階燈號 + 一句話定調 + 主導訊號 top 3
   1. 機構撤退訊號 (Systemic Chip, 1-4w lead)：A/B/C/D/E 5 組
   2. 市場廣度 (Market Breadth, 同步~短 lead)：ADL/McClellan/新高低/A/D 量能
+  2.5 領頭羊/跨市場 (Leadership & Overnight)：SOX/Nasdaq 位階+相對強弱/TSM ADR/台指期(全)夜盤
   3. 情緒與波動 (Sentiment & Volatility, 0-1w lead)：原 banner 內容
   4. 流動性與資金 (Liquidity & Flow)：M1B 比/DXY/Fed BS/USDTWD
   5. 信用與景氣 (Credit & Business Cycle, 1-3mo lead)：HY OAS/Yield Curve/ISM/TW LEI
@@ -473,6 +474,82 @@ def _render_breadth(breadth: dict):
                     delta=f"MA{w}={ma:,.0f}", delta_color="off",
                     help=f"(指數−{w}日均線)/{w}日均線；MA{w} 點位可作 trigger price 參考",
                 )
+
+
+# ============================================================
+#  Section 2.5：領頭羊 / 跨市場領先（SOX / Nasdaq / TSM ADR / 台指期(全)）
+# ============================================================
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _get_full_session_quote() -> dict:
+    """台指期(全) 日盤結算 + 夜盤收盤 (live TAIFEX，跨 rerun 快取 5 分鐘)。"""
+    try:
+        from taifex_data import TAIFEXData
+        return TAIFEXData().get_full_session_quote()
+    except Exception as e:
+        logger.warning("full session quote fetch failed: %s", e)
+        return {}
+
+
+def _render_leadership():
+    st.markdown("### 🛰️ 領頭羊 / 跨市場領先 (Leadership & Overnight)")
+    lead = _safe_read_parquet(MACRO_DIR / "leadership_panel.parquet")
+    if lead is None or lead.empty:
+        st.info("⏳ 領頭羊資料尚未建立，請先執行 `python tools/build_leadership_panel.py`")
+        return
+    lead = lead.sort_values('date')
+    last = lead.iloc[-1]
+    st.caption(f"資料日期：{_fmt_date(last.get('date'))}（美盤收於台北深夜，為台股次日開盤的隔夜領先；informational tier 未經 IC 驗證）")
+
+    # 兩列美指數位階：收盤(Δ=1日%) + 對 MA20/50/200 乖離（格式同上方「大盤位階」）
+    for prefix, name in (('sox', '費城半導體 SOX'), ('nasdaq', '那斯達克')):
+        close = last.get(f'{prefix}_close')
+        if close is None or pd.isna(close):
+            continue
+        cols = st.columns(4)
+        chg = last.get(f'{prefix}_chg_1d')
+        cols[0].metric(name, f"{close:,.0f}",
+                       delta=f"{chg:+.2f}% (1日)" if chg is not None and not pd.isna(chg) else None)
+        for i, w in enumerate((20, 50, 200), start=1):
+            d = last.get(f'{prefix}_dist_ma{w}')
+            ma = last.get(f'{prefix}_ma{w}')
+            if d is not None and not pd.isna(d):
+                cols[i].metric(
+                    f"對 MA{w} 乖離率", f"{d:+.2f}%",
+                    delta=f"MA{w}={ma:,.0f}" if ma is not None and not pd.isna(ma) else None,
+                    delta_color="off",
+                    help=f"(指數−{w}日均線)/{w}日均線；於指數自身交易日序列計算",
+                )
+
+    # 第三列：相對強弱 + ADR 溢價 + 台指期(全)夜盤
+    cols = st.columns(4)
+    sox_rs = last.get('sox_rs_chg_4w')
+    if sox_rs is not None and not pd.isna(sox_rs):
+        cols[0].metric("SOX/TWII 相對強弱 4週", f"{sox_rs:+.2f}%",
+                       delta="半導體領先" if sox_rs > 0 else "領頭羊鬆動",
+                       delta_color="normal" if sox_rs > 0 else "inverse",
+                       help="SOX÷TWII 比值近 4 週變化；轉負=窄幅領漲行情的早期裂痕警報")
+    ndq_rs = last.get('nasdaq_rs_chg_4w')
+    if ndq_rs is not None and not pd.isna(ndq_rs):
+        cols[1].metric("Nasdaq/TWII 相對強弱 4週", f"{ndq_rs:+.2f}%",
+                       delta="美科技領先" if ndq_rs > 0 else "外部動能轉弱",
+                       delta_color="normal" if ndq_rs > 0 else "inverse",
+                       help="Nasdaq÷TWII 比值近 4 週變化")
+    adr = last.get('tsm_adr_premium_pct')
+    if adr is not None and not pd.isna(adr):
+        cols[2].metric("TSM ADR 溢價", f"{adr:+.2f}%",
+                       delta="ADR 溢價 (外資偏多)" if adr > 0 else "ADR 折價 (外資偏空)",
+                       delta_color="normal" if adr > 0 else "inverse",
+                       help="(TSM_ADR×匯率÷5)÷2330−1；1 ADR=5 股；隔夜領先台股開盤")
+    q = _get_full_session_quote()
+    if q and q.get('night_close'):
+        chg_pct = q.get('night_chg_pct')
+        cols[3].metric(
+            "台指期(全) 夜盤收盤", f"{q['night_close']:,.0f}",
+            delta=f"{chg_pct:+.2f}% vs 日盤結算 {q.get('day_settle'):,.0f}" if chg_pct is not None else None,
+            help=f"盤後時段 15:00~次日 05:00（交易日 {q.get('night_date')}）；漲跌基準=前一日盤結算"
+                 f"（{q.get('day_date')}）→ 隔夜 gap，預示次一交易日開盤跳空方向",
+        )
 
 
 # ============================================================
@@ -1062,6 +1139,10 @@ def render_macro_dashboard():
 
     # 市場廣度
     _render_breadth(breadth)
+    st.markdown("---")
+
+    # 領頭羊 / 跨市場領先（SOX / Nasdaq / TSM ADR / 台指期(全)夜盤）
+    _render_leadership()
     st.markdown("---")
 
     # 流動性與資金

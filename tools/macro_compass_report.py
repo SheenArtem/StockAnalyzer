@@ -178,17 +178,36 @@ def collect_context() -> str:
         lines.append("  風險燈號 (low/mid/high): " + " | ".join(flag_parts))
     else:
         lines.append("  (尚未建立 - 執行 tools/build_systemic_chip_panel.py)")
-    # 台指期基差 (live TAIFEX；real-time 快訊號，不存歷史故無百分位)
+    # 台指期基差 + 台指期(全)夜盤 (live TAIFEX；real-time 快訊號，不存歷史故無百分位)
     try:
         from taifex_data import TAIFEXData
-        _b = TAIFEXData().get_futures_basis()
-        if _b and _b.get('futures_price'):
-            lines.append(
-                f"  台指期基差 (正逆價差, 即時): {_b.get('basis'):+.1f} 點 "
-                f"({_b.get('basis_pct'):+.3f}%) — 期 {_b.get('futures_price'):.0f} vs 現貨 "
-                f"{_b.get('spot_price'):.0f}；正價差=偏多/逆價差=避險情緒升")
+        _tfx = TAIFEXData()
     except Exception as e:
-        logger.warning("futures basis fetch failed: %s", e)
+        _tfx = None
+        logger.warning("TAIFEXData init failed: %s", e)
+    if _tfx is not None:
+        try:
+            _b = _tfx.get_futures_basis()
+            if _b and _b.get('futures_price'):
+                lines.append(
+                    f"  台指期基差 (正逆價差, 即時): {_b.get('basis'):+.1f} 點 "
+                    f"({_b.get('basis_pct'):+.3f}%) — 期 {_b.get('futures_price'):.0f} vs 現貨 "
+                    f"{_b.get('spot_price'):.0f}；正價差=偏多/逆價差=避險情緒升")
+        except Exception as e:
+            logger.warning("futures basis fetch failed: %s", e)
+        try:
+            # 台指期(全)：夜盤 (盤後時段 15:00~次日05:00, 交易日=次一交易日)
+            # 漲跌基準=前一日盤結算 → 直接是隔夜 gap，預示次一交易日開盤跳空
+            _q = _tfx.get_full_session_quote()
+            if _q and _q.get('night_close'):
+                lines.append(
+                    f"  台指期(全) 夜盤收盤 (即時): {_q.get('night_close'):.0f} "
+                    f"({_q.get('night_chg') or 0:+.0f} 點 / {_q.get('night_chg_pct') or 0:+.2f}% "
+                    f"vs 日盤結算 {_q.get('day_settle'):.0f} @{_q.get('day_date')})"
+                    f" — 夜盤交易日 {_q.get('night_date')}；夜盤大幅偏離日盤結算="
+                    f"隔夜訊號，預示次一交易日開盤跳空方向")
+        except Exception as e:
+            logger.warning("full session quote fetch failed: %s", e)
     lines.append("")
 
     # Banner risk
@@ -270,16 +289,28 @@ def collect_context() -> str:
         lines.append("指數價位 / 外資台指期淨 OI:")
         lines.append(last7)
 
-    # Leadership / 跨市場領先 (SOX 相對強弱 + TSM ADR 溢價) -- 窄幅領漲 regime 下
-    # 「領頭羊鬆動」的早期裂痕警報 (informational, 1 日 lead)
+    # Leadership / 跨市場領先 (SOX/Nasdaq 位階+相對強弱 + TSM ADR 溢價) -- 窄幅
+    # 領漲 regime 下「領頭羊鬆動」的早期裂痕警報 (informational, 1 日 lead)
     lead = _safe_read_parquet(DATA / "macro" / "leadership_panel.parquet")
     lines.append("")
-    lines.append("### J. 領頭羊 / 跨市場領先 (SOX 相對強弱 + TSM ADR 溢價, informational)")
+    lines.append("### J. 領頭羊 / 跨市場領先 (SOX/Nasdaq 絕對位階+相對強弱 + TSM ADR 溢價, informational)")
     if lead is not None and not lead.empty:
         lead = lead.sort_values('date').reset_index(drop=True)
         lines.append(f"資料日期 last={lead['date'].iloc[-1]}")
-        for col in ['sox_to_twii_ratio', 'sox_rs_chg_4w', 'tsm_adr_premium_pct']:
+        for col in ['sox_to_twii_ratio', 'sox_rs_chg_4w', 'nasdaq_rs_chg_4w',
+                    'tsm_adr_premium_pct',
+                    'sox_close', 'sox_chg_1d',
+                    'sox_dist_ma20', 'sox_dist_ma50', 'sox_dist_ma200',
+                    'nasdaq_close', 'nasdaq_chg_1d',
+                    'nasdaq_dist_ma20', 'nasdaq_dist_ma50', 'nasdaq_dist_ma200']:
             lines.append(_format_series_summary(lead, col))
+        _ll = lead.iloc[-1]
+        # 美指數均線「絕對點位」(乖離率上方 col 已給；點位供引用 trigger level)
+        if all(c in lead.columns for c in ('sox_ma50', 'sox_ma200', 'nasdaq_ma50', 'nasdaq_ma200')):
+            lines.append(f"  美指數均線點位: SOX MA50={_ll.get('sox_ma50'):.0f} "
+                         f"/ MA200={_ll.get('sox_ma200'):.0f} (現價 {_ll.get('sox_close'):.0f})；"
+                         f"Nasdaq MA50={_ll.get('nasdaq_ma50'):.0f} "
+                         f"/ MA200={_ll.get('nasdaq_ma200'):.0f} (現價 {_ll.get('nasdaq_close'):.0f})")
     else:
         lines.append("  (尚未建立 - 執行 tools/build_leadership_panel.py)")
 
@@ -355,8 +386,8 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 - 台股廣度：漲跌家數、ADL、McClellan、上漲量/下跌量比、廣度衝力、52週新高低、站上 50/200 日均線比例、個股平均相關性/報酬離散度(20日)
 - 機構/籌碼：借券餘額、融資/指數比 z-score、券資比、PCR-OI/Volume、外資台指期淨 OI、外資持股、外資現貨日買賣超(當日+5/20日累積)、投信買賣超、選擇權集中度
 - 風險偏好/波動：HYG/LQD、長債/股票比(TLT/SPY)、MOVE、EEM/SPY、VIX 期限結構(VIX3M)、SKEW、VVIX、OVX、銅金比(HG/GC,成長代理)、原油價格(CL=WTI)
-- 加權指數位階：twii_close + 20/50/200 日均線及乖離率（含近 7 日 trend）、台指期基差(即時正逆價差)
-- 領頭羊/跨市場：費城半導體 SOX 對台股相對強弱、TSM ADR 對 2330 隔夜溢價
+- 加權指數位階：twii_close + 20/50/200 日均線及乖離率（含近 7 日 trend）、台指期基差(即時正逆價差)、台指期(全)夜盤收盤+隔夜 gap(即時)
+- 領頭羊/跨市場：費城半導體 SOX + 那斯達克 各自的收盤/1日漲跌/20/50/200日均線乖離率、SOX 與 Nasdaq 對台股相對強弱(4週變化)、TSM ADR 對 2330 隔夜溢價
 - 台灣總經/基本面領先指標(月頻)：國發會 LEI 綜合指數、外銷訂單動向指數、M1B、半導體設備進口值（註：外銷訂單為「動向指數」非訂單金額 YoY）
 → 以上皆「已有」。第 5 段只列「上方面板沒有、且不在下方『已評估、決定不補』清單」的真缺口（仍缺候選：JGB 10年殖利率「日頻」+JPY 套利壓力〔FRED 僅月頻落後，日頻無乾淨免費源〕、中國信用脈衝(PBoC TSF YoY,月頻慢速)、0DTE 短天期選擇權占比、台積電月營收〔MOPS〕、外銷訂單「金額」YoY + S&P Global 台灣 PMI〔LEI 只有動向指數〕、美 ISM 新訂單〔NAPMNOI 已從 FRED 下架，需 ISM 官方〕）。
 
@@ -373,7 +404,7 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 - 真領先（1-4 週 lead，可作預警）：美股 Buffett 估值(~10d)、長債/股票比 TLT/SPY(~3d)、美耐久財 YoY(~1d)、聖路易 FSI(~12d)、融資比 z-score(~13d)、外資持股 4 週變化(~16d)
 - 同步（lag≈0，只能「確認」當下狀態，不可當「即將發生」的領先訊號）：VIX、殖利率曲線、漲跌家數、McClellan、ADL、廣度衝力、PCR
 - 慢速領先（30-60d）：HY OAS、台股 Buffett、Fed 資產負債表
-- 未經 IC 驗證（informational，僅供研判背景，勿當成已驗證的領先訊號）：SOX/台股相對強弱、TSM ADR 溢價、外資現貨流量、SKEW/VVIX/OVX、機構撤退 A-E 燈號（註：SKEW 在台股經 IC 驗證為反向，高 SKEW 不等於跌深）
+- 未經 IC 驗證（informational，僅供研判背景，勿當成已驗證的領先訊號）：SOX/Nasdaq 位階與對台股相對強弱、TSM ADR 溢價、台指期(全)夜盤隔夜 gap、外資現貨流量、SKEW/VVIX/OVX、機構撤退 A-E 燈號（註：SKEW 在台股經 IC 驗證為反向，高 SKEW 不等於跌深）
 → 情境推演的觸發條件請優先押在「真領先」指標；同步指標只用來描述當下，不要寫成預測未來的領先警訊。
 
 【任務】

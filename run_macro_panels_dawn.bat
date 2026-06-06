@@ -12,7 +12,8 @@ REM           (TW data) AND after scanner.bat (chip CSV) so that
 REM           build_systemic_chip_panel sees fresh inputs.
 REM
 REM    1. fetch_fred_macro      : 18 FRED CSV + ICE DXY (daily/weekly/monthly)
-REM    2. build_leadership_panel: SOX/TWII rel-strength + TSM ADR premium
+REM    2. build_leadership_panel: SOX+IXIC level/MA-dist + rel-strength vs
+REM                               TWII + TSM ADR premium
 REM                               (yfinance; reuses fred_panel usdtwd)
 REM    3. fetch_etf_flows       : 10 yfinance ETF (HYG/JNK/LQD/TLT/SPY/...)
 REM    3b. fetch_cnn_fgi        : CNN US Fear-Greed history (GitHub mirror +
@@ -67,7 +68,7 @@ echo [%date% %time%] Macro panels dawn starting >> macro_panels.log
 echo [%date% %time%] [stage]FRED macro panel (27 FRED CSV + ICE DXY) >> macro_panels.log
 python tools\fetch_fred_macro.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]Leadership panel (SOX/TWII RS + TSM ADR premium) >> macro_panels.log
+echo [%date% %time%] [stage]Leadership panel (SOX+IXIC level/MA-dist + RS vs TWII + TSM ADR premium) >> macro_panels.log
 python tools\build_leadership_panel.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]ETF flows (HYG/JNK/LQD/TLT/SPY/MOVE/EEM/EMB/FXI/EWJ + HG/GC/CL commodities) >> macro_panels.log
