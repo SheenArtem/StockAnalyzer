@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-06-05T00:48:09",
+  "generated_at": "2026-06-06T00:46:03",
   "start_date": "2016-01-15",
-  "end_date": "2026-06-05",
+  "end_date": "2026-06-06",
   "whale_picks": {
     "name": "Whale Picks",
     "cagr": Infinity,
@@ -9,8 +9,8 @@
     "vol": NaN,
     "mdd": -0.1334793174471539,
     "total_return": Infinity,
-    "days": 2531,
-    "years": 10.04
+    "days": 2532,
+    "years": 10.05
   },
   "twii": {
     "name": "TWII",
