@@ -463,6 +463,17 @@ def _render_breadth(breadth: dict):
     if sc is not None and not sc.empty and 'twii_dist_ma200' in sc.columns:
         last_sc = sc.sort_values('date').iloc[-1]
         st.markdown("##### 📈 大盤位階 (指數對均線乖離率)")
+        # fail loud: dawn 鏈斷掉時 panel 停更 (2026-06-06 案例: FRED timeout 拖 59min
+        # 觸 Task Scheduler 1hr kill, systemic_chip 沒 rebuild) — 標日期 + stale 警示
+        sc_date = pd.to_datetime(last_sc['date'])
+        stale_days = (pd.Timestamp.now().normalize() - sc_date.normalize()).days
+        if stale_days > 3:
+            st.warning(
+                f"⚠️ 大盤位階資料停在 {sc_date:%Y-%m-%d}（{stale_days} 天前）— "
+                f"dawn 排程鏈可能斷掉，檢查 macro_panels.log 或手動跑 "
+                f"`python tools/build_systemic_chip_panel.py`")
+        else:
+            st.caption(f"資料日期：{sc_date:%Y-%m-%d}")
         m_cols = st.columns(4)
         m_cols[0].metric("加權指數", f"{last_sc['twii_close']:,.0f}")
         for i, w in enumerate((20, 50, 200), start=1):

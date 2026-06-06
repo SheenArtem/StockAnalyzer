@@ -3,12 +3,15 @@ market_banner.py -- 大盤儀表板 Banner
 
 在 app.py 最上方顯示全市場級指標，所有模式共用（個股/選股/AI報告）。
 
-內容：
-  Row 1: 台股大盤（月線乖離/季線乖離/KD）+ 美股大盤（同上）
-  Row 2: 台灣 FGI + CNN FGI + 期貨基差 + P/C Ratio
+內容（4 欄）：
+  C1: 加權指數（月線/季線乖離+KD）+ 台指期(全)夜盤 gap + 基差/PCR + M1B + 期權避險
+  C2: 台灣 FGI + 子指標
+  C3: S&P 500 + 那斯達克 + 費城半導體（各含乖離/KD）+ VIX 期限結構
+  C4: CNN FGI + 子指標 + 歷史
 
 資料源：
-  - 大盤 OHLCV：yfinance（^TWII / ^GSPC）
+  - 大盤 OHLCV：yfinance（^TWII / ^GSPC / ^IXIC / ^SOX）
+  - 台指期(全)：taifex_data.TAIFEXData.get_full_session_quote（同 macro_dashboard 領頭羊）
   - 台灣 FGI：taifex_data.TaiwanFearGreedIndex
   - CNN FGI：cnn_fear_greed.CNNFearGreedIndex
   - 期貨/選擇權：taifex_data.TAIFEXData
@@ -317,11 +320,16 @@ def _compute_expiry(indicator, data_date, now):
             return _next_tw_refresh_at(_TW_20_CUTOFF, now).timestamp()
         return time.time() + _TW_20_RETRY
 
-    # 美股指數
-    if indicator == 'us_index':
+    # 美股指數 (S&P / 那斯達克 / 費半 同規則：盤中 5 分鐘 / 閉市到下個開盤)
+    if indicator in ('us_index', 'nasdaq_index', 'sox_index'):
         if _is_us_market_hours(now):
             return time.time() + _US_INDEX_INTRADAY_TTL
         return _next_us_open_at(now).timestamp()
+
+    # 台指期(全)：夜盤 05:00 收 / 日盤 13:45 結算，quote 變動點分散
+    # → 固定 30 分鐘 (1 次 TAIFEX request，與 macro_dashboard ttl=300 同源不衝突)
+    if indicator == 'txf_full':
+        return time.time() + 1800
 
     # CNN FGI
     if indicator == 'cnn_fgi':
@@ -497,6 +505,9 @@ def _read_risk_score_parquet() -> dict | None:
 _OUT_TO_CACHE = {
     'tw': 'tw_index',
     'us': 'us_index',
+    'nasdaq': 'nasdaq_index',
+    'sox': 'sox_index',
+    'txf_full': 'txf_full',
     'tw_fgi': 'tw_fgi',
     'cnn_fgi': 'cnn_fgi',
     'basis': 'basis',
@@ -522,6 +533,15 @@ def _pure_fetch(cache_key):
             return _fetch_index_metrics('^TWII', '加權指數')
         if cache_key == 'us_index':
             return _fetch_index_metrics('^GSPC', 'S&P 500')
+        if cache_key == 'nasdaq_index':
+            return _fetch_index_metrics('^IXIC', '那斯達克')
+        if cache_key == 'sox_index':
+            return _fetch_index_metrics('^SOX', '費城半導體')
+        if cache_key == 'txf_full':
+            # 台指期(全) 日盤結算 + 夜盤收盤 (live TAIFEX)。
+            # 同 macro_dashboard 領頭羊區塊資料源；夜盤 gap 預示次日開盤跳空。
+            from taifex_data import TAIFEXData
+            return TAIFEXData().get_full_session_quote()
         if cache_key == 'tw_fgi':
             # 讀 archive parquet（archiver = run_taifex_signals_afterclose.bat
             # 第 5 stage / scanner 00:00 後 stage）。零 network，cold load <50ms。
@@ -931,8 +951,27 @@ def render_market_banner():
         # 單排 4 欄：所有內容垂直堆疊在各欄內，無 Row 2 間距
         c1, c2, c3, c4 = st.columns(4)
 
-        # ── C1: 加權指數 + 乖離/KD + 基差&PCR 併排 ──
+        # ── C1: 加權指數 + 台指期(全)夜盤 + 乖離/KD + 基差&PCR 併排 ──
         _render_index_card(c1, tw)
+
+        # 台指期(全) 夜盤收盤 + 隔夜 gap（同 macro_dashboard 領頭羊資料源）
+        txf = data.get('txf_full') or {}
+        if txf.get('night_close'):
+            n_chg = txf.get('night_chg_pct')
+            t_color = ('#888888' if n_chg is None
+                       else '#00AA00' if n_chg > 0 else '#FF4444')
+            chg_str = f" {n_chg:+.2f}%" if n_chg is not None else ""
+            txf_tip = (f"台指期(全) 夜盤 15:00~次日 05:00（交易日 {txf.get('night_date', '')}）；"
+                       f"漲跌基準=日盤結算 {txf.get('day_settle', 0):,.0f}（{txf.get('day_date', '')}）"
+                       f"→ 隔夜 gap 預示次一交易日開盤跳空方向")
+            c1.markdown(
+                f'<div style="font-size:0.95rem;line-height:1.6" title="{txf_tip}">'
+                f'台指期(全)夜盤 <span style="color:{t_color};font-weight:bold">'
+                f'{txf["night_close"]:,.0f}{chg_str}</span> '
+                f'<span style="color:#888;font-size:0.85em">vs 日盤結算</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
         # 期貨基差 + P/C Ratio 用 HTML 併排顯示
         basis = data.get('basis') or {}
@@ -1099,19 +1138,14 @@ def render_market_banner():
             if comp_data:
                 c2.table(pd.DataFrame(comp_data))
 
-        # ── C3: S&P 500 + 乖離/KD + CNN FGI 歷史 ──
+        # ── C3: S&P 500 + 那斯達克 + 費城半導體 (各含乖離/KD) ──
         _render_index_card(c3, us)
-
-        if cnn_fgi:
-            hist_data = []
-            for key, label in [('previous_close', '前日收盤'), ('one_week_ago', '一週前'),
-                               ('one_month_ago', '一月前'), ('one_year_ago', '一年前')]:
-                val = cnn_fgi.get(key)
-                if val is not None:
-                    hist_data.append({"時間": label, "數值": f"{val:.0f}"})
-            if hist_data:
-                c3.markdown("**CNN FGI 歷史**")
-                c3.table(pd.DataFrame(hist_data))
+        nasdaq = data.get('nasdaq')
+        if nasdaq:
+            _render_index_card(c3, nasdaq)
+        sox = data.get('sox')
+        if sox:
+            _render_index_card(c3, sox)
 
         # ── VIX 期限結構 (vol_complex archiver, IC 4.06x lift @ red) ──
         try:
@@ -1171,3 +1205,15 @@ def render_market_banner():
                                           "狀態": c_rating})
             if cnn_comp_data:
                 c4.table(pd.DataFrame(cnn_comp_data))
+
+        # CNN FGI 歷史（從 C3 移入：歸 CNN 欄位，C3 騰給那斯達克/費半指數卡）
+        if cnn_fgi:
+            hist_data = []
+            for key, label in [('previous_close', '前日收盤'), ('one_week_ago', '一週前'),
+                               ('one_month_ago', '一月前'), ('one_year_ago', '一年前')]:
+                val = cnn_fgi.get(key)
+                if val is not None:
+                    hist_data.append({"時間": label, "數值": f"{val:.0f}"})
+            if hist_data:
+                c4.markdown("**CNN FGI 歷史**")
+                c4.table(pd.DataFrame(hist_data))

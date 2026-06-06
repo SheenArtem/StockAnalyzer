@@ -282,6 +282,13 @@ def build_panel() -> pd.DataFrame:
         twii.index = twii.index.tz_localize(None) if twii.index.tz else twii.index
         twii.index = pd.to_datetime(twii.index.date)
         panel = panel.join(twii.rename('twii_close'), how='left')
+        # fail loud: yfinance ^TWII 偶爾延遲一天 → 最後幾列 ffill 會是「假收盤」
+        # (2026-06-04 案例: panel 6/4 列被填 6/3 收盤, 大盤位階乖離率失真)
+        if len(panel) and twii.index.max() < panel.index.max():
+            logger.warning(
+                "^TWII last bar %s < panel spine last %s -> tail twii_close is "
+                "ffill-stale, dist_ma* on those rows uses a stale close",
+                twii.index.max().date(), panel.index.max().date())
         panel['twii_close'] = panel['twii_close'].ffill()
     except Exception as e:
         logger.warning("Failed to fetch ^TWII: %s", e)

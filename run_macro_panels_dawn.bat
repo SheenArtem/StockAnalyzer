@@ -11,22 +11,29 @@ REM           systemic_chip rebuild. Must run AFTER evening bat
 REM           (TW data) AND after scanner.bat (chip CSV) so that
 REM           build_systemic_chip_panel sees fresh inputs.
 REM
-REM    1. fetch_fred_macro      : 18 FRED CSV + ICE DXY (daily/weekly/monthly)
-REM    2. build_leadership_panel: SOX+IXIC level/MA-dist + rel-strength vs
-REM                               TWII + TSM ADR premium
-REM                               (yfinance; reuses fred_panel usdtwd)
-REM    3. fetch_etf_flows       : 10 yfinance ETF (HYG/JNK/LQD/TLT/SPY/...)
-REM    3b. fetch_cnn_fgi        : CNN US Fear-Greed history (GitHub mirror +
+REM  Stage order (2026-06-06 reordered): critical TW chain FIRST, slow
+REM  FRED LAST. Rationale: 6/6 FRED timeouts ate 59min, task hit the
+REM  scheduler ExecutionTimeLimit and stages after FRED were killed ->
+REM  systemic_chip (macro_dashboard market-level tile) went stale.
+REM  FRED/leadership being 1 day stale is tolerable; systemic_chip is not.
+REM    1. fetch_etf_flows       : 10 yfinance ETF (HYG/JNK/LQD/TLT/SPY/...)
+REM                               fast + feeds systemic_chip Group E
+REM    2. fetch_cnn_fgi         : CNN US Fear-Greed history (GitHub mirror +
 REM                               CNN endpoint top-up); offline IC panel only
-REM    4. build_market_cap      : listed total mktcap (reuse ohlcv_tw x
+REM    3. build_market_cap      : listed total mktcap (reuse ohlcv_tw x
 REM                               t187ap03_L shares) + official MI_MARGN
 REM                               margin value -> margin/mktcap pct + z
 REM                               + margin maintenance ratio (MI_MARGN ALL
 REM                               units x close / margin value; ETF prices
 REM                               via yfinance gap panel)
-REM    5. build_systemic_chip   : aggregate chip CSV + sentiment + ETF flows
+REM    4. build_systemic_chip   : aggregate chip CSV + sentiment + ETF flows
 REM                               + market_cap into 5-group (A/B/C/D/E)
 REM                               macro_dashboard Section 1 panel
+REM    5. fetch_fred_macro      : 18 FRED CSV + ICE DXY (daily/weekly/monthly)
+REM                               SLOWEST + flakiest (timeout retries), so last
+REM    6. build_leadership_panel: SOX+IXIC level/MA-dist + rel-strength vs
+REM                               TWII + TSM ADR premium
+REM                               (yfinance; reuses fred_panel usdtwd -> after 5)
 REM
 REM  NOTE: fred_fetcher.py --refresh stays in run_taifex_signals_
 REM  afterclose.bat (writes data_cache/fred/ for vol_complex tile,
@@ -65,12 +72,6 @@ set PYTHONIOENCODING=utf-8
 
 echo [%date% %time%] Macro panels dawn starting >> macro_panels.log
 
-echo [%date% %time%] [stage]FRED macro panel (27 FRED CSV + ICE DXY) >> macro_panels.log
-python tools\fetch_fred_macro.py >> macro_panels.log 2>&1
-
-echo [%date% %time%] [stage]Leadership panel (SOX+IXIC level/MA-dist + RS vs TWII + TSM ADR premium) >> macro_panels.log
-python tools\build_leadership_panel.py >> macro_panels.log 2>&1
-
 echo [%date% %time%] [stage]ETF flows (HYG/JNK/LQD/TLT/SPY/MOVE/EEM/EMB/FXI/EWJ + HG/GC/CL commodities) >> macro_panels.log
 python tools\fetch_etf_flows.py >> macro_panels.log 2>&1
 
@@ -82,6 +83,12 @@ python tools\build_market_cap_panel.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]Systemic chip panel (5-group aggregate, depends on above) >> macro_panels.log
 python tools\build_systemic_chip_panel.py >> macro_panels.log 2>&1
+
+echo [%date% %time%] [stage]FRED macro panel (27 FRED CSV + ICE DXY; slowest, deliberately last) >> macro_panels.log
+python tools\fetch_fred_macro.py >> macro_panels.log 2>&1
+
+echo [%date% %time%] [stage]Leadership panel (SOX+IXIC level/MA-dist + RS vs TWII + TSM ADR premium) >> macro_panels.log
+python tools\build_leadership_panel.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] Macro panels dawn done >> macro_panels.log
 
