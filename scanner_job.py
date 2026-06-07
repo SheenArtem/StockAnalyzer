@@ -101,8 +101,6 @@ _MIN_RESULTS = {        # 正常 results 數量下限（須 <= --top 預設 20�
     ('momentum', 'tw'): 15,
     ('value', 'us'): 10,
     ('value', 'tw'): 15,
-    ('swing', 'us'): 5,
-    ('swing', 'tw'): 10,
     ('qm', 'us'): 5,
     ('qm', 'tw'): 10,
 }
@@ -367,9 +365,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument('--mode', choices=['momentum', 'value', 'swing', 'qm', 'both', 'all'],
+    parser.add_argument('--mode', choices=['momentum', 'value', 'qm', 'both', 'all'],
                         default='both',
-                        help='Scan mode: momentum, value, swing, qm (quality momentum), both (mom+val), all (mom+val+swing+qm) (default: both)')
+                        help='Scan mode: momentum, value, qm (quality momentum), both (mom+val), all (mom+val+qm) (default: both)')
     parser.add_argument('--market', choices=['tw', 'us', 'all'],
                         default='all',
                         help='Market: tw (Taiwan), us (S&P 500), all (default: all)')
@@ -446,7 +444,6 @@ def main():
 
     run_momentum = args.mode in ('momentum', 'both', 'all')
     run_value = args.mode in ('value', 'both', 'all')
-    run_swing = args.mode in ('swing', 'all')
     run_qm = args.mode in ('qm', 'all')
     markets = ['tw', 'us'] if args.market == 'all' else [args.market]
 
@@ -532,22 +529,10 @@ def main():
             if not args.quiet:
                 print_value_summary(v_result)
 
-    # --- Swing Screener (reuses MomentumScreener with mode='swing') ---
-    if run_swing:
-        from momentum_screener import MomentumScreener
-        for mkt in markets:
-            mkt_label = 'Taiwan' if mkt == 'tw' else 'US'
-            progress(f"=== Swing Screener [{mkt_label}] ===")
-            s_screener = MomentumScreener(config=config, progress_callback=progress)
-            s_result = s_screener.run(market=mkt, mode='swing')
-            MomentumScreener.save_results(s_result, args.output_dir)
-            progress(f"Swing [{mkt}] results saved")
-            _append_regime_filter_audit('swing', mkt, len(s_result.get('results', [])), regime_filter_info)
-            healthy, issues = check_scan_health(s_result, mkt, 'swing')
-            if not healthy and args.notify:
-                send_alert_notification('swing', mkt, issues)
-            if not args.quiet:
-                print_summary(s_result)
+    # --- Swing Screener: removed 2026-06-07 ---
+    # rvol_lowatr 排序依據 (SW-1 Sharpe 9.50) 被 reports/rvol_atr_factor_validation.md
+    # 推翻 (污染 panel h=60 sharpe_proxy; clean h=10/20 combo FAIL)，且 5/23 後無排程
+    # (swing_result.json 卡 4/15)。復活見 git history。
 
     # --- QM (Quality Momentum) Screener ---
     if run_qm:
