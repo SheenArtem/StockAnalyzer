@@ -63,6 +63,15 @@ def load_ohlcv(sample=None, since=None):
     if since:
         df = df[df['date'] >= since].copy()
 
+    # Schema alias (2026-06-07): refresh_universe_prices 5/29 改版後 panel 為
+    # stock_id + raw OHLCV (無 yf_ticker / 無 AdjClose)。alias 回本工具預期的舊欄名；
+    # AdjClose 缺 → 用 raw Close（披露：除息缺口會造成人工 gap-down，系統性壓低
+    # 高動能股 fwd return、虛抬低波動側 — 引用結果時須註記，同 rvol_atr_validate 作法）。
+    if 'yf_ticker' not in df.columns and 'stock_id' in df.columns:
+        df = df.rename(columns={'stock_id': 'yf_ticker'})
+    if 'AdjClose' not in df.columns:
+        df['AdjClose'] = df['Close']
+
     # 欄位轉 numeric（防 pyarrow 型別飄）
     for col in ['Open', 'High', 'Low', 'Close', 'AdjClose', 'Volume']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
