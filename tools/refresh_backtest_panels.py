@@ -80,6 +80,18 @@ def aggregate_csv_to_parquet() -> pd.DataFrame:
                 before = len(df)
                 df = df[df['Close'].notna() & (df['Close'] >= 0.01)]
                 dropped_badclose += before - len(df)
+                # 防呆 2 (2026-06-07): 單日尖刺回落 = yfinance 單位錯置 (元/分 100x 或
+                # 10x 小數位移; 實測 1752/3114/8027O 三例, 曾害 fwd_5d 假 +10,000%)。
+                # 漲跌停 ±10% 下「單日 >5x 且次日反向 >5x」物理不可能; 減資/恢復交易
+                # 為階梯型不回落, 不誤殺。首尾列 ratio=NaN 比較為 False 自然跳過。
+                c = df['Close'].reset_index(drop=True)
+                df = df.reset_index(drop=True)
+                r_in = c / c.shift(1)
+                r_out = c.shift(-1) / c
+                spike = ((r_in > 5) & (r_out < 0.2)) | ((r_in < 0.2) & (r_out > 5))
+                if spike.any():
+                    dropped_badclose += int(spike.sum())
+                    df = df[~spike]
             cols = ['stock_id', 'date', 'Open', 'High', 'Low', 'Close', 'Volume']
             keep = [c for c in cols if c in df.columns]
             frames.append(df[keep])
