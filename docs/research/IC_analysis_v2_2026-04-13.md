@@ -1,5 +1,12 @@
 # 技術指標 IC + Quantile 驗證報告 v2
 
+> ⚠️ **資料時效註記 (2026-06-07)**：本文為 2026-04-13 在**清洗前** panel 跑的點時記錄（該 panel 後查出
+> 12,947 列垃圾價，已修）。文中指向的 `reports/indicator_*.csv` / `quantile_*.csv` 已於 2026-06-07
+> 在 clean panel 全部重產（檔案現值 ≠ 本文內嵌表格）。Clean 對照結論：**零符號翻轉**、量級普縮
+> （ATR% 系最大）、pairwise corr 不動 — 見 `technical_analysis_first_principles_2026-06-07.md` 與
+> `reports/rvol_atr_factor_validation.md`。本文內文保留原狀作歷史記錄。
+
+
 | 欄位 | 值 |
 |------|----|
 | **版本** | v2 |
