@@ -57,6 +57,7 @@ def aggregate_csv_to_parquet() -> pd.DataFrame:
 
     frames = []
     t0 = time.time()
+    dropped_badclose = 0
     for i, f in enumerate(tw_csv):
         if (i + 1) % 200 == 0:
             log.info("  [%d/%d] aggregating...", i + 1, len(tw_csv))
@@ -71,11 +72,21 @@ def aggregate_csv_to_parquet() -> pd.DataFrame:
             for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
+            # 防呆 (2026-06-07): 歷史 CSV 殘留 yfinance 無成交日填充列 (H=L=C=V=0)
+            # 與還原殘渣 — Close NaN/<0.01 一律擋在 panel 之外 (TWSE 最低 tick 0.01,
+            # 更低=物理不可能)，避免 ATR%/fwd_return 假極端值 (panel 曾累積 12,823 列
+            # ≤0 + 121 列微正值, 見 reports/rvol_atr_factor_validation.md)
+            if 'Close' in df.columns:
+                before = len(df)
+                df = df[df['Close'].notna() & (df['Close'] >= 0.01)]
+                dropped_badclose += before - len(df)
             cols = ['stock_id', 'date', 'Open', 'High', 'Low', 'Close', 'Volume']
             keep = [c for c in cols if c in df.columns]
             frames.append(df[keep])
         except Exception as e:
             log.warning("  skip %s: %s", sid, e)
+    if dropped_badclose:
+        log.warning("Dropped %d bad-Close rows (NaN/<=0) during aggregation", dropped_badclose)
 
     out = pd.concat(frames, ignore_index=True)
     log.info("Aggregated: %d rows, %d stocks, date range %s -> %s, took %.1fs",

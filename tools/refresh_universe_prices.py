@@ -76,9 +76,13 @@ def _yf_batch(sids, suffix, start_date, chunk):
             # 但 Volume 正常)。此列對 OHLCV 下游是毒：Close*股數=NaN -> 總市值塌成 0 ->
             # 融資佔市值 inf；breadth 算不出漲跌。直接砍掉不寫進 CSV，留待下次 yfinance
             # 補上真收盤再進 (dropna(how=all) 擋不掉，因 Volume 在故非全 NaN 列)。
+            # 2026-06-07 擴：Close<0.01 同砍 (TWSE 最低 tick 0.01, 更低=物理不可能) —
+            # 冷門股「無成交日」yfinance 會回填充列 (Open=前值, H=L=C=V=0)，歷史累積
+            # 12,589 列零值 + 234 列還原殘渣負值 + 121 列微正值殘渣 (8039 2008-09,
+            # Close=0.0039)，害 ATR%/breadth/市值失真 (見 reports/rvol_atr_factor_validation.md)。
             if sub is not None and "Close" in getattr(sub, "columns", []):
                 before = len(sub)
-                sub = sub[sub["Close"].notna()]
+                sub = sub[sub["Close"].notna() & (sub["Close"] >= 0.01)]
                 dropped_nanclose += before - len(sub)
             if sub is not None and len(sub):
                 # yfinance 偶有 tz-aware index；cache CSV 為 tz-naive

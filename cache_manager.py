@@ -717,6 +717,17 @@ class CacheManager:
         if df.empty:
             return
 
+        # 防呆 (2026-06-07): price 快取擋 Close NaN/<0.01 列 — yfinance 對冷門股
+        # 無成交日回填充列 (H=L=C=V=0)、還原殘渣可為負/微正；TWSE 最低 tick 0.01，
+        # 更低=物理不可能。歷史曾累積 12,944 列毒列進 ohlcv_tw 害 ATR%/breadth/市值
+        # 失真 (見 reports/rvol_atr_factor_validation.md)。與 refresh_universe_prices /
+        # refresh_backtest_panels 同款三層防線之一。
+        if data_type == 'price' and 'Close' in getattr(df, 'columns', []):
+            _c = pd.to_numeric(df['Close'], errors='coerce')
+            df = df[_c.notna() & (_c >= 0.01)]
+            if df.empty:
+                return
+
         file_path = self._get_path(ticker, data_type)
         tmp_path = file_path + ".tmp"
         with _cache_lock:
