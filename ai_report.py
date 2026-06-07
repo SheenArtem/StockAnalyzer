@@ -435,8 +435,9 @@ def _build_fundamental_data(fund_data, ticker):
             rev_df = rt.get_monthly_revenue(stock_id, months=12)
             if rev_df is not None and not rev_df.empty:
                 lines.append(f"\n月營收趨勢 (近 12 月):")
-                # Show last 6 months
-                recent = rev_df.tail(6)
+                # Show last 6 months — rev_df 為新→舊排序，head 才是最新；
+                # 反轉成舊→新顯示趨勢（先前 tail(6) 拿到最舊 6 個月害報告誤判 stale）
+                recent = rev_df.head(6).iloc[::-1]
                 for _, row in recent.iterrows():
                     ym = row.get('year_month', '')
                     rev = row.get('revenue', 0)

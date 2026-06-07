@@ -941,7 +941,11 @@ class RevenueTracker:
             from cache_manager import get_cached_fundamentals, get_finmind_cached, USE_MOPS
             dl = _get_finmind_loader()
             today = datetime.date.today()
-            start_date = (today - datetime.timedelta(days=months * 35)).strftime('%Y-%m-%d')
+            # 多抓 13 個月：YoY / 累計 YoY 需要去年同月在窗內才能對齊，
+            # 否則 _compute_revenue_metrics 全部 fallback 0.0（2026-06-07 修，先前
+            # months=12 的呼叫端 YoY 全為 0）。disk cache 已存全歷史，加寬零成本。
+            fetch_months = months + 13
+            start_date = (today - datetime.timedelta(days=fetch_months * 35)).strftime('%Y-%m-%d')
 
             if USE_MOPS:
                 import mops_fetcher
@@ -967,13 +971,22 @@ class RevenueTracker:
                 return None
 
             raw = raw.sort_values('date', ascending=False).reset_index(drop=True)
-            raw = raw.head(months)
+            raw = raw.head(fetch_months)
 
             records = []
             for _, row in raw.iterrows():
                 date_str = str(row.get('date', ''))
                 revenue = float(row.get('revenue', 0) or 0)
-                year_month = date_str[:7] if len(date_str) >= 7 else date_str
+                # 營收所屬月份：FinMind/MOPS 的 date 是「公布月」（= 營收月 +1），
+                # 優先用 revenue_year / revenue_month 取真正營收月，缺欄才退回 date
+                ry, rm = row.get('revenue_year'), row.get('revenue_month')
+                try:
+                    if pd.notna(ry) and pd.notna(rm) and 1 <= int(rm) <= 12:
+                        year_month = f"{int(ry)}-{int(rm):02d}"
+                    else:
+                        year_month = date_str[:7] if len(date_str) >= 7 else date_str
+                except (TypeError, ValueError):
+                    year_month = date_str[:7] if len(date_str) >= 7 else date_str
                 records.append({'year_month': year_month, 'revenue': revenue})
 
             if not records:
@@ -981,6 +994,8 @@ class RevenueTracker:
 
             df = pd.DataFrame(records)
             df = self._compute_revenue_metrics(df)
+            # 指標算完才裁切回呼叫端要求的月數（新→舊排序，head = 最新）
+            df = df.head(months).reset_index(drop=True)
             return df
 
         except Exception as exc:

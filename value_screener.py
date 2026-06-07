@@ -1124,7 +1124,8 @@ class ValueScreener:
                 if rev_df is not None and not rev_df.empty and 'yoy_pct' in rev_df.columns:
                     yoy = rev_df['yoy_pct'].dropna()
                     if len(yoy) >= 6 and pe > 0:
-                        avg_growth = yoy.iloc[-6:].mean()
+                        # rev_df 新→舊排序：iloc[:6] 才是最新 6 個月（先前 iloc[-6:] 拿到最舊）
+                        avg_growth = yoy.iloc[:6].mean()
                         if avg_growth > 1:
                             peg = pe / avg_growth
                             if peg < 0.5:
@@ -1438,8 +1439,9 @@ class ValueScreener:
             if rev_df is not None and not rev_df.empty and 'yoy_pct' in rev_df.columns:
                 yoy = rev_df['yoy_pct'].dropna()
                 if len(yoy) >= 3:
-                    latest_yoy = yoy.iloc[-1]
-                    prev_yoy = yoy.iloc[-3]
+                    # rev_df 新→舊排序：iloc[0] 是最新月（先前 iloc[-1] 拿到最舊）
+                    latest_yoy = yoy.iloc[0]
+                    prev_yoy = yoy.iloc[2]
 
                     if latest_yoy > 0:
                         # Already positive — more right-side than left-side
