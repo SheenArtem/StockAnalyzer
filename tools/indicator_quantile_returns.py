@@ -172,7 +172,9 @@ def main():
     all_scores = [(c, combos_dict[c]) for c in combo_cols] + \
                  [(c, SIGNAL_LABELS[c.replace('_rn', '')]) for c in ind_cols]
 
-    horizons = [args.horizon] if args.horizon else [5, 10, 20]
+    # default 加 60 (2026-06-07): 與 2026-04 SW-1 時代的 h=60 舊檔對照 (ATR% D1
+    # 斷崖 artifact 驗證), 同時涵蓋 IC 最強的 10/20
+    horizons = [args.horizon] if args.horizon else [5, 10, 20, 60]
     universes = [('all', None), ('momentum', 'in_momentum_universe')]
 
     # ----- Decile analysis -----
