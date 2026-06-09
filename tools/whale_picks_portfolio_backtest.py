@@ -178,8 +178,8 @@ def main():
         'annual_years': n_years,
         'annual_hit_rate': round(n_wins / n_years, 3) if n_years > 0 else None,
         'caveats': [
-            '未扣交易成本 (估 ~6 round-trips/年 × 0.3% = -1.8%/年 haircut)',
-            '未扣 slippage (估 -0.5%/年)',
+            '未扣交易成本: 實際年換手 ~680% (持有 1.77 月, per-slot ~6.8 round-trips/年), 台股固定成本 (賣稅 0.3% + 手續費x2 折後) = 3.3-4.1%/年, 非舊估 -1.8% (2026-06-09 cost audit)',
+            '未扣市場衝擊: 平方根模型估 個人規模 (每檔<=5M, 總<=60M) ~1-4%/年, 誠實淨 CAGR ~23% (price)/~26-27% (含股息), Sharpe ~1.46; 每檔>=20M (總~2.3億) 衝擊>固定且 p90 部位>整日 ADV, alpha 轉負/不可規模化 (見 reports/whale_cost_audit.md)',
             '未含台股股息 (TWII/Whale Picks 兩邊都未計，殖利率 ~3-5%/年)',
             '11 年回測，含 2018 熊 / 2020 covid / 2022 Fed / 2024 AI 多個 regime',
             'PIT universe 1958 stocks 已 survivor-bias 修正',
