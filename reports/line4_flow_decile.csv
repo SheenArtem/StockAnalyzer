@@ -1,0 +1,1201 @@
+﻿universe,score,label,liquidity,horizon,decile,mean_ret,win_rate,n_days
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,1,0.0022794770354229847,0.575910566173819,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,2,0.001404613786171008,0.574468085106383,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,3,0.0018898917777325167,0.5885322755138839,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,4,0.002164599508271336,0.6080057699242697,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,5,0.00242212040342615,0.6300036062026686,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,6,0.00220945701400184,0.6062026685899747,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,7,0.001813170918122117,0.5971871619184999,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,8,0.0024033114596007325,0.6036783267219618,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,9,0.003363574515796952,0.6134150739271547,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,10,0.004844031660828789,0.6148575549945907,2773
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,1,0.012166069614791337,0.5960841189267585,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,2,0.00784466767252427,0.593183466279913,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,3,0.009002745875822973,0.6098622189992748,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,4,0.008921371738060046,0.6272661348803481,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,5,0.009904296500703867,0.630891950688905,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,6,0.009068365426895524,0.6138506163886874,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,7,0.007730980371493331,0.6069615663524293,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,8,0.008740408196591783,0.6091370558375635,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,9,0.01099627345530404,0.6174764321972444,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,10,0.014026692773973599,0.6247280638143582,2758
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,1,0.03044597670167083,0.6313465783664459,2718
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,2,0.023782780273219423,0.6460632818248713,2718
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,3,0.027231706678420377,0.6607799852832965,2718
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,4,0.02800442419087628,0.6850625459896983,2718
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,5,0.032011984398073526,0.688373804267844,2718
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,6,0.027700073287489003,0.6975717439293598,2718
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,7,0.02400059690458819,0.6629874908020603,2718
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,8,0.026085713931717738,0.666298749080206,2718
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,9,0.029841420991543202,0.6633554083885209,2718
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,10,0.03925255456585637,0.6651949963208241,2718
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,1,0.0021756996970464,0.575036075036075,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,2,0.002386437634754086,0.6017316017316018,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,3,0.0023556833941895715,0.6165223665223665,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,4,0.002212871426942998,0.6302308802308803,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,5,0.0019544345579180036,0.6176046176046176,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,6,0.0022665100473650327,0.6143578643578643,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,7,0.0019436587867977789,0.6024531024531025,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,8,0.0021256233227330327,0.604978354978355,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,9,0.0027850999915329045,0.6020923520923521,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,10,0.004626258187275037,0.6107503607503607,2772
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,1,0.01139746937134825,0.6006528835690969,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,2,0.009559976385730815,0.6144359811389191,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,3,0.008689418319767534,0.6191512513601741,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,4,0.008562169647832083,0.6169749727965179,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,5,0.008392289824478514,0.6278563656147987,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,6,0.0086986951908602,0.6303953572723975,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,7,0.008485074406259964,0.6187885382662314,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,8,0.008985463361465322,0.6220529561117156,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,9,0.010644015843210508,0.6035545883206384,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,10,0.015058079270426319,0.6282190787087414,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,1,0.031421534459291016,0.6507177033492823,2717
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,2,0.02847134904171024,0.6672800883327199,2717
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,3,0.026959276460706814,0.6790577843209422,2717
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,4,0.026072122054145462,0.6867868973132131,2717
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,5,0.025862142150106664,0.6908354803091645,2717
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,6,0.02678123401903695,0.6864188443135811,2717
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,7,0.026624985328555742,0.6753772543246227,2717
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,8,0.02682403219450235,0.6613912403386087,2717
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,9,0.03011509328783883,0.6555023923444976,2717
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,10,0.039193331445176796,0.6591829223408171,2717
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,1,0.002334351938872828,0.5844436442203818,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,2,0.0017946512567411628,0.5999279798343536,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,3,0.002082385170686874,0.5938062657544112,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,4,0.0017434786773283248,0.583003240907454,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,5,0.002505919801938326,0.6182931220741807,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,6,0.0029533308441372814,0.610010803024847,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,7,0.0026026092966187006,0.602448685631977,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,8,0.0020172028787168745,0.5970471732084984,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,9,0.0023454582218035273,0.6006481814908174,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,10,0.004468734978275787,0.621173928700036,2777
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,1,0.009387113901862266,0.5890658942795076,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,2,0.0074172095936051955,0.6082548877624909,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,3,0.00825830626941098,0.6049963794351919,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,4,0.008036711007664177,0.5992034757422158,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,5,0.010837019346155696,0.6212889210716872,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,6,0.011649344450010018,0.6238233164373642,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,7,0.010048246556857496,0.6263577118030412,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,8,0.00903970853243213,0.6093410572049239,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,9,0.009897329581105714,0.6169442433019551,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,10,0.013753830236478717,0.6386676321506155,2762
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,1,0.02601119537477939,0.6252755326965467,2722
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,2,0.02302381322113629,0.6469507714915503,2722
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,3,0.025249886205784906,0.6407053637031594,2722
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,4,0.02474005367965657,0.6531961792799412,2722
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,5,0.033977274433733266,0.6818515797207936,2722
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,6,0.032728218789142526,0.6748714180749449,2722
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,7,0.029494956820929986,0.6700955180014695,2722
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,8,0.027452655995472953,0.6763409257898604,2722
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,9,0.027400689671332287,0.6818515797207936,2722
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,10,0.038433318982374044,0.6807494489346069,2722
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,1,0.002628062386854028,0.5964467005076142,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,2,0.0018516343304045015,0.5855692530819434,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,3,0.002051820929539367,0.6080493110949964,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,4,0.0023097933883577484,0.6091370558375635,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,5,0.0025490476743444458,0.6287164612037709,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,6,0.0023520452186983785,0.602610587382161,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,7,0.0020680031957219336,0.5949963741841915,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,8,0.0021622881283955985,0.597897026831037,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,9,0.0031903807239467264,0.6065989847715736,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,10,0.003789188612146131,0.603698332124728,2758
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,1,0.010768141997050874,0.5986146554866933,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,2,0.008151766774847056,0.6048122493620124,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,3,0.008530487267517851,0.6015311702515495,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,4,0.009708488613893305,0.6292380605176814,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,5,0.010703556291600568,0.6438206343419614,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,6,0.008800540402035135,0.6179365658038644,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,7,0.007662864624540689,0.5978855267954793,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,8,0.009138454784959414,0.6066350710900474,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,9,0.011572299256174675,0.6219467736055414,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,10,0.013639204014015837,0.6204885162231134,2743
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,1,0.02619999921955554,0.609322974472808,2703
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,2,0.024324201580355413,0.6470588235294118,2703
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,3,0.025116725801339692,0.6570477247502775,2703
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,4,0.028148326237990257,0.6962634110247873,2703
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,5,0.03446645486224697,0.7084720680725121,2703
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,6,0.02563879602285219,0.6859045504994451,2703
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,7,0.025138236813218386,0.6548279689234184,2703
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,8,0.02691457236198333,0.6736958934517203,2703
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,9,0.03232175388869715,0.6651868294487606,2703
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,10,0.039729704550695424,0.6607473177950426,2703
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,1,0.0022803298161217585,0.5854189336235038,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,2,0.002084137251347786,0.6031918752266957,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,3,0.002033913538030396,0.6151614073268045,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,4,0.002226702339015862,0.6206021037359448,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,5,0.0020189904032734407,0.6147986942328618,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,6,0.0021806739805039902,0.5999274573812114,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,7,0.0022321806189697134,0.6057308668842946,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,8,0.00227404036990006,0.6053681537903518,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,9,0.003023519175359286,0.598113891911498,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,10,0.0046364690329725984,0.6191512513601741,2757
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,1,0.009235995617372882,0.5951859956236324,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,2,0.008823560052417717,0.6057622173595916,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,3,0.008465361555086804,0.6072210065645515,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,4,0.008605302083669348,0.6225382932166302,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,5,0.008247936033571032,0.6261852662290299,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,6,0.008807499783766869,0.6221735959153902,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,7,0.009069452842138287,0.6145149525893508,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,8,0.009831156775879882,0.6167031363967906,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,9,0.011685735286297527,0.6105032822757112,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,10,0.01588269052867968,0.62509117432531,2742
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,1,0.027741451547806443,0.6435973353071799,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,2,0.027824425604713234,0.6550703182827535,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,3,0.02629981295260393,0.6813471502590673,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,4,0.024973866534812667,0.694300518134715,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,5,0.024929943180845585,0.6798667653589934,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,6,0.026479073112774334,0.688378978534419,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,7,0.027459931514873925,0.6791265729089563,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,8,0.02942984959503459,0.6732050333086602,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,9,0.03127750461485818,0.6558105107327905,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,10,0.04155930219831057,0.65840118430792,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,1,0.0018741374909074368,0.5804825351098307,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,2,0.0017326108928249382,0.6046092906013684,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,3,0.0017499792094320774,0.5898451566438603,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,4,0.002041571834901912,0.6002880806625855,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,5,0.002305813788591404,0.606049693914296,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,6,0.0030917791716649386,0.6269355419517465,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,7,0.0022092699705159907,0.6010082823190493,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,8,0.0024658052421549195,0.5916456607850198,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,9,0.003200900701219461,0.6110911055095427,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,10,0.0041761849342455875,0.6197335253871084,2777
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,1,0.008693739186930165,0.5803765387400435,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,2,0.00796196333307002,0.5970311368573498,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,3,0.007970188798756586,0.6064446053584359,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,4,0.008075322713001962,0.6158580738595221,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,5,0.009986887776589947,0.6220130340333092,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,6,0.011104418700981578,0.6176683562635771,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,7,0.00886489089739104,0.6100651701665459,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,8,0.009639575746846303,0.6183924692251991,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,9,0.011377194435923273,0.6346850108616944,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,10,0.014655006309163806,0.6422881969587255,2762
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,1,0.022705630043327242,0.6058045554739162,2722
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,2,0.022394585424845636,0.6473181484202792,2722
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,3,0.024344276999958062,0.6520940484937546,2722
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,4,0.023908541571859628,0.6601763409257898,2722
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,5,0.03278836313263306,0.6697281410727406,2722
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,6,0.031692244776347966,0.668626010286554,2722
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,7,0.028543641159579695,0.6623806024981631,2722
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,8,0.029391029177858005,0.6862601028655401,2722
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,9,0.0308988685904917,0.6987509184423218,2722
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,10,0.041876143900809674,0.6903012490815577,2722
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,1,0.0019037185814501723,0.579042784626541,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,2,0.002304880057881609,0.6011602610587382,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,3,0.002358044368386277,0.6174764321972444,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,4,0.0025454995810722065,0.6218274111675127,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,5,0.002290600295696127,0.6142131979695431,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,6,0.0025666104593791593,0.6174764321972444,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,7,0.0022858479043554813,0.6113125453226976,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,8,0.0024660245747125495,0.603698332124728,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,9,0.0027585761485823565,0.6004350978970269,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,10,0.0034718491759620444,0.612037708484409,2758
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,1,0.009311799109676434,0.5927816259569814,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,2,0.009386372720382943,0.6059059423988334,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,3,0.009714392605794788,0.6226759022967554,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,4,0.009746321035615377,0.6106452788917244,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,5,0.009647894700598183,0.6135617936565804,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,6,0.009895949059399329,0.6219467736055414,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,7,0.009516491855355804,0.6135617936565804,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,8,0.009524318526762608,0.6139263580021874,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,9,0.010485077138063077,0.6164783084214364,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,10,0.011434404756287197,0.6292380605176814,2743
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,1,0.02702778783717015,0.654458009618942,2703
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,2,0.027509785813733936,0.6703662597114317,2703
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,3,0.0289137381680352,0.6729559748427673,2703
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,4,0.02880405033281656,0.6873843877173511,2703
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,5,0.028796242760303934,0.6770255271920089,2703
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,6,0.02968079042058765,0.681465038845727,2703
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,7,0.0288883192576214,0.6796152423233445,2703
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,8,0.02791512175928622,0.6618571957084721,2703
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,9,0.028440389131102705,0.6651868294487606,2703
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,10,0.03195322744537004,0.6655567887532371,2703
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,1,0.001756838615309965,0.5901342038447588,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,2,0.001962450526225939,0.5926731955023576,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,3,0.0023532335954651105,0.613347841857091,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,4,0.002487160930916181,0.6198766775480595,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,5,0.0023798144057472605,0.6140732680449764,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,6,0.002640530175206532,0.6140732680449764,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,7,0.002619278401293106,0.6169749727965179,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,8,0.0026569234220736684,0.6053681537903518,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,9,0.0030744892124967204,0.6144359811389191,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,10,0.003052977326750388,0.6079071454479507,2757
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,1,0.007443951231847841,0.5955506929248724,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,2,0.008391523323054486,0.600291757840992,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,3,0.009658559331473268,0.6064916119620715,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,4,0.010030166080957767,0.6236323851203501,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,5,0.00961469693214847,0.6221735959153902,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,6,0.010531923864629547,0.6105032822757112,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,7,0.01013905075074177,0.6094091903719913,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,8,0.01092309383123528,0.611597374179431,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,9,0.01136142753152422,0.6239970824215901,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,10,0.010539788675087432,0.6163384390955506,2742
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,1,0.022232002024539475,0.6376757957068838,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,2,0.0261326652864719,0.6628423390081422,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,3,0.028408730111733917,0.6824574389341229,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,4,0.02866701761560554,0.6732050333086602,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,5,0.028926078002225346,0.6728349370836417,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,6,0.02998941287989771,0.6831976313841599,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,7,0.030491611964882925,0.6813471502590673,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,8,0.031170836441664507,0.6757957068837898,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,9,0.03103467182580279,0.6676535899333826,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,10,0.030892955959762606,0.6484085862324205,2702
+full,mom_only_5d,純動量 5d baseline (對照),all,5,1,0.0034236127403555654,0.5995670995670995,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,5,2,0.0025594045442347145,0.6071428571428571,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,5,3,0.0023132667564668506,0.6111111111111112,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,5,4,0.002214609215777151,0.6111111111111112,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,5,5,0.002132314160002751,0.6168831168831169,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,5,6,0.002222631369769403,0.6161616161616161,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,5,7,0.0021163935991550826,0.6147186147186147,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,5,8,0.0021008039969773224,0.6096681096681097,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,5,9,0.00231235896210351,0.5941558441558441,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,5,10,0.003421740451264977,0.5909090909090909,2772
+full,mom_only_5d,純動量 5d baseline (對照),all,20,1,0.010257838930665779,0.5832426550598476,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,20,2,0.00851083305229709,0.5963003264417845,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,20,3,0.007928722882563665,0.6046427276024664,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,20,4,0.007795480499470129,0.6060935799782372,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,20,5,0.008139995888258924,0.6155241204207472,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,20,6,0.008505176906303476,0.6155241204207472,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,20,7,0.008973093195830307,0.6158868335146899,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,20,8,0.010012852933397176,0.6187885382662314,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,20,9,0.011985525138585163,0.6383750453391367,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,20,10,0.01637136731547334,0.6365614798694232,2757
+full,mom_only_5d,純動量 5d baseline (對照),all,60,1,0.02945094441760373,0.6253220463746779,2717
+full,mom_only_5d,純動量 5d baseline (對照),all,60,2,0.02560191031082628,0.6422524843577475,2717
+full,mom_only_5d,純動量 5d baseline (對照),all,60,3,0.024716630902742318,0.6510857563489142,2717
+full,mom_only_5d,純動量 5d baseline (對照),all,60,4,0.025158951906723286,0.6573426573426573,2717
+full,mom_only_5d,純動量 5d baseline (對照),all,60,5,0.024552047114292045,0.6694884063305115,2717
+full,mom_only_5d,純動量 5d baseline (對照),all,60,6,0.025358553057582774,0.6904674273095326,2717
+full,mom_only_5d,純動量 5d baseline (對照),all,60,7,0.0260320045154866,0.6823702613176298,2717
+full,mom_only_5d,純動量 5d baseline (對照),all,60,8,0.02887350089976457,0.6882591093117408,2717
+full,mom_only_5d,純動量 5d baseline (對照),all,60,9,0.034073698225845016,0.6912035333087965,2717
+full,mom_only_5d,純動量 5d baseline (對照),all,60,10,0.04455027457826341,0.6985645933014354,2717
+full,mom_only_20d,純動量 20d baseline (對照),all,5,1,0.002648090770792701,0.5785273848385927,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,5,2,0.0015801059614875253,0.5854189336235038,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,5,3,0.001654702781398372,0.6024664490388103,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,5,4,0.00168123087422791,0.6053681537903518,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,5,5,0.0019420447927298013,0.6089952847297787,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,5,6,0.001945082890302856,0.6068190061661226,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,5,7,0.0022071889251284757,0.607544432354008,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,5,8,0.0026338418335491733,0.6082698585418934,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,5,9,0.003196476365736949,0.613347841857091,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,5,10,0.005503589062317939,0.6249546608632571,2757
+full,mom_only_20d,純動量 20d baseline (對照),all,20,1,0.009172006487971148,0.5598103574033552,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,20,2,0.007750420853544518,0.5795040116703136,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,20,3,0.007647252569539718,0.5853391684901532,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,20,4,0.007446223091302267,0.5893508388037928,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,20,5,0.007881737991405647,0.6105032822757112,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,20,6,0.00788770708743679,0.612691466083151,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,20,7,0.00889928873544075,0.6214442013129103,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,20,8,0.010128520803892533,0.6280087527352297,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,20,9,0.012329406229211018,0.6327498176513494,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,20,10,0.019528933677764364,0.6564551422319475,2742
+full,mom_only_20d,純動量 20d baseline (對照),all,60,1,0.023237214519466316,0.5895632864544782,2702
+full,mom_only_20d,純動量 20d baseline (對照),all,60,2,0.02327190997281597,0.6113989637305699,2702
+full,mom_only_20d,純動量 20d baseline (對照),all,60,3,0.02310810958401586,0.6384159881569208,2702
+full,mom_only_20d,純動量 20d baseline (對照),all,60,4,0.022454782826039424,0.6498889711324944,2702
+full,mom_only_20d,純動量 20d baseline (對照),all,60,5,0.02365165059323496,0.6687638786084382,2702
+full,mom_only_20d,純動量 20d baseline (對照),all,60,6,0.024309032781645378,0.6820873427091043,2702
+full,mom_only_20d,純動量 20d baseline (對照),all,60,7,0.02734718851118751,0.692820133234641,2702
+full,mom_only_20d,純動量 20d baseline (對照),all,60,8,0.03160279649027599,0.6968911917098446,2702
+full,mom_only_20d,純動量 20d baseline (對照),all,60,9,0.03768412981610403,0.7050333086602517,2702
+full,mom_only_20d,純動量 20d baseline (對照),all,60,10,0.05138083589529992,0.7002220577350111,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,1,0.003256935052205384,0.5719985491476243,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,2,0.001888276705698711,0.5618425825172289,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,3,0.0018658308619816035,0.5752629669931084,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,4,0.0018349137857792581,0.5730866884294523,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,5,0.0023701205564158486,0.5872324990932173,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,6,0.002680980995022666,0.582879941965905,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,7,0.002752303884823529,0.5814290895901342,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,8,0.003204337712141571,0.5908596300326442,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,9,0.004204672432619868,0.5879579252811027,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,10,0.0063007074990342055,0.6042800145085238,2757
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,1,0.0159251016384286,0.6068563092633115,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,2,0.012483687664928838,0.5882567469000729,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,3,0.008438302038331087,0.587162654996353,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,4,0.008077075047177511,0.5827862873814734,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,5,0.010370519588279555,0.6024799416484318,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,6,0.009882825714519103,0.5984682713347921,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,7,0.010248394957360279,0.6097738876732313,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,8,0.010708591875897322,0.6013858497447119,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,9,0.01235760116536035,0.6032093362509118,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,10,0.01710979697653741,0.6123267687819111,2742
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,1,0.036270304692596164,0.6217616580310881,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,2,0.03363229191578502,0.6176905995558846,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,3,0.024255349375854822,0.6221317542561066,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,4,0.023920842284648258,0.6258327165062917,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,5,0.03396032722789266,0.6465581051073279,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,6,0.026894576534354925,0.6435973353071799,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,7,0.029422324997529486,0.6424870466321243,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,8,0.03168556184788535,0.6387860843819393,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,9,0.035503137022843585,0.6250925240562546,2702
+full,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,10,0.04900382498211563,0.6576609918578831,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,1,0.002031142098487063,0.5469713456655785,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,2,0.0022135237456346302,0.5745375408052231,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,3,0.0027169784714865903,0.5926731955023576,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,4,0.002717230652301074,0.5904969169387014,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,5,0.00257778221960994,0.5778019586507073,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,6,0.0026799664770016324,0.5901342038447588,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,7,0.0023347287993698835,0.5807036634022488,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,8,0.003186007563559252,0.5792528110264781,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,9,0.003746274328867906,0.5883206383750453,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,10,0.0061772525006314055,0.6050054406964092,2757
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,1,0.01273242788457129,0.5824215900802334,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,2,0.010478139345879052,0.5904449307075128,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,3,0.009676422315955302,0.5948212983223924,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,4,0.010086528922851385,0.6039387308533917,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,5,0.009725901430336737,0.5937272064186725,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,6,0.009620942375539425,0.5977388767323122,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,7,0.009532460607874124,0.5937272064186725,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,8,0.012202411843114854,0.6046681254558717,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,9,0.013067344352720854,0.5977388767323122,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,10,0.01857404485057297,0.6156090444930707,2742
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,1,0.03591329294614745,0.6069578090303479,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,2,0.030399600997826313,0.6324944485566247,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,3,0.02759790907229111,0.6402664692820134,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,4,0.02778409020601793,0.6484085862324205,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,5,0.028719230595495096,0.6521095484826055,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,6,0.02821981472772741,0.6472982975573649,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,7,0.028734517336317152,0.6313841598815693,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,8,0.03369232440163249,0.6317542561065878,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,9,0.036224813593069324,0.6324944485566247,2702
+full,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,10,0.047250207754263564,0.6480384900074019,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,1,0.003164562593020961,0.5719985491476243,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,2,0.002138744221600371,0.5698222705839681,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,3,0.0013633048840482355,0.5705476967718535,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,4,0.0021802263463103467,0.5719985491476243,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,5,0.0026647924244237956,0.5763511062749366,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,6,0.0026715417869614564,0.5843307943416758,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,7,0.0026123132139534884,0.5749002538991658,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,8,0.0033397758156642745,0.5894087776568734,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,9,0.003930596237161686,0.5861443598113892,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,10,0.006293406740862967,0.6086325716358361,2757
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,1,0.012222025425269832,0.5838803792851933,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,2,0.009548650030388538,0.5809628008752735,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,3,0.0070471902657054985,0.5773158278628738,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,4,0.010137999848370521,0.5959153902261123,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,5,0.012510785209638818,0.6021152443471919,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,6,0.010308669468344741,0.5933625091174325,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,7,0.01079745919962986,0.600656455142232,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,8,0.012886579406754322,0.6254558716265499,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,9,0.012991341628501395,0.6152443471918307,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,10,0.017288434262881205,0.6254558716265499,2742
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,1,0.030149755428937594,0.6080680977054034,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,2,0.02859541396528484,0.6006661732050333,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,3,0.022745737259508073,0.622501850481125,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,4,0.027025020833267813,0.6313841598815693,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,5,0.0366713313865743,0.6347150259067358,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,6,0.029176881776857354,0.622501850481125,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,7,0.030006347591387962,0.6317542561065878,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,8,0.034827395461704054,0.6484085862324205,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,9,0.035398777640568396,0.6373056994818653,2702
+full,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,10,0.05016985035365409,0.6606217616580311,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,1,0.0034399846998891775,0.5821545157780196,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,2,0.002651776051748371,0.5723612622415669,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,3,0.0021357451049517995,0.5723612622415669,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,4,0.0020700792063925314,0.5716358360536815,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,5,0.0021740442135607567,0.5875952121871599,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,6,0.0029589652694861908,0.5767138193688792,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,7,0.0031660284873370197,0.5875952121871599,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,8,0.00351275587583019,0.5875952121871599,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,9,0.003803391303540227,0.5894087776568734,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,10,0.004395907024036775,0.583968081247733,2757
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,1,0.01338173051241236,0.5948212983223924,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,2,0.011167544341368976,0.5929978118161926,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,3,0.008719295787394341,0.5857038657913931,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,4,0.008673479907288591,0.5908096280087527,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,5,0.00962569936276068,0.5900802334062728,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,6,0.010677951803082978,0.6057622173595916,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,7,0.01106134107888305,0.6053975200583516,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,8,0.012322651516700199,0.6232676878191101,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,9,0.013462024661828637,0.62436177972283,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,10,0.016513467781433634,0.6101385849744712,2742
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,1,0.029447702530041097,0.6039970392301999,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,2,0.030393324473303264,0.6113989637305699,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,3,0.024760690349126875,0.6173205033308661,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,4,0.025859267159450083,0.6332346410066617,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,5,0.030818102436187697,0.6443375277572169,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,6,0.027993081009079324,0.6506291635825314,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,7,0.03134905432868172,0.6521095484826055,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,8,0.03368062070821704,0.6384159881569208,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,9,0.039599096598364136,0.6447076239822354,2702
+full,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,10,0.05069371425976953,0.6580310880829016,2702
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,1,0.0023478129865073865,0.5634978229317852,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,2,0.002172348167663099,0.5682148040638607,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,3,0.002643534202857298,0.5856313497822931,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,4,0.0023392001492024304,0.5852685050798259,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,5,0.0022809530848398696,0.5856313497822931,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,6,0.0024328364679371255,0.5830914368650217,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,7,0.0028778855914323113,0.5849056603773585,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,8,0.0034669604562898313,0.5936139332365747,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,9,0.00418506193903911,0.5954281567489115,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,10,0.005642122041246612,0.6001451378809869,2756
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,1,0.010437437787396527,0.5895658518788763,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,2,0.008511766704511547,0.5793506019700839,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,3,0.009785653082169568,0.5954031375410435,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,4,0.00882009266096525,0.5881065304633345,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,5,0.00979500707322793,0.6037942356804086,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,6,0.010049426725039277,0.6019700839109814,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,7,0.011340598176662664,0.6089018606348048,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,8,0.01367202659733741,0.6129149945275447,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,9,0.014519691950491444,0.6063480481576067,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,10,0.018769788989904203,0.6129149945275447,2741
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,1,0.03037416844248857,0.6049611255090707,2701
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,2,0.028710641861985402,0.6231025546094039,2701
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,3,0.027363575348090786,0.6397630507219548,2701
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,4,0.025456131022552116,0.650129581636431,2701
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,5,0.028340871577939106,0.6534616808589412,2701
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,6,0.02849826940779404,0.6427249166975194,2701
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,7,0.03134092193315592,0.6449463161791928,2701
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,8,0.03522674593551315,0.650129581636431,2701
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,9,0.04051965706278459,0.6338393187708257,2701
+full,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,10,0.0488510830124691,0.643095149944465,2701
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,1,0.0023616526366031488,0.5723612622415669,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,2,0.0017253550482270645,0.5556764599202031,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,3,0.001914398875449344,0.5727239753355096,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,4,0.0019228276848522023,0.5694595574900254,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,5,0.0023667435661602495,0.5749002538991658,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,6,0.003302702717553497,0.5868697859992745,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,7,0.0031733316635632744,0.5926731955023576,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,8,0.004057268112199072,0.5926731955023576,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,9,0.004766075711897626,0.593398621690243,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,10,0.004743224292709713,0.5919477693144722,2757
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,1,0.009877971518995133,0.5641867250182349,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,2,0.008432988589209588,0.5729394602479941,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,3,0.008274973838862245,0.587527352297593,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,4,0.009584203186618777,0.5893508388037928,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,5,0.010616698060040395,0.5889861415025529,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,6,0.011443058587828998,0.5904449307075128,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,7,0.010778635025856957,0.6064916119620715,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,8,0.013680238883250808,0.6225382932166302,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,9,0.015193549255754833,0.6404084609773888,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,10,0.01781069447355791,0.613420860685631,2742
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,1,0.02500343351317927,0.5854922279792746,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,2,0.024886699265537774,0.5899333826794967,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,3,0.02257871463974823,0.6236121391561806,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,4,0.027051402165832582,0.6336047372316802,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,5,0.034898294371733404,0.6358253145817913,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,6,0.02923448193402831,0.6180606957809031,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,7,0.029797039720414625,0.6421169504071058,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,8,0.037104610057074994,0.6639526276831976,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,9,0.04113617808077584,0.6480384900074019,2702
+full,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,10,0.05305260710886581,0.6613619541080681,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,1,0.0018293293399457627,0.5622052956111716,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,2,0.0023960799740641234,0.5719985491476243,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,3,0.002637995966718663,0.5825172288719622,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,4,0.002666570580308131,0.5785273848385927,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,5,0.0030004422323625596,0.5821545157780196,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,6,0.0030664897501749507,0.5894087776568734,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,7,0.0029631112272248223,0.5850562205295611,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,8,0.0033242413600642843,0.5890460645629307,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,9,0.003846700467582778,0.5977511788175554,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,10,0.004609886947243054,0.6093579978237215,2757
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,1,0.011070525431731848,0.5915390226112327,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,2,0.010936735601601468,0.5882567469000729,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,3,0.010798108335291436,0.5959153902261123,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,4,0.010512656515622184,0.5959153902261123,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,5,0.011144699205737723,0.5984682713347921,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,6,0.01081511746550542,0.5970094821298323,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,7,0.011066593545410352,0.6035740335521517,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,8,0.012471900127939696,0.6028446389496718,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,9,0.013177990975723529,0.6218088986141502,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,10,0.013656321537957468,0.6210795040116703,2742
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,1,0.0317182988983507,0.613619541080681,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,2,0.03145279226596778,0.6365655070318282,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,3,0.030023321361748973,0.6276831976313841,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,4,0.030700404538967403,0.6361954108068097,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,5,0.03198278886983161,0.6398963730569949,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,6,0.03202356303280359,0.6424870466321243,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,7,0.03220757110322815,0.6391561806069578,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,8,0.0329757894513868,0.6428571428571429,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,9,0.034948104906954325,0.6484085862324205,2702
+full,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,10,0.03639762474509983,0.6413767579570688,2702
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,1,0.002065367503036291,0.5653120464441219,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,2,0.0021685431322727385,0.5722060957910015,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,3,0.0025446586725399443,0.5747460087082729,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,4,0.00291588578306954,0.5874455732946299,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,5,0.002662343942876164,0.5693033381712627,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,6,0.0030878426678780497,0.5852685050798259,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,7,0.0037040634814711746,0.5921625544267054,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,8,0.0038984353093789643,0.5983309143686503,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,9,0.003830222954664013,0.5932510885341074,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,10,0.0034691929282245418,0.6019593613933236,2756
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,1,0.009541902966517338,0.5961327982488143,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,2,0.008949663522862207,0.5859175483400219,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,3,0.010247521592563332,0.5848230572783656,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,4,0.011518655587929564,0.5939438161255016,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,5,0.011418954330887857,0.5899306822327618,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,6,0.01213536288177838,0.6085370302809193,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,7,0.013311774883090509,0.6132798248814302,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,8,0.013445279871751632,0.6096315213425757,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,9,0.013686763628897258,0.6154688070047428,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,10,0.01131945376636802,0.6092666909886902,2741
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,1,0.026215608302005644,0.6164383561643836,2701
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,2,0.028646733859966918,0.6260644205849686,2701
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,3,0.029913562366151534,0.6297667530544243,2701
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,4,0.02998876827368495,0.6260644205849686,2701
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,5,0.03291170569452823,0.6393928174750092,2701
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,6,0.03442907959269805,0.6530914476119956,2701
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,7,0.03568405091194661,0.6590151795631247,2701
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,8,0.03547244121051415,0.6471677156608664,2701
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,9,0.03651368540169406,0.6464272491669752,2701
+full,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,10,0.03477080284818239,0.6245834875971862,2701
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,1,0.0029802743824546784,0.5636561479869423,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,2,0.0027338492401121454,0.5756256800870512,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,3,0.0024214535442339887,0.5814290895901342,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,4,0.0026282039692000617,0.5861443598113892,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,5,0.002608969057167101,0.5897714907508161,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,6,0.0027808588707857475,0.5861443598113892,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,7,0.002827222427175714,0.5883206383750453,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,8,0.0028730593243429772,0.5796155241204207,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,9,0.003010695549647114,0.5865070729053319,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,10,0.005468569843291869,0.5875952121871599,2757
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,1,0.009190681682445766,0.5616338439095551,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,2,0.009326648643121138,0.574033552151714,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,3,0.0093928521816031,0.586797957695113,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,4,0.009488042723435133,0.6057622173595916,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,5,0.00981863877208451,0.5984682713347921,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,6,0.01045242835285446,0.6039387308533917,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,7,0.011394575851826062,0.6032093362509118,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,8,0.013004642388410453,0.6159737417943107,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,9,0.0140725301279036,0.6192560175054704,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,10,0.019594586041535716,0.6196207148067104,2742
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,1,0.02850002089911423,0.5825314581791265,2702
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,2,0.026446839946578295,0.6032568467801629,2702
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,3,0.026469117593010932,0.616580310880829,2702
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,4,0.02717912676331483,0.6343449296817173,2702
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,5,0.0284604957434476,0.6432272390821614,2702
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,6,0.02977696772577834,0.6550703182827535,2702
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,7,0.03171612239870566,0.652479644707624,2702
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,8,0.035733288770871466,0.6447076239822354,2702
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,9,0.03850488408972886,0.6432272390821614,2702
+full,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,10,0.05184367946880459,0.6628423390081422,2702
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,1,0.0017775268449204975,0.534833091436865,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,2,0.0017953774721670827,0.5682148040638607,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,3,0.0018406717627411338,0.566400580551524,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,4,0.001875000831502762,0.5769230769230769,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,5,0.002549466055893999,0.5823657474600871,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,6,0.002755847495996985,0.5976052249637155,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,7,0.0032691336700980266,0.5972423802612482,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,8,0.0035115122747982792,0.5856313497822931,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,9,0.003999489883952448,0.5979680696661829,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,10,0.0070352191364104364,0.6048621190130624,2756
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,1,0.006875312688998724,0.5355709595038307,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,2,0.008225248923892195,0.5556366289675301,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,3,0.008802078016486801,0.5829989055089383,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,4,0.009161988656494317,0.5986866107260124,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,5,0.010261375294353824,0.6056183874498359,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,6,0.010378168337323936,0.6085370302809193,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,7,0.01149967147033535,0.6216709230207953,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,8,0.012215333736912857,0.6143743159430864,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,9,0.014693930668889884,0.6260488872674207,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,10,0.02363017030803985,0.6333454943451295,2741
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,1,0.019741735637929574,0.552388004442799,2701
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,2,0.023538415081262396,0.5908922621251388,2701
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,3,0.02530164512537296,0.623843021103295,2701
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,4,0.027230057352116258,0.650129581636431,2701
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,5,0.027631611541098874,0.6508700481303221,2701
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,6,0.031090125541532527,0.664938911514254,2701
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,7,0.03284122459877905,0.6530914476119956,2701
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,8,0.03659970771494787,0.6449463161791928,2701
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,9,0.04253729112457497,0.6508700481303221,2701
+full,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,10,0.05842082916659077,0.6438356164383562,2701
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,1,0.0033054897226674667,0.573746844572665,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,2,0.002480129624673086,0.569780021637216,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,3,0.002297328780081498,0.5780742877749729,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,4,0.0020195479055026854,0.570501262170934,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,5,0.002275513497647984,0.575189325640101,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,6,0.001828420231970186,0.574107464839524,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,7,0.002161490826329599,0.576631806707537,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,8,0.003052199841229369,0.5896141363144609,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,9,0.0034905360213300838,0.584565452578435,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,5,10,0.004703694411303308,0.5917778579156149,2773
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,1,0.013895517180444787,0.5913705583756346,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,2,0.011925012898856113,0.602610587382161,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,3,0.008612531556691722,0.6022480058013053,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,4,0.007159266871925102,0.5971718636693256,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,5,0.009165442656563823,0.6076867295141407,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,6,0.007827978789737929,0.5964467005076142,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,7,0.008848836578556497,0.6272661348803481,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,8,0.010978878158246158,0.6225525743292241,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,9,0.012044138737640398,0.6087744742567077,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,20,10,0.015512078431440798,0.6004350978970269,2758
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,1,0.03788706900006105,0.6177336276674025,2718
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,2,0.030265768851166386,0.637233259749816,2718
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,3,0.023407414955957436,0.6306107431935246,2718
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,4,0.022246096976197793,0.6460632818248713,2718
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,5,0.027382392634345644,0.6214128035320088,2718
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,6,0.022015864685042144,0.6339220014716703,2718
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,7,0.024005344064895635,0.6582045621780721,2718
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,8,0.031132236639697372,0.659308314937454,2718
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,9,0.035654864719554945,0.6376011773362766,2718
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",all,60,10,0.04883158226651087,0.6258278145695364,2718
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,1,0.0027301744186228574,0.5566378066378066,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,2,0.0021588251276123504,0.5772005772005772,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,3,0.0021731540397062765,0.5797258297258298,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,4,0.00250619194589194,0.5873015873015873,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,5,0.0023346701829226367,0.5811688311688312,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,6,0.0024405568908454594,0.5836940836940837,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,7,0.002807456806103496,0.5912698412698413,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,8,0.002711081706660332,0.5829725829725829,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,9,0.0034230274314946845,0.5887445887445888,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,5,10,0.004388073510726839,0.5815295815295816,2772
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,1,0.012729049428154546,0.5988393180993834,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,2,0.00986057590807957,0.6035545883206384,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,3,0.008628697597593297,0.6064562930721799,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,4,0.008133496850226608,0.6079071454479507,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,5,0.00754650030869659,0.5952121871599565,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,6,0.009061670461989385,0.602829162132753,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,7,0.010040416558533535,0.6042800145085238,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,8,0.010228262133329991,0.6035545883206384,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,9,0.013674375448015924,0.6097207109176641,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,20,10,0.016077622800474888,0.5988393180993834,2757
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,1,0.038913357397411384,0.6474052263525948,2717
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,2,0.0272254169708154,0.6437246963562753,2717
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,3,0.022480641331119336,0.6370997423629002,2717
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,4,0.021245281479996176,0.6301067353698933,2717
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,5,0.023478895467669004,0.6400441663599559,2717
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,6,0.02480422555828821,0.6488774383511225,2717
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,7,0.02813151448045305,0.6536621273463379,2717
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,8,0.030143094752658736,0.6448288553551711,2717
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,9,0.036673031269006534,0.6404122193595878,2717
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,all,60,10,0.04946361681329733,0.624953993375046,2717
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,1,0.002893778152988191,0.5916456607850198,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,2,0.002124306655190574,0.5624774936982355,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,3,0.002103489953056622,0.5646380986676269,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,4,0.0022379794157257396,0.5725603168887289,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,5,0.002723244309534921,0.5711199135758013,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,6,0.003154606339603976,0.5866042491897732,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,7,0.002526384233145682,0.5725603168887289,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,8,0.0019658955400402075,0.5696795102628736,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,9,0.0032986957496159413,0.5768815268275117,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,5,10,0.0045669415534694766,0.598487576521426,2777
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,1,0.011232083786630438,0.5908761766835626,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,2,0.009776819317381124,0.5959449674149168,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,3,0.007668998321193701,0.5912382331643736,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,4,0.00852288011152765,0.6035481535119479,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,5,0.011810561788874768,0.6089790007241129,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,6,0.011416918191197728,0.6068066618392469,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,7,0.009549690223874559,0.5984793627805938,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,8,0.008522341998989557,0.6017378711078928,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,9,0.012477455587370243,0.6252715423606082,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,20,10,0.015134413243506843,0.6097031136857349,2762
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,1,0.03191203103051491,0.6047024246877296,2722
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,2,0.026524410650465763,0.6326230712711242,2722
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,3,0.021291598755347446,0.6252755326965467,2722
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,4,0.023397765498451337,0.633357825128582,2722
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,5,0.03554127082638648,0.6403379867744305,2722
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,6,0.030709348812113513,0.6616458486407054,2722
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,7,0.02604882794636545,0.6263776634827333,2722
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,8,0.02582769375216409,0.6293166789125643,2722
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,9,0.03408238481894348,0.6612784717119765,2722
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),all,60,10,0.04779494839586881,0.6351947097722263,2722
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,1,0.0032235290498480746,0.5710659898477157,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,2,0.0028330497921592247,0.580130529369108,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,3,0.002226403362242638,0.580130529369108,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,4,0.0018536505160647895,0.5692530819434373,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,5,0.0019551854521057937,0.5721537345902828,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,6,0.0019497694991610943,0.5699782451051486,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,7,0.002464776203086845,0.5678027556200145,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,8,0.003050441700319014,0.5862944162436549,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,9,0.0036553810054713305,0.5862944162436549,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,5,10,0.004384751368844603,0.5888324873096447,2758
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,1,0.0129425315272646,0.5942398833394094,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,2,0.010904647847321822,0.6073641997812614,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,3,0.008237741041796871,0.5967918337586584,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,4,0.007218709746995187,0.5975209624498724,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,5,0.008465799526843884,0.5833029529711994,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,6,0.008961114122825083,0.6051768137076194,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,7,0.008670355366900183,0.6018957345971564,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,8,0.011724004050696827,0.6306963179001094,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,9,0.012692895433430012,0.6172074371126504,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,20,10,0.016050882816830182,0.6069996354356544,2743
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,1,0.03463581562319735,0.6130225675175731,2703
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,2,0.027990621175906335,0.6337402885682575,2703
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,3,0.02332578010617499,0.6215316315205327,2703
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,4,0.0208782420230557,0.6374398816130226,2703
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,5,0.025377542561327633,0.6204217536071032,2703
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,6,0.023766630525665963,0.6222715501294858,2703
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,7,0.025440953533542674,0.6640769515353311,2703
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,8,0.031747379356087235,0.6507584165741769,2703
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,9,0.035601596472854734,0.637809840917499,2703
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",all,60,10,0.05316577932010658,0.6411394746577876,2703
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,1,0.003341853673491817,0.5716358360536815,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,2,0.0025891234916410343,0.5810663764961915,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,3,0.0018029932133714628,0.5785273848385927,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,4,0.002047106345024624,0.5788900979325353,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,5,0.002023970111943231,0.5825172288719622,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,6,0.0022092245715129794,0.5763511062749366,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,7,0.0024270904259597473,0.5872324990932173,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,8,0.0031965621945177023,0.5904969169387014,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,9,0.0037756493955317743,0.5937613347841857,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,5,10,0.004178889107088182,0.5894087776568734,2757
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,1,0.011832016813950618,0.5962800875273523,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,2,0.00864146733175195,0.612691466083151,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,3,0.007517078138682605,0.5853391684901532,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,4,0.0079295485359036,0.5984682713347921,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,5,0.007901458581900857,0.5922684172137126,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,6,0.00940418308393885,0.600656455142232,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,7,0.010366906176227143,0.6141502552881108,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,8,0.012137194235885893,0.6137855579868708,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,9,0.014068738307356563,0.6097738876732313,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,20,10,0.01606354746790549,0.5966447848285923,2742
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,1,0.0346582032012931,0.6406365655070319,2702
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,2,0.024639571606324955,0.6369356032568467,2702
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,3,0.0195303003509825,0.6258327165062917,2702
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,4,0.020383637390213455,0.6210214655810511,2702
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,5,0.023118252844352424,0.6439674315321984,2702
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,6,0.025266468663239273,0.6480384900074019,2702
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,7,0.02874913134784316,0.65840118430792,2702
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,8,0.033003069683480324,0.6502590673575129,2702
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,9,0.03899292997479515,0.6413767579570688,2702
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,all,60,10,0.05341958274565937,0.6191709844559585,2702
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,1,0.002063802519872197,0.5732805185451927,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,2,0.002335558781870535,0.5660785019805545,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,3,0.0016176500878394434,0.5617572920417717,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,4,0.0019706926920567774,0.572200216060497,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,5,0.0028750871542480086,0.5855239467050775,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,6,0.002751386501126949,0.5740007202016565,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,7,0.0028032381667143216,0.5675189052934821,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,8,0.00304585810155717,0.583723442563918,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,9,0.003821545498350602,0.5858840475333094,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,5,10,0.004326780178598557,0.5790421317969031,2777
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,1,0.009945856632780204,0.5905141202027516,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,2,0.009389284346085896,0.5745836350470673,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,3,0.007311232857111716,0.5861694424330196,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,4,0.007742406968034287,0.5897900072411296,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,5,0.011692147523211006,0.611875452570601,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,6,0.008993455560641985,0.5926864590876176,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,7,0.010201233370158783,0.6049963794351919,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,8,0.011871557755060979,0.6361332367849385,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,9,0.013545128072787507,0.6252715423606082,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,20,10,0.015432781026119101,0.611875452570601,2762
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,1,0.029096331972729157,0.6010286554004408,2722
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,2,0.025734041359619594,0.6289493019838354,2722
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,3,0.020706315059190978,0.6201322556943424,2722
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,4,0.019800186863874473,0.6230712711241734,2722
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,5,0.03248107250806623,0.6462160176340925,2722
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,6,0.027921558846857174,0.6289493019838354,2722
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,7,0.028920422242411925,0.6491550330639236,2722
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,8,0.029089761726414653,0.6546656869948567,2722
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,9,0.03794428637645969,0.6528288023512123,2722
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),all,60,10,0.05144693450920385,0.6315209404849376,2722
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,1,0.0020535225853648294,0.5656272661348803,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,2,0.002396729432814659,0.5794053662073967,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,3,0.0026397598507046146,0.5891950688905003,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,4,0.003031465041777622,0.5891950688905003,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,5,0.0030921596593939797,0.588469905728789,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,6,0.0026474686672169653,0.5913705583756346,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,7,0.0027717001014013333,0.5812182741116751,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,8,0.0029535958841214625,0.5888324873096447,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,9,0.002981792640991685,0.5844815083393764,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,5,10,0.00300948987460737,0.5768672951414068,2758
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,1,0.010066060099049468,0.5905942398833394,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,2,0.0103736756624517,0.6062705067444404,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,3,0.010363136047717617,0.6080933284724754,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,4,0.010459648070296396,0.6113744075829384,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,5,0.010044413875620157,0.6084578928180824,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,6,0.010641312386630786,0.6080933284724754,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,7,0.01067944171170899,0.6059059423988334,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,8,0.011485318770591803,0.6022602989427635,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,9,0.01128102207538695,0.6106452788917244,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,20,10,0.010453918147269183,0.5916879329201604,2743
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,1,0.03252105648989855,0.6496485386607473,2703
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,2,0.028795736413223576,0.6481687014428413,2703
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,3,0.027926033669104282,0.6481687014428413,2703
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,4,0.02668342180860807,0.6444691083980763,2703
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,5,0.0298921059869975,0.6437291897891232,2703
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,6,0.029236065592114127,0.6537180910099889,2703
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,7,0.029931580093960262,0.6518682944876064,2703
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,8,0.03148709987555404,0.6481687014428413,2703
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,9,0.031016413160939796,0.634850166481687,2703
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),all,60,10,0.03408800336728285,0.6211616722160562,2703
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,1,0.0022950553591012416,0.5778019586507073,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,2,0.0025745533807483064,0.5749002538991658,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,3,0.0025140963865253195,0.5810663764961915,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,4,0.002705030667499224,0.5846935074356184,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,5,0.00213407857100442,0.5712731229597389,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,6,0.0029703292159021636,0.57816467174465,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,7,0.003248661656519043,0.5952121871599565,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,8,0.003393170289226917,0.5912223431265868,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,9,0.0029412435983464475,0.5821545157780196,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,5,10,0.002790733297411603,0.5937613347841857,2757
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,1,0.009143551024662983,0.5944566010211525,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,2,0.009014551648527066,0.6021152443471919,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,3,0.010229833007280713,0.6013858497447119,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,4,0.01013010103827386,0.6064916119620715,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,5,0.010479713052230768,0.5977388767323122,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,6,0.011806959679511985,0.6203501094091903,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,7,0.011962182340534503,0.611962071480671,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,8,0.011448108241577814,0.6017505470459519,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,9,0.011063042491457085,0.6105032822757112,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,20,10,0.01053628355959985,0.5955506929248724,2742
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,1,0.026880412177183732,0.6439674315321984,2702
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,2,0.025750322538492684,0.6439674315321984,2702
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,3,0.02677649570306274,0.6387860843819393,2702
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,4,0.027109630497580417,0.6406365655070319,2702
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,5,0.029463587406498206,0.6521095484826055,2702
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,6,0.031530443389981136,0.6476683937823834,2702
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,7,0.03211462790033469,0.6521095484826055,2702
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,8,0.031251598059035116,0.6413767579570688,2702
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,9,0.03390023049580151,0.6410066617320503,2702
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),all,60,10,0.03683203898557707,0.6017764618800888,2702
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,1,0.0029214270500264325,0.5642135642135642,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,2,0.002554322540837866,0.5815295815295816,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,3,0.002235880393508626,0.5829725829725829,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,4,0.002398007035439897,0.5891053391053391,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,5,0.002753727945488463,0.6002886002886003,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,6,0.0022746744900926227,0.5847763347763347,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,7,0.002552599051402493,0.5901875901875901,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,8,0.002703036060346409,0.5826118326118326,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,9,0.0034550410581970638,0.5826118326118326,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,5,10,0.003830242124863202,0.5761183261183261,2772
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,1,0.010110877766660167,0.5796155241204207,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,2,0.009206641117778294,0.5843307943416758,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,3,0.008915422450737462,0.602829162132753,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,4,0.008790871141303235,0.6039173014145811,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,5,0.009099378139933815,0.6173376858904607,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,6,0.008976391926685838,0.6118969894813203,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,7,0.009432869917738737,0.6111715632934349,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,8,0.011141200405377404,0.6195139644541168,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,9,0.013964403743676336,0.6235038084874864,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,20,10,0.016499043509279533,0.599202031193326,2757
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,1,0.033367749888639504,0.59735001840265,2717
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,2,0.024319912412738027,0.6120721383879278,2717
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,3,0.025484393168064598,0.6356275303643725,2717
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,4,0.02490625693656778,0.6485093853514906,2717
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,5,0.023728837412102407,0.6577107103422893,2717
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,6,0.02444220142237333,0.6451969083548031,2717
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,7,0.026421915190991373,0.6606551343393449,2717
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,8,0.03229420439857797,0.6617592933382407,2717
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,9,0.03761881325973531,0.6510857563489142,2717
+large_cap,mom_only_5d,純動量 5d baseline (對照),all,60,10,0.05018574631973147,0.6418844313581156,2717
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,1,0.001903858899083371,0.5553137468262604,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,2,0.0018547684901932347,0.5719985491476243,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,3,0.0018232666000088501,0.5661951396445412,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,4,0.002142248248739486,0.5879579252811027,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,5,0.0022367240852345844,0.57816467174465,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,6,0.0022616344373837683,0.5799782372143635,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,7,0.0028559973199900027,0.5875952121871599,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,8,0.003160653576506093,0.5890460645629307,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,9,0.004550324010415884,0.6017410228509249,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,5,10,0.0048817845906877,0.5640188610808851,2757
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,1,0.0074317742409075625,0.5466812545587163,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,2,0.007675349257574664,0.5667396061269147,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,3,0.008133297490432649,0.5831509846827133,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,4,0.008647215390495105,0.6079504011670314,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,5,0.008890479990839839,0.6028446389496718,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,6,0.009137265613293534,0.6159737417943107,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,7,0.010635865595890703,0.6203501094091903,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,8,0.012349104239211735,0.6323851203501094,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,9,0.014757665794394434,0.6316557257476295,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,20,10,0.018382558726046484,0.6043034281546317,2742
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,1,0.02649359524864046,0.5832716506291635,2702
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,2,0.021700533829011433,0.5980754996299038,2702
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,3,0.02045652550699356,0.6180606957809031,2702
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,4,0.02067396981040978,0.6336047372316802,2702
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,5,0.02288594085400271,0.6484085862324205,2702
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,6,0.025873146627589515,0.6687638786084382,2702
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,7,0.030220350787622405,0.6739452257586973,2702
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,8,0.03440493265475021,0.6635825314581791,2702
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,9,0.04272037937019751,0.651739452257587,2702
+large_cap,mom_only_20d,純動量 20d baseline (對照),all,60,10,0.05659490949718524,0.6287934863064397,2702
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,1,0.003336245237604076,0.5754819934521644,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,2,0.002459665062436055,0.5711167697344489,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,3,0.0022636838811079577,0.5718443070207349,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,4,0.00223293222331306,0.5707530010913059,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,5,0.0027501954786173367,0.5838486722444526,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,6,0.002482032132245921,0.5834849036013096,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,7,0.002697349739695791,0.5827573663150236,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,8,0.003091769215352738,0.5849399781738814,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,9,0.003565507727800078,0.5867588213895962,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,5,10,0.004937119468439042,0.5867588213895962,2749
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,1,0.014555076890961608,0.5987564008778347,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,2,0.012223240131034777,0.6002194586686174,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,3,0.008828247310544142,0.6024140453547915,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,4,0.008075800988072613,0.5950987564008778,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,5,0.011112977345712621,0.6064374542794441,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,6,0.009673633157999269,0.6093635698610095,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,7,0.010628681129481803,0.6133869787856621,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,8,0.010190960131162545,0.6038771031455743,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,9,0.011987820232032096,0.5958302852962692,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,20,10,0.01598983914877715,0.5961960497439649,2734
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,1,0.039582460101438365,0.6187824795842614,2694
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,2,0.031711925633560345,0.6284335560504826,2694
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,3,0.024851627880952437,0.6291759465478842,2694
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,4,0.023864115303002777,0.6365998515219006,2694
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,5,0.03324308683420633,0.6488492947290274,2694
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,6,0.02738551789019543,0.6599851521900519,2694
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,7,0.029911023183983265,0.6633259094283593,2694
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,8,0.0321457265856834,0.637713437268003,2694
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,9,0.03655914864303452,0.635486265775798,2694
+large_cap,flow_only_5d,"法人流量/市值 conviction (5d, 無動量)",liq_50m,60,10,0.050620332908984746,0.6202672605790646,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,1,0.002712686426175509,0.5594761731538741,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,2,0.0024134928873820625,0.5805747544561659,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,3,0.002648093137426658,0.5863950527464532,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,4,0.0026018952119795315,0.5838486722444526,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,5,0.002601452942463601,0.5838486722444526,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,6,0.0031229099259492397,0.5954892688250273,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,7,0.00271500413044849,0.5874863586758822,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,8,0.002961281077965509,0.5834849036013096,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,9,0.003606036253637191,0.5871225900327391,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,5,10,0.004492417901493007,0.588577664605311,2749
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,1,0.013238129410906248,0.5929041697147037,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,2,0.010523108250945382,0.6031455742501829,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,3,0.009447029187318396,0.6097293343087052,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,4,0.008872906651991537,0.6086320409656182,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,5,0.009320214974485751,0.6009509875640088,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,6,0.010119059564383645,0.6126554498902707,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,7,0.009933712419756147,0.6068032187271397,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,8,0.011321585239221985,0.6079005120702268,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,9,0.014218200314512259,0.6020482809070958,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,20,10,0.016421211282970884,0.5969275786393563,2734
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,1,0.04015804281099968,0.6395694135115071,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,2,0.029609190285802365,0.6484780994803266,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,3,0.02586994856197745,0.6492204899777283,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,4,0.025150268927924532,0.651818856718634,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,5,0.02771053121756789,0.6525612472160356,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,6,0.028522090391884067,0.651818856718634,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,7,0.03047121897744692,0.6365998515219006,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,8,0.031384647865584134,0.6432813659985153,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,9,0.03959275126513282,0.6321455085374907,2694
+large_cap,flow_cont_5d,prior_ret(5d)×法人流量/市值 續勢交互,liq_50m,60,10,0.05142096278864349,0.6206384558277654,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,1,0.0028032441662060414,0.5842124408875955,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,2,0.0023089726157147525,0.5729356129501637,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,3,0.001936963513458104,0.5674790833030193,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,4,0.0027394765552149654,0.5762095307384504,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,5,0.003122119935271492,0.5729356129501637,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,6,0.00333207853486092,0.5936704256093125,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,7,0.0027550061101543327,0.5671153146598763,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,8,0.0028683172993105768,0.5809385230993088,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,9,0.0031835283125499656,0.5816660603855948,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,5,10,0.004770292859780586,0.5896689705347399,2749
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,1,0.011331775007399406,0.5888807607900512,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,2,0.010709742230983922,0.5907095830285296,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,3,0.007655955952298638,0.5841258229700074,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,4,0.009948958591031959,0.6049743964886612,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,5,0.013460352426689672,0.612289685442575,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,6,0.011951196594545965,0.6071689831748354,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,7,0.010413764383469156,0.6046086320409656,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,8,0.010813259996000009,0.6221653255303584,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,9,0.011341531933571677,0.6031455742501829,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,20,10,0.0156854784513468,0.6071689831748354,2734
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,1,0.03293464202425908,0.5961395694135115,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,2,0.028870572991499276,0.6198960653303638,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,3,0.023156090235795564,0.6161841128433556,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,4,0.027274769322414995,0.6455085374907201,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,5,0.03982035538099496,0.6462509279881218,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,6,0.03286087701718306,0.6644394951744618,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,7,0.02934844490681726,0.6332590942835932,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,8,0.0310139866383914,0.6384558277654045,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,9,0.03524525363541143,0.6440237564959168,2694
+large_cap,flow_samesign_5d,prior_ret×flow 同號 gate (5d),liq_50m,60,10,0.04949433376812597,0.6232368225686711,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,1,0.0031816934637016745,0.5623863222990179,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,2,0.003375970753836424,0.5911240451073118,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,3,0.0018346839721989766,0.5627500909421608,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,4,0.0019712860864318296,0.5707530010913059,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,5,0.0024824542719529144,0.5722080756638778,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,6,0.0026078973163670754,0.5878501273190251,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,7,0.002927746305620545,0.5758457620953074,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,8,0.003506647669779577,0.5918515823935977,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,9,0.0035834135690918554,0.5853037468170244,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,5,10,0.004366086537290938,0.5747544561658785,2749
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,1,0.013506164009525241,0.5932699341623994,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,2,0.011385904087658973,0.5987564008778347,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,3,0.00869353312525429,0.5932699341623994,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,4,0.00724416615122118,0.5943672275054864,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,5,0.011175010522387185,0.6027798098024872,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,6,0.010668394241445197,0.6071689831748354,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,7,0.009902030431819652,0.6046086320409656,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,8,0.01223323095391555,0.6181419166057059,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,9,0.012325105007964111,0.6068032187271397,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,20,10,0.016182397937201696,0.6013167520117044,2734
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,1,0.03567130190504597,0.6176688938381588,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,2,0.02926062886874228,0.6198960653303638,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,3,0.02516162441630738,0.6258351893095768,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,4,0.02346419315282392,0.643652561247216,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,5,0.031709428632999234,0.6414253897550112,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,6,0.027796868168457063,0.6510764662212324,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,7,0.031309142148760655,0.6722345953971789,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,8,0.03297666089065407,0.6406829992576095,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,9,0.037728336975470615,0.6321455085374907,2694
+large_cap,flow_only_20d,"法人流量/市值 conviction (20d, 無動量)",liq_50m,60,10,0.054967212427817894,0.6358574610244989,2694
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,1,0.003434265858257013,0.5673216885007278,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,2,0.0027715236667736325,0.5815138282387191,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,3,0.0021290490871736286,0.5829694323144105,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,4,0.0023691895098184733,0.5796943231441049,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,5,0.002434380961116197,0.5724163027656477,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,6,0.002423815922319522,0.5749636098981077,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,7,0.0027719959435103885,0.5851528384279476,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,8,0.003457139124924972,0.5887918486171762,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,9,0.0036228814376376675,0.5851528384279476,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,5,10,0.004432691875275338,0.5756914119359534,2748
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,1,0.012245979336702371,0.5993413830954994,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,2,0.009010759188197366,0.601536772777168,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,3,0.008637938038197705,0.5909257226491036,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,4,0.00885729703509857,0.601536772777168,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,5,0.009902175548055552,0.6066593487010611,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,6,0.010508485568742907,0.6128796194657885,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,7,0.010819641393043644,0.6110501280643981,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,8,0.012939774780619362,0.6077570435418953,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,9,0.013996025611436463,0.605927552140505,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,20,10,0.01643421143222223,0.597511891694109,2733
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,1,0.035129464382774186,0.6316375789082808,2693
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,2,0.026409993509567607,0.6409209060527293,2693
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,3,0.023269362216729123,0.6353509097660601,2693
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,4,0.02588237527644492,0.6587448941700705,2693
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,5,0.028333017297682637,0.6646862235425176,2693
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,6,0.028360515911069615,0.6516895655402897,2693
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,7,0.03150707748167454,0.642777571481619,2693
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,8,0.03565900831135179,0.6461195692536205,2693
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,9,0.04023636389277407,0.6201262532491645,2693
+large_cap,flow_cont_20d,prior_ret(20d)×法人流量/市值 續勢交互,liq_50m,60,10,0.05529271819139901,0.6201262532491645,2693
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,1,0.0019610996706842902,0.5682066205893052,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,2,0.0023315934828523907,0.5620225536558748,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,3,0.0019435167904379314,0.5714805383775918,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,4,0.001947990618995131,0.5736631502364496,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,5,0.0032725702671992834,0.5838486722444526,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,6,0.003301947509295161,0.5834849036013096,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,7,0.003408702961720988,0.5845762095307384,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,8,0.0035308169603190873,0.589305201891597,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,9,0.003763680568326302,0.5867588213895962,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,5,10,0.0044105461279581705,0.5762095307384504,2749
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,1,0.010161014179458397,0.5888807607900512,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,2,0.00923564130742877,0.5808339429407462,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,3,0.008334850877822089,0.5896122896854425,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,4,0.008492666089228796,0.5866861741038771,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,5,0.013226438143665038,0.6071689831748354,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,6,0.011463722043187742,0.6060716898317483,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,7,0.012349922406218607,0.6199707388441843,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,8,0.011677685537236665,0.6119239209948792,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,9,0.012882773607319284,0.6049743964886612,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,20,10,0.015602113373270866,0.597293343087052,2734
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,1,0.029816841769200082,0.6013363028953229,2694
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,2,0.026002607763450862,0.6046770601336303,2694
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,3,0.024424987932616268,0.623608017817372,2694
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,4,0.023026366692174692,0.6239792130660727,2694
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,5,0.03631753743075959,0.6455085374907201,2694
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,6,0.03111055632674586,0.6451373422420194,2694
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,7,0.033149464446574135,0.6666666666666666,2694
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,8,0.03274342041270581,0.6573867854491463,2694
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,9,0.04000144179117236,0.6510764662212324,2694
+large_cap,flow_samesign_20d,prior_ret×flow 同號 gate (20d),liq_50m,60,10,0.05355527936633361,0.6221232368225686,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,1,0.002137846424083711,0.5638413968715896,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,2,0.002752899222219119,0.5816660603855948,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,3,0.002825506329455073,0.5842124408875955,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,4,0.0031526684397872274,0.5863950527464532,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,5,0.003350930449163564,0.5867588213895962,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,6,0.0029360325185520753,0.5874863586758822,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,7,0.0032277601903460146,0.5853037468170244,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,8,0.0028919672079001364,0.5809385230993088,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,9,0.0033476620540213243,0.5871225900327391,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,10,0.0032320673115750456,0.5747544561658785,2749
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,1,0.010932340450616036,0.5932699341623994,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,2,0.011581585963043182,0.5994879297732261,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,3,0.01068726132397743,0.6020482809070958,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,4,0.010811221826010093,0.6057059253840527,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,5,0.011215088262483724,0.6082662765179224,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,6,0.011477636952776699,0.6104608632040965,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,7,0.011379237161437501,0.6086320409656182,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,8,0.011771400868769058,0.6079005120702268,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,9,0.012274240983320939,0.611192392099488,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,10,0.011177986461605427,0.5958302852962692,2734
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,1,0.03491096279212412,0.6429101707498144,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,2,0.03137779965964022,0.6443949517446177,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,3,0.030664908117795858,0.641796585003712,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,4,0.030106941095136057,0.6432813659985153,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,5,0.03402912018551949,0.6495916852264291,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,6,0.03207841123907098,0.6544172234595397,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,7,0.032809266619550824,0.6455085374907201,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,8,0.03365232100257383,0.6443949517446177,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,9,0.03391067850252341,0.6328878990348924,2694
+large_cap,flow_turn_cont_5d,prior_ret(5d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,10,0.03616749234226092,0.6165553080920564,2694
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,1,0.002653981500109264,0.5720524017467249,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,2,0.0027555887623102134,0.5753275109170306,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,3,0.002665439811668811,0.574235807860262,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,4,0.0027760719037435385,0.5778748180494906,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,5,0.002609666575965944,0.5720524017467249,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,6,0.0034286676812812435,0.5789665211062591,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,7,0.0034570096863322615,0.5960698689956332,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,8,0.0034205758632344686,0.5924308588064047,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,9,0.0032834308314215327,0.5927947598253275,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,5,10,0.0027641597956284923,0.5804221251819505,2748
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,1,0.009869509065176616,0.6099524332235639,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,2,0.009811839100215993,0.5909257226491036,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,3,0.01099756327479166,0.5890962312477132,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,4,0.010673554868798039,0.5971459934138309,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,5,0.01205521932241161,0.6092206366630076,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,6,0.013273651344145203,0.6176362971094036,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,7,0.012684534898909154,0.6073911452616173,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,8,0.011591886589223117,0.6037321624588364,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,9,0.011478856453012009,0.6088547383827296,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,20,10,0.010785345854097596,0.5949506037321625,2733
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,1,0.027873283579216993,0.623839584106944,2693
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,2,0.028516667078295924,0.6346082435945043,2693
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,3,0.03024250890766743,0.6383215744522837,2693
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,4,0.03148205042865541,0.6479762346825102,2693
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,5,0.03336128916769058,0.6591162272558485,2693
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,6,0.03544900601803606,0.6513182324545117,2693
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,7,0.03373782732673704,0.6424062383958411,2693
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,8,0.03385529231728024,0.636464909023394,2693
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,9,0.03636779628969563,0.6360935759376161,2693
+large_cap,flow_turn_cont_20d,prior_ret(20d)×法人流量/成交額 (turnover-norm 對照),liq_50m,60,10,0.038973015367771195,0.6045302636464909,2693
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,1,0.0031589028748852913,0.5594761731538741,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,2,0.0027561701384548934,0.5853037468170244,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,3,0.00260701392194651,0.5776646053110222,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,4,0.0024409720415931807,0.5900327391778829,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,5,0.002729566624149574,0.5867588213895962,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,6,0.0024691741624613722,0.5805747544561659,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,7,0.0029939609239310557,0.5874863586758822,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,8,0.0027567339161357935,0.5889414332484539,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,9,0.003664898609494503,0.5813022917424518,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,5,10,0.004219354928222886,0.5780283739541652,2749
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,1,0.011007001863475257,0.5808339429407462,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,2,0.009779444661930153,0.5797366495976591,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,3,0.009493577296877541,0.5998536942209217,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,4,0.00986456270788246,0.6020482809070958,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,5,0.009244819398493899,0.6064374542794441,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,6,0.009576212747259973,0.60424286759327,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,7,0.010373632288510171,0.6137527432333577,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,8,0.011932111707452467,0.6185076810534016,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,9,0.014704383910370142,0.6166788588149232,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,20,10,0.017461351476753238,0.6038771031455743,2734
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,1,0.03497499759935945,0.5965107646622123,2694
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,2,0.027295589449400626,0.6065330363771344,2694
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,3,0.02780951443932695,0.637713437268003,2694
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,4,0.02757625458860781,0.6432813659985153,2694
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,5,0.027020232510289097,0.6577579806978471,2694
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,6,0.02700673751681049,0.647735708982925,2694
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,7,0.03044007059939669,0.6610987379361544,2694
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,8,0.03477828464621567,0.664068299925761,2694
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,9,0.0403478770300735,0.6495916852264291,2694
+large_cap,mom_only_5d,純動量 5d baseline (對照),liq_50m,60,10,0.052703802925959026,0.6332590942835932,2694
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,1,0.0021712912163566874,0.5531295487627366,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,2,0.0017788633946474101,0.5716885007278021,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,3,0.0018804163131616847,0.5676855895196506,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,4,0.002456050464827747,0.5829694323144105,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,5,0.002289457210933291,0.5644104803493449,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,6,0.0026492884576428196,0.5847889374090247,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,7,0.003061602798810973,0.5880640465793304,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,8,0.0038627947204403173,0.589155749636099,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,9,0.004703483811761136,0.5909752547307132,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,5,10,0.0050480829471497395,0.5665938864628821,2748
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,1,0.008332264412489075,0.5536040980607391,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,2,0.007991830761644047,0.5686059275521405,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,3,0.008589294234086721,0.593121112330772,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,4,0.009443506861182326,0.6051957555799488,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,5,0.009843060754944658,0.6040980607391145,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,6,0.010502851981583962,0.6070252469813392,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,7,0.011762785739629902,0.6245883644346871,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,8,0.013569437762587474,0.6172703988291255,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,9,0.014628065347496078,0.6220270764727406,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,20,10,0.018830725564826758,0.5986095865349433,2733
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,1,0.027942908134912535,0.5796509468993687,2693
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,2,0.022939297162854262,0.5967322688451541,2693
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,3,0.023828540676346627,0.623839584106944,2693
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,4,0.02399063637181529,0.6420349053100631,2693
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,5,0.027688729139861805,0.6661715558856294,2693
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,6,0.02942381725730048,0.6776828815447457,2693
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,7,0.03439550632474175,0.6743408837727441,2693
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,8,0.03702492668262279,0.655402896398069,2693
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,9,0.045560364206320675,0.6498329001113999,2693
+large_cap,mom_only_20d,純動量 20d baseline (對照),liq_50m,60,10,0.05760741387190346,0.6186409209060527,2693

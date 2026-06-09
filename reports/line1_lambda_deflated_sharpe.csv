@@ -1,0 +1,19 @@
+﻿score,label,liquidity,horizon,direction,n_obs,sr_per_period,sharpe_ann,n_trials,sr0_benchmark,psr,dsr_pass
+sig_lambda_level,lambda level (低衝擊=高分),liq_50m,10,bot,4974,0.027551571629864567,0.13830779190538783,72,2.412781563614371,0.0,False
+sig_lambda_level,lambda level (低衝擊=高分),liq_50m,20,bot,4964,0.025878530899398882,0.09185967208215147,72,2.412781563614371,0.0,False
+sig_lambda_level,lambda level (低衝擊=高分),liq_50m,60,bot,4924,0.03820392437641246,0.07829474643030844,72,2.412781563614371,0.0,False
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),liq_50m,10,top,4974,0.15129433035204956,0.7594915106808059,72,2.412781563614371,0.0,False
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),liq_50m,20,top,4964,0.10833161701313415,0.384539093569136,72,2.412781563614371,0.0,False
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),liq_50m,60,top,4924,0.19840789753531338,0.40661519152438264,72,2.412781563614371,0.0,False
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),liq_50m,10,top,4974,0.17071782915861092,0.8569967008420991,72,2.412781563614371,0.0,False
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),liq_50m,20,top,4964,0.11498461681685879,0.4081549001506046,72,2.412781563614371,0.0,False
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),liq_50m,60,top,4924,0.16522197189328955,0.33860428228905975,72,2.412781563614371,0.0,False
+sig_lambda_level,lambda level (低衝擊=高分),all,10,bot,4983,0.09914643456540494,0.4977111514455041,72,2.412781563614371,0.0,False
+sig_lambda_level,lambda level (低衝擊=高分),all,20,bot,4973,0.15762978819678436,0.5595302418991622,72,2.412781563614371,0.0,False
+sig_lambda_level,lambda level (低衝擊=高分),all,60,bot,4933,0.29374792906847935,0.6020041133534602,72,2.412781563614371,0.0,False
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),all,10,top,4993,0.1904166022796824,0.9558837570950856,72,2.412781563614371,0.0,False
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),all,20,top,4983,0.17126481327156054,0.6079297796113261,72,2.412781563614371,0.0,False
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),all,60,top,4943,0.2566301599019338,0.5259353227150909,72,2.412781563614371,0.0,False
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),all,10,top,4993,0.17877781581419547,0.8974575127368531,72,2.412781563614371,0.0,False
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),all,20,top,4983,0.14906989255172318,0.5291456265564489,72,2.412781563614371,0.0,False
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),all,60,top,4943,0.20638520878941347,0.42296381465748245,72,2.412781563614371,0.0,False

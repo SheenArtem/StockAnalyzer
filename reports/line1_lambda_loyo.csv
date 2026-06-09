@@ -1,0 +1,67 @@
+﻿score,label,drop_year,ls_spread_20d,ic_mean,direction
+sig_lambda_level,lambda level (低衝擊=高分),none(full),0.0014547808123235011,0.029313999973672723,bot
+sig_lambda_level,lambda level (低衝擊=高分),2006,0.000456857967788743,0.033068585444155404,bot
+sig_lambda_level,lambda level (低衝擊=高分),2007,0.001568132975484561,0.029635549799108186,bot
+sig_lambda_level,lambda level (低衝擊=高分),2008,0.0015022594074439854,0.02862158670568397,bot
+sig_lambda_level,lambda level (低衝擊=高分),2009,-0.0003272716703274538,0.034999200364156574,bot
+sig_lambda_level,lambda level (低衝擊=高分),2010,0.0009947986050062845,0.029848889066417316,bot
+sig_lambda_level,lambda level (低衝擊=高分),2011,0.0021902271670708497,0.027404600986062632,bot
+sig_lambda_level,lambda level (低衝擊=高分),2012,0.0013064409492515808,0.03040233424252726,bot
+sig_lambda_level,lambda level (低衝擊=高分),2013,0.0010116355488396806,0.031544505604292956,bot
+sig_lambda_level,lambda level (低衝擊=高分),2014,0.001571486891436066,0.02867945120658546,bot
+sig_lambda_level,lambda level (低衝擊=高分),2015,0.0018014462279358628,0.02898872490639453,bot
+sig_lambda_level,lambda level (低衝擊=高分),2016,0.002037348843292812,0.02875783442499977,bot
+sig_lambda_level,lambda level (低衝擊=高分),2017,0.0018249587563359052,0.027859995470150004,bot
+sig_lambda_level,lambda level (低衝擊=高分),2018,0.0019436847657056406,0.027623897965256505,bot
+sig_lambda_level,lambda level (低衝擊=高分),2019,0.0024156973088057133,0.026732980164819325,bot
+sig_lambda_level,lambda level (低衝擊=高分),2020,0.0005379428654906458,0.030380955086225205,bot
+sig_lambda_level,lambda level (低衝擊=高分),2021,0.0014672159231951913,0.02888599530561362,bot
+sig_lambda_level,lambda level (低衝擊=高分),2022,0.0008714266245006819,0.029684377944116828,bot
+sig_lambda_level,lambda level (低衝擊=高分),2023,0.0015857819597778055,0.02867449497566764,bot
+sig_lambda_level,lambda level (低衝擊=高分),2024,0.0013168999609146428,0.028255259100992337,bot
+sig_lambda_level,lambda level (低衝擊=高分),2025,0.0023513581798264554,0.02729135352772978,bot
+sig_lambda_level,lambda level (低衝擊=高分),2026,0.0021010987171174323,0.028280516456431384,bot
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),none(full),0.006275906560595583,-0.017863387227247507,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2006,0.0060955587360177355,-0.01708290686784596,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2007,0.006043954263119215,-0.018936203899176995,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2008,0.007142319217929028,-0.0177580606332366,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2009,0.00744188675138531,-0.017177448113539412,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2010,0.006438663931771747,-0.018593264252994585,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2011,0.00706963044165696,-0.017122821943981622,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2012,0.0057572583943096365,-0.020302971938783068,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2013,0.005504255282001836,-0.020476834010957786,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2014,0.006662493592784211,-0.01834472198747779,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2015,0.006479772018083276,-0.01833472220879752,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2016,0.006495076513252667,-0.017070926041677602,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2017,0.0061047553421756905,-0.017099415519731,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2018,0.006424014848665468,-0.017302449921283904,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2019,0.007122731787936288,-0.015215815480804291,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2020,0.00507691014662752,-0.018014451661799446,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2021,0.006014904187405929,-0.016447469589268363,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2022,0.007031105282918965,-0.015708105789365615,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2023,0.00628005812736571,-0.01770744914802343,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2024,0.0055673320246006006,-0.018301017395072408,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2025,0.005529967791678714,-0.019223021632179062,top
+sig_lambda_diverge,lambda 背離 (價漲+lambda 降=吸籌),2026,0.00554008524599507,-0.01887919524344795,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),none(full),0.0071353092483862224,-0.009279448806729236,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2006,0.007063770487726759,-0.008033292919496011,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2007,0.007294098825038562,-0.0112083238579549,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2008,0.008970323616157842,-0.007439594906484735,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2009,0.007754666833370657,-0.009698702621694161,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2010,0.007056442743072272,-0.010836064313962052,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2011,0.007572172183658722,-0.00949310464575833,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2012,0.006896720423115057,-0.011774993640184283,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2013,0.006806192191927284,-0.010409743523081863,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2014,0.00747801649134483,-0.009674640865640866,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2015,0.007103142413355194,-0.010300223638121003,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2016,0.007075659140642145,-0.008973859483405141,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2017,0.006874574662431139,-0.008487091344074554,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2018,0.006960210970270001,-0.00911569092003176,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2019,0.00807382818485664,-0.00634113905876003,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2020,0.006191479603260164,-0.008851458959723333,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2021,0.007240921362135312,-0.007531036465978284,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2022,0.008116495907302849,-0.006523704312360833,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2023,0.0069709601506944205,-0.008916921724590663,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2024,0.006208112890128802,-0.009971604398776285,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2025,0.006092204829635012,-0.010594498265155548,top
+sig_lambda_diverge_signed,lambda 背離(帶符號 CLV),2026,0.0060812970650339394,-0.010650539429272464,top

@@ -1,0 +1,36 @@
+﻿test,score,liquidity,metric,value,extra
+full_deflated_sharpe,interact_5d,liq_50m,dsr,0.5343262508192111,sr_per=0.0228 sr0=0.0216 n_obs=4964 n_trials=9 ann_sr=0.081
+ex_2020,interact_5d,liq_50m,ls_mean_spread,0.000691072478297928,full=0.00105 delta=-0.00036
+loyo,interact_5d,liq_50m,ls_mean_spread_range,0.0010472350677194213,worst(drop2025)=0.00042 best(drop2007)=0.00153 all_positive=True
+regime_trending,interact_5d,liq_50m,ic_and_spread,-0.022289412201427383,ls_spread=0.00120 ic_ir=-0.292 n_days=412
+regime_ranging,interact_5d,liq_50m,ic_and_spread,-0.018260420410595328,ls_spread=0.00327 ic_ir=-0.200 n_days=804
+regime_volatile,interact_5d,liq_50m,ic_and_spread,-0.02011235677113269,ls_spread=0.00116 ic_ir=-0.229 n_days=1275
+regime_neutral,interact_5d,liq_50m,ic_and_spread,-0.02059496571458239,ls_spread=0.00146 ic_ir=-0.232 n_days=1158
+full_deflated_sharpe,volconf_mom_5d,liq_50m,dsr,0.44713684890238087,sr_per=0.0197 sr0=0.0216 n_obs=4964 n_trials=9 ann_sr=0.070
+ex_2020,volconf_mom_5d,liq_50m,ls_mean_spread,0.0005369815925563897,full=0.00087 delta=-0.00033
+loyo,volconf_mom_5d,liq_50m,ls_mean_spread_range,0.0008670340537822561,worst(drop2025)=0.00029 best(drop2009)=0.00136 all_positive=True
+regime_trending,volconf_mom_5d,liq_50m,ic_and_spread,-0.01866948137639389,ls_spread=0.00175 ic_ir=-0.241 n_days=412
+regime_ranging,volconf_mom_5d,liq_50m,ic_and_spread,-0.01785414796488444,ls_spread=0.00206 ic_ir=-0.192 n_days=804
+regime_volatile,volconf_mom_5d,liq_50m,ic_and_spread,-0.01766218122879502,ls_spread=0.00197 ic_ir=-0.196 n_days=1275
+regime_neutral,volconf_mom_5d,liq_50m,ic_and_spread,-0.020084615202723893,ls_spread=0.00053 ic_ir=-0.226 n_days=1158
+full_deflated_sharpe,interact_20d,liq_50m,dsr,0.07543471133633954,sr_per=0.0012 sr0=0.0216 n_obs=4963 n_trials=9 ann_sr=0.004
+ex_2020,interact_20d,liq_50m,ls_mean_spread,0.00017149155681559427,full=0.00006 delta=+0.00012
+loyo,interact_20d,liq_50m,ls_mean_spread_range,5.579523110956073e-05,worst(drop2013)=-0.00048 best(drop2022)=0.00057 all_positive=False
+regime_trending,interact_20d,liq_50m,ic_and_spread,-0.005279089199294535,ls_spread=0.00104 ic_ir=-0.070 n_days=412
+regime_ranging,interact_20d,liq_50m,ic_and_spread,-0.002687949485360413,ls_spread=0.00421 ic_ir=-0.031 n_days=804
+regime_volatile,interact_20d,liq_50m,ic_and_spread,-0.018044853728933836,ls_spread=-0.00468 ic_ir=-0.204 n_days=1275
+regime_neutral,interact_20d,liq_50m,ic_and_spread,-0.006164552230462114,ls_spread=0.00196 ic_ir=-0.071 n_days=1158
+full_deflated_sharpe,volconf_mom_20d,liq_50m,dsr,0.16249228993728482,sr_per=0.0076 sr0=0.0216 n_obs=4963 n_trials=9 ann_sr=0.027
+ex_2020,volconf_mom_20d,liq_50m,ls_mean_spread,0.00011488220487311401,full=0.00034 delta=-0.00022
+loyo,volconf_mom_20d,liq_50m,ls_mean_spread_range,0.0003367431174473149,worst(drop2013)=-0.00021 best(drop2007)=0.00079 all_positive=False
+regime_trending,volconf_mom_20d,liq_50m,ic_and_spread,5.7206469892498746e-05,ls_spread=0.00353 ic_ir=0.001 n_days=412
+regime_ranging,volconf_mom_20d,liq_50m,ic_and_spread,-0.001629399362669664,ls_spread=0.00406 ic_ir=-0.019 n_days=804
+regime_volatile,volconf_mom_20d,liq_50m,ic_and_spread,-0.019422164615541616,ls_spread=-0.00285 ic_ir=-0.220 n_days=1275
+regime_neutral,volconf_mom_20d,liq_50m,ic_and_spread,-0.00972596622602991,ls_spread=0.00183 ic_ir=-0.109 n_days=1158
+full_deflated_sharpe,rvol_only,liq_50m,dsr,0.9999999487349328,sr_per=0.0969 sr0=0.0216 n_obs=4964 n_trials=9 ann_sr=0.344
+ex_2020,rvol_only,liq_50m,ls_mean_spread,0.004876781496422326,full=0.00462 delta=+0.00026
+loyo,rvol_only,liq_50m,ls_mean_spread_range,0.004617461182891326,worst(drop2015)=0.00402 best(drop2009)=0.00533 all_positive=True
+regime_trending,rvol_only,liq_50m,ic_and_spread,-0.004662141434282522,ls_spread=0.00104 ic_ir=-0.049 n_days=412
+regime_ranging,rvol_only,liq_50m,ic_and_spread,0.01967099253467738,ls_spread=0.00549 ic_ir=0.200 n_days=804
+regime_volatile,rvol_only,liq_50m,ic_and_spread,0.0043264461585770485,ls_spread=0.00248 ic_ir=0.041 n_days=1275
+regime_neutral,rvol_only,liq_50m,ic_and_spread,0.021691366359497487,ls_spread=0.00850 ic_ir=0.214 n_days=1158
