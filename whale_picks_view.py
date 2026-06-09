@@ -618,7 +618,7 @@ def render_whale_picks() -> None:
     st.title("🐋 主力選股 (Whale Picks) — BUY/SELL 訊號")
     st.caption(
         "7-feature composite_score / industry-neutral / **M15 rebalance** K=10 / "
-        "11 年 portfolio backtest CAGR 28% vs TWII 17% (Sharpe 1.67 vs 0.99)。"
+        "11 年 backtest (gross) CAGR 28% / Sharpe 1.67;現實成本後個人規模 ~23-27% net / Sharpe 1.46 (2026-06-09 cost audit)。"
     )
 
     with st.expander("📋 **operational SOP — 100% Whale Picks** (展開)", expanded=False):
@@ -644,11 +644,13 @@ def render_whale_picks() -> None:
 **完全不用做的事**：
 - 每日盯盤 / 停損停利 / 個股研究 / 經濟新聞解讀 / Buy-sell timing
 
-**預期表現** (10-11 年實證, 含手續費 + 股息估算)：
-- CAGR ~20-25% (扣 -1.8% 交易成本 + 加 3-5% 股息)
-- Sharpe ~1.5-1.7
+**預期表現** (2026-06-09 cost audit 修正, 個人規模每檔 ≤5M)：
+- CAGR **~23-27% net** (gross 28%；固定成本實 3.3-4.1%/年 非 -1.8%，年換手 ~680%；+股息 3-4%)
+- Sharpe **~1.46 net** (gross 1.67-1.79)
 - MDD ~-25-28%
 - 8/11 年勝 TWII (73%)
+- ⚠️ **容量天花板 ~20M/檔** (總 ~2.3 億)，超過 alpha 被衝擊吃光，不可規模化到機構
+- ⚠️ 「28%/11 年」全為 **backtest**；live OOS 自 2026-05 起算 **N=1**，需 6-12 cohort (~2027) 才有統計意義
 
 **會略輸 TWII 的情境**：
 - covid V 反彈 (2020) / AI bubble (2025) 那種急速上漲

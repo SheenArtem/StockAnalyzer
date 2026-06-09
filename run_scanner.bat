@@ -218,7 +218,7 @@ REM (audit only, does not drop picks).
 REM --notify removed 2026-05-04 per user request: cancel scan-result Discord pushes.
 REM
 REM DISABLED 2026-05-23 per user request: 100%% Whale Picks is production strategy
-REM (CAGR 28%% / Sharpe 1.67), QM + Value scanner downgraded to informational only.
+REM (backtest gross CAGR 28%% / Sharpe 1.67; realistic net ~23-27%% / Sharpe 1.46 per 2026-06-09 cost audit), QM + Value scanner downgraded to informational only.
 REM qm_result.json and value picks no longer refresh daily, UI may show stale data
 REM but does not affect Whale Picks pipeline.
 REM To re-enable: remove the "goto skip_qm_value_scan" line below.
