@@ -188,7 +188,7 @@
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "meta": {
     "ticker": "2330.TW",
     "name": "台積電",
