@@ -441,6 +441,11 @@ _FINMIND_RATE_WARN = 540        # warn threshold
 _FINMIND_RATE_PAUSE = 580       # auto-pause threshold
 
 
+class FinMindQuotaBlockedError(RuntimeError):
+    """FinMind server-side 額度已爆且離整點重置還久 — 本小時內 fail-fast 不再打 API。"""
+    pass
+
+
 class FinMindTracker:
     """Wraps DataLoader with request counting and rate limit tracking."""
 
@@ -450,6 +455,7 @@ class FinMindTracker:
         self.request_count = 0
         self._hour_start = time.time()
         self._lock = threading.Lock()
+        self._quota_blocked_until = 0.0  # server-side 額度爆掉的 negative cache (epoch)
 
     def __getattr__(self, name):
         """Proxy all DataLoader method calls through the tracker."""
@@ -458,6 +464,11 @@ class FinMindTracker:
             return attr
 
         def tracked_call(*args, **kwargs):
+            _now = time.time()
+            if _now < self._quota_blocked_until:
+                raise FinMindQuotaBlockedError(
+                    f"FinMind quota exhausted, fail-fast for {int(self._quota_blocked_until - _now)}s "
+                    "until wall-hour reset (callers fall back to stale cache)")
             self._check_rate_limit()
             with self._lock:
                 self.request_count += 1
@@ -474,14 +485,21 @@ class FinMindTracker:
                 return attr(*args, **kwargs)
             except KeyError as e:
                 if str(e) == "'data'":
-                    # FinMind server-side quota: response has no 'data' key
-                    logger.warning("FinMind quota hit (KeyError 'data'), "
-                                   "waiting 65s then retry once...")
-                    time.sleep(65)
-                    try:
-                        return attr(*args, **kwargs)
-                    except KeyError:
-                        raise  # second failure: give up
+                    # FinMind server-side quota (response 無 'data' key)。額度整點重置：
+                    # 只有貼近整點時等待才有意義；其餘 fail-fast + 整小時 negative cache。
+                    # (舊版盲睡 65s 再 retry — 離重置遠時必然又失敗，互動路徑每個
+                    #  builder 白卡 65s, 2026-06-10 實測 prompt 組裝因此拖到 170s)
+                    wait = self._seconds_until_next_wall_hour()
+                    if wait <= 90:
+                        logger.warning("FinMind quota hit, %.0fs to hour reset, waiting...", wait)
+                        time.sleep(wait)
+                        try:
+                            return attr(*args, **kwargs)
+                        except KeyError:
+                            raise  # second failure: give up
+                    self._quota_blocked_until = time.time() + wait
+                    logger.warning("FinMind quota hit, %.0fs to hour reset -- fail-fast, "
+                                   "blocking further FinMind calls until reset", wait)
                 raise
 
         return tracked_call
@@ -531,6 +549,60 @@ class FinMindTracker:
             'remaining': _FINMIND_RATE_LIMIT - self.request_count,
             'has_token': self.has_token,
         }
+
+
+# --- 台股名稱/產業對照表：3 層快取 (memory -> disk <7天 -> FinMind，失敗回 stale disk) ---
+_TW_STOCK_INFO_CACHE = None
+_tw_stock_info_lock = threading.Lock()
+_TW_STOCK_INFO_DISK = os.path.join('data_cache', 'tw_stock_info.csv')
+_TW_STOCK_INFO_TTL_DAYS = 7
+
+
+def get_tw_stock_info():
+    """台股 stock_id -> 名稱/產業對照表 (FinMind TaiwanStockInfo)；回 DataFrame 或 None。
+
+    對照表年變動極少，stale 一週無害。2026-06-10 前 technical_analysis / peer_comparison /
+    fundamental_analysis 三處各自裸打 FinMind，額度爆時互動路徑每處卡 65s
+    (AI 報告 prompt 組裝實測拖到 ~170s) — 統一收斂到此處落盤共用，每週只花 1 筆額度。
+    """
+    global _TW_STOCK_INFO_CACHE
+    if _TW_STOCK_INFO_CACHE is not None:
+        return _TW_STOCK_INFO_CACHE
+    with _tw_stock_info_lock:
+        if _TW_STOCK_INFO_CACHE is not None:
+            return _TW_STOCK_INFO_CACHE
+        disk_df = None
+        try:
+            if os.path.exists(_TW_STOCK_INFO_DISK):
+                disk_df = pd.read_csv(_TW_STOCK_INFO_DISK, dtype={'stock_id': str})
+                if disk_df.empty:
+                    disk_df = None
+                else:
+                    age_days = (time.time() - os.path.getmtime(_TW_STOCK_INFO_DISK)) / 86400
+                    if age_days < _TW_STOCK_INFO_TTL_DAYS:
+                        _TW_STOCK_INFO_CACHE = disk_df
+                        return _TW_STOCK_INFO_CACHE
+        except Exception as e:
+            logger.warning("tw_stock_info disk cache read failed: %s", e)
+            disk_df = None
+        try:
+            logger.info("Downloading TW stock list (FinMind)")
+            df = get_finmind_loader().taiwan_stock_info()
+            if df is not None and not df.empty:
+                try:
+                    os.makedirs(os.path.dirname(_TW_STOCK_INFO_DISK), exist_ok=True)
+                    df.to_csv(_TW_STOCK_INFO_DISK, index=False)
+                except Exception as e:
+                    logger.warning("tw_stock_info disk cache write failed: %s", e)
+                _TW_STOCK_INFO_CACHE = df
+                return _TW_STOCK_INFO_CACHE
+        except Exception as e:
+            logger.warning("FinMind taiwan_stock_info failed (%s)%s", e,
+                           " -- using stale disk cache" if disk_df is not None else ", no fallback")
+        if disk_df is not None:
+            _TW_STOCK_INFO_CACHE = disk_df
+            return _TW_STOCK_INFO_CACHE
+        return None
 
 
 def get_finmind_loader():

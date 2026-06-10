@@ -283,11 +283,13 @@ def get_taiwan_stock_fundamentals(stock_id):
 
 def get_taiwan_stock_profile(stock_id):
     """
-    從 FinMind 取得產業類別 (Fallback)
+    從對照表取得產業類別 (Fallback)；走 cache_manager 3 層快取。
     """
     try:
-        dl = _get_data_loader()
-        df = dl.taiwan_stock_info()
+        from cache_manager import get_tw_stock_info
+        df = get_tw_stock_info()
+        if df is None:
+            return None
         row = df[df['stock_id'] == stock_id]
         if not row.empty:
             return {

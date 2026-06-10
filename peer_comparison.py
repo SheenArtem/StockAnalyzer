@@ -260,13 +260,11 @@ def get_tw_peer_comparison(stock_id, max_peers=10):
     if cached is not None:
         return cached
 
-    # 1. Load FinMind info (for stock names + fallback)
-    try:
-        from cache_manager import get_finmind_loader
-        dl = get_finmind_loader()
-        info = dl.taiwan_stock_info()
-    except Exception as e:
-        logger.warning("FinMind stock info failed: %s", e)
+    # 1. Load stock info (names + industry; 3 層快取, FinMind 額度爆時回 stale disk)
+    from cache_manager import get_tw_stock_info
+    info = get_tw_stock_info()
+    if info is None:
+        logger.warning("tw stock info unavailable (FinMind + disk cache both empty)")
         return None
 
     # 2. Resolve peer ids via priority chain (manual → TV → FinMind)

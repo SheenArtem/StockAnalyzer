@@ -337,45 +337,36 @@ def calculate_all_indicators(df):
 # 新增模組：數據載入與重採樣 (Data Loader & Resampler)
 # ==========================================
 
-from cache_manager import get_finmind_loader
+from cache_manager import get_finmind_loader, get_tw_stock_info
 import datetime
 import functools
 import logging
-import threading
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Global Cache for Stock Info
-_TW_STOCK_INFO_CACHE = None
-_tw_stock_info_lock = threading.Lock()
 
 def get_stock_info_smart(ticker):
     """
     取得股票資訊 (名稱、產業類別)
     回傳: dict {'name': '台積電', 'sector': '半導體', ...}
+
+    對照表走 cache_manager.get_tw_stock_info() 3 層快取 (memory -> disk 7天 -> FinMind)。
     """
-    global _TW_STOCK_INFO_CACHE
     meta = {'name': ticker, 'sector': '', 'currency': 'TWD'}
-    
+
     # 清洗 Ticker 取得純數字代號
     stock_id = ticker.split('.')[0] if '.' in ticker else ticker
-    
-    # 1. 如果是台股 (數字)，嘗試從 FinMind 取得中文名稱
+
+    # 1. 如果是台股 (數字)，嘗試從對照表取得中文名稱/產業
     if stock_id.isdigit():
         try:
-            if _TW_STOCK_INFO_CACHE is None:
-                with _tw_stock_info_lock:
-                    if _TW_STOCK_INFO_CACHE is None:
-                        logger.info("Downloading TW stock list (cache miss)")
-                        dl = get_finmind_loader()
-                        _TW_STOCK_INFO_CACHE = dl.taiwan_stock_info()
-            
-            # 搜尋
-            row = _TW_STOCK_INFO_CACHE[_TW_STOCK_INFO_CACHE['stock_id'] == stock_id]
-            if not row.empty:
-                meta['name'] = row.iloc[0]['stock_name']
-                meta['sector'] = row.iloc[0]['industry_category']
+            info = get_tw_stock_info()
+            if info is not None:
+                row = info[info['stock_id'] == stock_id]
+                if not row.empty:
+                    meta['name'] = row.iloc[0]['stock_name']
+                    meta['sector'] = row.iloc[0]['industry_category']
         except Exception as e:
             logger.error("Failed to get TW stock info: %s", e)
 
