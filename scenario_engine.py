@@ -643,3 +643,117 @@ def generate_action_plan(df, scenario, is_us_stock=False, strategy_params=None, 
         sl_key_candle=sl_key,
         sl_low=sl_low,
     )
+
+
+# ============================================================
+# 左側 / 右側中長線策略價位 (2026-06-10)
+#
+# 與 generate_action_plan 的短線 horizon 不同：這裡以「近一年最大上升波段」
+# 的 Fib 回測為左側分批承接階梯、波段前高/extension 為右側突破確認，
+# 供 AI 報告 [LEFT_RIGHT_PLAN] 區塊 verbatim 引用（與 Action Plan 同等級
+# deterministic hard rule，禁止 LLM 自行算價位）。
+#
+# 不適用情境誠實回報 applicable=False + reason，模板端只寫一行原因：
+#   - K 線 < 120 根（新上市 / 資料不足）
+#   - 近一年無 >= 25% 上升波段（盤整 / 一路下跌，高點在窗口最前端會自然落入此類）
+#   - 現價已跌破 78.6% 回測（上升結構失效，左側階梯前提不存在）
+# ============================================================
+
+LEFT_RIGHT_MIN_BARS = 120
+LEFT_RIGHT_MIN_SWING_PCT = 25.0
+
+
+def generate_left_right_plan(df, lookback=250):
+    """左側 Fib 承接階梯 + 右側突破確認價位（deterministic）。
+
+    Args:
+        df: 日線 DataFrame（含 High/Low/Close，最好有 MA20）
+        lookback: 波段偵測回看根數（預設 250 ≈ 一年）
+
+    Returns:
+        dict: applicable=False 時只有 reason；True 時含
+              swing/posture/left_ladder/invalidation/right_* 全套價位
+    """
+    if df is None or df.empty or len(df) < LEFT_RIGHT_MIN_BARS:
+        return {'applicable': False,
+                'reason': f'K 線不足 {LEFT_RIGHT_MIN_BARS} 根，無法判定大波段'}
+
+    win = df.iloc[-lookback:] if len(df) > lookback else df
+    close = float(df['Close'].iloc[-1])
+
+    # 波段偵測：窗口內最高點 → 該高點之前的最低點（保證 低點日 <= 高點日）
+    high_s = win['High'].reset_index(drop=True)
+    pos_high = int(high_s.idxmax())  # pandas idxmax 自動跳過 NaN
+    swing_high = float(high_s.iloc[pos_high])
+    low_pre = win['Low'].reset_index(drop=True).iloc[:pos_high + 1]
+    pos_low = int(low_pre.idxmin())
+    swing_low = float(low_pre.iloc[pos_low])
+
+    if swing_low <= 0 or pd.isna(swing_low) or pd.isna(swing_high):
+        return {'applicable': False, 'reason': '價格資料異常，無法計算波段'}
+
+    amplitude = swing_high - swing_low
+    amp_pct = amplitude / swing_low * 100
+    if amp_pct < LEFT_RIGHT_MIN_SWING_PCT:
+        return {'applicable': False,
+                'reason': (f'近 {len(win)} 日最大上升波段僅 +{amp_pct:.0f}% '
+                           f'(< {LEFT_RIGHT_MIN_SWING_PCT:.0f}%)，無明確大波段可定 Fib 階梯')}
+
+    fib = {p: round(swing_high - amplitude * p / 100, 2)
+           for p in (23.6, 38.2, 50.0, 61.8, 78.6)}
+
+    if close < fib[78.6]:
+        return {'applicable': False,
+                'reason': (f'現價 {close:.2f} 已跌破 78.6% 回測位 {fib[78.6]:.2f}，'
+                           '原上升波段結構失效，左側階梯不適用')}
+
+    # 現價在波段中的位置（posture）
+    if close >= swing_high * 0.98:
+        posture, posture_desc = 'near_high', '現價貼近/突破波段前高'
+    elif close > fib[23.6]:
+        posture, posture_desc = 'shallow_pullback', '現價於前高與 23.6% 回測之間（淺回檔）'
+    elif close > fib[50.0]:
+        posture, posture_desc = 'pullback', '已進入 23.6%-50% 回檔承接區'
+    else:
+        posture, posture_desc = 'deep_pullback', '已回檔逾 50%（深度承接區，注意長多論述是否仍成立）'
+
+    # 右側 B 進場線 / 移動停利線：20MA 與其斜率
+    cur = df.iloc[-1]
+    ma20 = float(safe_get(cur, 'MA20', 0) or 0)
+    ma20_slope_up = False
+    if ma20 > 0 and 'MA20' in df.columns and len(df) >= 25:
+        ma20_prev = df['MA20'].iloc[-5]
+        if pd.notna(ma20_prev) and float(ma20_prev) > 0:
+            ma20_slope_up = ma20 > float(ma20_prev)
+
+    def _fmt_date(pos):
+        try:
+            return pd.Timestamp(win.index[pos]).strftime('%Y-%m-%d')
+        except Exception:
+            return str(win.index[pos])
+
+    return {
+        'applicable': True,
+        'posture': posture,
+        'posture_desc': posture_desc,
+        'swing_low': round(swing_low, 2),
+        'swing_low_date': _fmt_date(pos_low),
+        'swing_high': round(swing_high, 2),
+        'swing_high_date': _fmt_date(pos_high),
+        'amplitude_pct': round(amp_pct, 1),
+        'current_price': round(close, 2),
+        'left_ladder': [
+            {'pct': '23.6%', 'price': fib[23.6], 'action': '首批 1/4'},
+            {'pct': '38.2%', 'price': fib[38.2], 'action': '加碼 1/4'},
+            {'pct': '50.0%', 'price': fib[50.0], 'action': '加碼 1/4'},
+            {'pct': '61.8%', 'price': fib[61.8], 'action': '末批 1/4'},
+        ],
+        'invalidation_price': fib[78.6],
+        'right_breakout_low': round(swing_high, 2),
+        'right_breakout_high': round(swing_high * 1.025, 2),
+        'right_ext_1272': round(swing_high + amplitude * 0.272, 2),
+        'right_ext_1618': round(swing_high + amplitude * 0.618, 2),
+        'right_stop': fib[38.2],
+        'ma20': round(ma20, 2) if ma20 > 0 else 0.0,
+        'ma20_slope_up': ma20_slope_up,
+    }

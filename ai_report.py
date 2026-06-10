@@ -1095,6 +1095,50 @@ def _build_market_context(report):
     return "\n".join(lines) if lines else "N/A"
 
 
+def _build_left_right_plan(df_day):
+    """[LEFT_RIGHT_PLAN] 左側 Fib 承接階梯 + 右側突破確認 (deterministic, scenario_engine 計算).
+
+    與 [MARKET_CONTEXT] 的 Action Plan 同等級 hard rule：所有價位 verbatim 引用，
+    LLM 只負責敘事 / 催化檢查點 / 隱含 Forward PE 推導。
+    """
+    try:
+        from scenario_engine import generate_left_right_plan
+        lr = generate_left_right_plan(df_day)
+    except Exception as e:
+        logger.warning("left_right_plan build failed: %s", e)
+        return "N/A (計算失敗)"
+
+    if not lr.get('applicable'):
+        return f"不適用: {lr.get('reason', 'N/A')}"
+
+    lines = ["Left/Right Strategy Levels (DETERMINISTIC — must be quoted verbatim):"]
+    lines.append(f"  posture: {lr['posture']} ({lr['posture_desc']})")
+    lines.append(
+        f"  swing: {lr['swing_low']} ({lr['swing_low_date']}) -> "
+        f"{lr['swing_high']} ({lr['swing_high_date']}), +{lr['amplitude_pct']}%"
+    )
+    lines.append(f"  current_price: {lr['current_price']}")
+    lines.append("  left_ladder (Fib 回測承接階梯):")
+    for r in lr['left_ladder']:
+        lines.append(f"    {r['pct']} -> {r['price']}  {r['action']}")
+    lines.append(
+        f"  invalidation_786: {lr['invalidation_price']} "
+        "(跌破 = 長多論述受損, 左側部位全部停損出場)"
+    )
+    lines.append("  right_side:")
+    lines.append(
+        f"    entry_A_breakout: {lr['right_breakout_low']} - {lr['right_breakout_high']} "
+        "(站穩前高帶量突破)"
+    )
+    ma20_txt = (f"{lr['ma20']} ({'上彎' if lr['ma20_slope_up'] else '走平/下彎'})"
+                if lr['ma20'] else "N/A")
+    lines.append(f"    entry_B_ma20_reclaim: 洗盤後重新收復上彎 20MA (現 MA20: {ma20_txt})")
+    lines.append(f"    targets_ext: 1.272 -> {lr['right_ext_1272']} / 1.618 -> {lr['right_ext_1618']}")
+    lines.append(f"    stop_structural: {lr['right_stop']} (38.2% 結構頸線)")
+    lines.append("    trailing: 沿上彎 20MA 拖曳")
+    return "\n".join(lines)
+
+
 def _build_pattern_data(df_day):
     """[PATTERN_DATA] K 線型態"""
     if df_day is None or df_day.empty:
@@ -1675,6 +1719,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us, ticker=ticker)}")
     data_sections.append(f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data, ticker)}")
     data_sections.append(f"[MARKET_CONTEXT]\n{_build_market_context(report)}")
+    data_sections.append(f"[LEFT_RIGHT_PLAN]\n{_build_left_right_plan(df_day)}")
     data_sections.append(f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}")
     data_sections.append(f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}")
     data_sections.append(f"[VALUATION_PANEL]\n{_build_dcf_panel_context(ticker)}")
@@ -1816,6 +1861,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us, ticker=ticker)}",
         f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data, ticker)}",
         f"[MARKET_CONTEXT]\n{_build_market_context(report)}",
+        f"[LEFT_RIGHT_PLAN]\n{_build_left_right_plan(df_day)}",
         f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}",
         f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}",
         f"[VALUATION_PANEL]\n{_build_dcf_panel_context(ticker)}",
@@ -1879,7 +1925,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 
    ⚠️ **數值欄位禁用 WebSearch 結果覆蓋**：valuation.peer_comparison / valuation.pe_history / summary.fundamentals 的 PE/PB/DY/ROE 數字必須**直接抄錄** [PEER_COMPARISON] / [FUNDAMENTAL_DATA] 系統供應值（單一 TradingView snapshot 確保跨報告一致），禁止用搜尋到的數字覆蓋，避免「A 報告引用 B 的 PE=X，但 B 自家報告 PE=Y」矛盾。
 
-2. **輸出嚴格符合 schema 的純 JSON**，必含 5 個頂層物件：meta / summary / technical / chip / valuation / bull_bear
+2. **輸出嚴格符合 schema 的純 JSON**，必含頂層物件：meta / summary / technical / chip / valuation / bull_bear / left_right（[LEFT_RIGHT_PLAN] 標記不適用時 left_right 填 null）
 
 3. **第一個字元必為 `{{`，最後一個字元必為 `}}`**。禁止輸出 markdown 程式碼圍欄、說明文字、或任何非 JSON 內容。"""
 

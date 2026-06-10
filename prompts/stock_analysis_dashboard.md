@@ -10,7 +10,7 @@
 
 ```typescript
 {
-  schema_version: "1.0",      // 固定為 "1.0"，勿更動（未來 schema 擴充才變）
+  schema_version: "1.1",      // 固定為 "1.1"，勿更動（未來 schema 擴充才變；1.1 = 加 left_right）
 
   meta: {
     ticker: string,          // e.g. "2330.TW" or "NVDA"
@@ -145,6 +145,28 @@
       strategy: string,      // 30-50 字右側交易建議；解釋為何上述數字合理，不得重述/修改進場停損數字
     },
   },
+
+  left_right: {              // 左側/右側中長線策略；[LEFT_RIGHT_PLAN] 標記「不適用」時整個填 null
+    // ⚠️ Hard Rule：所有價位必須 verbatim 引用 [LEFT_RIGHT_PLAN] 區塊（DETERMINISTIC），
+    // 禁止自行計算/四捨五入。唯一例外 implied_pe = 價位 ÷ [ANALYST_CONSENSUS] Forward EPS（無則 "N/A"）。
+    posture: string,         // [LEFT_RIGHT_PLAN] posture_desc，例: "現價貼近/突破波段前高"
+    narrative_left: string,  // 30-60 字左側敘事前提（引用本報告長線 thesis，為何值得逆勢承接）
+    left_ladder: [           // 必 4 筆，順序 23.6% → 61.8%
+      { fib: string, price: number, implied_pe: string, action: string }
+      // fib = "23.6%"; price verbatim; implied_pe = "70x" 或 "N/A"; action = "首批 1/4" / "加碼 1/4" / "末批 1/4"
+    ],
+    invalidation: string,    // "跌破 XXX（78.6%）視為長多論述受損，停損出場"（XXX verbatim）
+    sizing_left: string,     // "部位採 1/4 Kelly；總曝險上限 ≤ 投組 3-5%"
+    narrative_right: string, // 30-60 字右側論述（不預測拐點、等趨勢確認的理由）
+    right_entries: [         // 必 2 筆：進場 A（突破）+ 進場 B（收復 20MA）
+      { label: string, condition: string }
+      // label = "進場 A"; condition = "站穩 XXX - XXX 帶量突破 → 順勢看 XXX - XXX"（價位 verbatim from entry_A_breakout / targets_ext）
+    ],
+    catalysts: string,       // 催化檢查點：從 [EARNINGS_CALENDAR]/[FORWARD_GUIDANCE]/[MATERIAL_EVENTS] 挑 1-3 個近期事件（含日期）
+    right_stop: string,      // "跌破 XXX（38.2% 結構頸線）或失守上彎均線"（XXX verbatim from stop_structural）
+    right_trailing: string,  // "沿上彎 20MA 拖曳，避免急殺回吐"
+    sizing_right: string,    // "盈虧比 ≥ 2 再進場，初始 1/4 Kelly，確認趨勢再金字塔加碼"
+  } | null,
 }
 ```
 
@@ -197,7 +219,9 @@
 
 ## 數據輸入格式
 
-系統會在下方提供 `[STOCK_INFO]`、`[TRIGGER_SCORE]`、`[TRIGGER_DETAILS]`、`[TECHNICAL_DATA]`、`[CHIP_DATA]`、`[FUNDAMENTAL_DATA]`、`[MARKET_CONTEXT]`、`[PATTERN_DATA]`、`[VALUE_SCORE]`、`[NEWS_DATA]`、`[ANALYST_CONSENSUS]`、`[PEER_COMPARISON]`、`[THEME_CONTEXT]`、`[SENTIMENT_CONTEXT]`、`[NEWS_THEMES]`、`[FORWARD_GUIDANCE]`、`[LAW_TRANSCRIPT_RAG]` 共 17 區塊。請全部參考後填入 JSON 對應欄位。
+系統會在下方提供 `[STOCK_INFO]`、`[TRIGGER_SCORE]`、`[TRIGGER_DETAILS]`、`[TECHNICAL_DATA]`、`[CHIP_DATA]`、`[FUNDAMENTAL_DATA]`、`[MARKET_CONTEXT]`、`[LEFT_RIGHT_PLAN]`、`[PATTERN_DATA]`、`[VALUE_SCORE]`、`[NEWS_DATA]`、`[ANALYST_CONSENSUS]`、`[PEER_COMPARISON]`、`[THEME_CONTEXT]`、`[SENTIMENT_CONTEXT]`、`[NEWS_THEMES]`、`[FORWARD_GUIDANCE]`、`[LAW_TRANSCRIPT_RAG]` 共 18 區塊。請全部參考後填入 JSON 對應欄位。
+
+`[LEFT_RIGHT_PLAN]` 是 deterministic 左側/右側中長線價位（近一年大波段 Fib 回測階梯 + 突破確認位），對應 JSON 的 `left_right` 物件：價位 verbatim 引用，標記「不適用」時 `left_right` 填 `null`。
 
 ## 重要提醒
 

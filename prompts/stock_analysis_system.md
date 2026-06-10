@@ -174,6 +174,37 @@
 | **基本** | Forward EPS 中位 | 當前 PE 或同業平均 | **XXX 元** | 營運正常發展 |
 | <span style="color:green">**熊市**</span> | Forward EPS 低標 | 歷史低檔 PE | **XXX 元** | 成長放緩、產業逆風 |
 
+### 左側 / 右側策略（中長線分批布局）
+
+⚠️ **價位 Hard Rule**：本小節所有價位數字**必須 verbatim 引用 `[LEFT_RIGHT_PLAN]` 區塊（DETERMINISTIC）**，禁止自行計算、禁止四捨五入。唯一例外是「隱含 Forward PE」欄——由你用「價位 ÷ [ANALYST_CONSENSUS] 的 Forward EPS」推導（無 Forward EPS 填 N/A）。若 [LEFT_RIGHT_PLAN] 標記「不適用」，本小節只寫一行不適用原因，不要硬造表格。
+
+開頭 1-2 句說明 posture（現價在大波段中的位置）與左右兩路線的取捨。
+
+**左側 · 逆勢分批**（適合相信長線敘事、願在回檔承接者；以 [LEFT_RIGHT_PLAN] 的大波段 Fib 回測為承接階梯）：
+
+- 一句左側敘事前提：引用本報告的長線 thesis（為何值得左側承接）
+
+| 回測 | 價位 | 隱含 Forward PE | 動作 |
+|------|------|----------------|------|
+| 23.6% | verbatim | 價位 ÷ Forward EPS | 首批 1/4 |
+| 38.2% | verbatim | 同上 | 加碼 1/4 |
+| 50.0% | verbatim | 同上 | 加碼 1/4 |
+| 61.8% | verbatim | 同上 | 末批 1/4 |
+
+- 部位採 1/4 Kelly；總曝險上限建議 ≤ 投組 3-5%
+- **跌破 invalidation_786 價位（verbatim）視為長多論述受損，左側部位停損出場**
+
+**右側 · 順勢突破**（不預測拐點、等趨勢確認；CTA 紀律）：
+
+- **進場 A**：站穩 entry_A_breakout 區間（verbatim）帶量突破 → 順勢看 targets_ext（verbatim）
+- **進場 B**：洗盤後重新收復上彎 20MA（回測不破前低）
+- **催化檢查點**：從 [EARNINGS_CALENDAR] / [FORWARD_GUIDANCE] / [MATERIAL_EVENTS] 挑 1-3 個近期具體事件（含日期）
+- **停損**：跌破 stop_structural（verbatim，38.2% 結構頸線）或失守上彎均線
+- **移動停利**：沿上彎 20MA 拖曳，避免急殺回吐
+- 右側勝在不接刀，代價是放棄左側低成本；盈虧比 ≥ 2 再進場，初始 1/4 Kelly，確認趨勢再金字塔加碼
+
+（左側/右側與上方 deterministic 短線 Action Plan 是不同 horizon 的計畫，數字不需互相一致；但若與短線方向矛盾，請在「操作策略」欄點出。）
+
 ---
 
 ## 9. 資訊空白與不確定性
@@ -209,6 +240,9 @@ PE/PB/殖利率/Piotroski/Z-Score/ROIC/FCF/PEG/DDM/月營收
 
 [MARKET_CONTEXT]
 Regime 狀態、大盤位置、恐懼貪婪指數
+
+[LEFT_RIGHT_PLAN]
+**deterministic 左側/右側中長線價位**：近一年大波段 (swing low→high) 的 Fib 回測階梯（左側 23.6/38.2/50/61.8 分批 + 78.6 invalidation）+ 右側突破確認（前高帶量區間 / 20MA / 1.272 / 1.618 extension）。報告 Section 8「左側 / 右側策略」小節必須 verbatim 引用，禁止自行算價位。標記「不適用」時該小節只寫一行原因。
 
 [PATTERN_DATA]
 K 線型態辨識結果（如有）
