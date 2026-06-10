@@ -681,13 +681,35 @@ def generate_left_right_plan(df, lookback=250):
     win = df.iloc[-lookback:] if len(df) > lookback else df
     close = float(df['Close'].iloc[-1])
 
-    # 波段偵測：窗口內最高點 → 該高點之前的最低點（保證 低點日 <= 高點日）
+    # 波段偵測：取兩種錨法振幅較大者（皆保證 低點日 <= 高點日）。
+    #   A. high-anchored：窗口最高點 -> 該高點「之前」的最低點（漲入高點的主升段）
+    #   B. low-anchored ：窗口最低點 -> 該低點「之後」的最高點（自低點起漲的回升段）
+    # 純多頭/純下跌時 A==B；唯有「年內高點落在窗口前段 + 之後 V 型回升」時 B>A，
+    # 此時只靠 A 會退化成 ~0%（高點前無波段）而誤判不適用 — 故補 B 取大者。
     high_s = win['High'].reset_index(drop=True)
-    pos_high = int(high_s.idxmax())  # pandas idxmax 自動跳過 NaN
-    swing_high = float(high_s.iloc[pos_high])
-    low_pre = win['Low'].reset_index(drop=True).iloc[:pos_high + 1]
-    pos_low = int(low_pre.idxmin())
-    swing_low = float(low_pre.iloc[pos_low])
+    low_s = win['Low'].reset_index(drop=True)
+
+    a_pos_high = int(high_s.idxmax())  # pandas idxmax 自動跳過 NaN
+    a_high = float(high_s.iloc[a_pos_high])
+    a_low_seg = low_s.iloc[:a_pos_high + 1]
+    a_pos_low = int(a_low_seg.idxmin())
+    a_low = float(a_low_seg.iloc[a_pos_low])
+
+    b_pos_low = int(low_s.idxmin())
+    b_low = float(low_s.iloc[b_pos_low])
+    b_high_seg = high_s.iloc[b_pos_low:]
+    b_pos_high = int(b_high_seg.idxmax())  # iloc 切片保留原 index，idxmax 直接回原位置
+    b_high = float(high_s.iloc[b_pos_high])
+
+    def _amp_pct(hi, lo):
+        if pd.isna(hi) or pd.isna(lo) or lo <= 0:
+            return -1.0
+        return (hi - lo) / lo * 100
+
+    if _amp_pct(b_high, b_low) > _amp_pct(a_high, a_low):
+        swing_high, swing_low, pos_high, pos_low = b_high, b_low, b_pos_high, b_pos_low
+    else:
+        swing_high, swing_low, pos_high, pos_low = a_high, a_low, a_pos_high, a_pos_low
 
     if swing_low <= 0 or pd.isna(swing_low) or pd.isna(swing_high):
         return {'applicable': False, 'reason': '價格資料異常，無法計算波段'}

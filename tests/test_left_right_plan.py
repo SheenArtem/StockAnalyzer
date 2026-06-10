@@ -54,6 +54,29 @@ def _make_swing_df(n_flat=50, n_rally=100, n_pullback=50,
     return df
 
 
+def _make_v_recovery_df(n_down=100, n_up=100, peak=100.0, trough=60.0, end=88.0):
+    """V 型回升：年內最高點固定在窗口最前端(peak) -> 跌到 trough -> 回升到 end(<peak)。
+
+    high-anchored 會退化成 ~0%（高點前無波段），唯有 low-anchored 抓得到 trough->end 回升。
+    """
+    n = n_down + n_up
+    dates = pd.date_range("2025-06-01", periods=n, freq="B")
+    close = np.concatenate([
+        np.linspace(peak, trough, n_down),
+        np.linspace(trough, end, n_up),
+    ])
+    high = close * 1.001
+    low = close * 0.999
+    high[0] = peak * 1.002                                   # 全場最高固定在第 0 根
+    high[n_down:] = np.minimum(high[n_down:], peak * 0.99)   # 回升段不創新高
+    df = pd.DataFrame({
+        "Open": close, "High": high, "Low": low, "Close": close,
+        "Volume": np.full(n, 1_000_000),
+    }, index=dates)
+    df["MA20"] = df["Close"].rolling(20).mean()
+    return df
+
+
 # ---------- applicable=True 主路徑 ----------
 
 class TestUpSwingLadder:
@@ -121,6 +144,29 @@ class TestPostures:
         df = _make_swing_df(end_close=160.0)  # < fib50=197.5, > fib78.6=138.87
         lr = generate_left_right_plan(df)
         assert lr["applicable"] and lr["posture"] == "deep_pullback"
+
+
+class TestVRecoverySwing:
+    """年內高點落在窗口最前端 + 之後 V 型回升：必須抓回升波段，不可退化成 ~0% 誤判不適用。
+
+    迴歸 2026-06-10 5009 案例：250 日高點在窗口第 1 天 -> high-anchored 僅 +3% 漏掉
+    -28% 跌幅後 +35% 的 V 型回升。修正後改取 low-anchored 波段。
+    """
+    def setup_method(self):
+        self.df = _make_v_recovery_df()
+        self.lr = generate_left_right_plan(self.df)
+
+    def test_applicable(self):
+        assert self.lr["applicable"] is True, self.lr.get("reason")
+
+    def test_picks_recovery_not_degenerate_start(self):
+        # 應抓 trough(~60) -> 回升高(~88)，而非起點退化的 ~0% 波段
+        assert 58 < self.lr["swing_low"] < 62
+        assert 85 < self.lr["swing_high"] < 92   # < peak=100 證明非起點高點
+        assert self.lr["amplitude_pct"] > 25
+
+    def test_swing_dates_ordered(self):
+        assert self.lr["swing_low_date"] <= self.lr["swing_high_date"]
 
 
 # ---------- applicable=False 各防線 ----------
