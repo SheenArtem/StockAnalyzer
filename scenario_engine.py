@@ -660,7 +660,10 @@ def generate_action_plan(df, scenario, is_us_stock=False, strategy_params=None, 
 # ============================================================
 
 LEFT_RIGHT_MIN_BARS = 120
-LEFT_RIGHT_MIN_SWING_PCT = 25.0
+# 15.0 (2026-06-10, 原 25.0)：2179 檔 universe scan — 25% 擋掉 264 檔階距≥0.8 ATR 的有意義
+# 低波股階梯（中華電型）。ATR 自適應門檻因 ATR(14) 月漂 CV~30% 會害邊界股月際翻面而不採；
+# 改純振幅 15%（結構量、黏性高）+ 窄階註記（rung_gap_atr < 1.0 誠實標示，不二元封殺）。
+LEFT_RIGHT_MIN_SWING_PCT = 15.0
 # --- 結構吸附 (2026-06-10)：Fib 階梯吸附到鄰近真實結構，純幾何分數 -> 可辨識支撐 ---
 LEFT_RIGHT_SNAP_PCT = 0.012    # 容差：價位的 1.2%
 LEFT_RIGHT_SNAP_ATR = 0.4      # 容差：0.4 x ATR（高波股自動放寬）
@@ -847,6 +850,9 @@ def generate_left_right_plan(df, lookback=250):
         'swing_high_date': _fmt_date(pos_high),
         'amplitude_pct': round(amp_pct, 1),
         'current_price': round(close, 2),
+        'rung_gap_atr': round(rung_gap / atr, 2) if atr > 0 else None,
+        'narrow_rung_note': (f'階距僅 {rung_gap / atr:.1f}×ATR，分批間隔窄，可考慮併批執行'
+                             if atr > 0 and rung_gap / atr < 1.0 else None),
         'left_ladder': [
             {'pct': '23.6%', 'price': snapped[23.6], 'fib_price': fib[23.6],
              'confluence': conf[23.6], 'action': '首批 1/4'},

@@ -1125,6 +1125,8 @@ def _build_left_right_plan(df_day):
                          f"   # Fib {r['fib_price']}")
         else:
             lines.append(f"    {r['pct']} -> {r['price']}  {r['action']}（僅 Fib）")
+    if lr.get('narrow_rung_note'):
+        lines.append(f"  ⚠️ {lr['narrow_rung_note']}")
     inv_tag = (f"（{lr['invalidation_confluence']}, Fib {lr['invalidation_fib']}）"
                if lr.get('invalidation_confluence') else "")
     lines.append(

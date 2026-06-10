@@ -229,6 +229,46 @@ class TestVRecoverySwing:
         assert self.lr["swing_low_date"] <= self.lr["swing_high_date"]
 
 
+def _make_mid_swing_df(**kw):
+    """20.5% 中型波段（97.9 -> 118）：舊 25% 門檻擋掉、15% 門檻放行"""
+    defaults = dict(base=100.0, dip_low=97.9, peak=118.0, end_close=112.0)
+    defaults.update(kw)
+    return _make_swing_df(**defaults)
+
+
+class TestGate15:
+    """2026-06-10 universe scan 後 gate 25% -> 15%（純振幅、零 ATR，避免月際翻面）"""
+
+    def test_mid_swing_now_applicable(self):
+        lr = generate_left_right_plan(_make_mid_swing_df())
+        assert lr["applicable"] is True
+        assert 15 < lr["amplitude_pct"] < 25  # 舊 25% 門檻下會被擋
+
+    def test_below_15_still_blocked(self):
+        df = _make_swing_df(dip_low=99.0, peak=112.0, end_close=108.0)  # ~13.1%
+        lr = generate_left_right_plan(df)
+        assert lr["applicable"] is False
+        assert "15%" in lr["reason"]
+
+
+class TestNarrowRungNote:
+    """階距 < 1 ATR 誠實註記（不二元封殺）；ATR 只活在這個警告字串"""
+
+    def test_note_when_rung_gap_below_1atr(self):
+        df = _make_mid_swing_df()
+        df["ATR"] = 5.0  # 階距 0.118x20.1=2.37 -> 0.47xATR
+        lr = generate_left_right_plan(df)
+        assert lr["rung_gap_atr"] < 1.0
+        assert "併批" in lr["narrow_rung_note"]
+
+    def test_no_note_when_wide(self):
+        df = _make_mid_swing_df()
+        df["ATR"] = 0.5
+        lr = generate_left_right_plan(df)
+        assert lr["rung_gap_atr"] > 1.0
+        assert lr["narrow_rung_note"] is None
+
+
 # ---------- applicable=False 各防線 ----------
 
 class TestNotApplicable:
@@ -325,6 +365,13 @@ class TestPromptBuilder:
         assert "整數關卡 250" in txt   # 23.6% 吸附來源
         assert "# Fib 251.62" in txt  # 吸附階保留 Fib 原位註解
         assert "僅 Fib" in txt        # 未吸附階誠實標示
+
+    def test_narrow_rung_note_rendered(self):
+        from ai_report import _build_left_right_plan
+        df = _make_mid_swing_df()
+        df["ATR"] = 5.0
+        txt = _build_left_right_plan(df)
+        assert "併批" in txt
 
     def test_not_applicable_one_liner(self):
         from ai_report import _build_left_right_plan
