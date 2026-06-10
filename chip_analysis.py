@@ -89,6 +89,15 @@ class ChipAnalyzer:
             if not df_sbl.empty: df_sbl.index = pd.to_datetime(df_sbl.index)
             return {"institutional": df_inst, "margin": df_margin, "day_trading": df_dt, "shareholding": df_sh, "sbl": df_sbl}, None
 
+        # scan_mode 只需要 institutional：inst hit 即可直接回，不被 margin 等 4 個
+        # miss 拖去整路重抓 (2026-06-10：FinMind 額度爆時那 4 個永遠存不進快取，
+        # 全 hit 永遠 fail，害最慢的法人 TWSE 逐日掃描每次重跑 — 3324 報告 17 分鐘根因)
+        if scan_mode and stat_inst == "hit" and df_inst is not None and not df_inst.empty:
+            df_inst.index = pd.to_datetime(df_inst.index)
+            return {"institutional": df_inst, "margin": pd.DataFrame(),
+                    "day_trading": pd.DataFrame(), "shareholding": pd.DataFrame(),
+                    "sbl": pd.DataFrame()}, None
+
         # 準備增量或全量抓取
         logger.info("Fetching chip data for %s (cache miss)", stock_id)
 
@@ -101,24 +110,46 @@ class ChipAnalyzer:
         try:
             twse_inst_ok = False
 
+            # 0th: 快取已 hit 直接復用 (2026-06-10) — 原本只有 5 資料集全 hit 才用
+            # 快取，任一 miss 就連 inst 一起重抓；inst 是最貴的一段 (TWSE 逐日掃描)
+            if stat_inst == "hit" and df_inst is not None and not df_inst.empty:
+                df_inst.index = pd.to_datetime(df_inst.index)
+                results['institutional'] = df_inst
+                twse_inst_ok = True
+
             # 1st: try TWSE/TPEX official API (free, no token, no rate limit)
-            try:
-                from twse_api import TWSEOpenData
-                twse = TWSEOpenData()
-                # Determine market: try TWSE first, then TPEX
-                twse_df = twse.get_institutional_trading(stock_id, days=10)
-                if twse_df.empty:
-                    twse_df = twse.get_tpex_institutional(stock_id, days=10)
-                if not twse_df.empty:
-                    logger.debug("%s institutional: TWSE/TPEX official API (%d days)", stock_id, len(twse_df))
-                    # Add '合計' alias for compatibility with analysis_engine
-                    if '合計' in twse_df.columns and '三大法人合計' not in twse_df.columns:
-                        twse_df['三大法人合計'] = twse_df['合計']
-                    df_inst = twse_df
-                    results['institutional'] = df_inst
-                    twse_inst_ok = True
-            except Exception as e:
-                logger.debug("TWSE/TPEX institutional failed for %s: %s", stock_id, e)
+            if not twse_inst_ok:
+                try:
+                    from twse_api import TWSEOpenData
+                    twse = TWSEOpenData()
+                    # 用對照表 type 直接路由交易所 (2026-06-10)：上櫃股原本先掃
+                    # TWSE 10 天逐日查詢、TWSE 慢時 4-6 分鐘才 fallback TPEX (3324 實例)
+                    market = None
+                    try:
+                        from cache_manager import get_tw_stock_info
+                        _info = get_tw_stock_info()
+                        if _info is not None and 'type' in _info.columns:
+                            _row = _info[_info['stock_id'].astype(str) == stock_id]
+                            if not _row.empty:
+                                market = str(_row['type'].iloc[0]).lower()
+                    except Exception:
+                        pass
+                    if market == 'tpex':
+                        twse_df = twse.get_tpex_institutional(stock_id, days=10)
+                    else:
+                        twse_df = twse.get_institutional_trading(stock_id, days=10)
+                        if twse_df.empty and market != 'twse':
+                            twse_df = twse.get_tpex_institutional(stock_id, days=10)
+                    if not twse_df.empty:
+                        logger.debug("%s institutional: TWSE/TPEX official API (%d days)", stock_id, len(twse_df))
+                        # Add '合計' alias for compatibility with analysis_engine
+                        if '合計' in twse_df.columns and '三大法人合計' not in twse_df.columns:
+                            twse_df['三大法人合計'] = twse_df['合計']
+                        df_inst = twse_df
+                        results['institutional'] = df_inst
+                        twse_inst_ok = True
+                except Exception as e:
+                    logger.debug("TWSE/TPEX institutional failed for %s: %s", stock_id, e)
 
             # 2nd: fallback to FinMind (for longer history or if TWSE failed)
             if not twse_inst_ok:

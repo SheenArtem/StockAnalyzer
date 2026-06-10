@@ -1525,8 +1525,11 @@ def _build_dcf_panel_context(ticker):
         return f"N/A (DCF panel failed: {e})"
 
 
-def _build_sentiment_context(ticker):
+def _build_sentiment_context(ticker, chip_data=None):
     """[SENTIMENT_CONTEXT] 市場情緒 vs 個股情緒對比 (2026-05-01 Day 3 加).
+
+    chip_data: 復用上游已抓的籌碼 dict (2026-06-10)；不傳會在 sentiment 內
+    重抓一次 ChipAnalyzer — 3324 實測這條重複抓取吃掉 376s。
 
     用 market_sentiment.get_sentiment_divergence() 輸出兩個 -100~+100 score
     + 4 種對比訊號 (個股獨立催化 / 個股逆風 / 相對強弱 / 跟盤同步)。
@@ -1540,7 +1543,7 @@ def _build_sentiment_context(ticker):
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
     try:
         from market_sentiment import get_sentiment_divergence
-        d = get_sentiment_divergence(stock_id)
+        d = get_sentiment_divergence(stock_id, chip_data=chip_data)
         m = d['market']
         s = d['stock']
         lines = [
@@ -1818,7 +1821,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}")
     data_sections.append(f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}")
     data_sections.append(f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}")
-    data_sections.append(f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}")
+    data_sections.append(f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker, chip_data=chip_data)}")
     data_sections.append(f"[MARKET_HEDGING_CONTEXT]\n{_build_market_hedging_context()}")
     data_sections.append(f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}")
     data_sections.append(f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}")
@@ -1960,7 +1963,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[ANALYST_CONSENSUS]\n{_build_analyst_consensus(ticker)}",
         f"[PEER_COMPARISON]\n{_build_peer_data(ticker, fund_data)}",
         f"[THEME_CONTEXT]\n{_build_theme_context(ticker)}",
-        f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker)}",
+        f"[SENTIMENT_CONTEXT]\n{_build_sentiment_context(ticker, chip_data=chip_data)}",
         f"[MARKET_HEDGING_CONTEXT]\n{_build_market_hedging_context()}",
         f"[NEWS_THEMES]\n{_build_news_themes_context(ticker)}",
         f"[FORWARD_GUIDANCE]\n{_build_forward_guidance_context(ticker)}",
