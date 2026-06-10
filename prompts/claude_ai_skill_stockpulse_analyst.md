@@ -176,7 +176,7 @@ Do NOT paste the JSON in chat. Do NOT explain the HTML structure. The user wants
       { fib: string, price: number, implied_pe: string, action: string }
       // fib = "23.6%"; price VERBATIM from left_ladder in [LEFT_RIGHT_PLAN];
       // implied_pe = price ÷ Forward EPS from [ANALYST_CONSENSUS], e.g. "54x", or "N/A";
-      // action = "首批 1/4" / "加碼 1/4" / "加碼 1/4" / "末批 1/4"
+      // action VERBATIM incl. structure-confluence tag, e.g. "首批 1/4（前波高點 06-03）" / "加碼 1/4（僅 Fib）"
     ],
     invalidation: string,        // "跌破 XXX（78.6%）視為長多論述受損，左側部位停損出場" — XXX VERBATIM from invalidation_786
     sizing_left: string,         // "部位採 1/4 Kelly；總曝險上限 ≤ 投組 3-5%"

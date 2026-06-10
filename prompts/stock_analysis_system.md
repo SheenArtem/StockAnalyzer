@@ -186,10 +186,12 @@
 
 | 回測 | 價位 | 隱含 Forward PE | 動作 |
 |------|------|----------------|------|
-| 23.6% | verbatim | 價位 ÷ Forward EPS | 首批 1/4 |
-| 38.2% | verbatim | 同上 | 加碼 1/4 |
-| 50.0% | verbatim | 同上 | 加碼 1/4 |
-| 61.8% | verbatim | 同上 | 末批 1/4 |
+| 23.6% | verbatim | 價位 ÷ Forward EPS | verbatim |
+| 38.2% | verbatim | 同上 | verbatim |
+| 50.0% | verbatim | 同上 | verbatim |
+| 61.8% | verbatim | 同上 | verbatim |
+
+- 動作欄 verbatim 引用 [LEFT_RIGHT_PLAN] 各階 action（含結構吸附註記，例「首批 1/4（前波高點 06-03）」「加碼 1/4（僅 Fib）」）
 
 - 部位採 1/4 Kelly；總曝險上限建議 ≤ 投組 3-5%
 - **跌破 invalidation_786 價位（verbatim）視為長多論述受損，左側部位停損出場**

@@ -153,7 +153,8 @@
     narrative_left: string,  // 30-60 字左側敘事前提（引用本報告長線 thesis，為何值得逆勢承接）
     left_ladder: [           // 必 4 筆，順序 23.6% → 61.8%
       { fib: string, price: number, implied_pe: string, action: string }
-      // fib = "23.6%"; price verbatim; implied_pe = "70x" 或 "N/A"; action = "首批 1/4" / "加碼 1/4" / "末批 1/4"
+      // fib = "23.6%"; price verbatim; implied_pe = "70x" 或 "N/A";
+      // action 也 verbatim（含結構吸附註記），例 "首批 1/4（前波高點 06-03）" / "加碼 1/4（僅 Fib）"
     ],
     invalidation: string,    // "跌破 XXX（78.6%）視為長多論述受損，停損出場"（XXX verbatim）
     sizing_left: string,     // "部位採 1/4 Kelly；總曝險上限 ≤ 投組 3-5%"
