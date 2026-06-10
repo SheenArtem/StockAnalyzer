@@ -71,8 +71,9 @@ SECTOR_SCENARIOS = {
     "default":    {"Bull": (0.12, 0.04), "Base": (0.06, 0.03),  "Bear": (0.00,  0.02)},  # 同舊行為
 }
 
-STOCK_INFO_CACHE_PATH = REPO / "data_cache" / "tw_stock_info.parquet"
-STOCK_INFO_TTL_DAYS = 7
+# TaiwanStockInfo 對照表 2026-06-10 收斂至 cache_manager.get_tw_stock_info()
+# (3 層快取 data_cache/tw_stock_info.csv)；舊自帶 parquet cache + raw requests
+# (繞過 FinMindTracker 額度計數) 已移除。
 
 
 # ============================================================
@@ -325,45 +326,29 @@ _STOCK_INFO_MEM: Optional[dict] = None  # session-level in-memory map
 
 
 def _load_stock_info() -> dict:
-    """回 {stock_id: industry_category}。優先讀 7 天 disk cache，過期才打 FinMind。
-    Session 內 in-memory hit 不再 file IO。"""
+    """回 {stock_id: industry_category}。走 cache_manager.get_tw_stock_info() 3 層快取
+    (memory -> disk 7天 -> FinMind，失敗回 stale disk)，與全專案共用同一份對照表。"""
     global _STOCK_INFO_MEM
     if _STOCK_INFO_MEM is not None:
         return _STOCK_INFO_MEM
-    # 嘗試 disk cache
-    if STOCK_INFO_CACHE_PATH.exists():
-        age_days = (time.time() - STOCK_INFO_CACHE_PATH.stat().st_mtime) / 86400
-        if age_days <= STOCK_INFO_TTL_DAYS:
-            try:
-                df = pd.read_parquet(STOCK_INFO_CACHE_PATH)
-                _STOCK_INFO_MEM = dict(zip(df["stock_id"], df["industry_category"]))
-                logger.debug("tw_stock_info disk HIT (%d entries, age %.1fd)", len(_STOCK_INFO_MEM), age_days)
-                return _STOCK_INFO_MEM
-            except Exception as e:
-                logger.warning("tw_stock_info disk read failed: %s", e)
-    # Fresh fetch
     try:
-        params = {"dataset": "TaiwanStockInfo"}
-        if TOKEN:
-            params["token"] = TOKEN
-        r = requests.get(FINMIND_URL, params=params, timeout=30)
-        r.raise_for_status()
-        df = pd.DataFrame(r.json().get("data", []))
-        if df.empty:
+        import sys
+        if str(REPO) not in sys.path:
+            sys.path.insert(0, str(REPO))
+        from cache_manager import get_tw_stock_info
+        df = get_tw_stock_info()
+        if df is not None and not df.empty:
+            if "date" in df.columns:
+                df = df.sort_values("date").drop_duplicates("stock_id", keep="last")
+            else:
+                df = df.drop_duplicates("stock_id", keep="last")
+            _STOCK_INFO_MEM = dict(zip(df["stock_id"], df["industry_category"]))
+        else:
             _STOCK_INFO_MEM = {}
-            return _STOCK_INFO_MEM
-        df = df.sort_values("date").drop_duplicates("stock_id", keep="last")
-        try:
-            STOCK_INFO_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            df[["stock_id", "industry_category"]].to_parquet(STOCK_INFO_CACHE_PATH)
-        except Exception as e:
-            logger.warning("tw_stock_info disk write failed: %s", e)
-        _STOCK_INFO_MEM = dict(zip(df["stock_id"], df["industry_category"]))
-        return _STOCK_INFO_MEM
     except Exception as e:
-        logger.warning("TaiwanStockInfo fetch failed: %s", e)
+        logger.warning("TaiwanStockInfo load failed: %s", e)
         _STOCK_INFO_MEM = {}
-        return _STOCK_INFO_MEM
+    return _STOCK_INFO_MEM
 
 
 def _classify_sector(industry: str) -> str:
