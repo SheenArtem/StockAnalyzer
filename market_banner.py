@@ -195,9 +195,116 @@ def _load_index_last_good(ticker):
     return None
 
 
+# 美股指數第二來源：FRED 官方 close-only 序列 (2026-06-10)。yfinance 幽靈 NaN/
+# 整掛時補位；實測 api.stlouisfed.org JSON 帶 key 0.5s（歷史 timeout 的是無 key
+# 的 fredgraph.csv 端點，勿混淆）。只有 Close → KD 算不出留 None。
+_FRED_INDEX_SID = {'^GSPC': 'SP500', '^IXIC': 'NASDAQCOM'}
+
+
+def _load_fred_key():
+    try:
+        env = Path(__file__).resolve().parent / 'local' / '.env'
+        if env.exists():
+            for line in env.read_text(encoding='utf-8').splitlines():
+                if line.strip().startswith('FRED_API_KEY='):
+                    return line.split('=', 1)[1].strip() or None
+    except Exception:
+        pass
+    return None
+
+
+def _fetch_index_close_fred(ticker):
+    """回 pd.Series (DatetimeIndex, close) 或 None。僅支援 _FRED_INDEX_SID 內指數。"""
+    sid = _FRED_INDEX_SID.get(ticker)
+    if not sid:
+        return None
+    key = _load_fred_key()
+    if not key:
+        return None
+    try:
+        import requests
+        start = (datetime.now() - timedelta(days=300)).strftime('%Y-%m-%d')
+        r = requests.get('https://api.stlouisfed.org/fred/series/observations',
+                         params={'series_id': sid, 'api_key': key, 'file_type': 'json',
+                                 'observation_start': start},
+                         timeout=15)
+        r.raise_for_status()
+        obs = r.json().get('observations', [])
+        s = pd.Series({o['date']: float(o['value'])
+                       for o in obs if o.get('value') not in ('.', '', None)})
+        if s.empty:
+            return None
+        s.index = pd.to_datetime(s.index)
+        return s.sort_index()
+    except Exception as e:
+        logger.warning("FRED index fallback failed for %s: %s", ticker, e)
+        return None
+
+
+def _close_metrics(result, close):
+    """從 Close 序列算 price/change/乖離/rv（KD 需 High/Low，不在此）。"""
+    result['price'] = round(float(close.iloc[-1]), 2)
+    if len(close) >= 2:
+        prev = float(close.iloc[-2])
+        if prev > 0:
+            result['change_pct'] = round((close.iloc[-1] / prev - 1) * 100, 2)
+    ma20 = close.rolling(20).mean().iloc[-1]
+    if pd.notna(ma20) and ma20 > 0:
+        result['ma20_bias'] = round((close.iloc[-1] / ma20 - 1) * 100, 2)
+    ma60 = close.rolling(60).mean().iloc[-1]
+    if pd.notna(ma60) and ma60 > 0:
+        result['ma60_bias'] = round((close.iloc[-1] / ma60 - 1) * 100, 2)
+    if len(close) >= 30:
+        log_ret = np.log(close / close.shift(1))
+        result['rv10'] = float(log_ret.iloc[-10:].std() * np.sqrt(252))
+        result['rv30'] = float(log_ret.iloc[-30:].std() * np.sqrt(252))
+
+
+def _finalize_index_result(ticker, result):
+    """收口（所有 return 路徑必經，否則繞過回退鏈）：
+
+    price 無效視同失敗 → 失敗先試 FRED 第二來源（^GSPC/^IXIC, close-only）
+    → 仍失敗回 last-good stale → 成功值落盤。
+    """
+    try:
+        if result.get('error') is None and (
+                result.get('price') is None or pd.isna(result.get('price'))):
+            result['error'] = 'price NaN/unavailable'
+        if result.get('error') is not None:
+            # 第二來源：FRED（網路級故障/空資料/NaN 全走這裡）。今日實案：yfinance
+            # 6/9 bar 整根 NaN，FRED 反而有 6/9 收盤。
+            close_f = _fetch_index_close_fred(ticker)
+            if close_f is not None and len(close_f) >= 60:
+                logger.warning("index %s yfinance failed (%s) -- FRED 第二來源補位 (%s)",
+                               ticker, result.get('error'), close_f.index[-1].date())
+                try:
+                    result['data_date'] = close_f.index[-1].date()
+                    _close_metrics(result, close_f)
+                    result['k'] = None   # close-only 無 High/Low，KD 不可算
+                    result['d'] = None
+                    result['source'] = 'FRED'
+                    result['error'] = None
+                except Exception as e:
+                    logger.warning("FRED metrics compute failed for %s: %s", ticker, e)
+        if result.get('error') is None:
+            _save_index_last_good(ticker, result)
+        else:
+            stale = _load_index_last_good(ticker)
+            if stale is not None:
+                logger.warning("index %s fetch degraded (%s) -- 回退 last-good (data_date=%s)",
+                               ticker, result.get('error'), stale.get('data_date'))
+                return stale
+    except Exception as e:
+        logger.debug("index last-good guard failed %s: %s", ticker, e)
+    return result
+
+
 def _fetch_index_metrics(ticker, name):
     """
     抓指數 OHLCV 並計算月線/季線乖離率 + KD + rv10/rv30（年化波動）。
+
+    來源鏈：yfinance (OHLC 全指標) → FRED close-only (^GSPC/^IXIC, KD=None)
+    → last-good 落盤 stale 回退。
 
     Returns
     -------
@@ -218,7 +325,7 @@ def _fetch_index_metrics(ticker, name):
             df = df[df['Close'].notna()]
         if df.empty or len(df) < 60:
             result['error'] = 'data insufficient'
-            return result
+            return _finalize_index_result(ticker, result)  # 收口統一走 FRED -> stale
 
         close = df['Close']
         high = df['High']
@@ -230,22 +337,8 @@ def _fetch_index_metrics(ticker, name):
         except Exception:
             pass
 
-        # 現價 + 漲跌幅
-        result['price'] = round(float(close.iloc[-1]), 2)
-        if len(close) >= 2:
-            prev = float(close.iloc[-2])
-            if prev > 0:
-                result['change_pct'] = round((close.iloc[-1] / prev - 1) * 100, 2)
-
-        # 月線乖離率（MA20）
-        ma20 = close.rolling(20).mean().iloc[-1]
-        if pd.notna(ma20) and ma20 > 0:
-            result['ma20_bias'] = round((close.iloc[-1] / ma20 - 1) * 100, 2)
-
-        # 季線乖離率（MA60）
-        ma60 = close.rolling(60).mean().iloc[-1]
-        if pd.notna(ma60) and ma60 > 0:
-            result['ma60_bias'] = round((close.iloc[-1] / ma60 - 1) * 100, 2)
+        # 現價/漲跌幅/乖離/rv（共用 close-only helper；KD 在下方需 High/Low）
+        _close_metrics(result, close)
 
         # KD (9, 3, 3)
         n = 9
@@ -258,13 +351,6 @@ def _fetch_index_metrics(ticker, name):
         d = k.ewm(com=2, adjust=False).mean()
         result['k'] = round(float(k.iloc[-1]), 1)
         result['d'] = round(float(d.iloc[-1]), 1)
-
-        # rv10 / rv30 (年化已實現波動 = log return std × √252)
-        # 順手算出，給 risk_score compose 用，避免重抓 yfinance 一次
-        if len(close) >= 30:
-            log_ret = np.log(close / close.shift(1))
-            result['rv10'] = float(log_ret.iloc[-10:].std() * np.sqrt(252))
-            result['rv30'] = float(log_ret.iloc[-30:].std() * np.sqrt(252))
 
         # 盤中 override (僅限台股加權指數)：用 mis.twse 即時點位蓋掉 yfinance close。
         # yfinance ^TWII 在盤中 today bar 由 Yahoo 後端隨機生成，常常停在昨日收盤。
@@ -292,22 +378,7 @@ def _fetch_index_metrics(ticker, name):
         logger.warning("Failed to fetch index %s: %s", ticker, e)
         result['error'] = str(e)
 
-    # 三層保證收口 (2026-06-10)：price 無效視同失敗；成功落盤；失敗回 stale last-good
-    try:
-        if result.get('error') is None and (
-                result.get('price') is None or pd.isna(result.get('price'))):
-            result['error'] = 'price NaN/unavailable'
-        if result.get('error') is None:
-            _save_index_last_good(ticker, result)
-        else:
-            stale = _load_index_last_good(ticker)
-            if stale is not None:
-                logger.warning("index %s fetch degraded (%s) -- 回退 last-good (data_date=%s)",
-                               ticker, result.get('error'), stale.get('data_date'))
-                return stale
-    except Exception as e:
-        logger.debug("index last-good guard failed %s: %s", ticker, e)
-    return result
+    return _finalize_index_result(ticker, result)
 
 
 # ============================================================

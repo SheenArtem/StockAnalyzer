@@ -62,6 +62,7 @@ All features MUST follow the same priority to avoid data drift:
 | Institutional buy/sell | TWSE/TPEX official | FinMind | Unified at ChipAnalyzer layer |
 | OHLCV daily | Disk cache | FinMind → yfinance | `load_and_resample()` |
 | OHLCV intraday (盤中 today bar) | mis.twse 即時 JSON | FinMind/yfinance daily fallback | TW only, 9:00-13:30；`mis_twse_client.get_quote()`；單檔/banner 用，**禁批次掃**（社群實測 5sec/3req 上限）|
+| 大盤指數 (banner ^TWII/^GSPC/^IXIC/^SOX) | yfinance（NaN 尾列過濾）| ^GSPC/^IXIC → **FRED API close-only**（帶 key 0.5s；timeout 前科是無 key 的 fredgraph CSV 端點）→ last-good 落盤 stale；^TWII/^SOX → last-good | `market_banner._fetch_index_metrics`；FRED 路徑無 KD；失敗結果只短快取 5min |
 | Fundamentals (PE/PB) | yfinance + FinMind | TradingView fill | `get_fundamentals()` |
 | Margin/ROE/ROA | TradingView Screener | — | TW + US unified |
 | Margin trading / day trade / holdings | FinMind | — | No alternative |
