@@ -18,7 +18,10 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 from typing import Any, Dict
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +63,35 @@ def get_market_sentiment_score() -> Dict[str, Any]:
       data_date: str
     """
     try:
-        from taifex_data import TaiwanFearGreedIndex
-        fgi = TaiwanFearGreedIndex().calculate()
-        raw = fgi.get('score', 50.0)
+        raw = None
+        components = {}
+        data_date = None
+        # 先讀排程日更 archive (banner 同款 archiver pattern, 2026-06-10)：
+        # 即時重算要抓 TWSE+TPEX 全市場 ~25s/次，archive <0.1s；EOD 值對情緒對比足夠。
+        # stale >3 天 = 排程死了 → fail-loud warning + fallback 即時算。
+        try:
+            import json as _json
+            _p = os.path.join('data', 'sentiment', 'tw_fgi_history.parquet')
+            if os.path.exists(_p):
+                _row = pd.read_parquet(_p).iloc[-1]
+                _age = (pd.Timestamp.now() - pd.Timestamp(_row['date'])).days
+                if _age <= 3:
+                    raw = float(_row['score'])
+                    data_date = str(_row.get('data_date', _row['date']))
+                    try:
+                        components = _json.loads(_row.get('components_json') or '{}')
+                    except Exception:
+                        components = {}
+                else:
+                    logger.warning("tw_fgi archive stale (%d 天), fallback 即時計算", _age)
+        except Exception as e:
+            logger.warning("tw_fgi archive 讀取失敗 (%s), fallback 即時計算", e)
+        if raw is None:
+            from taifex_data import TaiwanFearGreedIndex
+            fgi = TaiwanFearGreedIndex().calculate()
+            raw = fgi.get('score', 50.0)
+            components = fgi.get('components', {})
+            data_date = fgi.get('data_date')
         score = round((raw - 50) * 2, 1)  # 0-100 → -100~+100
     except Exception as e:
         logger.warning("TaiwanFearGreedIndex 計算失敗: %s", e)
@@ -98,9 +127,9 @@ def get_market_sentiment_score() -> Dict[str, Any]:
         'score': score,
         'label': _score_to_label(score),
         'raw_fgi': raw,
-        'components': fgi.get('components', {}),
+        'components': components,
         'm1b_overlay': m1b_overlay,
-        'data_date': fgi.get('data_date'),
+        'data_date': data_date,
     }
 
 
