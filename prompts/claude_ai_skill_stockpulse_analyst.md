@@ -179,7 +179,7 @@ Do NOT paste the JSON in chat. Do NOT explain the HTML structure. The user wants
       // action VERBATIM incl. structure-confluence tag, e.g. "首批 1/4（前波高點 06-03）" / "加碼 1/4（僅 Fib）"
     ],
     invalidation: string,        // "跌破 XXX（78.6%）視為長多論述受損，左側部位停損出場" — XXX VERBATIM from invalidation_786
-    sizing_left: string,         // "部位採 1/4 Kelly；總曝險上限 ≤ 投組 3-5%"
+    sizing_left: string,         // "分批各 1/4 倉位；總曝險上限 ≤ 投組 3-5%"
     narrative_right: string,     // 30-60 chars: trend-confirmation logic (no catching knives)
     right_entries: [             // EXACTLY 2
       { label: string, condition: string }
@@ -189,7 +189,7 @@ Do NOT paste the JSON in chat. Do NOT explain the HTML structure. The user wants
     catalysts: string,           // 1-3 dated events from [EARNINGS_CALENDAR] / [FORWARD_GUIDANCE] / [MATERIAL_EVENTS]
     right_stop: string,          // "跌破 XXX（38.2% 結構頸線）或失守上彎均線" — XXX VERBATIM from stop_structural
     right_trailing: string,      // "沿上彎 20MA 拖曳，避免急殺回吐"
-    sizing_right: string,        // "盈虧比 ≥ 2 再進場，初始 1/4 Kelly，確認趨勢再金字塔加碼"
+    sizing_right: string,        // "盈虧比 ≥ 2 再進場，初始 1/4 倉位，確認趨勢再金字塔加碼"
   } | null,
 }
 ```
@@ -681,7 +681,7 @@ td.right { text-align: right; }
       {"fib": "61.8%", "price": 92.27, "implied_pe": "41x", "action": "末批 1/4"}
     ],
     "invalidation": "跌破 $79.84（78.6%）視為長多論述受損，左側部位停損出場",
-    "sizing_left": "部位採 1/4 Kelly；總曝險上限建議 ≤ 投組 3-5%",
+    "sizing_left": "分批各 1/4 倉位；總曝險上限建議 ≤ 投組 3-5%",
     "narrative_right": "不預測拐點、等趨勢確認；以突破帶量 + 均線多排為進場依據。",
     "right_entries": [
       {"label": "進場 A", "condition": "站穩前高 $138.00 - $141.45 帶量突破 → 順勢看 $158.13 - $183.73"},
@@ -690,7 +690,7 @@ td.right { text-align: right; }
     "catalysts": "Arc 網路 2026H2 商業化進度；CLARITY Act 參院審議",
     "right_stop": "跌破 $109.73（38.2% 結構頸線）或失守上彎均線",
     "right_trailing": "沿上彎 20MA 拖曳，避免急殺回吐",
-    "sizing_right": "盈虧比 ≥ 2 再進場，初始 1/4 Kelly，確認趨勢再金字塔加碼"
+    "sizing_right": "盈虧比 ≥ 2 再進場，初始 1/4 倉位，確認趨勢再金字塔加碼"
   }
 }
 </script>
@@ -1054,7 +1054,6 @@ function renderLR() {
       <div class="lr-grid">
         <div class="lr-card left">
           <div class="lr-card-title">左側 · 逆勢分批</div>
-          <span class="smallcaps">黎明前布局 · CONTRARIAN LADDER</span>
           ${lr.narrative_left ? `<p class="lr-narrative">${lr.narrative_left}</p>` : ''}
           <table>
             <thead><tr>
@@ -1078,7 +1077,6 @@ function renderLR() {
         </div>
         <div class="lr-card right">
           <div class="lr-card-title">右側 · 順勢突破</div>
-          <span class="smallcaps">CTA 紀律 · TREND CONFIRMATION</span>
           ${lr.narrative_right ? `<p class="lr-narrative">${lr.narrative_right}</p>` : ''}
           ${(lr.right_entries || []).map(e => `
             <div class="lr-line"><span class="lr-line-label" style="color: var(--bull);">${e.label}</span><span>${e.condition}</span></div>

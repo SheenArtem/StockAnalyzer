@@ -157,7 +157,7 @@
       // action 也 verbatim（含結構吸附註記），例 "首批 1/4（前波高點 06-03）" / "加碼 1/4（僅 Fib）"
     ],
     invalidation: string,    // "跌破 XXX（78.6%）視為長多論述受損，停損出場"（XXX verbatim）
-    sizing_left: string,     // "部位採 1/4 Kelly；總曝險上限 ≤ 投組 3-5%"
+    sizing_left: string,     // "分批各 1/4 倉位；總曝險上限 ≤ 投組 3-5%"
     narrative_right: string, // 30-60 字右側論述（不預測拐點、等趨勢確認的理由）
     right_entries: [         // 必 2 筆：進場 A（突破）+ 進場 B（收復 20MA）
       { label: string, condition: string }
@@ -166,7 +166,7 @@
     catalysts: string,       // 催化檢查點：從 [EARNINGS_CALENDAR]/[FORWARD_GUIDANCE]/[MATERIAL_EVENTS] 挑 1-3 個近期事件（含日期）
     right_stop: string,      // "跌破 XXX（38.2% 結構頸線）或失守上彎均線"（XXX verbatim from stop_structural）
     right_trailing: string,  // "沿上彎 20MA 拖曳，避免急殺回吐"
-    sizing_right: string,    // "盈虧比 ≥ 2 再進場，初始 1/4 Kelly，確認趨勢再金字塔加碼"
+    sizing_right: string,    // "盈虧比 ≥ 2 再進場，初始 1/4 倉位，確認趨勢再金字塔加碼"
   } | null,
 }
 ```

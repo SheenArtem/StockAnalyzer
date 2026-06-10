@@ -668,7 +668,7 @@ function App() {
                 <h2 className="text-sm font-bold text-amber-300 mb-3">⚖️ 左側 | 右側策略{D.left_right.posture ? <span className="text-slate-500 font-normal ml-2">{D.left_right.posture}</span> : null}</h2>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Card className="border-l-4 border-l-emerald-500">
-                    <h3 className="text-sm font-bold text-emerald-300 mb-2">左側 · 逆勢分批（黎明前布局）</h3>
+                    <h3 className="text-sm font-bold text-emerald-300 mb-2">左側 · 逆勢分批</h3>
                     {D.left_right.narrative_left && <p className="text-xs text-slate-400 mb-3">{D.left_right.narrative_left}</p>}
                     <table className="w-full text-xs">
                       <thead>
@@ -694,7 +694,7 @@ function App() {
                     {D.left_right.invalidation && <p className="text-[10px] text-red-400 mt-1">· {D.left_right.invalidation}</p>}
                   </Card>
                   <Card className="border-l-4 border-l-rose-500">
-                    <h3 className="text-sm font-bold text-rose-300 mb-2">右側 · 順勢突破（CTA 紀律）</h3>
+                    <h3 className="text-sm font-bold text-rose-300 mb-2">右側 · 順勢突破</h3>
                     {D.left_right.narrative_right && <p className="text-xs text-slate-400 mb-3">{D.left_right.narrative_right}</p>}
                     <div className="grid gap-2 text-xs">
                       {(D.left_right.right_entries || []).map((e, i) => (
