@@ -77,6 +77,35 @@ def _safe_val(v, fmt=".2f"):
         return str(v)
 
 
+_WHALE_LATEST_CACHE = (None, None)  # (mtime, df) — latest.parquet 日更，靠 mtime 失效
+
+
+def _get_whale_rank(ticker):
+    """主力選股 composite 在當期 pool 內排名 (informational)。回 (rank, total, score) 或 None。"""
+    global _WHALE_LATEST_CACHE
+    try:
+        stock_id = str(ticker).replace('.TW', '').replace('.TWO', '').strip()
+        if not stock_id.isdigit():
+            return None  # whale pool 僅台股
+        p = os.path.join('data', 'whale_picks', 'latest.parquet')
+        if not os.path.exists(p):
+            return None
+        mt = os.path.getmtime(p)
+        if _WHALE_LATEST_CACHE[0] != mt:
+            _WHALE_LATEST_CACHE = (mt, pd.read_parquet(p, columns=['stock_id', 'composite_score']))
+        df = _WHALE_LATEST_CACHE[1]
+        row = df[df['stock_id'].astype(str) == stock_id]
+        if row.empty or pd.isna(row['composite_score'].iloc[0]):
+            return None
+        score = float(row['composite_score'].iloc[0])
+        scores = df['composite_score'].dropna()
+        rank = int((scores > score).sum()) + 1
+        return rank, len(scores), score
+    except Exception as e:
+        logger.debug("whale rank lookup failed for %s: %s", ticker, e)
+        return None
+
+
 def _build_stock_info(ticker, report, fund_data, df_day):
     """[STOCK_INFO] 基本資訊"""
     lines = []
@@ -107,6 +136,14 @@ def _build_stock_info(ticker, report, fund_data, df_day):
         if 'Volume' in df_day.columns:
             lines.append(f"最新成交量: {_safe_val(last.get('Volume', 0), '.0f')}")
 
+    # 主力選股 production 策略視角 (informational, 不構成買賣訊號)
+    wr = _get_whale_rank(ticker)
+    if wr:
+        rank, total, _score = wr
+        pct = rank / total * 100
+        lines.append(f"主力選股 (Whale) composite 排名: {rank}/{total} "
+                     f"(前 {pct:.0f}%, 當期流動性過濾池內, informational)")
+
     return "\n".join(lines)
 
 
@@ -122,6 +159,8 @@ def _build_trigger_score(report):
     if sc:
         lines.append(f"劇本: {sc.get('code', '?')} - {sc.get('title', '')}")
         lines.append(f"劇本說明: {sc.get('desc', '')}")
+        lines.append("（註: 劇本由週線趨勢層決定，說明為該劇本的定義文字；"
+                     "與上方日線觸發分數可能背離，背離時以實際分數為準）")
 
     # Breakdown
     bd = report.get('trigger_breakdown', {})
@@ -298,12 +337,26 @@ def _build_chip_data(chip_data, us_chip_data, is_us, ticker=None):
     elif not is_us:
         # 台股籌碼
         if chip_data:
+            # 單位標籤 (2026-06-10)：三大法人原始為股，schema foreign_flow 要張數 →
+            # 預轉換 ÷1000 消 LLM 算術風險 (抄成股 = 1000 倍錯)；其餘表標明單位。
+            unit_notes = {
+                'institutional': ', 單位: 張',
+                'margin': ', 單位: 張',
+                'day_trading': '; DayTradingVolume=股, DT_Buy/DT_Sell=金額(元)',
+                'shareholding': ', 單位: %',
+            }
             for key, label in [('institutional', '三大法人'), ('margin', '融資融券'),
                                ('day_trading', '當沖'), ('shareholding', '持股分布')]:
                 df = chip_data.get(key)
                 if df is not None and isinstance(df, pd.DataFrame) and not df.empty:
-                    lines.append(f"\n{label} (近 5 日):")
                     tail = df.tail(5)
+                    note = unit_notes.get(key, '')
+                    if key == 'institutional':
+                        try:
+                            tail = (tail / 1000).round(0).astype('Int64')  # 股 -> 張
+                        except Exception:
+                            note = ', 單位: 股'  # 轉換失敗保留原值並如實標示
+                    lines.append(f"\n{label} (近 5 日{note}):")
                     lines.append(tail.to_string())
 
         # TDCC 集保股權分散（獨立來源，不受 chip_data 缺失影響）
@@ -443,12 +496,17 @@ def _build_fundamental_data(fund_data, ticker):
                     rev = row.get('revenue', 0)
                     yoy = row.get('yoy_pct', 0)
                     mom = row.get('mom_pct', 0)
-                    lines.append(f"  {ym}: {rev:,.0f} (YoY {yoy:+.1f}%, MoM {mom:+.1f}%)")
+                    lines.append(f"  {ym}: {rev/1e8:.2f} 億 (YoY {yoy:+.1f}%, MoM {mom:+.1f}%)")
 
             alert = rt.get_revenue_alert(stock_id)
             if alert and alert.get('alert_text') != '無營收資料':
-                lines.append(f"營收趨勢: {alert.get('trend', 'N/A')}")
-                lines.append(f"連續成長月數: {alert.get('consecutive_growth_months', 0)}")
+                # 帶軸標籤 + 合併一行，原「營收趨勢: 連續衰退」+「連續成長月數: 3」
+                # 相鄰矛盾 (前者 YoY 後者其實也是 YoY 同向計數但標籤寫死「成長」)
+                consec = alert.get('consecutive_growth_months', 0)
+                trend_txt = alert.get('trend', 'N/A')
+                if consec and '連續' in str(trend_txt):
+                    trend_txt = f"{trend_txt} {abs(consec)} 個月"
+                lines.append(f"營收趨勢 (YoY): {trend_txt}")
                 if alert.get('next_announcement_date'):
                     lines.append(f"下次營收公布: {alert['next_announcement_date']} ({alert.get('days_until', 0)} 天後)")
         except Exception as e:
@@ -1057,13 +1115,21 @@ def _build_market_context(report):
     # Claude 從中挑/round/憑空生新數字 → 個股分析 vs AI 報告價位不一致
     ap = report.get('action_plan', {})
     if ap and ap.get('is_actionable'):
+        # 顯示層 round(2) + low/high 正規化 (2026-06-10)：原始 float32 尾數
+        # (36.19999908447265) 配 verbatim hard rule 逼 LLM 抄醜數字或自行 round
+        # 行為不一；post_validate_numbers 的 ground truth 本就 round(2) 故安全。
+        # 「5MA-現價」帶在 5MA > 現價時 low/high 顛倒，這裡保證 low <= high。
+        _lo = float(ap.get('rec_entry_low', 0) or 0)
+        _hi = float(ap.get('rec_entry_high', 0) or 0)
+        if _lo and _hi and _lo > _hi:
+            _lo, _hi = _hi, _lo
         lines.append(f"\nAction Plan (DETERMINISTIC — must be quoted verbatim):")
-        lines.append(f"  rec_entry_low: {ap.get('rec_entry_low', 0)}")
-        lines.append(f"  rec_entry_high: {ap.get('rec_entry_high', 0)}")
+        lines.append(f"  rec_entry_low: {round(_lo, 2)}")
+        lines.append(f"  rec_entry_high: {round(_hi, 2)}")
         lines.append(f"  rec_entry_desc: {ap.get('rec_entry_desc', '')}")
-        lines.append(f"  rec_sl_price: {ap.get('rec_sl_price', 0)}")
+        lines.append(f"  rec_sl_price: {round(float(ap.get('rec_sl_price', 0) or 0), 2)}")
         lines.append(f"  rec_sl_method: {ap.get('rec_sl_method', '')}")
-        lines.append(f"  rec_tp_price: {ap.get('rec_tp_price', 0)}")
+        lines.append(f"  rec_tp_price: {round(float(ap.get('rec_tp_price', 0) or 0), 2)}")
         lines.append(f"  rr_ratio: {_safe_val(ap.get('rr_ratio', 0), '.2f')}")
         lines.append(f"  entry_confidence: {ap.get('entry_confidence', 'standard')}")
         if ap.get('strategy'):
@@ -1262,6 +1328,22 @@ def _build_analyst_consensus(ticker):
                 lines.append(f"  Current Year: {_safe_val(eps_current_yr)}")
             if forward_eps:
                 lines.append(f"  Forward: {_safe_val(forward_eps)}")
+            # 分析師 EPS 預估區間 — eps_forecast bear/bull 的錨點 (有則 LLM 不得自創區間外數字)
+            try:
+                est = t.earnings_estimate
+                if est is not None and not est.empty:
+                    for idx, lbl in (('0y', 'Current Year'), ('+1y', 'Next Year')):
+                        if idx in est.index:
+                            r = est.loc[idx]
+                            if pd.notna(r.get('avg')):
+                                n_txt = (f" (analysts: {int(r['numberOfAnalysts'])})"
+                                         if pd.notna(r.get('numberOfAnalysts')) else "")
+                                lines.append(
+                                    f"  {lbl} Range: low {_safe_val(r.get('low'))} / "
+                                    f"avg {_safe_val(r.get('avg'))} / "
+                                    f"high {_safe_val(r.get('high'))}{n_txt}")
+            except Exception as e:
+                logger.debug("earnings_estimate fetch failed for %s: %s", ticker, e)
 
         # Growth rates
         eg = info.get('earningsGrowth')
@@ -1924,7 +2006,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 
 ## 你的任務
 
-1. **必須使用 WebSearch 工具搜尋以下資訊**（強制 3-4 次，即使系統數據看似齊全也不得略過）：
+1. **必須使用 WebSearch 工具搜尋以下資訊**（5-8 次，其中至少 3 次用於 industry 區塊，即使系統數據看似齊全也不得略過）：
    - "{stock_id} {stock_name} 產業趨勢 2026" — 產業動態、上下游供需
    - "{stock_id} {stock_name} 法說會 營運展望" — 最新展望、產品線變化
    - "{stock_id} 競爭對手 比較" — 主要競爭者營收/毛利率比較

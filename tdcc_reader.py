@@ -144,18 +144,39 @@ def compute_summary(
     }
 
 
+def large_pct_trend(stock_id: str, weeks: int = 4) -> list:
+    """近 N 週大戶(>200張) 股數占比序列 [(data_date, pct), ...] 舊→新。
+
+    趨勢比單週水位有資訊量（大戶加碼/出貨方向）；不足 2 週由呼叫端判斷。
+    """
+    files = sorted(TDCC_1_5_DIR.glob("*.parquet"))[-weeks:]
+    out = []
+    for p in files:
+        s = compute_summary(stock_id, snapshot_path=p)
+        if s:
+            out.append((s["data_date"], s["large_shares_pct"]))
+    return out
+
+
 def format_shareholding_for_prompt(stock_id: str) -> str:
     """為 AI 報告 prompt 產生簡潔的股權結構描述字串。"""
     s = compute_summary(stock_id)
     if s is None:
         return ""
-    return (
+    txt = (
         f"【集保股權分散 (TDCC {s['data_date']})】\n"
         f"- 總持股人數: {s['total_people']:,}\n"
         f"- 散戶(<20張) 股數占比: {s['retail_shares_pct']:.2f}% (人數 {s['retail_people']:,})\n"
         f"- 大戶(>200張) 股數占比: {s['large_shares_pct']:.2f}% (人數 {s['large_people']:,})\n"
         f"- 巨鯨(>1000張) 股數占比: {s['whale_shares_pct']:.2f}% (人數 {s['whale_people']:,})\n"
     )
+    trend = large_pct_trend(stock_id, weeks=4)
+    if len(trend) >= 2:
+        seq = " -> ".join(f"{pct:.2f}%" for _, pct in trend)
+        delta = trend[-1][1] - trend[0][1]
+        txt += (f"- 大戶占比近 {len(trend)} 週趨勢 ({trend[0][0]} -> {trend[-1][0]}): "
+                f"{seq} (Δ {delta:+.2f}pp)\n")
+    return txt
 
 
 if __name__ == "__main__":

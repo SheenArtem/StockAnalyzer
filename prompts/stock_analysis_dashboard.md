@@ -97,6 +97,8 @@
     eps_forecast: [          // 必含近 1-2 年歷史 + 未來 2-4 年預測
       { year: string, bear: number, base: number, bull: number }
       // year = "2024A" / "2026E"
+      // bear/bull 優先錨定 [ANALYST_CONSENSUS] 的 EPS Range low/high（有提供時），
+      // 禁止超出該區間自創；無 Range 時以保守幅度推導並於敘事註明屬推估
     ],
   },
 
@@ -220,7 +222,7 @@
 
 ## 數據輸入格式
 
-系統會在下方提供 `[STOCK_INFO]`、`[TRIGGER_SCORE]`、`[TRIGGER_DETAILS]`、`[TECHNICAL_DATA]`、`[CHIP_DATA]`、`[FUNDAMENTAL_DATA]`、`[MARKET_CONTEXT]`、`[LEFT_RIGHT_PLAN]`、`[PATTERN_DATA]`、`[VALUE_SCORE]`、`[NEWS_DATA]`、`[ANALYST_CONSENSUS]`、`[PEER_COMPARISON]`、`[THEME_CONTEXT]`、`[SENTIMENT_CONTEXT]`、`[NEWS_THEMES]`、`[FORWARD_GUIDANCE]`、`[LAW_TRANSCRIPT_RAG]` 共 18 區塊。請全部參考後填入 JSON 對應欄位。
+系統會在下方提供 `[STOCK_INFO]`、`[TRIGGER_SCORE]`、`[TRIGGER_DETAILS]`、`[TECHNICAL_DATA]`、`[CHIP_DATA]`、`[FUNDAMENTAL_DATA]`、`[MARKET_CONTEXT]`、`[LEFT_RIGHT_PLAN]`、`[PATTERN_DATA]`、`[VALUE_SCORE]`、`[VALUATION_PANEL]`、`[NEWS_DATA]`、`[ANALYST_CONSENSUS]`、`[PEER_COMPARISON]`、`[THEME_CONTEXT]`、`[SENTIMENT_CONTEXT]`、`[MARKET_HEDGING_CONTEXT]`、`[NEWS_THEMES]`、`[FORWARD_GUIDANCE]`、`[EARNINGS_CALENDAR]`、`[ANALYST_TARGETS]`、`[LAW_TRANSCRIPT_RAG]` 共 22 個固定區塊，另有 `[NEWS_FLOW_ALERT]`、`[THEME_MOMENTUM]`、`[MATERIAL_EVENTS]`、`[NEWS_EVIDENCE]` 4 個條件式區塊（該檔有資料才出現）。請全部參考後填入 JSON 對應欄位。
 
 `[LEFT_RIGHT_PLAN]` 是 deterministic 左側/右側中長線價位（近一年大波段 Fib 回測階梯 + 突破確認位），對應 JSON 的 `left_right` 物件：價位 verbatim 引用，標記「不適用」時 `left_right` 填 `null`。
 

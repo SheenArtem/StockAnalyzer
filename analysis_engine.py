@@ -737,9 +737,9 @@ class TechnicalAnalyzer:
         # MACD 背離偵測 (僅 UI 提示，不計分 — IC 驗證方向反轉，見 vf_step1_layer2_divergence_ic.md)
         div_macd = detect_divergence(df, 'MACD')
         if div_macd == 'bull_strong':
-            details.append("💎💎 MACD【強烈底背離】⚠️ 僅供參考 (IC驗證反向)")
+            details.append("⚠️ MACD【強烈底背離】僅供參考 (IC驗證反向, 非買進訊號)")
         elif div_macd == 'bull':
-            details.append("💎 MACD【底背離】⚠️ 僅供參考 (IC驗證反向)")
+            details.append("⚠️ MACD【底背離】僅供參考 (IC驗證反向, 非買進訊號)")
         elif div_macd == 'bull_weak':
             details.append("📈 MACD【隱藏底背離】⚠️ 僅供參考")
         elif div_macd == 'bear_strong':
@@ -767,7 +767,7 @@ class TechnicalAnalyzer:
         div_rsi = detect_divergence(df, 'RSI')
         if div_rsi in ['bull_strong', 'bull']:
             strength = '強烈' if div_rsi == 'bull_strong' else ''
-            details.append(f"✅ RSI{strength}底背離 ⚠️ 僅供參考 (IC驗證反向)")
+            details.append(f"⚠️ RSI{strength}底背離 僅供參考 (IC驗證反向, 非買進訊號)")
         elif div_rsi in ['bear_strong', 'bear']:
             strength = '強烈' if div_rsi == 'bear_strong' else ''
             details.append(f"🔻 RSI{strength}頂背離 ⚠️ 僅供參考 (IC驗證反向)")

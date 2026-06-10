@@ -1194,6 +1194,10 @@ class RevenueTracker:
             trend = '連續成長' if count >= 2 else '波動'
         else:
             trend = '連續衰退' if count >= 2 else '波動'
+            # 帶號回傳：衰退為負 (2026-06-10 修)。原全正值害 addon_factors /
+            # analysis_engine 的 consec <= -3 衰退分支永遠到不了 — 連續衰退股
+            # 反而拿「📈 營收連續 N 個月成長」+0.3 bonus（5009 實例抓到）。
+            count = -count
 
         return (trend, count)
 

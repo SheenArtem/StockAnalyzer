@@ -126,6 +126,8 @@ Do NOT paste the JSON in chat. Do NOT explain the HTML structure. The user wants
     ],
     eps_forecast: [              // 1-2 historical + 2-4 forecast years
       { year: string, bear: number, base: number, bull: number }
+      // bear/bull anchor to [ANALYST_CONSENSUS] EPS Range low/high when provided;
+      // do NOT invent numbers outside that range
     ],
   },
 
