@@ -661,6 +661,65 @@ def generate_action_plan(df, scenario, is_us_stock=False, strategy_params=None, 
 
 LEFT_RIGHT_MIN_BARS = 120
 LEFT_RIGHT_MIN_SWING_PCT = 25.0
+# --- 結構吸附 (2026-06-10)：Fib 階梯吸附到鄰近真實結構，純幾何分數 -> 可辨識支撐 ---
+LEFT_RIGHT_SNAP_PCT = 0.012    # 容差：價位的 1.2%
+LEFT_RIGHT_SNAP_ATR = 0.4      # 容差：0.4 x ATR（高波股自動放寬）
+LEFT_RIGHT_SNAP_GAP_CAP = 0.45  # 容差上限 = 0.45 x 相鄰階距（0.118 x 振幅）；相鄰兩階各移
+                                # <0.45 階距、合計 <0.9 階距 -> 吸附後必仍嚴格遞減且不搶同一結構
+
+_ROUND_STEPS = (1, 5, 10, 50, 100, 500, 1000)
+
+
+def _round_levels(lo, hi, price):
+    """swing 區間內的整數心理關卡；step >= 5% 價格保證稀疏（36 元 -> 5 倍數, 1120 -> 100 倍數）"""
+    step = next((s for s in _ROUND_STEPS if s >= price * 0.05), _ROUND_STEPS[-1])
+    start = int(lo // step) * step
+    return [float(v) for v in range(start, int(hi) + step + 1, step) if lo <= v <= hi]
+
+
+def _collect_structures(df, win):
+    """收集吸附候選 (price, weight, label)：樞紐高低點 w=3 > MA60/120 w=2 > MA20 w=1.5 > 整數 w=1。
+
+    缺口邊緣 v1 刻意不收 — 日線微缺口太多需另設顯著性門檻，等真實需求再加。
+    """
+    st = []
+    k = 5
+    hi_s, lo_s = win['High'], win['Low']
+    rmax = hi_s.rolling(2 * k + 1, center=True).max()
+    rmin = lo_s.rolling(2 * k + 1, center=True).min()
+    for i in range(k, len(win) - k):
+        h, l = float(hi_s.iloc[i]), float(lo_s.iloc[i])
+        is_ph = pd.notna(rmax.iloc[i]) and h == float(rmax.iloc[i])
+        is_pl = pd.notna(rmin.iloc[i]) and l == float(rmin.iloc[i])
+        if not (is_ph or is_pl):
+            continue
+        try:
+            d = pd.Timestamp(win.index[i]).strftime('%m-%d')
+        except Exception:
+            d = ''
+        if is_ph:
+            st.append((h, 3.0, f'前波高點 {d}'.rstrip()))
+        if is_pl:
+            st.append((l, 3.0, f'前波低點 {d}'.rstrip()))
+    cur = df.iloc[-1]
+    for col, w in (('MA20', 1.5), ('MA60', 2.0), ('MA120', 2.0)):
+        v = float(safe_get(cur, col, 0) or 0)
+        if v > 0 and not pd.isna(v):
+            st.append((v, w, f'疊 {col}'))
+    close = float(df['Close'].iloc[-1])
+    for v in _round_levels(float(lo_s.min()), float(hi_s.max()), close):
+        st.append((v, 1.0, f'整數關卡 {int(v)}'))
+    return st
+
+
+def _snap_level(fib_price, structures, tol):
+    """容差帶內取最高權重結構（同權重取最近，再以低價 tie-break）；帶內無結構 -> 維持純 Fib"""
+    cands = [s for s in structures if abs(s[0] - fib_price) <= tol]
+    if not cands:
+        return round(fib_price, 2), None
+    cands.sort(key=lambda s: (-s[1], abs(s[0] - fib_price), s[0]))
+    price, _w, label = cands[0]
+    return round(price, 2), label
 
 
 def generate_left_right_plan(df, lookback=250):
@@ -739,8 +798,32 @@ def generate_left_right_plan(df, lookback=250):
     else:
         posture, posture_desc = 'deep_pullback', '已回檔逾 50%（深度承接區，注意長多論述是否仍成立）'
 
-    # 右側 B 進場線 / 移動停利線：20MA 與其斜率
+    # 結構吸附：每階在容差帶內吸附到最強真實結構（樞紐/MA/整數），帶內無結構維持純 Fib。
+    # posture / 78.6 適用性判斷固定用純 Fib（結構幾何），吸附只動呈現價位。
     cur = df.iloc[-1]
+    atr = float(safe_get(cur, 'ATR', 0) or 0)
+    if pd.isna(atr) or atr <= 0:
+        _pc = win['Close'].shift()
+        _tr = pd.concat([win['High'] - win['Low'],
+                         (win['High'] - _pc).abs(),
+                         (win['Low'] - _pc).abs()], axis=1).max(axis=1)
+        atr = float(_tr.rolling(14).mean().iloc[-1]) if len(_tr) >= 14 else 0.0
+        if pd.isna(atr):
+            atr = 0.0
+    rung_gap = 0.118 * amplitude  # 相鄰 Fib 階最小間距（38.2->50 / 50->61.8）
+    structures = _collect_structures(df, win)
+    snap_cap = LEFT_RIGHT_SNAP_GAP_CAP * rung_gap
+    snapped, conf = {}, {}
+    for p in (23.6, 38.2, 50.0, 61.8, 78.6):
+        tol = min(max(LEFT_RIGHT_SNAP_PCT * fib[p], LEFT_RIGHT_SNAP_ATR * atr), snap_cap)
+        snapped[p], conf[p] = _snap_level(fib[p], structures, tol)
+    seq = [snapped[p] for p in (23.6, 38.2, 50.0, 61.8, 78.6)]
+    if any(a <= b for a, b in zip(seq, seq[1:])):  # tol cap 數學上保證到不了；防未來改壞容差
+        logger.warning("left_right snap broke monotonicity, revert to pure fib: %s", seq)
+        snapped = {p: fib[p] for p in snapped}
+        conf = {p: None for p in conf}
+
+    # 右側 B 進場線 / 移動停利線：20MA 與其斜率
     ma20 = float(safe_get(cur, 'MA20', 0) or 0)
     ma20_slope_up = False
     if ma20 > 0 and 'MA20' in df.columns and len(df) >= 25:
@@ -765,17 +848,24 @@ def generate_left_right_plan(df, lookback=250):
         'amplitude_pct': round(amp_pct, 1),
         'current_price': round(close, 2),
         'left_ladder': [
-            {'pct': '23.6%', 'price': fib[23.6], 'action': '首批 1/4'},
-            {'pct': '38.2%', 'price': fib[38.2], 'action': '加碼 1/4'},
-            {'pct': '50.0%', 'price': fib[50.0], 'action': '加碼 1/4'},
-            {'pct': '61.8%', 'price': fib[61.8], 'action': '末批 1/4'},
+            {'pct': '23.6%', 'price': snapped[23.6], 'fib_price': fib[23.6],
+             'confluence': conf[23.6], 'action': '首批 1/4'},
+            {'pct': '38.2%', 'price': snapped[38.2], 'fib_price': fib[38.2],
+             'confluence': conf[38.2], 'action': '加碼 1/4'},
+            {'pct': '50.0%', 'price': snapped[50.0], 'fib_price': fib[50.0],
+             'confluence': conf[50.0], 'action': '加碼 1/4'},
+            {'pct': '61.8%', 'price': snapped[61.8], 'fib_price': fib[61.8],
+             'confluence': conf[61.8], 'action': '末批 1/4'},
         ],
-        'invalidation_price': fib[78.6],
+        'invalidation_price': snapped[78.6],
+        'invalidation_fib': fib[78.6],
+        'invalidation_confluence': conf[78.6],
         'right_breakout_low': round(swing_high, 2),
         'right_breakout_high': round(swing_high * 1.025, 2),
         'right_ext_1272': round(swing_high + amplitude * 0.272, 2),
         'right_ext_1618': round(swing_high + amplitude * 0.618, 2),
-        'right_stop': fib[38.2],
+        'right_stop': snapped[38.2],
+        'right_stop_confluence': conf[38.2],
         'ma20': round(ma20, 2) if ma20 > 0 else 0.0,
         'ma20_slope_up': ma20_slope_up,
     }

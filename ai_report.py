@@ -1118,11 +1118,17 @@ def _build_left_right_plan(df_day):
         f"{lr['swing_high']} ({lr['swing_high_date']}), +{lr['amplitude_pct']}%"
     )
     lines.append(f"  current_price: {lr['current_price']}")
-    lines.append("  left_ladder (Fib 回測承接階梯):")
+    lines.append("  left_ladder (Fib 回測承接階梯, 已吸附鄰近真實結構):")
     for r in lr['left_ladder']:
-        lines.append(f"    {r['pct']} -> {r['price']}  {r['action']}")
+        if r.get('confluence'):
+            lines.append(f"    {r['pct']} -> {r['price']}  {r['action']}（{r['confluence']}）"
+                         f"   # Fib {r['fib_price']}")
+        else:
+            lines.append(f"    {r['pct']} -> {r['price']}  {r['action']}（僅 Fib）")
+    inv_tag = (f"（{lr['invalidation_confluence']}, Fib {lr['invalidation_fib']}）"
+               if lr.get('invalidation_confluence') else "")
     lines.append(
-        f"  invalidation_786: {lr['invalidation_price']} "
+        f"  invalidation_786: {lr['invalidation_price']}{inv_tag} "
         "(跌破 = 長多論述受損, 左側部位全部停損出場)"
     )
     lines.append("  right_side:")
@@ -1134,7 +1140,8 @@ def _build_left_right_plan(df_day):
                 if lr['ma20'] else "N/A")
     lines.append(f"    entry_B_ma20_reclaim: 洗盤後重新收復上彎 20MA (現 MA20: {ma20_txt})")
     lines.append(f"    targets_ext: 1.272 -> {lr['right_ext_1272']} / 1.618 -> {lr['right_ext_1618']}")
-    lines.append(f"    stop_structural: {lr['right_stop']} (38.2% 結構頸線)")
+    stop_tag = f", {lr['right_stop_confluence']}" if lr.get('right_stop_confluence') else ""
+    lines.append(f"    stop_structural: {lr['right_stop']} (38.2% 結構頸線{stop_tag})")
     lines.append("    trailing: 沿上彎 20MA 拖曳")
     return "\n".join(lines)
 

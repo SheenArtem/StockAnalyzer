@@ -94,7 +94,8 @@ class TestUpSwingLadder:
     def test_swing_dates_ordered(self):
         assert self.lr["swing_low_date"] <= self.lr["swing_high_date"]
 
-    def test_fib_ladder_math(self):
+    def test_fib_price_math(self):
+        # 純 Fib 原值永遠保留在 fib_price（吸附只動 price）
         amp = 300.0 - 95.0
         expected = {
             "23.6%": round(300.0 - amp * 0.236, 2),
@@ -102,8 +103,20 @@ class TestUpSwingLadder:
             "50.0%": round(300.0 - amp * 0.500, 2),
             "61.8%": round(300.0 - amp * 0.618, 2),
         }
-        got = {r["pct"]: r["price"] for r in self.lr["left_ladder"]}
+        got = {r["pct"]: r["fib_price"] for r in self.lr["left_ladder"]}
         assert got == expected
+
+    def test_snap_236_to_round_number(self):
+        # 23.6% Fib=251.62 距整數關卡 250 僅 1.62 (< tol ~3.0) -> 吸附
+        r = self.lr["left_ladder"][0]
+        assert r["price"] == 250.0
+        assert r["confluence"] == "整數關卡 250"
+
+    def test_unsnapped_rungs_keep_fib(self):
+        # 其餘三階容差帶內無結構 -> price == fib_price, confluence None
+        for r in self.lr["left_ladder"][1:]:
+            assert r["price"] == r["fib_price"]
+            assert r["confluence"] is None
 
     def test_ladder_actions_and_order(self):
         actions = [r["action"] for r in self.lr["left_ladder"]]
@@ -144,6 +157,53 @@ class TestPostures:
         df = _make_swing_df(end_close=160.0)  # < fib50=197.5, > fib78.6=138.87
         lr = generate_left_right_plan(df)
         assert lr["applicable"] and lr["posture"] == "deep_pullback"
+
+
+class TestConfluenceSnapping:
+    """結構吸附：容差帶內最高權重結構勝出；吸附後序列必嚴格遞減（tol cap 保證）。"""
+
+    def test_ma60_snap(self):
+        df = _make_swing_df()
+        df["MA60"] = 174.0  # 61.8% Fib=173.31, tol~2.08 -> 吸附 MA60
+        lr = generate_left_right_plan(df)
+        r = lr["left_ladder"][3]
+        assert r["price"] == 174.0
+        assert r["confluence"] == "疊 MA60"
+        assert r["fib_price"] == round(300.0 - 205.0 * 0.618, 2)
+
+    def test_pivot_low_snap(self):
+        df = _make_swing_df()
+        df.iloc[100, df.columns.get_loc("Low")] = 174.0  # 製造樞紐低點貼近 61.8% Fib
+        lr = generate_left_right_plan(df)
+        r = lr["left_ladder"][3]
+        assert r["price"] == 174.0
+        assert r["confluence"].startswith("前波低點")
+
+    def test_pivot_beats_round_number(self):
+        df = _make_swing_df()
+        # bar 132 (close~265, 鄰居低點 >255) 注入 252.5 才構成 ±5 bar 樞紐低點；
+        # 樞紐 (w=3) 與整數 250 (w=1) 同在 23.6% Fib=251.62 容差帶 -> 樞紐勝
+        df.iloc[132, df.columns.get_loc("Low")] = 252.5
+        lr = generate_left_right_plan(df)
+        r = lr["left_ladder"][0]
+        assert r["price"] == 252.5
+        assert r["confluence"].startswith("前波低點")
+
+    def test_monotonic_after_snap(self):
+        df = _make_swing_df()
+        df["MA60"] = 174.0
+        lr = generate_left_right_plan(df)
+        seq = [r["price"] for r in lr["left_ladder"]] + [lr["invalidation_price"]]
+        assert seq == sorted(seq, reverse=True)
+        assert len(set(seq)) == len(seq)  # 不得撞價
+
+    def test_right_stop_follows_snapped_382(self):
+        df = _make_swing_df()
+        df["MA60"] = 222.5  # 38.2% Fib=221.69 -> 吸附
+        lr = generate_left_right_plan(df)
+        assert lr["right_stop"] == 222.5
+        assert lr["right_stop_confluence"] == "疊 MA60"
+        assert lr["left_ladder"][1]["price"] == 222.5
 
 
 class TestVRecoverySwing:
@@ -257,6 +317,14 @@ class TestPromptBuilder:
             assert str(price) in txt
         assert "invalidation_786" in txt
         assert "entry_A_breakout" in txt
+
+    def test_confluence_annotations_rendered(self):
+        from ai_report import _build_left_right_plan
+        df = _make_swing_df()
+        txt = _build_left_right_plan(df)
+        assert "整數關卡 250" in txt   # 23.6% 吸附來源
+        assert "# Fib 251.62" in txt  # 吸附階保留 Fib 原位註解
+        assert "僅 Fib" in txt        # 未吸附階誠實標示
 
     def test_not_applicable_one_liner(self):
         from ai_report import _build_left_right_plan
