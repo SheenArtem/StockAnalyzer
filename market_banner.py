@@ -25,7 +25,9 @@ market_banner.py -- 大盤儀表板 Banner
   - S&P 500：美股盤中 5 分鐘 / 閉市到下個開盤
 """
 
+import json
 import logging
+import threading
 import time
 from datetime import datetime, date as ddate, time as dtime, timedelta
 from pathlib import Path
@@ -153,6 +155,46 @@ def _next_us_open_at(now=None):
 #  指數技術指標計算
 # ============================================================
 
+# 指數 last-good 落盤 (2026-06-10)：跨 app 重啟的 stale-OK — fetch 失敗/NaN 時
+# 回上次成功值（帶舊 data_date 誠實呈現）而非空白。worker thread 並行寫同檔，加鎖。
+_INDEX_LAST_GOOD_PATH = Path('data_cache') / 'banner_index_last_good.json'
+_index_last_good_lock = threading.Lock()
+
+
+def _save_index_last_good(ticker, result):
+    try:
+        with _index_last_good_lock:
+            data = {}
+            if _INDEX_LAST_GOOD_PATH.exists():
+                try:
+                    data = json.loads(_INDEX_LAST_GOOD_PATH.read_text(encoding='utf-8'))
+                except Exception:
+                    data = {}
+            rec = dict(result)
+            rec['data_date'] = str(rec['data_date']) if rec.get('data_date') else None
+            rec['saved_at'] = time.time()
+            data[ticker] = rec
+            _INDEX_LAST_GOOD_PATH.parent.mkdir(parents=True, exist_ok=True)
+            _INDEX_LAST_GOOD_PATH.write_text(json.dumps(data, ensure_ascii=False),
+                                             encoding='utf-8')
+    except Exception as e:
+        logger.debug("banner index last-good save failed %s: %s", ticker, e)
+
+
+def _load_index_last_good(ticker):
+    try:
+        with _index_last_good_lock:
+            if not _INDEX_LAST_GOOD_PATH.exists():
+                return None
+            rec = json.loads(_INDEX_LAST_GOOD_PATH.read_text(encoding='utf-8')).get(ticker)
+        if rec and rec.get('price') is not None:
+            rec['stale'] = True  # _cache_set 看到 stale -> 短 TTL 持續重試補抓
+            return rec
+    except Exception as e:
+        logger.debug("banner index last-good load failed %s: %s", ticker, e)
+    return None
+
+
 def _fetch_index_metrics(ticker, name):
     """
     抓指數 OHLCV 並計算月線/季線乖離率 + KD + rv10/rv30（年化波動）。
@@ -170,6 +212,10 @@ def _fetch_index_metrics(ticker, name):
     try:
         import yfinance as yf
         df = yf.Ticker(ticker).history(period='6mo')
+        if not df.empty and 'Close' in df.columns:
+            # yfinance 幽靈尾列防線 (Close=NaN, Volume 正常) — 6/2 全市場污染事件同病；
+            # 不濾掉 price/KD 全變 nan，banner 顯示空值且 error=None 被當成功長快取
+            df = df[df['Close'].notna()]
         if df.empty or len(df) < 60:
             result['error'] = 'data insufficient'
             return result
@@ -245,6 +291,22 @@ def _fetch_index_metrics(ticker, name):
     except Exception as e:
         logger.warning("Failed to fetch index %s: %s", ticker, e)
         result['error'] = str(e)
+
+    # 三層保證收口 (2026-06-10)：price 無效視同失敗；成功落盤；失敗回 stale last-good
+    try:
+        if result.get('error') is None and (
+                result.get('price') is None or pd.isna(result.get('price'))):
+            result['error'] = 'price NaN/unavailable'
+        if result.get('error') is None:
+            _save_index_last_good(ticker, result)
+        else:
+            stale = _load_index_last_good(ticker)
+            if stale is not None:
+                logger.warning("index %s fetch degraded (%s) -- 回退 last-good (data_date=%s)",
+                               ticker, result.get('error'), stale.get('data_date'))
+                return stale
+    except Exception as e:
+        logger.debug("index last-good guard failed %s: %s", ticker, e)
     return result
 
 
@@ -270,9 +332,19 @@ def _cache_get(indicator):
 
 
 def _cache_set(indicator, value, data_date, now=None):
-    """寫入快取並依 indicator 規則計算 expires_at。"""
+    """寫入快取並依 indicator 規則計算 expires_at。
+
+    失敗/stale 結果不得長快取 (2026-06-10)：原本 us_index 閉市時 TTL=到下次開盤，
+    一次 fetch 失敗/NaN = 空值卡整個下午。error/None -> 5 分鐘重試；stale 回退值
+    -> 30 分鐘（值大致正確但持續嘗試補抓新鮮值）。
+    """
     now = now or _now_tw()
-    expires_at = _compute_expiry(indicator, data_date, now)
+    if value is None or (isinstance(value, dict) and value.get('error')):
+        expires_at = time.time() + 300
+    elif isinstance(value, dict) and value.get('stale'):
+        expires_at = time.time() + 1800
+    else:
+        expires_at = _compute_expiry(indicator, data_date, now)
     _get_cache()[indicator] = {
         'value': value,
         'fetched_at': time.time(),
