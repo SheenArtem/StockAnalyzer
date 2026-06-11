@@ -107,7 +107,10 @@ def fetch_twse_market_pe_official(year_month: str) -> dict | None:
         pbr = sh.cell_value(5, 9)
         yyyy = int(year_month[:4])
         mm = int(year_month[4:])
+        # 月底戳記；當月未過完時 clamp 到今天 — 否則月中就寫出未來日期列
+        # (2026-06-11 案例: 6/11 寫出 2026-06-30 列，Slow Track as_of 顯示未來日)
         date = pd.Timestamp(yyyy, mm, 1) + pd.offsets.MonthEnd(0)
+        date = min(date, pd.Timestamp.now().normalize())
         return {
             'date': date,
             'tw_market_pe': float(pe) if pe not in ('', None) else None,
@@ -154,13 +157,17 @@ def build_twse_market_pe_history(
                         tw_market_yield=('tw_market_yield', 'last'),
                     ).reset_index()
                     monthly['date'] = monthly['_ym'].dt.to_timestamp(how='end').dt.normalize()
+                    # 當月 restamp 同樣 clamp 到今天，與 fetch 端一致避免未來日期列
+                    monthly['date'] = monthly['date'].clip(upper=pd.Timestamp.now().normalize())
                     monthly = monthly[['date', 'tw_market_pe', 'tw_market_pb', 'tw_market_yield']]
                     existing_monthly = monthly
-                    # 除了當月以外的全部跳過 (當月強制重抓以涵蓋月底 publish)
+                    # 當月 + 前月 都強制重抓：當月 ZIP 月中可能還是前月值的
+                    # placeholder（2026-06-11 實測 6 月值 == 5 月值），月初重抓
+                    # 前月才能把月底定版報告落到正確 month-end 戳記
                     now_ym = pd.Timestamp.now().to_period('M')
                     have_months = {
                         str(p) for p in pe_rows['_ym'].unique()
-                        if p != now_ym
+                        if p not in (now_ym, now_ym - 1)
                     }
                     logger.info("Incremental: existing has %d monthly rows, skip %d already-fetched months",
                                 len(existing_monthly), len(have_months))

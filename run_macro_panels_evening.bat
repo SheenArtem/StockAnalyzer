@@ -16,6 +16,18 @@ REM                                              (feeds dawn systemic_chip Group
 REM    2. fetch_aaii_sentiment                 : weekly Thursday XLS
 REM    3. fetch_tw_lei_panel                   : monthly NDC LEI
 REM    4. build_valuation_panel (incremental)  : monthly TWSE PE
+REM    5. refresh_universe_prices              : per-stock price CSV (evening
+REM       fetch added 2026-06-11: the 00:28 scanner fetch hits a recurring
+REM       yfinance artifact where the just-closed day bar comes back
+REM       Close=NaN for ~1900 names and is dropped by the NaN guard ->
+REM       data_cache stuck at T-2, tw_breadth stuck at T-2. Same fetch at
+REM       17:30 returns valid closes (verified 2026-06-11). Midnight scanner
+REM       run stays as backfill second pass.)
+REM    6. build_tw_breadth                     : same-day breadth rows
+REM    7. build_systemic_chip_panel            : same-day TWII close ->
+REM       market-level (twii_dist_ma*) + Group C/A are T-0 by 17:30;
+REM       margin (20:00) + per-stock chip CSV groups stay T-1 until the
+REM       dawn rebuild. Net: dashboard market-level tile fresh same evening.
 REM
 REM  ASCII-only per project rule. CJK in REM/echo is silent killer
 REM  under CP950.
@@ -56,6 +68,15 @@ python tools\fetch_tw_lei_panel.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] [stage]Valuation panel (TWSE PE incremental + Buffett) >> macro_panels.log
 python tools\build_valuation_panel.py >> macro_panels.log 2>&1
+
+echo [%date% %time%] [stage]Universe price refresh (evening pass, avoids midnight yfinance NaN-Close) >> macro_panels.log
+python tools\refresh_universe_prices.py >> macro_panels.log 2>&1
+
+echo [%date% %time%] [stage]TW breadth panel (same-day rows) >> macro_panels.log
+python tools\build_tw_breadth.py >> macro_panels.log 2>&1
+
+echo [%date% %time%] [stage]Systemic chip panel (same-day TWII close for market-level tile) >> macro_panels.log
+python tools\build_systemic_chip_panel.py >> macro_panels.log 2>&1
 
 echo [%date% %time%] Macro panels evening done >> macro_panels.log
 

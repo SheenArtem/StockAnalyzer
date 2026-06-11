@@ -202,29 +202,149 @@ class TAIFEXData:
         return result
 
     # ------------------------------------------------------------------
-    # 台指期(全) -- 日盤結算 + 最新夜盤收盤 (隔夜訊號)
+    # 台指期(全) -- 日盤 + 夜盤(盤後時段) 報價
     # ------------------------------------------------------------------
     def get_full_session_quote(self) -> Dict[str, Any]:
         """
-        台指期(全)：近月日盤結算 + 最新夜盤(盤後時段)收盤。
+        台指期(全)：近月日盤 + 夜盤(盤後時段)報價。
 
-        dlFutDataDown 同一 CSV 以「交易時段」欄區分 一般/盤後；
-        盤後時段 (15:00~次日05:00) 的交易日 = 次一交易日，其漲跌價/漲跌%
-        基準 = 前一日盤結算價 → 直接就是隔夜 gap 訊號 (預示次日開盤跳空)。
+        Primary：mis.taifex 即時報價 (getQuoteDetail)。夜盤進行中
+        (15:00~次日05:00) 回最新成交價，收盤後回該時段收盤價——解決
+        dlFutDataDown 只有「已收盤時段」害傍晚仍掛今晨舊夜盤的時效問題
+        (2026-06-11 用戶回報)。
+        Fallback：dlFutDataDown EOD CSV (mis 失敗時)。
 
         Returns:
-            dict: day_settle / day_date / day_chg_pct (近月日盤)
+            dict: day_settle / day_date / day_chg_pct (近月日盤；day_settle=
+                      最近一次日盤結算價，即夜盤漲跌基準)
                   night_close / night_date / night_chg / night_chg_pct (近月夜盤)
+                  night_base (夜盤漲跌基準=日盤結算) / night_time (HHMMSS)
+                  night_live (bool, 夜盤進行中) / source ('mis'/'csv')
                   失敗時各值為 0.0 / None。
         """
         cached = self._cache.get('full_session_quote')
         if cached is not None:
             return cached
 
+        result = self._full_session_from_mis()
+        if result is None:
+            result = self._full_session_from_csv()
+
+        self._cache.set('full_session_quote', result)
+        return result
+
+    # mis.taifex 即時報價 (官網期貨報價頁 XHR，2026-06-11 逆向)。
+    # SymbolID = TXF{月碼}{西元年尾數}-{時段}；月碼 A=1月..L=12月 (非 CME 碼)，
+    # 時段 -F=日盤 / -M=盤後。CRefPrice = 該時段漲跌基準 (-M 的 ref = 當日日盤結算價)。
+    _MIS_QUOTE_URL = 'https://mis.taifex.com.tw/futures/api/getQuoteDetail'
+    _MIS_MONTH_CODES = 'ABCDEFGHIJKL'
+
+    def _full_session_from_mis(self) -> Optional[Dict[str, Any]]:
+        """mis.taifex getQuoteDetail 一次抓近 3 個月份 × 日盤/盤後共 6 個 symbol，
+        各時段取 (tick 日期最新, 成交量最大) = 近月 (換月週/結算日自然換手)。
+        失敗回 None 由 caller fallback CSV。"""
+        def _f(s) -> Optional[float]:
+            try:
+                v = float(str(s).strip())
+                return v if v != 0.0 else None  # 0.00 = 未成交月份
+            except (ValueError, TypeError):
+                return None
+
+        try:
+            now = datetime.now()
+            symbols = []
+            for k in range(3):
+                mm0 = now.month - 1 + k
+                yy = now.year + mm0 // 12
+                code = f"TXF{self._MIS_MONTH_CODES[mm0 % 12]}{yy % 10}"
+                symbols += [f"{code}-F", f"{code}-M"]
+
+            resp = self._session.post(
+                self._MIS_QUOTE_URL, json={'SymbolID': symbols},
+                headers={'Referer': 'https://mis.taifex.com.tw/futures/'},
+                timeout=REQUEST_TIMEOUT)
+            resp.raise_for_status()
+            j = resp.json()
+            if str(j.get('RtCode')) != '0':
+                raise ValueError(f"RtCode={j.get('RtCode')}")
+            quotes = (j.get('RtData') or {}).get('QuoteList') or []
+
+            def _pick(suffix):
+                """同時段取 (tick 日期最新, 量最大) 列。回 (date, quote, last, ref) 或 None。"""
+                best = None
+                for q in quotes:
+                    if not str(q.get('SymbolID', '')).endswith(suffix):
+                        continue
+                    last = _f(q.get('CLastPrice'))
+                    try:
+                        d = datetime.strptime(str(q.get('CDate', '')).strip(), '%Y%m%d').date()
+                    except ValueError:
+                        continue
+                    if last is None:
+                        continue
+                    vol = int(_f(q.get('CTotalVolume')) or 0)
+                    if best is None or (d, vol) > best[0]:
+                        best = ((d, vol), q, last, _f(q.get('CRefPrice')))
+                return best
+
+            day = _pick('-F')
+            night = _pick('-M')
+            if day is None and night is None:
+                raise ValueError("no usable quote rows")
+
+            result = {
+                'day_settle': 0.0, 'day_date': None, 'day_chg_pct': None,
+                'night_close': 0.0, 'night_date': None,
+                'night_chg': None, 'night_chg_pct': None,
+                'night_base': None, 'night_time': None, 'night_live': False,
+                'source': 'mis',
+            }
+            if day is not None:
+                (_d, _v), q, last, ref = day
+                result['day_date'] = _d
+                result['day_settle'] = round(last, 2)  # 無夜盤 ref 時的近似值，下方覆寫
+                if ref:
+                    result['day_chg_pct'] = round((last - ref) / ref * 100, 2)
+            if night is not None:
+                (_d, _v), q, last, ref = night
+                result['night_close'] = round(last, 2)
+                result['night_date'] = _d
+                result['night_time'] = str(q.get('CTime', '')).strip() or None
+                if ref:
+                    result['night_base'] = round(ref, 2)
+                    # -M 的 CRefPrice 即最近一次日盤結算價 (實測 2026-06-11: 43219 ✓)
+                    result['day_settle'] = round(ref, 2)
+                    result['night_chg'] = round(last - ref, 2)
+                    result['night_chg_pct'] = round((last - ref) / ref * 100, 2)
+                # 夜盤進行中 = 現在時間在 15:00~次日 05:05 窗內 且 最新 tick 是今天
+                in_window = now.hour >= 15 or now.hour < 5 or (now.hour == 5 and now.minute <= 5)
+                result['night_live'] = bool(in_window and _d == now.date())
+
+            logger.info(
+                "Full session quote (mis): day=%.0f (%s), night=%.0f (%s %s, %+.2f%%, live=%s)",
+                result['day_settle'], result['day_date'],
+                result['night_close'], result['night_date'],
+                result['night_time'], result['night_chg_pct'] or 0.0,
+                result['night_live'])
+            return result
+
+        except Exception as e:
+            logger.warning("mis.taifex full session quote failed (%s), fallback to CSV", e)
+            return None
+
+    def _full_session_from_csv(self) -> Dict[str, Any]:
+        """dlFutDataDown EOD CSV fallback (原 2026-06-06 實作)。
+
+        同一 CSV 以「交易時段」欄區分 一般/盤後；盤後時段 (15:00~次日05:00)
+        的交易日 = 次一交易日，其漲跌基準 = 前一日盤結算價 → 隔夜 gap 訊號。
+        限制：只有已收盤時段，進行中的夜盤不在檔內。
+        """
         result = {
             'day_settle': 0.0, 'day_date': None, 'day_chg_pct': None,
             'night_close': 0.0, 'night_date': None,
             'night_chg': None, 'night_chg_pct': None,
+            'night_base': None, 'night_time': None, 'night_live': False,
+            'source': 'csv',
         }
 
         def _f(s: str) -> Optional[float]:
@@ -286,9 +406,11 @@ class TAIFEXData:
                     result['night_date'] = n_date
                     result['night_chg'] = _f(n_fields[7])
                     result['night_chg_pct'] = _f(n_fields[8])
+                    # CSV 夜盤漲跌基準 = 前一日盤結算價 (close - chg 反推)
+                    if result['night_chg'] is not None:
+                        result['night_base'] = round(price - result['night_chg'], 2)
 
-            self._cache.set('full_session_quote', result)
-            logger.info("Full session quote: day=%.0f (%s), night=%.0f (%s, %+.2f%%)",
+            logger.info("Full session quote (csv): day=%.0f (%s), night=%.0f (%s, %+.2f%%)",
                         result['day_settle'], result['day_date'],
                         result['night_close'], result['night_date'],
                         result['night_chg_pct'] or 0.0)

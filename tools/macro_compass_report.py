@@ -196,16 +196,19 @@ def collect_context() -> str:
         except Exception as e:
             logger.warning("futures basis fetch failed: %s", e)
         try:
-            # 台指期(全)：夜盤 (盤後時段 15:00~次日05:00, 交易日=次一交易日)
-            # 漲跌基準=前一日盤結算 → 直接是隔夜 gap，預示次一交易日開盤跳空
+            # 台指期(全)：夜盤 (盤後時段 15:00~次日05:00)
+            # mis.taifex 即時 (2026-06-11)：進行中=最新成交價，收盤後=該時段收盤
+            # 漲跌基準 night_base=日盤結算 → 直接是夜盤 gap，預示次一交易日開盤跳空
             _q = _tfx.get_full_session_quote()
             if _q and _q.get('night_close'):
+                _state = '盤中' if _q.get('night_live') else '收盤'
+                _base = _q.get('night_base') or _q.get('day_settle')
                 lines.append(
-                    f"  台指期(全) 夜盤收盤 (即時): {_q.get('night_close'):.0f} "
+                    f"  台指期(全) 夜盤{_state} (即時): {_q.get('night_close'):.0f} "
                     f"({_q.get('night_chg') or 0:+.0f} 點 / {_q.get('night_chg_pct') or 0:+.2f}% "
-                    f"vs 日盤結算 {_q.get('day_settle'):.0f} @{_q.get('day_date')})"
-                    f" — 夜盤交易日 {_q.get('night_date')}；夜盤大幅偏離日盤結算="
-                    f"隔夜訊號，預示次一交易日開盤跳空方向")
+                    f"vs 日盤結算 {_base:.0f})"
+                    f" — 夜盤更新 {_q.get('night_date')} {_q.get('night_time') or ''}；"
+                    f"夜盤大幅偏離日盤結算=隔夜訊號，預示次一交易日開盤跳空方向")
         except Exception as e:
             logger.warning("full session quote fetch failed: %s", e)
     lines.append("")

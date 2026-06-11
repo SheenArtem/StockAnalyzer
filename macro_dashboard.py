@@ -555,11 +555,16 @@ def _render_leadership():
     q = _get_full_session_quote()
     if q and q.get('night_close'):
         chg_pct = q.get('night_chg_pct')
+        base = q.get('night_base') or q.get('day_settle')
+        n_time = str(q.get('night_time') or '')
+        hhmm = f" {n_time[:2]}:{n_time[2:4]}" if len(n_time) >= 4 else ''
+        state = '盤中' if q.get('night_live') else '收盤'
         cols[3].metric(
-            "台指期(全) 夜盤收盤", f"{q['night_close']:,.0f}",
-            delta=f"{chg_pct:+.2f}% vs 日盤結算 {q.get('day_settle'):,.0f}" if chg_pct is not None else None,
-            help=f"盤後時段 15:00~次日 05:00（交易日 {q.get('night_date')}）；漲跌基準=前一日盤結算"
-                 f"（{q.get('day_date')}）→ 隔夜 gap，預示次一交易日開盤跳空方向",
+            f"台指期(全) 夜盤{state}", f"{q['night_close']:,.0f}",
+            delta=f"{chg_pct:+.2f}% vs 日盤結算 {base:,.0f}" if chg_pct is not None and base else None,
+            help=f"盤後時段 15:00~次日 05:00（{state}，更新 {q.get('night_date')}{hhmm}）；"
+                 f"漲跌基準=日盤結算 {base:,.0f}（夜盤報價自帶參考價）→ 夜盤 gap "
+                 f"預示次一交易日開盤跳空方向；mis.taifex 即時，CSV 備援",
         )
 
 

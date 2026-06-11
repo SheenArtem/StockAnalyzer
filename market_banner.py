@@ -469,10 +469,10 @@ def _compute_expiry(indicator, data_date, now):
             return time.time() + _US_INDEX_INTRADAY_TTL
         return _next_us_open_at(now).timestamp()
 
-    # 台指期(全)：夜盤 05:00 收 / 日盤 13:45 結算，quote 變動點分散
-    # → 固定 30 分鐘 (1 次 TAIFEX request，與 macro_dashboard ttl=300 同源不衝突)
+    # 台指期(全)：2026-06-11 改 mis.taifex 即時報價後，夜盤/日盤進行中
+    # quote 持續變動 → 固定 15 分鐘 (1 次 mis request，公開行情系統負載可忽略)
     if indicator == 'txf_full':
-        return time.time() + 1800
+        return time.time() + 900
 
     # CNN FGI
     if indicator == 'cnn_fgi':
@@ -1097,19 +1097,26 @@ def render_market_banner():
         # ── C1: 加權指數 + 台指期(全)夜盤 + 乖離/KD + 基差&PCR 併排 ──
         _render_index_card(c1, tw)
 
-        # 台指期(全) 夜盤收盤 + 隔夜 gap（同 macro_dashboard 領頭羊資料源）
+        # 台指期(全) 夜盤即時/收盤 + gap（同 macro_dashboard 領頭羊資料源；
+        # mis.taifex 即時 primary，夜盤進行中顯示最新成交價）
         txf = data.get('txf_full') or {}
         if txf.get('night_close'):
             n_chg = txf.get('night_chg_pct')
             t_color = ('#888888' if n_chg is None
                        else '#00AA00' if n_chg > 0 else '#FF4444')
             chg_str = f" {n_chg:+.2f}%" if n_chg is not None else ""
-            txf_tip = (f"台指期(全) 夜盤 15:00~次日 05:00（交易日 {txf.get('night_date', '')}）；"
-                       f"漲跌基準=日盤結算 {txf.get('day_settle', 0):,.0f}（{txf.get('day_date', '')}）"
-                       f"→ 隔夜 gap 預示次一交易日開盤跳空方向")
+            base = txf.get('night_base') or txf.get('day_settle', 0)
+            live = txf.get('night_live')
+            n_time = str(txf.get('night_time') or '')
+            hhmm = f" {n_time[:2]}:{n_time[2:4]}" if len(n_time) >= 4 else ''
+            state = '盤中' if live else '收盤'
+            txf_tip = (f"台指期(全) 夜盤 15:00~次日 05:00（{state}，"
+                       f"更新 {txf.get('night_date', '')}{hhmm}）；"
+                       f"漲跌基準=日盤結算 {base:,.0f}"
+                       f"→ 夜盤 gap 預示次一交易日開盤跳空方向")
             c1.markdown(
                 f'<div style="font-size:0.95rem;line-height:1.6" title="{txf_tip}">'
-                f'台指期(全)夜盤 <span style="color:{t_color};font-weight:bold">'
+                f'台指期(全)夜盤{state} <span style="color:{t_color};font-weight:bold">'
                 f'{txf["night_close"]:,.0f}{chg_str}</span> '
                 f'<span style="color:#888;font-size:0.85em">vs 日盤結算</span>'
                 f'</div>',
