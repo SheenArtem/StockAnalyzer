@@ -442,7 +442,9 @@ def _compute_expiry(indicator, data_date, now):
       - risk_score / regime: 跟 tw_index 同步刷新
     """
     # 台股 14:00 類
-    if indicator in ('tw_index', 'basis', 'pcr', 'm1b_ratio', 'risk_score', 'regime', 'regime_ext'):
+    # (basis 2026-06-11 移出本組 → 與 txf_full 同 15min：期貨腳改 mis 即時後
+    #  日盤/夜盤都會動，日更節奏會讓基差整天凍結)
+    if indicator in ('tw_index', 'pcr', 'm1b_ratio', 'risk_score', 'regime', 'regime_ext'):
         expected = _expected_tw_date(_TW_14_CUTOFF, now)
         if data_date == expected:
             return _next_tw_refresh_at(_TW_14_CUTOFF, now).timestamp()
@@ -469,9 +471,9 @@ def _compute_expiry(indicator, data_date, now):
             return time.time() + _US_INDEX_INTRADAY_TTL
         return _next_us_open_at(now).timestamp()
 
-    # 台指期(全)：2026-06-11 改 mis.taifex 即時報價後，夜盤/日盤進行中
-    # quote 持續變動 → 固定 15 分鐘 (1 次 mis request，公開行情系統負載可忽略)
-    if indicator == 'txf_full':
+    # 台指期(全) + 基差：2026-06-11 改 mis.taifex 即時報價後，夜盤/日盤
+    # 進行中 quote 持續變動 → 固定 15 分鐘 (各 1 次 mis request，負載可忽略)
+    if indicator in ('txf_full', 'basis'):
         return time.time() + 900
 
     # CNN FGI
@@ -1133,8 +1135,16 @@ def render_market_banner():
         if b_val is not None:
             b_color = '#00AA00' if b_val > 0 else '#FF4444'
             b_label = '正價差' if b_val > 0 else '逆價差'
-            parts.append(f'基差 <span style="color:{b_color};font-weight:bold">'
-                         f'{b_val:.0f}點 {b_label}</span>')
+            sess = basis.get('fut_session') or ''
+            f_time = str(basis.get('fut_time') or '')
+            f_hhmm = f" {f_time[:2]}:{f_time[2:4]}" if len(f_time) >= 4 else ''
+            sess_tag = (f"{sess}{'盤中' if basis.get('live') else ''}{f_hhmm}"
+                        if sess else '日盤結算')
+            b_tip = (f"期 {basis.get('futures_price', 0):,.0f}（{sess_tag}）− "
+                     f"現貨 {basis.get('spot_price', 0):,.0f} = {b_val:+.0f} 點；"
+                     f"夜盤時段現貨凍結於收盤 → 基差即隔夜隱含跳空")
+            parts.append(f'<span title="{b_tip}">基差 <span style="color:{b_color};font-weight:bold">'
+                         f'{b_val:.0f}點 {b_label}</span></span>')
         if pc is not None:
             pc_pct = pc * 100
             pc_color = '#FF4444' if pc > 1.0 else '#00AA00' if pc < 0.7 else '#888888'

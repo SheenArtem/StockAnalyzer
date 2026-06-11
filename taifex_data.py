@@ -107,10 +107,15 @@ class TAIFEXData:
     def get_futures_basis(self) -> Dict[str, Any]:
         """
         Fetch TAIEX futures basis (正逆價差).
-        使用 CSV 下載端點取得期貨結算價，比 HTML 解析更可靠。
+
+        Primary (2026-06-11)：mis.taifex 即時近月成交價 (日盤/夜盤取最新 tick)
+        − 現貨加權指數 → 基差跟著台指期點數動；夜盤時段現貨凍結在收盤價，
+        基差即「隔夜隱含跳空」。
+        Fallback：dlFutDataDown EOD CSV 結算價 (原實作)。
 
         Returns:
-            dict with keys: basis, futures_price, spot_price, basis_pct
+            dict with keys: basis, futures_price, spot_price, basis_pct, data_date
+                (+ mis 路徑: fut_session '日盤'/'夜盤', fut_time HHMMSS, live bool)
         """
         cached = self._cache.get('futures_basis')
         if cached is not None:
@@ -124,6 +129,45 @@ class TAIFEXData:
             'data_date': None,
         }
 
+        # ── Primary：mis 即時 (與 get_full_session_quote 同源，同 instance 共用快取) ──
+        try:
+            q = self.get_full_session_quote()
+            if q.get('source') == 'mis':
+                cands = []  # ((tick_date, tick_time), price, session)
+                if q.get('day_last') and q.get('day_date'):
+                    cands.append(((q['day_date'], q.get('day_time') or ''), q['day_last'], '日盤'))
+                if q.get('night_close') and q.get('night_date'):
+                    cands.append(((q['night_date'], q.get('night_time') or ''), q['night_close'], '夜盤'))
+                if cands:
+                    (f_date, f_time), fut, sess = max(cands, key=lambda c: c[0])
+                    spot = self._get_taiex_spot()
+                    if fut > 0 and spot > 0:
+                        now = datetime.now()
+                        if sess == '夜盤':
+                            live = bool(q.get('night_live'))
+                        else:
+                            in_day = (8, 45) <= (now.hour, now.minute) <= (13, 45)
+                            live = in_day and f_date == now.date()
+                        basis = fut - spot
+                        result = {
+                            'basis': round(basis, 2),
+                            'futures_price': round(fut, 2),
+                            'spot_price': round(spot, 2),
+                            'basis_pct': round((basis / spot) * 100, 4),
+                            'data_date': f_date,
+                            'fut_session': sess,
+                            'fut_time': f_time or None,
+                            'live': live,
+                        }
+                        self._cache.set('futures_basis', result)
+                        logger.info("Futures basis (mis %s%s): futures=%.0f, spot=%.0f, basis=%.2f",
+                                    sess, ' live' if live else '',
+                                    fut, spot, result['basis'])
+                        return result
+        except Exception as e:
+            logger.warning("mis futures basis failed (%s), fallback to CSV", e)
+
+        # ── Fallback：dlFutDataDown EOD CSV (原實作) ──
         try:
             today = datetime.now()
             futures_price = 0.0
@@ -144,18 +188,23 @@ class TAIFEXData:
 
                 resp = self._session.post(url, data=payload, timeout=REQUEST_TIMEOUT)
                 resp.raise_for_status()
+                resp.encoding = 'big5'  # 「交易時段」中文欄需正確解碼，必須在 .text 前設
                 content = resp.text.strip()
                 lines = content.split('\n')
 
                 if len(lines) < 2:
                     continue
 
-                # CSV 格式: 交易日期,契約,到期月份,開盤價,最高價,最低價,收盤價,...,結算價,未沖銷契約數,...
-                # 取近月合約 (成交量最大的那一行)
+                # CSV 格式: 交易日期,契約,到期月份,開盤價,最高價,最低價,收盤價,...,結算價,未沖銷契約數,...,交易時段
+                # 取近月合約 (一般時段中成交量最大的那一行)
+                # ⚠️ 必須過濾 交易時段=一般：盤後(夜盤)量常大於日盤，不濾會把
+                # 今晨舊夜盤收盤當期貨腳 (2026-06-11 實測 -534 假逆價差)
                 best_volume = 0
                 for line in lines[1:]:
                     fields = line.split(',')
                     if len(fields) < 11:
+                        continue
+                    if len(fields) >= 18 and fields[17].strip() != '一般':
                         continue
                     try:
                         close_str = fields[6].strip()
@@ -294,6 +343,7 @@ class TAIFEXData:
 
             result = {
                 'day_settle': 0.0, 'day_date': None, 'day_chg_pct': None,
+                'day_last': None, 'day_time': None,
                 'night_close': 0.0, 'night_date': None,
                 'night_chg': None, 'night_chg_pct': None,
                 'night_base': None, 'night_time': None, 'night_live': False,
@@ -303,6 +353,8 @@ class TAIFEXData:
                 (_d, _v), q, last, ref = day
                 result['day_date'] = _d
                 result['day_settle'] = round(last, 2)  # 無夜盤 ref 時的近似值，下方覆寫
+                result['day_last'] = round(last, 2)    # 日盤最新成交價 (基差用，不被結算價覆寫)
+                result['day_time'] = str(q.get('CTime', '')).strip() or None
                 if ref:
                     result['day_chg_pct'] = round((last - ref) / ref * 100, 2)
             if night is not None:
@@ -1190,7 +1242,21 @@ class TAIFEXData:
     # 內部輔助 -- 取得加權指數現貨價
     # ------------------------------------------------------------------
     def _get_taiex_spot(self) -> float:
-        """Fetch current TAIEX spot index from TWSE JSON API."""
+        """Fetch current TAIEX spot index.
+
+        Primary (2026-06-11)：mis.twse t00 即時 — 盤中 (09:00-13:30) 回最新
+        指數，收盤後凍結在當日收盤；避免 afterTrading 端點盤中還是昨日值、
+        與 mis 即時期貨腳混算出假基差。
+        Fallback：TWSE MI_INDEX afterTrading → yfinance ^TWII。
+        """
+        try:
+            from mis_twse_client import get_quote
+            mis_q = get_quote('t00')
+            if mis_q and mis_q.get('price'):
+                return float(mis_q['price'])
+        except Exception as e:
+            logger.warning("mis.twse t00 spot failed: %s", e)
+
         try:
             url = 'https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX?response=json'
             resp = requests.get(url, headers=TWSE_HEADERS, timeout=REQUEST_TIMEOUT, verify=False)
