@@ -48,7 +48,7 @@ SENTIMENT_DIR = REPO / "data" / "sentiment"
 _CACHE_KEY = '_banner_cache_v2'
 
 # 台股日盤後資料發布時間
-_TW_14_CUTOFF = dtime(14, 0)      # 加權指數/漲跌家數/基差/PCR
+_TW_14_CUTOFF = dtime(14, 0)      # 加權指數/漲跌家數/PCR (基差 2026-06-11 移到 15min 組)
 _TW_1435_CUTOFF = dtime(14, 35)   # TAIFEX 三大法人 + 期權盤後 (atm_put / mtx_ratio / opt_inst)
 _TW_20_CUTOFF = dtime(20, 0)      # 融資餘額
 _TW_14_RETRY = 300                 # 5 分鐘
