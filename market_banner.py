@@ -1148,8 +1148,11 @@ def render_market_banner():
         if pc is not None:
             pc_pct = pc * 100
             pc_color = '#FF4444' if pc > 1.0 else '#00AA00' if pc < 0.7 else '#888888'
-            parts.append(f'PCR <span style="color:{pc_color};font-weight:bold">'
-                         f'{pc_pct:.0f}%</span>')
+            pcr_tip = (f"TXO 未平倉 Put/Call 比（資料日 {pcr.get('data_date', '')}）；"
+                       f"OI 為盤後結算日頻資料、無盤中即時版，每日 ~14:00 後更新當日值；"
+                       f"高=Put 倉位多（避險/偏空）")
+            parts.append(f'<span title="{pcr_tip}">PCR <span style="color:{pc_color};font-weight:bold">'
+                         f'{pc_pct:.0f}%</span></span>')
         if parts:
             c1.markdown(
                 '<div style="font-size:0.95rem;line-height:1.6">'
