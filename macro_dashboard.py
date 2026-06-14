@@ -703,7 +703,7 @@ def _render_liquidity(macro: dict, banner_data: dict):
     if etf is not None and not etf.empty:
         st.markdown("##### 🏦 風險偏好 ETF 流動 (Tier 1, 信用避險 proxy)")
         last = etf.iloc[-1]
-        f_cols = st.columns(4)
+        f_cols = st.columns(5)
 
         hyg_chg = last.get('hyg_chg_4w')
         if hyg_chg is not None and not pd.isna(hyg_chg):
@@ -731,6 +731,20 @@ def _render_liquidity(macro: dict, banner_data: dict):
             c = '#FF4444' if abs(hyg_vol_z) > 2 else '#888'
             f_cols[3].metric("高收益債HYG成交量 z-score", f"{hyg_vol_z:+.2f}",
                              help="HYG 成交量相對 252 日 z-score；極端值 = 流動性事件")
+
+        # MOVE 美債波動率 (債市的 VIX)；資料現成於 etf_flows，2026-06-14 補 UI tile
+        move = last.get('move_close')
+        if move is not None and not pd.isna(move):
+            move_chg = last.get('move_chg_4w')
+            move_z = last.get('move_z_252d')
+            mz = move_z if (move_z is not None and not pd.isna(move_z)) else 0.0
+            ml = '債市壓力' if mz > 1.5 else '偏高' if mz > 0.5 else '平靜' if mz < -0.5 else '正常'
+            f_cols[4].metric(
+                "美債波動 MOVE (債市VIX)", f"{move:.1f}",
+                delta=(f"{move_chg:+.1f}% 4w" if (move_chg is not None and not pd.isna(move_chg)) else ml),
+                delta_color="inverse",
+                help=("ICE BofA MOVE = 美公債選擇權隱含波動 (債市的 VIX)；飆升 = 利率/債市"
+                      f"壓力 = risk-off 領先。252日 z={mz:+.2f} ({ml})"))
 
     if not any([r, dxy, walcl]):
         st.info("⏳ 流動性面板資料尚未建立，請執行 `python tools/fetch_fred_macro.py`")
