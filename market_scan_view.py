@@ -34,9 +34,11 @@ def _compute_weekly_turnover(top_n: int = 30):
     if not OHLCV_PARQUET.exists():
         return None, None
 
+    # ohlcv_tw 只有 OHLCV (無 stock_name)；股名一律從 universe 補
+    # (2026-06-14 修：原讀 stock_name 欄會 ArrowInvalid 害整個 tab crash)
     df = pd.read_parquet(
         OHLCV_PARQUET,
-        columns=['stock_id', 'stock_name', 'date', 'Close', 'Volume'],
+        columns=['stock_id', 'date', 'Close', 'Volume'],
     )
     df['date'] = pd.to_datetime(df['date'])
     df['stock_id'] = df['stock_id'].astype(str)
@@ -62,17 +64,18 @@ def _compute_weekly_turnover(top_n: int = 30):
         weekly_volume=('Volume', 'sum'),
         weekly_turnover=('turnover', 'sum'),
         days=('date', 'nunique'),
-        stock_name=('stock_name', 'last'),
     )
 
-    # 過濾 ETF / 權證 (只保留普通股)
+    # 過濾 ETF / 權證 (只保留普通股) + 從 universe 補股名 (ohlcv_tw 無 stock_name)
+    name_map: dict = {}
     if UNIVERSE_PARQUET.exists():
         try:
             u = pd.read_parquet(
                 UNIVERSE_PARQUET,
-                columns=['stock_id', 'is_common_stock'],
+                columns=['stock_id', 'is_common_stock', 'name'],
             )
             u['stock_id'] = u['stock_id'].astype(str)
+            name_map = dict(zip(u['stock_id'], u['name']))
             common = set(u.loc[u['is_common_stock'] == True, 'stock_id'])
             grouped = grouped[grouped['stock_id'].isin(common)]
         except Exception:
@@ -81,6 +84,9 @@ def _compute_weekly_turnover(top_n: int = 30):
     else:
         grouped = grouped[grouped['stock_id'].str.len() == 4]
         grouped = grouped[~grouped['stock_id'].str.startswith('00')]
+
+    grouped = grouped.copy()
+    grouped['stock_name'] = grouped['stock_id'].map(name_map).fillna(grouped['stock_id'])
 
     # weekly_turnover 單位是 NTD; weekly_volume 單位是「股」(1 張 = 1000 股)
     grouped['weekly_amount_b'] = (grouped['weekly_turnover'] / 1e8).round(2)  # 億元
