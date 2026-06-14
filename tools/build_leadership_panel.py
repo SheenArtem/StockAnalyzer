@@ -126,9 +126,11 @@ def build_panel() -> pd.DataFrame:
 
     panel = panel.sort_values('date').reset_index(drop=True)
     if last_price_date is not None:
-        # fred_panel usdtwd 自帶 ffill 未來日期 (週末/連假)；outer merge 會把
-        # 這些「只有 FX、無任何價格」的尾列帶進 panel，害 資料日期 last 顯示
-        # 未來日 + 末列全是 ffill 重複值 -> 一律裁到價格源最大日期
+        # fred_panel 可能帶未來日尾列 (FRED 行政利率 IORB forward-effective 戳到
+        # 今日+1；2026-06-14 更正：非 usdtwd，DEXTAUS 實測只到 T-N)；fetch_fred_macro
+        # 已在源頭裁掉，這裡再裁一次防禦 — outer merge 把「只有 FX/利率、無任何價格」
+        # 尾列帶進 panel 會害資料日期 last 顯示未來日 + 末列全 ffill 重複值 ->
+        # 一律裁到價格源最大日期
         panel = panel[panel['date'] <= last_price_date].reset_index(drop=True)
     for col in panel.columns:
         if col != 'date':
