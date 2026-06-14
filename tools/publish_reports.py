@@ -73,17 +73,28 @@ def _card(href: str, title: str, sub: str) -> str:
 
 
 def build_index(publish_repo: Path) -> str:
-    """掃 publish_repo 下各子資料夾的 *.html，產生深色封面頁。"""
-    sections = []
+    """掃 publish_repo 下各子資料夾的 *.html，產生深色封面頁。
+
+    版面：兩欄 grid（個股 AI 報告 左寬欄 | 總經 Macro Compass 右窄欄），
+    讓個股報告再多也不會把 Macro Compass 擠到下方。Macro 欄標題附「最新報告」
+    連結按鈕（永遠在欄位最上方），故 latest.html 不再單獨列成卡片。
+    """
+    cols = []
     counts = {}
     for cat in SOURCES:
         sub = publish_repo / cat
         if not sub.is_dir():
             counts[cat] = 0
+            cols.append((cat, f'<h2>{html.escape(CATEGORY_TITLES[cat])}</h2>', ""))
             continue
         parser = _PARSERS[cat]
+        files = list(sub.glob("*.html"))
+        has_latest = (sub / "latest.html").exists()
+        if cat == "macro":
+            # latest.html 改放標題旁連結按鈕，不再單獨列卡片（避免與最新日期卡重複）
+            files = [f for f in files if f.name != "latest.html"]
         rows = sorted(
-            ((f.name,) + parser(f.name) for f in sub.glob("*.html")),
+            ((f.name,) + parser(f.name) for f in files),
             key=lambda x: (x[2], x[3]), reverse=True,
         )
         counts[cat] = len(rows)
@@ -91,11 +102,18 @@ def build_index(publish_repo: Path) -> str:
             _card(f"{cat}/{fn}", title, f"{d} {tm}".strip() or "latest")
             for fn, title, d, tm in rows
         )
-        sections.append(f'<h2>{html.escape(CATEGORY_TITLES[cat])}</h2>\n'
-                        f'<div class="grid">\n{cards}\n</div>')
+        if cat == "macro" and has_latest:
+            h2 = (f'<h2>{html.escape(CATEGORY_TITLES[cat])}'
+                  f'<a class="latest" href="macro/latest.html">📄 最新報告</a></h2>')
+        else:
+            h2 = f'<h2>{html.escape(CATEGORY_TITLES[cat])}</h2>'
+        cols.append((cat, h2, cards))
 
     meta = " · ".join(f"{CATEGORY_TITLES[c]} {counts.get(c, 0)} 份" for c in SOURCES)
-    body = "\n".join(sections)
+    cols_html = "\n".join(
+        f'<section class="col col-{cat}">\n{h2}\n<div class="grid">\n{cards}\n</div>\n</section>'
+        for cat, h2, cards in cols
+    )
     return f"""<!DOCTYPE html>
 <html lang="zh-Hant"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -104,10 +122,14 @@ def build_index(publish_repo: Path) -> str:
 <style>
 :root{{color-scheme:dark}}
 *{{box-sizing:border-box}}
-body{{margin:0;font-family:-apple-system,"Segoe UI",system-ui,sans-serif;background:#0e1116;color:#e6edf3;padding:32px 20px;max-width:980px;margin:0 auto}}
+body{{margin:0;font-family:-apple-system,"Segoe UI",system-ui,sans-serif;background:#0e1116;color:#e6edf3;padding:32px 20px;max-width:1140px;margin:0 auto}}
 h1{{font-size:24px;margin:0 0 4px}}
 .meta{{color:#8b949e;font-size:13px;margin-bottom:28px}}
-h2{{font-size:15px;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;margin:32px 0 12px;border-bottom:1px solid #21262d;padding-bottom:8px}}
+.cols{{display:grid;grid-template-columns:2fr 1fr;gap:28px;align-items:start}}
+@media(max-width:760px){{.cols{{grid-template-columns:1fr}}.col-macro{{order:-1}}}}
+h2{{font-size:15px;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;margin:0 0 12px;border-bottom:1px solid #21262d;padding-bottom:8px;overflow:hidden}}
+h2 .latest{{float:right;text-transform:none;letter-spacing:normal;font-size:12px;font-weight:600;background:#1f6feb;color:#fff;padding:3px 11px;border-radius:6px;text-decoration:none}}
+h2 .latest:hover{{background:#388bfd}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}}
 .card{{display:block;background:#161b22;border:1px solid #21262d;border-radius:10px;padding:14px 16px;text-decoration:none;color:inherit;transition:.15s}}
 .card:hover{{border-color:#388bfd;background:#1c2230}}
@@ -116,7 +138,9 @@ h2{{font-size:15px;color:#8b949e;text-transform:uppercase;letter-spacing:.05em;m
 </style></head><body>
 <h1>StockAnalyzer Reports</h1>
 <div class="meta">{html.escape(meta)}</div>
-{body}
+<div class="cols">
+{cols_html}
+</div>
 </body></html>"""
 
 
