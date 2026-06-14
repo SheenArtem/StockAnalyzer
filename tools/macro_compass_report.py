@@ -131,6 +131,32 @@ def collect_context() -> str:
         lines.append("  (尚未建立 - 執行 tools/build_valuation_panel.py)")
     lines.append("")
 
+    # B2. 台積電(2330)月營收 — 指數權重 ~30%, 基本面背景 (2026-06-14 補資料缺口 #1)
+    # 即時 fetch (RevenueTracker 內建快取)；月頻單股, 非歷史 panel 故無百分位
+    lines.append("### B2. 台積電(2330)月營收 (指數權重 ~30%, 基本面背景)")
+    try:
+        from dividend_revenue import RevenueTracker
+        _tsmc = RevenueTracker().get_monthly_revenue('2330', months=24)
+        if _tsmc is not None and not _tsmc.empty and 'year_month' in _tsmc.columns:
+            _r = _tsmc.dropna(subset=['year_month']).sort_values('year_month').reset_index(drop=True)
+            _last = _r.iloc[-1]
+            lines.append(f"資料月份 last={_last['year_month']}")
+            lines.append(
+                f"  單月營收 [tsmc_rev]: {_last['revenue'] / 1e8:.0f} 億元 "
+                f"(YoY [tsmc_rev_yoy] {_last['yoy_pct']:+.1f}% / MoM {_last['mom_pct']:+.1f}%)")
+            lines.append(
+                f"  年初至今累計營收 YoY [tsmc_rev_cum_yoy]: {_last['cumulative_yoy_pct']:+.1f}%")
+            _trend = _r.tail(6)
+            _t = " / ".join(f"{row['year_month']} {row['yoy_pct']:+.0f}%"
+                            for _, row in _trend.iterrows())
+            lines.append(f"  近6月單月 YoY 趨勢: {_t}")
+        else:
+            lines.append("  (台積電營收暫無資料)")
+    except Exception as e:
+        logger.warning("TSMC revenue fetch failed: %s", e)
+        lines.append("  (台積電營收 fetch 失敗)")
+    lines.append("")
+
     # Breadth
     breadth = _safe_read_parquet(DATA / "breadth" / "tw_breadth.parquet")
     lines.append("### C. 台股市場廣度 (1548 檔聚合, 2006-2026)")
@@ -391,8 +417,8 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 - 風險偏好/波動：HYG/LQD、長債/股票比(TLT/SPY)、MOVE、EEM/SPY、VIX 期限結構(VIX3M)、SKEW、VVIX、OVX、銅金比(HG/GC,成長代理)、原油價格(CL=WTI)
 - 加權指數位階：twii_close + 20/50/200 日均線及乖離率（含近 7 日 trend）、台指期基差(即時正逆價差)、台指期(全)夜盤收盤+隔夜 gap(即時)
 - 領頭羊/跨市場：費城半導體 SOX + 那斯達克 各自的收盤/1日漲跌/20/50/200日均線乖離率、SOX 與 Nasdaq 對台股相對強弱(4週變化)、TSM ADR 對 2330 隔夜溢價
-- 台灣總經/基本面領先指標(月頻)：國發會 LEI 綜合指數、外銷訂單動向指數、M1B、半導體設備進口值（註：外銷訂單為「動向指數」非訂單金額 YoY）
-→ 以上皆「已有」。第 5 段只列「上方面板沒有、且不在下方『已評估、決定不補』清單」的真缺口（仍缺候選：JGB 10年殖利率「日頻」+JPY 套利壓力〔FRED 僅月頻落後，日頻無乾淨免費源〕、中國信用脈衝(PBoC TSF YoY,月頻慢速)、0DTE 短天期選擇權占比、台積電月營收〔MOPS〕、外銷訂單「金額」YoY + S&P Global 台灣 PMI〔LEI 只有動向指數〕、美 ISM 新訂單〔NAPMNOI 已從 FRED 下架，需 ISM 官方〕）。
+- 台灣總經/基本面領先指標(月頻)：國發會 LEI 綜合指數、外銷訂單動向指數、M1B、半導體設備進口值、台積電(2330)月營收(單月 YoY + 年初至今累計 YoY，指數權重 ~30%)（註：外銷訂單為「動向指數」非訂單金額 YoY）
+→ 以上皆「已有」。第 5 段只列「上方面板沒有、且不在下方『已評估、決定不補』清單」的真缺口（仍缺候選：JGB 10年殖利率「日頻」+JPY 套利壓力〔FRED 僅月頻落後，日頻無乾淨免費源〕、中國信用脈衝(PBoC TSF YoY,月頻慢速)、0DTE 短天期選擇權占比、外銷訂單「金額」YoY + S&P Global 台灣 PMI〔LEI 只有動向指數〕、美 ISM 新訂單〔NAPMNOI 已從 FRED 下架，需 ISM 官方〕）。
 
 【已評估、決定不補 — 第 5 段請勿重複推薦（已查證：無免費源 / 付費 / IC 否決）】
 - 盈餘上修/下修廣度：TEJ/IBES 付費
@@ -439,7 +465,7 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 - 對照已維護清單，真正「上方面板沒有」的資料缺口是什麼？(列 5-10 個)
 - 這些缺口中哪些能讓 1-4 週 lead 更可靠？(列出具體 FRED ID / 資料源 / 取得方式)
 - 按 IC 預期 + 取得難度排序，優先補哪些
-- 目前哪些 flag 是 stub（風險燈號 group A/C/D/E 的 driver 字串空白），怎麼用規則式邏輯填補
+- 風險燈號 group A-E 的 driver 字串已是規則式輸出（build_systemic_chip_panel 依百分位/門檻產生 reason，非空白 stub；上方面板「風險燈號」列已附 driver）；若有 flag 門檻需以歷史 IC 重新校準可指出，但勿再把「driver 空白/stub 待填」當成缺口重提
 - 是否有跨市場資料（中國/日本/歐洲）能加強？
 
 【輸出規範】
