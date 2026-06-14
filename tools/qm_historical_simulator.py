@@ -502,6 +502,18 @@ def run_simulation(
     stats_weeks_processed = 0
     stats_weeks_no_picks = 0
 
+    # 股名/產業靜態對照 — 從 universe_tw 取 (ohlcv_tw 自 a094068 清洗重建後不再帶
+    # stock_name/industry；load 一次避免每週重讀)。industry_category 比舊 ohlcv 的
+    # Big5 mojibake industry 乾淨。
+    try:
+        _u = pd.read_parquet(DATA_DIR / "universe_tw.parquet",
+                             columns=['stock_id', 'stock_name', 'industry_category'])
+        _u['stock_id'] = _u['stock_id'].astype(str)
+        univ_meta = _u.rename(columns={'industry_category': 'industry'}).drop_duplicates('stock_id')
+    except Exception as e:
+        logger.warning("universe_tw meta 載入失敗 (%s) — picks 將無 stock_name/industry", e)
+        univ_meta = pd.DataFrame(columns=['stock_id', 'stock_name', 'industry'])
+
     for week_end in scan_dates:
         d = pd.Timestamp(week_end)
 
@@ -598,9 +610,8 @@ def run_simulation(
         picks['regime'] = regime_val
         picks['mode'] = mode
 
-        # Add stock_name and industry from ohlcv metadata (as-is, may be garbled)
-        meta = ohlcv[ohlcv['date'] == d][['stock_id', 'stock_name', 'industry']].drop_duplicates('stock_id')
-        picks = picks.merge(meta, on='stock_id', how='left')
+        # 補 stock_name + industry (從 universe_tw 靜態對照；ohlcv_tw 已無這兩欄)
+        picks = picks.merge(univ_meta, on='stock_id', how='left')
 
         all_picks.append(picks)
         stats_weeks_processed += 1
