@@ -193,8 +193,12 @@ def compute_slow_track_score() -> dict:
 
         rank = _percentile_rank_today(df, feat, conf['high_is_danger'])
         value = float(df[feat].dropna().iloc[-1]) if df is not None and feat in df.columns and not df[feat].dropna().empty else None
-        if df is not None and not df.empty:
-            this_last = df.index[-1]
+        # as_of 用「該特徵最後一筆真值」的日期，非 panel 原始 index[-1] —
+        # 否則 valuation_panel 的 clamp-to-today 部分列 (PE 戳今天、buffett 為 NaN)
+        # 會讓 as_of 顯示今天 (非交易日如週日) 而非實際資料日 (上交易日)。
+        # value 本來就取 dropna().iloc[-1]，as_of 對齊才一致 (2026-06-14)。
+        if df is not None and feat in df.columns and not df[feat].dropna().empty:
+            this_last = df[feat].dropna().index[-1]
             if last_date is None or this_last > last_date:
                 last_date = this_last
 

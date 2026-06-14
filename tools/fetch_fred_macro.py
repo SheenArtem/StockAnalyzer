@@ -223,6 +223,26 @@ def build_panel(start: str = "2014-01-01") -> pd.DataFrame:
         else:
             logger.error("MISSING %s (%s): fetch 失敗且既有 panel 無此欄 -> 本輪缺欄，待下次成功", col, sid)
 
+    # 砍掉「真實市場資料」之後的尾列 (forward-stamped 未來/週末列)。
+    # FRED 行政利率 IORB 帶 forward-effective 日期 (實測戳到今日+1 的 06-15)，會把
+    # outer-merge 後的 spine 推到未來日 -> 全域 ffill 把每欄沿用到未來日 -> 下游
+    # valuation_panel (build_buffett_us 讀本 panel) 與 Slow Track as_of 顯示未來日
+    # (2026-06-14 稽核確認；leadership_panel 已有「裁到價格源最大日期」護欄故免疫)。
+    # 用「非 forward-stamp 序列至少一欄有真值」界定最後真實交易日；置於 ffill 前，
+    # 否則 ffill 會先把真值填進未來列使其看似有資料。⚠️ 未來若再加 FRED 行政利率
+    # (如 DFEDTARU/DFEDTARL) 也會 forward-stamp，需一併加進 FORWARD_STAMPED。
+    FORWARD_STAMPED = {'iorb'}
+    real_cols = [c for c in panel.columns if c not in ({'date'} | FORWARD_STAMPED)]
+    if real_cols:
+        real_mask = panel[real_cols].notna().any(axis=1)
+        if real_mask.any():
+            real_max = panel.loc[real_mask, 'date'].max()
+            n_before = len(panel)
+            panel = panel[panel['date'] <= real_max].reset_index(drop=True)
+            if n_before > len(panel):
+                logger.info("Trimmed %d forward-stamped 尾列 (IORB effective-date) -> spine 收到 %s",
+                            n_before - len(panel), real_max.date())
+
     # forward fill (處理 weekly/monthly 序列 align 到日頻)
     for col in panel.columns:
         if col == 'date':
