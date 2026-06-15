@@ -1,7 +1,7 @@
 """Whale Picks Trade Ledger - backtest position-level entry/exit records.
 
 Re-runs production strategy (monthly K=10, industry-neutral, liquidity filter
-avg_tv_60d >= 10M TWD) and outputs a position-level trade ledger with entry/exit
+avg_tv_60d >= 100M TWD + KY/ETF/特別股 exclusions) and outputs a position-level trade ledger with entry/exit
 dates + prices + factor snapshots + (optional LLM) Chinese narrative reasons.
 
 支援雙 composite (2026-05-22 加 --composite flag):
