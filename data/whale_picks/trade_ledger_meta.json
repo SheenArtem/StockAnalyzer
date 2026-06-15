@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-05-23T13:41:44",
+  "generated_at": "2026-06-15T17:58:06",
   "start": "2016-01-01",
-  "end": "2026-05-23",
+  "end": "2026-05-15",
   "K": 10,
   "rebal_mode": "M15",
-  "min_avg_tv_twd": 10000000.0,
+  "min_avg_tv_twd": 100000000.0,
   "composite_name": "composite_score",
   "composite": {
     "low52w_prox_adj": -0.066,
@@ -17,13 +17,14 @@
   },
   "standardization": "industry-neutral",
   "with_llm_reasons": false,
-  "n_positions": 833,
-  "n_stocks": 290,
+  "n_positions": 729,
+  "n_stocks": 223,
   "n_still_holding": 10,
-  "win_rate": 0.5138055222088835,
-  "avg_pnl_pct": 0.031087834560140526,
-  "median_pnl_pct": 0.003703717832212128,
-  "best_pnl_pct": 1.0949721116853874,
-  "worst_pnl_pct": -0.30883390069429106,
-  "spec_note": "永遠 informational tier per docs/whale_picks_spec.md §13"
+  "win_rate": 0.5479833101529903,
+  "avg_pnl_pct": 0.03671886569791481,
+  "median_pnl_pct": 0.009485094850948617,
+  "best_pnl_pct": 1.3125,
+  "worst_pnl_pct": -0.6151162790697675,
+  "spec_note": "永遠 informational tier per docs/whale_picks_spec.md §13",
+  "last_rebal_append": "2026-06-15"
 }

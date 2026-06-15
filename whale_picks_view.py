@@ -361,9 +361,10 @@ def _render_trade_ledger() -> None:
 
     st.subheader("📊 歷史回測訊號 (Trade Ledger)")
     st.caption(
-        "依 v0.10 production 策略 (M15 K=10 / industry-neutral / liquidity ≥ 10M TWD) "
-        "在歷史每月 15 號 (週末延前一交易日) 實際會發出的 BUY/SELL 訊號 — 連續持有合併為單筆 position，純價格報酬。 "
-        "**當前實際持倉看上方「💼 當前持倉即時損益」**。"
+        "依 v0.10 production 策略 (M15 K=10 / industry-neutral / liquidity ≥ 100M TWD) "
+        "在歷史每月 15 號 (週末延前一交易日) 發出的 BUY/SELL 訊號 — 連續持有合併為單筆 position，純價格報酬。 "
+        "**接縫機制 (2026-06-15)**：最新一筆 cohort 直接接真實 PIT 持倉，與上方「💼 當前持倉即時損益」一致；"
+        "2026-05 (含) 以前為歷史回測模擬。"
     )
 
     if not LEDGER_PATH.exists():
@@ -468,7 +469,11 @@ def _render_trade_ledger() -> None:
 
     with st.expander("ℹ️ 回測 metadata + 方法論", expanded=False):
         if meta:
-            st.markdown(f"**回測期間**: {meta.get('start', '?')} ~ {meta.get('end', '?')}")
+            _appended = meta.get('last_rebal_append')
+            _span = f"{meta.get('start', '?')} ~ {meta.get('end', '?')} (回測模擬)"
+            if _appended:
+                _span += f" + 真實 PIT cohort 接至 {_appended}"
+            st.markdown(f"**涵蓋期間**: {_span}")
             st.markdown(f"**重新平衡**: M15 (每月 15 號或之前最後交易日) / K={meta.get('K', '?')} / 流動性門檻 ≥ NT$ {meta.get('min_avg_tv_twd', 0) / 1e6:.0f}M")
             st.markdown(f"**生成時間**: {meta.get('generated_at', '?')}")
             st.markdown(f"**LLM 理由**: {'✅ 已生成' if meta.get('with_llm_reasons') else '❌ 未生成 (`--with-reasons` flag)'}")
@@ -481,8 +486,10 @@ def _render_trade_ledger() -> None:
             "- 每月 15 號 (週末延前一交易日) 依 composite_score 排名取 top-10，連續入榜合併成 1 個 position\n"
             "- 進場價 = 進場日收盤；出場價 = 掉出 top-10 那個 M15 rebal 日收盤\n"
             "- P&L = 純價格報酬 (exit/entry - 1)，**未扣手續費 + 證交稅**\n"
-            "- 仍在 top-10 的最新 position 標「持有中」，不計入勝率\n"
-            "- 此為 **歷史模擬**，live 績效預期受 survivorship + regime drift 拖累"
+            "- **接縫機制 (2026-06-15)**：2026-05 (含) 以前為歷史回測模擬；2026-06-15 起每月 M15 直接 "
+            "append 真實 PIT cohort，故最新「持有中」清單 = 上方當前實際持倉 (兩者已對齊，不再各算各的)\n"
+            "- 「持有中」= 仍在 top-10 的最新 position，不計入勝率\n"
+            "- 歷史段 (回測模擬) 仍受 survivorship + regime drift 影響；真實段 (PIT) 無此問題但樣本短"
         )
 
 

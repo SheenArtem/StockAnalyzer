@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-06-09T00:47:26",
+  "generated_at": "2026-06-15T17:58:40",
   "start_date": "2016-01-15",
-  "end_date": "2026-06-09",
+  "end_date": "2026-06-15",
   "whale_picks": {
     "name": "Whale Picks",
-    "cagr": 0.2999496093549927,
-    "sharpe": 1.8037732758731146,
-    "vol": 0.15193460117114121,
-    "mdd": -0.2774667467327825,
-    "total_return": 12.968260959431085,
-    "days": 2533,
-    "years": 10.05
+    "cagr": 0.24976846266094466,
+    "sharpe": 1.3533626907285017,
+    "vol": 0.17635692253316446,
+    "mdd": -0.27905152004783257,
+    "total_return": 8.436865503006299,
+    "days": 2537,
+    "years": 10.07
   },
   "twii": {
     "name": "TWII",
@@ -23,17 +23,17 @@
     "years": 9.87
   },
   "delta": {
-    "cagr_pp": 12.66,
-    "sharpe": 0.806,
-    "vol_pp": -2.4,
-    "mdd_pp": 3.89
+    "cagr_pp": 7.64,
+    "sharpe": 0.356,
+    "vol_pp": 0.05,
+    "mdd_pp": 3.73
   },
   "annual_wins": 8,
   "annual_years": 11,
   "annual_hit_rate": 0.727,
   "caveats": [
-    "未扣交易成本 (估 ~6 round-trips/年 × 0.3% = -1.8%/年 haircut)",
-    "未扣 slippage (估 -0.5%/年)",
+    "未扣交易成本: 實際年換手 ~680% (持有 1.77 月, per-slot ~6.8 round-trips/年), 台股固定成本 (賣稅 0.3% + 手續費x2 折後) = 3.3-4.1%/年, 非舊估 -1.8% (2026-06-09 cost audit)",
+    "未扣市場衝擊: 平方根模型估 個人規模 (每檔<=5M, 總<=60M) ~1-4%/年, 誠實淨 CAGR ~23% (price)/~26-27% (含股息), Sharpe ~1.46; 每檔>=20M (總~2.3億) 衝擊>固定且 p90 部位>整日 ADV, alpha 轉負/不可規模化 (見 reports/whale_cost_audit.md)",
     "未含台股股息 (TWII/Whale Picks 兩邊都未計，殖利率 ~3-5%/年)",
     "11 年回測，含 2018 熊 / 2020 covid / 2022 Fed / 2024 AI 多個 regime",
     "PIT universe 1958 stocks 已 survivor-bias 修正"

@@ -115,7 +115,7 @@ FACTOR_RAW_HINT: Dict[str, str] = {
 }
 K_DEFAULT = 10  # 2026-05-22: 對齊 production K=10 (was 20)
 DEFAULT_COMPOSITE = 'composite_score'  # production primary
-MIN_AVG_TV = 1e7  # 10M TWD liquidity filter
+MIN_AVG_TV = 1e8  # 100M TWD liquidity filter (2026-06-15 從 10M 上調, 排除低流動性小型股)
 
 
 def _get_composite_dict(name: str) -> Dict[str, float]:
@@ -224,6 +224,16 @@ def build_v13_feat(start: str, end: str, composite_name: str = DEFAULT_COMPOSITE
     u = pd.read_parquet(CACHE / "universe_tw.parquet")
     u_name = u[['stock_id', 'stock_name']].drop_duplicates('stock_id')
     feat = feat.merge(u_name, on='stock_id', how='left')
+
+    # Hard exclusions 對齊 production screener (2026-06-15: 修接縫)
+    # — 過去 trade_ledger 只做 liquidity, 漏 KY/ETF/特別股, 導致回測選到 5871 中租-KY
+    #   等 production 不選的股, ledger 與 _active_holdings 對不上 (接縫殭屍部位來源)。
+    before_ex = len(feat)
+    is_ky = feat['stock_name'].fillna('').str.contains('KY', na=False)
+    feat = feat[~is_ky].copy()
+    feat = feat[~feat['stock_id'].astype(str).str.match(r'^00\d{2,}.*$')].copy()
+    feat = feat[~feat['stock_id'].astype(str).str.contains(r'[A-Z]$', na=False, regex=True)].copy()
+    log.info("Hard exclusions (KY/ETF/特別股): %d -> %d (-%d)", before_ex, len(feat), before_ex - len(feat))
 
     log.info("Final feat: %d rows, %d sids, %d valid %s",
              len(feat), feat['stock_id'].nunique(),

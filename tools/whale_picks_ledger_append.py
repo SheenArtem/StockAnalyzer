@@ -13,12 +13,15 @@ Two modes:
     - 更新 _active_holdings.json: 加進 alert_adds 列表 (不動 tickers 系統 10)
 
 (2) --rebal: scanner.bat M15 day 自動跑 (whale_picks_alerts.py 之後)
-    - 讀新 tickers (post-M15 system top-10)
+    - 讀新 tickers (post-M15 system top-10) + exit pricing snapshot
     - 對每筆 alert_add:
         - 進新 top-10 → flip entry_type 'alert' → 'upgraded', remove from alert_adds
         - 沒進 → 強制 exit (寫 exit_date / exit_price / pnl_pct), remove from alert_adds
-    - 對每筆 still_holding=True 的 upgraded row:
-        - 沒進新 top-10 → 強制 exit
+    - system + upgraded 進出維護 (2026-06-15 加, 修接縫讓 ledger 末端 = 真實持倉):
+        - 現有 still_holding 跌出新 top-10 → 平倉 (snapshot close)
+        - 新進 top-10 (無 still_holding row) → append system entry (entry_drivers 取自 holdings)
+        - 續抱 → 更新 holding_months
+      => 每月 M15 自動延伸 ledger; 歷史段 (full rebuild) 之後無縫接真實 PIT cohort
 
 Usage:
     # Manual after buy (user 跑):
@@ -90,6 +93,22 @@ def _pick_score_col(snap: pd.DataFrame) -> str:
     return 'composite_score' if 'composite_score' in snap.columns else 'composite_parsi'
 
 
+def _fallback_close(sid: str) -> Optional[float]:
+    """跌出 (流動性/universe) 過濾後 snapshot 的持倉抓不到價時, 從 data_cache 個股 CSV 取最近 Close。
+    保證平倉不留殭屍部位。"""
+    csv = REPO / "data_cache" / f"{sid}_price.csv"
+    if not csv.exists():
+        return None
+    try:
+        d = pd.read_csv(csv)
+        if 'Close' in d.columns and len(d):
+            v = float(d['Close'].dropna().iloc[-1])
+            return v if v > 0 else None
+    except Exception:
+        pass
+    return None
+
+
 def _mid_month_rebal_day(d: date) -> date:
     """M15 rebal day = last weekday on or before 15th of d's month.
     Mirror of whale_picks_alerts._mid_month_rebal_day."""
@@ -128,6 +147,31 @@ def _load_ledger() -> pd.DataFrame:
 def _save_ledger(df: pd.DataFrame) -> None:
     df.to_parquet(LEDGER_PATH, index=False)
     log.info("Saved ledger: %s (%d rows)", LEDGER_PATH, len(df))
+
+
+def _update_meta(df: pd.DataFrame) -> None:
+    """append/rebal 後同步 trade_ledger_meta.json 統計, 避免 view 顯示 stale 日期/勝率。"""
+    mp = SNAPSHOT_DIR / "trade_ledger_meta.json"
+    meta = {}
+    if mp.exists():
+        try:
+            meta = json.loads(mp.read_text(encoding='utf-8'))
+        except Exception:
+            meta = {}
+    closed = df[~df['still_holding'].astype(bool)]
+    meta.update({
+        'generated_at': datetime.now().isoformat(timespec='seconds'),
+        'last_rebal_append': date.today().isoformat(),
+        'n_positions': int(len(df)),
+        'n_stocks': int(df['stock_id'].nunique()),
+        'n_still_holding': int(df['still_holding'].sum()),
+        'win_rate': float((closed['pnl_pct'] > 0).mean()) if len(closed) else None,
+        'avg_pnl_pct': float(closed['pnl_pct'].mean()) if len(closed) else None,
+        'median_pnl_pct': float(closed['pnl_pct'].median()) if len(closed) else None,
+    })
+    mp.write_text(json.dumps(meta, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    log.info("Updated meta: %s (n_positions=%d, still_holding=%d)",
+             mp, len(df), int(df['still_holding'].sum()))
 
 
 # =============================================================================
@@ -346,45 +390,103 @@ def cmd_rebal(dry_run: bool = False, force: bool = False) -> None:
             log.info("Closed alert_add %s @ %.2f (entry %.2f, pnl %+.2f%%)",
                      sid, exit_price, entry_price, pnl * 100 if pd.notna(pnl) else 0)
 
-    # Process still_holding upgraded rows (drop from top-K = exit)
-    upgraded_holding = df[
-        (df['entry_type'] == 'upgraded')
-        & (df['still_holding'] == True)  # noqa: E712
-    ]
-    upg_closed = 0
-    for idx, r in upgraded_holding.iterrows():
-        sid = str(r['stock_id'])
-        if sid not in new_ids:
-            exit_price = snap_close.get(sid)
-            if exit_price is None or pd.isna(exit_price) or exit_price <= 0:
-                log.warning("No exit price for upgraded %s at %s; skip", sid, snap_date)
-                continue
-            entry_price = float(r['entry_price'])
-            pnl = exit_price / entry_price - 1.0 if entry_price > 0 else np.nan
+    # === 2026-06-15: system top-K 進出維護 (修接縫, 讓 ledger 末端 = 真實 _active_holdings) ===
+    # 統一處理 system + upgraded 的 still_holding: 跌出新 top-K -> 平倉; 續抱 -> 更新 holding_months.
+    # (alert 未升級者不在此處理 — 上方 alert_adds 迴圈已處理)
+    # held_ids 在 alert 升級之後計算, 故含剛 flip 成 upgraded 的 rows.
+    sys_held_mask = (df['entry_type'].isin(['system', 'upgraded'])) & (df['still_holding'] == True)  # noqa: E712
+    held_ids = set(df.loc[sys_held_mask, 'stock_id'].astype(str))
+
+    sys_closed = 0
+    sys_kept = 0
+    for idx in list(df[sys_held_mask].index):
+        sid = str(df.at[idx, 'stock_id'])
+        etype = df.at[idx, 'entry_type']
+        if sid in new_ids:
+            # 續抱: 更新 holding_months (=進場到本次 rebal 的月數 +1)
             if not dry_run:
-                df.loc[idx, 'exit_date'] = pd.Timestamp(snap_date)
-                df.loc[idx, 'exit_price'] = exit_price
-                df.loc[idx, 'still_holding'] = False
-                df.loc[idx, 'pnl_pct'] = pnl
-                df.loc[idx, 'exit_reason_zh'] = (
-                    f'M15 rebal 強制結算 (upgraded 沒進新 top-{len(new_ids)})'
-                )
-            upg_closed += 1
-            log.info("Closed upgraded %s @ %.2f (entry %.2f, pnl %+.2f%%)",
-                     sid, exit_price, entry_price, pnl * 100 if pd.notna(pnl) else 0)
+                entry_dt = pd.Timestamp(df.at[idx, 'entry_date'])
+                df.at[idx, 'holding_months'] = int(max(
+                    1, (snap_date.year - entry_dt.year) * 12
+                       + (snap_date.month - entry_dt.month) + 1))
+            sys_kept += 1
+            continue
+        # 平倉: 跌出新 top-K
+        exit_price = snap_close.get(sid)
+        if exit_price is None or pd.isna(exit_price) or exit_price <= 0:
+            exit_price = _fallback_close(sid)  # 跌出 universe 的股從個股 CSV 取價
+        if exit_price is None or pd.isna(exit_price) or exit_price <= 0:
+            exit_price = float(df.at[idx, 'entry_price'])  # 最後手段: entry 價平倉 (pnl=0)
+            log.warning("No market exit price for %s %s at %s; closing at entry (pnl=0)", etype, sid, snap_date)
+        entry_price = float(df.at[idx, 'entry_price'])
+        pnl = exit_price / entry_price - 1.0 if entry_price > 0 else np.nan
+        if not dry_run:
+            df.at[idx, 'exit_date'] = pd.Timestamp(snap_date)
+            df.at[idx, 'exit_price'] = exit_price
+            df.at[idx, 'still_holding'] = False
+            df.at[idx, 'pnl_pct'] = pnl
+            df.at[idx, 'exit_reason_zh'] = f'M15 rebal 跌出 top-{len(new_ids)} ({etype})'
+        sys_closed += 1
+        log.info("Closed %s %s @ %.2f (entry %.2f, pnl %+.2f%%)",
+                 etype, sid, exit_price, entry_price, pnl * 100 if pd.notna(pnl) else 0)
+
+    # 新進: 在新 top-K 但無 still_holding row -> append system entry (entry_drivers 取自 holdings)
+    sys_added = 0
+    new_rows = []
+    for rank_i, t in enumerate(new_tickers):
+        sid = str(t.get('stock_id'))
+        if sid in held_ids:
+            continue  # 續抱, 已處理
+        entry_close = t.get('entry_close')
+        if entry_close is None or pd.isna(entry_close) or float(entry_close) <= 0:
+            entry_close = snap_close.get(sid)
+        if entry_close is None or pd.isna(entry_close) or float(entry_close) <= 0:
+            log.warning("No entry price for new system %s; skip append", sid)
+            continue
+        new_row = {
+            'stock_id': sid,
+            'stock_name': t.get('stock_name', '?'),
+            'industry': t.get('industry', ''),
+            'entry_date': pd.Timestamp(snap_date),
+            'entry_price': float(entry_close),
+            'exit_date': pd.NaT,
+            'exit_price': np.nan,
+            'still_holding': True,
+            'holding_months': 1,
+            'pnl_pct': np.nan,
+            'composite_at_entry': t.get('entry_composite', np.nan),
+            'composite_at_exit': np.nan,
+            'rank_at_entry': rank_i + 1,
+            'entry_type': 'system',
+            'entry_top_drivers': t.get('entry_drivers', ''),
+            'exit_top_drivers': '(尚未出場)',
+            'entry_reason_zh': '',
+            'exit_reason_zh': '',
+        }
+        for col in df.columns:
+            if col not in new_row:
+                new_row[col] = np.nan
+        new_rows.append(new_row)
+        sys_added += 1
+        log.info("Appended new system %s %s entry=%s @ %.2f (rank %d)",
+                 sid, t.get('stock_name', '?'), snap_date, float(entry_close), rank_i + 1)
 
     if dry_run:
-        log.info("[DRY] Would upgrade %d / close %d alert_adds / close %d upgraded",
-                 upgraded_count, closed_count, upg_closed)
+        log.info("[DRY] system: +%d new / %d kept / -%d closed | alert: %d upgraded / %d closed",
+                 sys_added, sys_kept, sys_closed, upgraded_count, closed_count)
         return
 
+    if new_rows:
+        df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+
     _save_ledger(df)
+    _update_meta(df)
 
     # Drain alert_adds (processed all)
     h['alert_adds'] = remaining_alert_adds
     _save_holdings(h)
-    log.info("Rebal done: upgraded %d, closed %d alert_adds, closed %d upgraded, %d alert_adds remain",
-             upgraded_count, closed_count, upg_closed, len(remaining_alert_adds))
+    log.info("Rebal done: system +%d/-%d (kept %d), alert upgraded %d/closed %d, %d alert_adds remain",
+             sys_added, sys_closed, sys_kept, upgraded_count, closed_count, len(remaining_alert_adds))
 
 
 # =============================================================================

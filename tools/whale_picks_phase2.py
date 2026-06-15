@@ -978,8 +978,8 @@ def main():
     parser.add_argument('--smoke', action='store_true', help='Smoke mode: limit to 50 sids')
     parser.add_argument('--industry-neutral', action='store_true', help='Stage 3 standardize by date+industry')
     parser.add_argument('--k-grid', action='store_true', help='Stage 8 iterate K=[5,10,15,20,30,50] for composite_parsi')
-    parser.add_argument('--liquidity-filter', action='store_true', help='Apply avg_tv_60d >= 10M TWD filter (matches production)')
-    parser.add_argument('--min-avg-tv', type=float, default=1e7, help='Min avg_tv_60d threshold (default 10M TWD)')
+    parser.add_argument('--liquidity-filter', action='store_true', help='Apply avg_tv_60d >= 100M TWD filter (matches production)')
+    parser.add_argument('--min-avg-tv', type=float, default=1e8, help='Min avg_tv_60d threshold (default 100M TWD)')
     args = parser.parse_args()
 
     out_dir = REPO / args.output_dir

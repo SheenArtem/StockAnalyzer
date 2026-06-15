@@ -166,7 +166,7 @@ def attach_metadata(scored: pd.DataFrame) -> pd.DataFrame:
 
 def apply_hard_exclusions(scored: pd.DataFrame,
                             min_avg_volume_lots: int = 300,
-                            min_avg_turnover_twd: float = 1e7) -> pd.DataFrame:
+                            min_avg_turnover_twd: float = 1e8) -> pd.DataFrame:
     """Filter out hard exclusions per SPEC §3:
       - KY 股 (海外子公司)
       - ETF / 特別股 / DR
