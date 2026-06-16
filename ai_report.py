@@ -2100,13 +2100,15 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 
 ## 你的任務{user_focus_note}{research_note}
 
-1. **必須使用 WebSearch 工具搜尋以下資訊**（5-8 次，其中至少 3 次用於 industry 區塊，即使系統數據看似齊全也不得略過）：
+1. **必須使用 WebSearch 工具搜尋以下資訊**（6-10 次，其中至少 3 次用於 industry 區塊，即使系統數據看似齊全也不得略過）：
    - "{stock_id} {stock_name} 產業趨勢 2026" — 產業動態、上下游供需
    - "{stock_id} {stock_name} 法說會 營運展望" — 最新展望、產品線變化
    - "{stock_id} 競爭對手 比較" — 主要競爭者營收/毛利率比較
-   - 美股請改用英文: "{ticker} industry outlook 2026", "{ticker} competitors analysis", "{ticker} latest earnings guidance"
+   - "{stock_id} {stock_name} 券商 目標價 評等 調整 2026" — **最新外資/投信目標價與評等變動，務必抓具名券商 + 目標價數字**（例「小摩上調至 140」），寫進 chip.rows(分析師評級列) + bull_bear；系統 [ANALYST_TARGETS] 台股稀疏，這類具名券商 target 多半只能靠搜尋
+   - "{stock_id} {stock_name} ETF 成分股 納入 剔除" — **是否近期被納入/剔除 0050/0056/高股息/主題 ETF（被動資金流是明確 catalyst，含生效日）**；命中就寫進 chip.rows + left_right.catalysts（含日期）
+   - 美股請改用英文: "{ticker} industry outlook 2026", "{ticker} competitors analysis", "{ticker} latest earnings guidance", "{ticker} analyst price target upgrade 2026", "{ticker} index ETF inclusion rebalance"
 
-   搜尋結果用於補充 bull_bear / industry / valuation 三區塊的質化敘事與最新催化；系統 [NEWS_DATA] / [NEWS_THEMES] 為歷史快取，必須以 WebSearch 補今日最新資訊。
+   搜尋結果用於補充 bull_bear / industry / valuation / chip 區塊的質化敘事與最新催化；系統 [NEWS_DATA] / [NEWS_THEMES] 為歷史快取，必須以 WebSearch 補今日最新資訊。**券商目標價調整、ETF 成分股異動是高訊號事件，找到就一定要寫進報告，別漏。**
 
    ⚠️ **數值欄位禁用 WebSearch 結果覆蓋**：valuation.peer_comparison / valuation.pe_history / summary.fundamentals 的 PE/PB/DY/ROE 數字必須**直接抄錄** [PEER_COMPARISON] / [FUNDAMENTAL_DATA] 系統供應值（單一 TradingView snapshot 確保跨報告一致），禁止用搜尋到的數字覆蓋，避免「A 報告引用 B 的 PE=X，但 B 自家報告 PE=Y」矛盾。
 

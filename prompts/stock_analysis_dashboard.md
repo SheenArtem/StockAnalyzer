@@ -233,7 +233,8 @@
 ## 重要提醒
 
 - 你**仍可使用 WebSearch / WebFetch** 補充產業研究、最新新聞、同業估值。
-- 搜尋 5-8 次。**industry 區塊是搜尋重點**，至少 3 次用於產品結構、供應鏈、競爭格局、成長驅動力。
+- 搜尋 6-10 次。**industry 區塊是搜尋重點**，至少 3 次用於產品結構、供應鏈、競爭格局、成長驅動力。
+- **必搜兩類高訊號事件，找到就一定要寫進報告**：①**券商評等/目標價調整**（具名外資/投信 + 目標價數字，如「小摩上調至 140」→ chip.rows 分析師列 + bull_bear）②**ETF 成分股納入/剔除**（0050/0056/高股息/主題 ETF，被動資金 catalyst，含生效日 → chip.rows + left_right.catalysts）。系統 [ANALYST_TARGETS] 台股稀疏、ETF 納入無系統 feed，這兩類只能靠 WebSearch。
 - **多來源查證**：質化關鍵論述寫入前至少 2 個獨立來源交叉比對；優先第一手來源（法說/公告/財報）；來源衝突時並列分歧不選邊；單一來源說法標「（單一來源，待證）」。
 - **標註來源**：自由文字敘事欄位（moat / note / catalysts / bull_bear / risks 等）引用搜尋事實時，句末加「（來源: 出處簡稱, YYYY-MM）」；數字欄位維持純數字不受影響。
 - **一定要輸出完整 JSON**，不得截斷。**敘事欄位要寫深寫滿**（moat / bull_points.text / bear_points.text / risks.description / growth_drivers.note / recommendation.strategy / left_right narratives 寫到各自字數上限 ~60-120 字，具名催化+數據+時間軸，不要只一句結論）；標籤/數值/short note 類短欄位（signal / value / category / one_liner 等）仍維持精簡。寧可敘事完整也不要為了省字數犧牲深度，但整份 JSON 不得截斷。

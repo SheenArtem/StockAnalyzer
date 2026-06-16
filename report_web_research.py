@@ -1,6 +1,6 @@
 """多代理 fan-out web 研究階段 (2026-06-16)
 
-`generate_one_report` 在組裝主報告 prompt 前先跑此階段:5 個研究角度各開一個
+`generate_one_report` 在組裝主報告 prompt 前先跑此階段:6 個研究角度各開一個
 Sonnet 子代理 (WebSearch/WebFetch) 並行查證 -> 彙整成 [WEB_RESEARCH] brief 注入主 prompt,
 讓主報告下筆前先有一份「已查證 + 附來源」的研究底稿。
 
@@ -34,6 +34,9 @@ _ANGLES = [
      "{name} {sid} 最新 訂單 擴產 利多 2026", "{tk} latest catalyst orders expansion news 2026"),
     ("risk", "風險與利空",
      "{name} {sid} 風險 利空 下修 隱憂 2026", "{tk} risks downside concerns 2026"),
+    ("analyst_etf", "券商評等與 ETF 動向",
+     "{name} {sid} 券商 目標價 評等 調整 ETF 成分股 納入 2026",
+     "{tk} analyst price target upgrade rating ETF index inclusion 2026"),
 ]
 
 
@@ -118,7 +121,7 @@ def run_web_research(ticker, stock_name='', is_us=False, progress_cb=None, max_w
         logger.warning("[web_research] claude CLI 不存在,跳過研究階段")
         return {'ok': False, 'brief': None, 'n_angles': 0, 'elapsed_s': 0.0}
 
-    # 固定 5 角度 + (使用者有補充關注時) 動態第 6 角度
+    # 固定 6 角度 + (使用者有補充關注時) 動態第 7 角度
     angles = list(_ANGLES)
     if user_focus and user_focus.strip():
         uf = user_focus.strip()
