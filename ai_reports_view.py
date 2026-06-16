@@ -350,7 +350,9 @@ def render_ai_reports():
             _col_ratio = [2.6, 1.4, 2, 1.3, 1.3, 0.8]
             _hdr = st.columns(_col_ratio)
             for _c, _t in zip(_hdr, ['日期', '股票', '格式', '觸發', '趨勢', '']):
-                _c.markdown(f"**{_t}**")
+                # _t 為空時不可用 "**{}**" → "****" 會被 markdown 當成水平線 <hr>
+                if _t:
+                    _c.markdown(f"**{_t}**")
             # 固定高度捲動容器：報告多時列表自己內部捲動，不把下方檢視器推很遠 (2026-06-16)
             with st.container(height=400):
                 for _r in _filtered:
