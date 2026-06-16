@@ -420,13 +420,13 @@ def render_ai_reports():
                                 width='stretch',
                             )
 
-                        st.caption("💡 如顯示不全請點「在瀏覽器開啟」看完整版（無高度限制）")
-                        # 內嵌 iframe 預覽 — 固定高 2600px、關閉內部 scrolling 消除雙層 scrollbar。
-                        # Streamlit 的 components.v1.html 不會實際響應 postMessage(streamlit:setFrameHeight)，
-                        # 所以改走「給夠高的固定 height + scrolling=False」，多數報告 2600 可完整顯示；
-                        # 超長報告（極端多 risk item 等）走「在瀏覽器開啟」按鈕。
+                        st.caption("💡 預覽框可內部捲動；要無干擾全覽請點「在瀏覽器開啟」")
+                        # 內嵌 iframe 預覽 — 2026-06-16 報告改單頁直向後整份遠高於 2600px，
+                        # 原本 scrolling=False 會把下半部截掉 → 改 scrolling=True 變可捲動預覽框，
+                        # 不論報告多長都能捲到底不截斷（components.v1.html 不支援 postMessage 動態高度，
+                        # 無法自動貼合內容高，故用固定高 + 內部捲動）。
                         import streamlit.components.v1 as _components
-                        _components.html(_sel_content, height=2600, scrolling=False)
+                        _components.html(_sel_content, height=2600, scrolling=True)
                     else:
                         # 報告含 <span style="color:..."> 顏色標記，需允許 HTML 才能正確渲染
                         st.markdown(_sel_content, unsafe_allow_html=True)
