@@ -22,6 +22,8 @@ systemic chip / 估值 等資料源整合，給使用者一個「容易讀」的
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -33,6 +35,45 @@ from macro_field_glossary import FIELD_GLOSSARY
 logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent
+
+# 自動產生報告背景 worker (2026-06-16)：對應個股全自動按鈕，背景 thread 跑不卡 UI
+_macro_report_job_lock = threading.Lock()
+
+
+def _macro_report_worker(job, reports_dir):
+    """背景 thread 跑 macro 全自動報告 (Claude Opus 生 HTML)，寫檔 + 回填 job。
+
+    禁呼叫 st.*（worker thread 無 ScriptRunContext）。
+    """
+    import sys as _sys
+    _tools = str(REPO / "tools")
+    if _tools not in _sys.path:
+        _sys.path.insert(0, _tools)
+
+    def _progress(msg):
+        with _macro_report_job_lock:
+            job['progress'].append(msg)
+
+    try:
+        from macro_compass_report import generate_report_html_local
+        ok, html_or_err = generate_report_html_local(progress_cb=_progress)
+        with _macro_report_job_lock:
+            if ok:
+                ts = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+                out = reports_dir / f"{ts}.html"
+                out.write_text(html_or_err, encoding='utf-8')
+                (reports_dir / "latest.html").write_text(html_or_err, encoding='utf-8')
+                job['result'] = out.name
+                job['status'] = 'done'
+            else:
+                job['result'] = html_or_err
+                job['status'] = 'error'
+    except Exception as _e:
+        import traceback
+        logger.error("[macro report worker] uncaught: %s", _e, exc_info=True)
+        with _macro_report_job_lock:
+            job['result'] = f"{type(_e).__name__}: {_e}\n\n{traceback.format_exc()}"
+            job['status'] = 'error'
 DATA = REPO / "data"
 MACRO_DIR = DATA / "macro"
 BREADTH_DIR = DATA / "breadth"
@@ -1040,13 +1081,53 @@ def _render_ai_report_section():
     """
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # 標題 + 產生按鈕緊鄰（標題左、按鈕貼著放，右側留白），不折疊
-    hcol, bcol, _sp = st.columns([2, 1.3, 4], vertical_alignment="bottom")
-    hcol.markdown("### 🤖 AI 風向研究報告")
-    gen_html = bcol.button("📋 產生 HTML 提示詞", type="primary",
-                           help="組裝資料面板 + 報告指示為提示詞（要求 claude.ai "
-                                "輸出單檔 HTML 網頁），複製/下載後貼到 claude.ai")
+    # === 自動產生報告 job 狀態處理 (2026-06-16，對應個股全自動按鈕) ===
+    _job = st.session_state.get('macro_report_job')
+    if _job and _job.get('status') == 'done':
+        st.success(f"✅ 總經風向報告已生成並存檔（{_job['result']}），見下方「查看歷史報告」。")
+        if st.button("清除通知", key='macro_clear_done'):
+            del st.session_state['macro_report_job']
+            st.rerun()
+    elif _job and _job.get('status') == 'error':
+        st.error("❌ 自動產生報告失敗")
+        with st.expander("錯誤訊息", expanded=True):
+            st.code(_job.get('result') or "(無訊息)", language=None)
+        if st.button("清除通知並重試", key='macro_clear_err'):
+            del st.session_state['macro_report_job']
+            st.rerun()
+    _is_running = _job is not None and _job.get('status') == 'running'
 
+    # 標題 + 自動產生報告按鈕（緊鄰）
+    hcol, bcol, _sp = st.columns([2, 1.6, 4], vertical_alignment="bottom")
+    hcol.markdown("### 🤖 AI 風向研究報告")
+    gen_auto = bcol.button("🤖 自動產生報告", type="primary", disabled=_is_running,
+                           help="本地 Claude Opus 直接生成 HTML 報告（1-5 分鐘），完成自動存報告庫")
+
+    # 執行中 banner + 自動刷新（背景 thread 跑，不卡 UI）
+    if _is_running:
+        _el = int(time.time() - _job['start_time'])
+        st.warning(f"⏳ 正在生成總經風向報告...（已過 {_el // 60} 分 {_el % 60} 秒）")
+        st.info("💡 可安心切到其他頁面，生成會在背景繼續進行，回此頁看進度。")
+        with st.expander("進度", expanded=True):
+            with _macro_report_job_lock:
+                _snap = list(_job.get('progress', []))
+            for _m in _snap:
+                st.write(f"• {_m}")
+        time.sleep(2)
+        st.rerun()
+
+    if gen_auto:
+        _new_job = {'status': 'running', 'start_time': time.time(), 'progress': [], 'result': None}
+        st.session_state['macro_report_job'] = _new_job
+        threading.Thread(target=_macro_report_worker, args=(_new_job, REPORTS_DIR),
+                         daemon=True).start()
+        st.rerun()
+
+    # === 手動 claude.ai 流程：產生 HTML 提示詞（移到「貼回」上方，2026-06-16）===
+    st.markdown("---")
+    gen_html = st.button("📋 產生 HTML 提示詞", disabled=_is_running,
+                         help="組裝資料面板 + 報告指示為提示詞（要求 claude.ai 輸出單檔 HTML "
+                              "網頁），複製/下載後貼到 claude.ai（用訂閱 quota）")
     if gen_html:
         try:
             import sys as _sys

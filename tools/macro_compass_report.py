@@ -525,6 +525,37 @@ def call_claude_opus(prompt: str) -> tuple[bool, str]:
         return False, "Claude CLI not found"
 
 
+def generate_report_html_local(progress_cb=None) -> tuple[bool, str]:
+    """全自動本地生成：collect_context + build_prompt(webpage) + Claude Opus → (ok, html_or_err).
+
+    供 macro_dashboard UI「自動產生報告」按鈕用 -- 對應 claude.ai webpage 工作流的本地版
+    (本地 claude -p 跑同一份 webpage 提示詞，要求輸出單檔自包含 HTML)。
+    LLM 規範 (CLAUDE.md Macro Compass)：Opus + effort xhigh + allowedTools，timeout 600s。
+    """
+    def _p(m):
+        if progress_cb:
+            progress_cb(m)
+    _p("組裝資料面板中（約數秒）...")
+    context = collect_context()
+    prompt = build_prompt(context, fmt="webpage")
+    _p(f"Claude Opus 生成 HTML 網頁中（{CLAUDE_OPUS_TIMEOUT // 60} 分 timeout，預期 1-5 分鐘）...")
+    ok, out = call_claude_opus(prompt)
+    if not ok:
+        return False, out
+    html = (out or "").strip()
+    # 剝 markdown 圍欄（claude 偶爾用 ```html 包）
+    if html.startswith("```"):
+        nl = html.find("\n")
+        if nl > 0:
+            html = html[nl + 1:]
+        html = html.rstrip()
+        if html.endswith("```"):
+            html = html[:-3].rstrip()
+    if "<html" not in html.lower():
+        return False, ("Claude 回傳內容不是完整 HTML（找不到 <html> 標籤）\n\n前 500 字:\n" + html[:500])
+    return True, html
+
+
 def call_gemini(prompt: str) -> tuple[bool, str]:
     """呼叫 Gemini CLI（gemini-3.1-pro-preview）。"""
     logger.info("Calling Gemini 3.1 Pro (timeout=%ds)...", GEMINI_TIMEOUT)
