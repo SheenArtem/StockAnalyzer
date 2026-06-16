@@ -351,22 +351,24 @@ def render_ai_reports():
             _hdr = st.columns(_col_ratio)
             for _c, _t in zip(_hdr, ['日期', '股票', '格式', '觸發', '趨勢', '']):
                 _c.markdown(f"**{_t}**")
-            for _r in _filtered:
-                _rid = _r['report_id']
-                _fmt = _r.get('format', 'md')
-                _fmt_label = '📊 儀表板' if _fmt == 'html' else '📝 Markdown'
-                _ts = _r.get('trigger_score')
-                _trs = _r.get('trend_score')
-                _row = st.columns(_col_ratio)
-                _row[0].write(f"{_r.get('date', '')} {_r.get('time', '')[:5]}")
-                _row[1].write(_r['ticker'])
-                _row[2].write(_fmt_label)
-                _row[3].write(f"{_ts:.1f}" if isinstance(_ts, (int, float)) else "—")
-                _row[4].write(f"{_trs:.0f}" if isinstance(_trs, (int, float)) else "—")
-                if _row[5].button("🗑️", key=f'rowdel_{_rid}', help="刪除此報告"):
-                    st.session_state['report_pending_delete'] = {
-                        'id': _rid, 'label': f"{_r.get('date', '')} {_r['ticker']}"}
-                    st.rerun()
+            # 固定高度捲動容器：報告多時列表自己內部捲動，不把下方檢視器推很遠 (2026-06-16)
+            with st.container(height=400):
+                for _r in _filtered:
+                    _rid = _r['report_id']
+                    _fmt = _r.get('format', 'md')
+                    _fmt_label = '📊 儀表板' if _fmt == 'html' else '📝 Markdown'
+                    _ts = _r.get('trigger_score')
+                    _trs = _r.get('trend_score')
+                    _row = st.columns(_col_ratio)
+                    _row[0].write(f"{_r.get('date', '')} {_r.get('time', '')[:5]}")
+                    _row[1].write(_r['ticker'])
+                    _row[2].write(_fmt_label)
+                    _row[3].write(f"{_ts:.1f}" if isinstance(_ts, (int, float)) else "—")
+                    _row[4].write(f"{_trs:.0f}" if isinstance(_trs, (int, float)) else "—")
+                    if _row[5].button("🗑️", key=f'rowdel_{_rid}', help="刪除此報告"):
+                        st.session_state['report_pending_delete'] = {
+                            'id': _rid, 'label': f"{_r.get('date', '')} {_r['ticker']}"}
+                        st.rerun()
 
             # 有 pending 刪除 → 開確認 modal
             _pending = st.session_state.get('report_pending_delete')
