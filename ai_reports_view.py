@@ -332,54 +332,46 @@ def render_ai_reports():
 
             st.caption(f"共 {len(_filtered)} 篇報告")
 
-            # === 批次刪除 (2026-06-16)：可複選一次刪多篇，confirm 勾選防誤刪 ===
-            with st.expander("🗑️ 批次刪除報告", expanded=False):
-                _del_opts = {
-                    f"{'📊' if _r.get('format', 'md') == 'html' else '📝'} "
-                    f"{_r.get('date', '')} {_r.get('time', '')[:5]} {_r['ticker']} "
-                    f"({_r['report_id']})": _r['report_id']
-                    for _r in _filtered
-                }
-                _del_sel = st.multiselect(
-                    "選擇要刪除的報告（可複選）",
-                    list(_del_opts.keys()),
-                    key='report_batch_del_sel',
-                )
-                if _del_sel:
-                    _confirm = st.checkbox(
-                        f"我確認刪除選取的 {len(_del_sel)} 篇報告（不可復原）",
-                        key='report_batch_del_confirm',
-                    )
-                    if st.button("🗑️ 刪除選取的報告", type='primary',
-                                 disabled=not _confirm, key='report_batch_del_btn'):
-                        _ok_n, _fail = 0, []
-                        for _lbl in _del_sel:
-                            try:
-                                _delete_report(_del_opts[_lbl])
-                                _ok_n += 1
-                            except Exception as _e:
-                                _fail.append(f"{_del_opts[_lbl]}: {type(_e).__name__}")
-                        if _fail:
-                            st.error(f"已刪除 {_ok_n} 篇，{len(_fail)} 篇失敗：{'; '.join(_fail)}")
-                        else:
-                            st.success(f"已刪除 {_ok_n} 篇報告")
-                        st.rerun()
+            # === 確認刪除 modal (2026-06-16)：點報告列的 🗑️ → 跳此確認視窗 ===
+            @st.dialog("確認刪除報告")
+            def _confirm_delete_dialog(report_id, label):
+                st.warning(f"確定要刪除 **{label}** 嗎？此操作不可復原。")
+                st.caption(f"ID: `{report_id}`")
+                _dc1, _dc2 = st.columns(2)
+                if _dc1.button("✅ 確認刪除", type='primary', key=f'confirm_del_{report_id}'):
+                    _delete_report(report_id)
+                    st.session_state.pop('report_pending_delete', None)
+                    st.rerun()
+                if _dc2.button("取消", key=f'cancel_del_{report_id}'):
+                    st.session_state.pop('report_pending_delete', None)
+                    st.rerun()
 
-            # Report list
-            _list_rows = []
+            # Report list：每列右側一顆 🗑️，點了開確認 modal
+            _col_ratio = [2.6, 1.4, 2, 1.3, 1.3, 0.8]
+            _hdr = st.columns(_col_ratio)
+            for _c, _t in zip(_hdr, ['日期', '股票', '格式', '觸發', '趨勢', '']):
+                _c.markdown(f"**{_t}**")
             for _r in _filtered:
+                _rid = _r['report_id']
                 _fmt = _r.get('format', 'md')
                 _fmt_label = '📊 儀表板' if _fmt == 'html' else '📝 Markdown'
-                _list_rows.append({
-                    '日期': f"{_r.get('date', '')} {_r.get('time', '')[:5]}",
-                    '股票': _r['ticker'],
-                    '格式': _fmt_label,
-                    '觸發分數': _r.get('trigger_score'),
-                    '趨勢分數': _r.get('trend_score'),
-                    'ID': _r['report_id'],
-                })
-            if _list_rows:
-                st.dataframe(pd.DataFrame(_list_rows), width='stretch', hide_index=True)
+                _ts = _r.get('trigger_score')
+                _trs = _r.get('trend_score')
+                _row = st.columns(_col_ratio)
+                _row[0].write(f"{_r.get('date', '')} {_r.get('time', '')[:5]}")
+                _row[1].write(_r['ticker'])
+                _row[2].write(_fmt_label)
+                _row[3].write(f"{_ts:.1f}" if isinstance(_ts, (int, float)) else "—")
+                _row[4].write(f"{_trs:.0f}" if isinstance(_trs, (int, float)) else "—")
+                if _row[5].button("🗑️", key=f'rowdel_{_rid}', help="刪除此報告"):
+                    st.session_state['report_pending_delete'] = {
+                        'id': _rid, 'label': f"{_r.get('date', '')} {_r['ticker']}"}
+                    st.rerun()
+
+            # 有 pending 刪除 → 開確認 modal
+            _pending = st.session_state.get('report_pending_delete')
+            if _pending:
+                _confirm_delete_dialog(_pending['id'], _pending['label'])
 
             # Report viewer
             def _opt_label(r):
@@ -409,9 +401,9 @@ def render_ai_reports():
                         from ai_report import get_report_filepath as _get_fp
                         _fp = _get_fp(_sel_id)
 
-                        _c1, _c2, _c3 = st.columns([2, 2, 6])
+                        _c1, _c2, _c3 = st.columns([1.6, 1.6, 6.8])
                         with _c1:
-                            if _fp and st.button("🌐 在瀏覽器開啟", key='html_open_btn', type='primary'):
+                            if _fp and st.button("🌐 在瀏覽器開啟", key='html_open_btn', type='primary', width='stretch'):
                                 import webbrowser
                                 webbrowser.open(f"file:///{_fp.replace(chr(92), '/')}")
                         with _c2:
@@ -421,6 +413,7 @@ def render_ai_reports():
                                 file_name=f"{_sel_id}.html",
                                 mime='text/html',
                                 key='html_download_btn',
+                                width='stretch',
                             )
 
                         st.caption("💡 如顯示不全請點「在瀏覽器開啟」看完整版（無高度限制）")
@@ -438,7 +431,7 @@ def render_ai_reports():
                     st.caption("此報告由 Claude AI 基於系統數據自動生成，僅供參考，不構成投資建議。")
 
                     if st.button("🗑️ 刪除此報告", key='report_delete_btn'):
-                        _delete_report(_sel_id)
-                        st.success("報告已刪除")
+                        st.session_state['report_pending_delete'] = {
+                            'id': _sel_id, 'label': _report_options[_sel_idx]}
                         st.rerun()
 
