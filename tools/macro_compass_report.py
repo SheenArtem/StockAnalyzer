@@ -369,7 +369,7 @@ def collect_context() -> str:
 #  Prompt 組裝
 # ============================================================
 
-def build_prompt(context: str, fmt: str = "html") -> str:
+def build_prompt(context: str, fmt: str = "html", user_focus: Optional[str] = None) -> str:
     """組裝報告 prompt。
 
     fmt='html'   ：本地 LLM pipeline 用（要求輸出 HTML body 內嵌 iframe）。
@@ -403,10 +403,23 @@ def build_prompt(context: str, fmt: str = "html") -> str:
             return f"<h2>{n}. {t}</h2>"
         out_fmt_rule = "- 用台灣繁體中文"
 
+    # 使用者補充關注 / 提問 (2026-06-16)：注入 [USER_FOCUS]，要求報告敘事優先回應（不得編造數字）
+    user_focus_block = ""
+    user_focus_note = ""
+    if user_focus and user_focus.strip():
+        uf = user_focus.strip()
+        user_focus_block = f"\n\n【使用者補充關注 / 提問 [USER_FOCUS]】\n{uf}"
+        user_focus_note = (
+            "\n\n⭐ **使用者補充關注 / 提問 [USER_FOCUS]**：請在報告敘事（風險定調 / 情境推演 / "
+            "訊號交叉驗證 / 操作建議）中**優先回應**使用者的關注；若需面板外的即時資訊，依【上網查證指示】"
+            "上網查證並附來源與日期。⚠️ 這是『關注方向』非事實來源：**不得**據此編造數字、不得違反"
+            "『面板權威序列以面板為準』規則；使用者若提供主觀看法（如自訂點位 / 多空預期），須客觀查證後"
+            "在報告中評述，不可直接當結論寫入。")
+
     return f"""你是一位資深總體經濟與量化研究員。以下是台股 + 美股大盤的**結構/歷史資料面板（量化分析骨幹）**。請以此面板為量化底稿，並**依下方【上網查證指示】主動上網**補充面板結構上拿不到的即時值與事件催化（本報告採 hybrid：面板骨幹 + 網路即時/事件層）。
 
 【資料面板】
-{context}
+{context}{user_focus_block}
 
 【面板權威序列清單 — 以下為面板已涵蓋的結構型序列，請以面板數值為準，不要用網路數字覆蓋或重新查證（這些網路抓反而較不可靠）】
 上方面板 A-K 已涵蓋：
@@ -440,7 +453,7 @@ def build_prompt(context: str, fmt: str = "html") -> str:
 → 情境推演的觸發條件請優先押在「真領先」指標；同步指標只用來描述當下，不要寫成預測未來的領先警訊。
 
 【任務】
-{directive}
+{directive}{user_focus_note}
 
 {H(1, "當前風險定調")}
 - 5 階燈號：危機/嚴重/警戒/留意/安全 -- 給出明確選一
@@ -525,11 +538,12 @@ def call_claude_opus(prompt: str) -> tuple[bool, str]:
         return False, "Claude CLI not found"
 
 
-def generate_report_html_local(progress_cb=None) -> tuple[bool, str]:
+def generate_report_html_local(progress_cb=None, user_focus: Optional[str] = None) -> tuple[bool, str]:
     """全自動本地生成：collect_context + build_prompt(webpage) + Claude Opus → (ok, html_or_err).
 
     供 macro_dashboard UI「自動產生報告」按鈕用 -- 對應 claude.ai webpage 工作流的本地版
     (本地 claude -p 跑同一份 webpage 提示詞，要求輸出單檔自包含 HTML)。
+    user_focus: 使用者補充關注 / 提問，注入 [USER_FOCUS]，要求報告敘事優先回應。
     LLM 規範 (CLAUDE.md Macro Compass)：Opus + effort xhigh + allowedTools，timeout 7200s/2h。
     """
     def _p(m):
@@ -537,7 +551,7 @@ def generate_report_html_local(progress_cb=None) -> tuple[bool, str]:
             progress_cb(m)
     _p("組裝資料面板中（約數秒）...")
     context = collect_context()
-    prompt = build_prompt(context, fmt="webpage")
+    prompt = build_prompt(context, fmt="webpage", user_focus=user_focus)
     _p("Claude Opus 生成 HTML 網頁中（最長 2 小時 timeout，通常數分鐘）...")
     ok, out = call_claude_opus(prompt)
     if not ok:

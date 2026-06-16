@@ -40,9 +40,10 @@ REPO = Path(__file__).resolve().parent
 _macro_report_job_lock = threading.Lock()
 
 
-def _macro_report_worker(job, reports_dir):
+def _macro_report_worker(job, reports_dir, user_focus=None):
     """背景 thread 跑 macro 全自動報告 (Claude Opus 生 HTML)，寫檔 + 回填 job。
 
+    user_focus: 使用者補充關注 / 提問，注入 [USER_FOCUS]，要求報告敘事優先回應。
     禁呼叫 st.*（worker thread 無 ScriptRunContext）。
     """
     import sys as _sys
@@ -56,7 +57,7 @@ def _macro_report_worker(job, reports_dir):
 
     try:
         from macro_compass_report import generate_report_html_local
-        ok, html_or_err = generate_report_html_local(progress_cb=_progress)
+        ok, html_or_err = generate_report_html_local(progress_cb=_progress, user_focus=user_focus)
         with _macro_report_job_lock:
             if ok:
                 ts = datetime.now().strftime('%Y-%m-%d_%H%M%S')
@@ -1098,11 +1099,20 @@ def _render_ai_report_section():
             st.rerun()
     _is_running = _job is not None and _job.get('status') == 'running'
 
-    # 標題 + 自動產生報告按鈕（緊鄰）
-    hcol, bcol, _sp = st.columns([2, 1.6, 4], vertical_alignment="bottom")
-    hcol.markdown("### 🤖 AI 風向研究報告")
-    gen_auto = bcol.button("🤖 自動產生報告", type="primary", disabled=_is_running,
-                           help="本地 Claude Opus 直接生成 HTML 報告（1-5 分鐘），完成自動存報告庫")
+    # 標題（獨佔一行；自動產生報告按鈕移到補充提示下方，2026-06-16）
+    st.markdown("### 🤖 AI 風向研究報告")
+
+    # 使用者補充關注 / 提問 (2026-06-16)：注入 [USER_FOCUS]，同時作用在全自動 + 產生 HTML 提示詞兩條路
+    _macro_user_focus = st.text_area(
+        "💭 補充指示 / 想特別問的問題（選填）",
+        placeholder="例: 特別注意本週 FOMC / 我覺得台股要轉空，幫我驗證多空 / 聚焦半導體與 AI 鏈風向",
+        key='macro_report_user_focus',
+        disabled=_is_running,
+        height=80,
+        help="會注入報告 prompt，要求 AI 在敘事中優先回應；不會讓 AI 編造數字或覆蓋面板權威序列。",
+    )
+    gen_auto = st.button("🤖 自動產生報告", type="primary", disabled=_is_running,
+                         help="本地 Claude Opus 直接生成 HTML 報告（1-5 分鐘），完成自動存報告庫")
 
     # 執行中 banner + 自動刷新（背景 thread 跑，不卡 UI）
     if _is_running:
@@ -1118,9 +1128,11 @@ def _render_ai_report_section():
         st.rerun()
 
     if gen_auto:
-        _new_job = {'status': 'running', 'start_time': time.time(), 'progress': [], 'result': None}
+        _focus = (_macro_user_focus or '').strip() or None
+        _new_job = {'status': 'running', 'start_time': time.time(), 'progress': [],
+                    'result': None, 'user_focus': _focus}
         st.session_state['macro_report_job'] = _new_job
-        threading.Thread(target=_macro_report_worker, args=(_new_job, REPORTS_DIR),
+        threading.Thread(target=_macro_report_worker, args=(_new_job, REPORTS_DIR, _focus),
                          daemon=True).start()
         st.rerun()
 
@@ -1136,9 +1148,11 @@ def _render_ai_report_section():
             if _tools not in _sys.path:
                 _sys.path.insert(0, _tools)
             from macro_compass_report import collect_context, build_prompt
+            _focus = (_macro_user_focus or '').strip() or None
             with st.spinner("組裝資料面板中（約數秒）..."):
                 ctx = collect_context()
-                st.session_state['macro_prompt'] = build_prompt(ctx, fmt="webpage")
+                st.session_state['macro_prompt'] = build_prompt(ctx, fmt="webpage",
+                                                                user_focus=_focus)
         except Exception as e:
             st.error(f"產生提示詞失敗：{e}")
 
