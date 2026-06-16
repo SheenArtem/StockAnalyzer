@@ -1942,11 +1942,14 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 # Dashboard Mode — 輸出 HTML 互動儀表板
 # ================================================================
 
-def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day, web_research=None):
+def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
+                              web_research=None, user_focus=None):
     """組裝儀表板模式 prompt（要求 Claude 輸出 JSON）
 
     web_research: optional str — 多代理 fan-out 研究階段彙整的 [WEB_RESEARCH] brief
                   (report_web_research.run_web_research)，有提供時注入為已查證研究底稿。
+    user_focus: optional str — 使用者補充關注 / 提問，注入 [USER_FOCUS]，要求主代理在
+                敘事欄位優先回應（不得因此編造數字或違反 verbatim 價位規則）。
     """
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
     system_prompt = _load_dashboard_prompt()
@@ -1991,6 +1994,8 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
     ]
     if web_research:
         data_sections.append(f"[WEB_RESEARCH]\n{web_research}")
+    if user_focus and user_focus.strip():
+        data_sections.append(f"[USER_FOCUS]\n{user_focus.strip()}")
     data_block = "\n\n".join(data_sections)
 
     stock_name = ''
@@ -2011,6 +2016,16 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
             "**優先採用**其事實與來源寫入 bull_bear / industry / valuation 敘事；你自己的 WebSearch 只用於補足底稿未涵蓋的缺口，不要重複查同樣的主題。"
         )
 
+    # 使用者補充關注 / 提問 (作用在全自動 + 產生 Prompt 兩條路)
+    user_focus_note = ""
+    if user_focus and user_focus.strip():
+        user_focus_note = (
+            "\n\n⭐ **使用者補充關注 / 提問 [USER_FOCUS]**：請在報告敘事（summary.one_liner / key_points / "
+            "bull_bear / risks / industry）中**優先回應**使用者的關注；若提問超出 schema 欄位範圍，擇最相關欄位回答並在 one_liner 點出。"
+            "⚠️ 這是『關注方向』非事實來源：**不得**因此編造數字、不得違反 entry_zone / stop_loss verbatim 與『數值欄位禁 WebSearch 覆蓋』規則；"
+            "使用者若提供主觀看法（如自訂目標價 / 漲跌預期），須查證後在 bull_bear 客觀評述，不可直接當結論寫入。"
+        )
+
     full_prompt = f"""{system_prompt}
 
 ---
@@ -2021,7 +2036,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 
 ---
 
-## 你的任務{research_note}
+## 你的任務{user_focus_note}{research_note}
 
 1. **必須使用 WebSearch 工具搜尋以下資訊**（5-8 次，其中至少 3 次用於 industry 區塊，即使系統數據看似齊全也不得略過）：
    - "{stock_id} {stock_name} 產業趨勢 2026" — 產業動態、上下游供需
@@ -2115,19 +2130,20 @@ def render_html_from_claude_output(ticker, raw_output):
 
 
 def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                         timeout=600, web_research=None):
+                         timeout=600, web_research=None, user_focus=None):
     """
     生成 HTML 互動儀表板報告。
 
     LLM 規範 (2026-05-01)：強制 Opus model + `--allowedTools "*"`，timeout 10 min。
 
     web_research: optional str — 多代理 fan-out 研究底稿 (注入 [WEB_RESEARCH])。
+    user_focus: optional str — 使用者補充關注 / 提問 (注入 [USER_FOCUS])。
 
     Returns:
         tuple: (success: bool, html_or_error_msg: str, json_data: dict | None)
     """
     prompt = assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                                       web_research=web_research)
+                                       web_research=web_research, user_focus=user_focus)
     logger.info("Dashboard prompt assembled for %s (%d chars)", ticker, len(prompt))
 
     try:

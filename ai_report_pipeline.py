@@ -100,6 +100,7 @@ def assemble_prompt_only(
     ticker: str,
     fmt: str = 'html',
     progress_cb: Optional[Callable[[str], None]] = None,
+    user_focus: Optional[str] = None,
 ) -> dict:
     """Run pipeline steps 1-4 + assemble prompt, but skip Claude CLI call.
 
@@ -124,7 +125,7 @@ def assemble_prompt_only(
         progress_cb("📝 組裝 prompt...")
         if fmt == 'html':
             from ai_report import assemble_dashboard_prompt
-            prompt = assemble_dashboard_prompt(ticker, *inputs)
+            prompt = assemble_dashboard_prompt(ticker, *inputs, user_focus=user_focus)
         else:
             from ai_report import assemble_prompt
             prompt = assemble_prompt(ticker, *inputs)
@@ -145,6 +146,7 @@ def generate_one_report(
     fmt: str = 'md',
     progress_cb: Optional[Callable[[str], None]] = None,
     with_research: bool = True,
+    user_focus: Optional[str] = None,
 ) -> dict:
     """Run full AI report pipeline for one ticker.
 
@@ -203,7 +205,8 @@ def generate_one_report(
                             _stock_name = str(_v)
                             break
                 _research = run_web_research(ticker, stock_name=_stock_name,
-                                             is_us=_is_us, progress_cb=progress_cb)
+                                             is_us=_is_us, progress_cb=progress_cb,
+                                             user_focus=user_focus)
                 if _research.get('ok'):
                     web_research = _research['brief']
             except Exception as _re:  # noqa: BLE001 - 研究階段失敗不可阻斷報告
@@ -217,6 +220,7 @@ def generate_one_report(
                 ticker, report, chip_data, us_chip_data, fund_data, df_day,
                 timeout=600,  # LLM 規範 (2026-05-01): Claude 10 min
                 web_research=web_research,
+                user_focus=user_focus,
             )
             if not ok:
                 result['error'] = content_or_err

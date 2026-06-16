@@ -87,6 +87,16 @@ def render_ai_reports():
         # 「產出格式」radio 隱藏 (2026-06-04)：一律 HTML（MD 生成/儲存邏輯保留待用，還原 radio 即可切回）
         _ai_format = 'html'
 
+        # 使用者補充關注 / 提問 (2026-06-16)：注入 [USER_FOCUS]，同時作用在全自動 + 產生 Prompt 兩條路
+        _ai_user_focus = st.text_area(
+            "💭 補充指示 / 想特別問的問題（選填）",
+            placeholder="例: 特別注意美國關稅衝擊 / 我覺得這檔要轉機，幫我驗證多空 / 跟聯電比競爭力如何",
+            key='ai_report_user_focus',
+            disabled=_is_running,
+            height=80,
+            help="會注入報告 prompt，要求 AI 在敘事中優先回應；不會覆蓋 deterministic 價位或讓 AI 編造數字。",
+        )
+
         # 「🤖 生成研究報告」(本地 CLI 全自動) 按鈕恢復 (2026-06-16)
         # 走 ai_report_pipeline.generate_one_report 全自動 path (同 auto_ai_reports.py)，
         # 背景 thread 跑 + running banner/progress 自動刷新，不卡 UI。
@@ -104,6 +114,7 @@ def render_ai_reports():
                 if not is_valid:
                     st.error(f"代號格式不正確: {err_msg}")
                 else:
+                    _focus = (_ai_user_focus or '').strip() or None
                     _new_job = {
                         'ticker': _ai_ticker,
                         'status': 'running',
@@ -111,11 +122,12 @@ def render_ai_reports():
                         'progress': [],
                         'result': None,
                         'format': _ai_format,
+                        'user_focus': _focus,
                     }
                     st.session_state['ai_report_job'] = _new_job
                     _t = threading.Thread(
                         target=_ai_report_worker,
-                        args=(_new_job, _ai_ticker, _ai_format),
+                        args=(_new_job, _ai_ticker, _ai_format, _focus),
                         daemon=True,
                     )
                     _t.start()
@@ -141,8 +153,9 @@ def render_ai_reports():
                     st.error(f"代號格式不正確: {err_msg}")
                 else:
                     from ai_report_pipeline import assemble_prompt_only
+                    _focus = (_ai_user_focus or '').strip() or None
                     with st.spinner(f"組裝 {_ai_ticker} prompt 中（10-30 秒，無 LLM call）..."):
-                        _r = assemble_prompt_only(_ai_ticker, fmt=_ai_format)
+                        _r = assemble_prompt_only(_ai_ticker, fmt=_ai_format, user_focus=_focus)
                     if not _r['ok']:
                         st.error(f"組裝失敗: {_r['error']}")
                     else:

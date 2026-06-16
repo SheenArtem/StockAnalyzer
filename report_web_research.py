@@ -58,7 +58,12 @@ def _run_one_angle(cli, angle, ticker, stock_name, is_us):
     """跑單一研究角度。回傳 (key, title, output_or_None)。"""
     key, title, tw_q, us_q = angle
     sid = ticker.replace('.TW', '')
-    query = (us_q if is_us else tw_q).format(name=stock_name or ticker, sid=sid, tk=ticker)
+    raw_q = us_q if is_us else tw_q
+    try:
+        query = raw_q.format(name=stock_name or ticker, sid=sid, tk=ticker)
+    except (KeyError, IndexError, ValueError):
+        # user_focus 角度的 query 是使用者原文，可能含 {}，不套模板直接用
+        query = raw_q
     prompt = _build_subagent_prompt(title, query, ticker, stock_name or ticker)
     try:
         result = subprocess.run(
@@ -89,8 +94,9 @@ def _run_one_angle(cli, angle, ticker, stock_name, is_us):
         return key, title, None
 
 
-def run_web_research(ticker, stock_name='', is_us=False, progress_cb=None, max_workers=5):
-    """並行跑 5 個角度的 web 研究,彙整成可注入 [WEB_RESEARCH] 的 brief。
+def run_web_research(ticker, stock_name='', is_us=False, progress_cb=None, max_workers=5,
+                     user_focus=None):
+    """並行跑研究角度的 web 研究,彙整成可注入 [WEB_RESEARCH] 的 brief。
 
     Args:
         ticker: 股票代號 ('2330' / '2330.TW' / 'NVDA')
@@ -98,6 +104,7 @@ def run_web_research(ticker, stock_name='', is_us=False, progress_cb=None, max_w
         is_us: 美股 -> 用英文 query
         progress_cb: callable(msg)
         max_workers: 並行子代理數
+        user_focus: 使用者補充關注 / 提問 -> 多加一個專屬研究角度,讓查詢偏向使用者關注
 
     Returns:
         dict {ok: bool, brief: str|None, n_angles: int, elapsed_s: float}
@@ -111,11 +118,17 @@ def run_web_research(ticker, stock_name='', is_us=False, progress_cb=None, max_w
         logger.warning("[web_research] claude CLI 不存在,跳過研究階段")
         return {'ok': False, 'brief': None, 'n_angles': 0, 'elapsed_s': 0.0}
 
-    _p(f"🔎 多代理研究啟動（{len(_ANGLES)} 角度並行 Sonnet）...")
+    # 固定 5 角度 + (使用者有補充關注時) 動態第 6 角度
+    angles = list(_ANGLES)
+    if user_focus and user_focus.strip():
+        uf = user_focus.strip()
+        angles.append(("user_focus", "使用者關注主題", uf, uf))
+
+    _p(f"🔎 多代理研究啟動（{len(angles)} 角度並行 Sonnet）...")
     results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
         futs = {ex.submit(_run_one_angle, _CLAUDE_CLI, a, ticker, stock_name, is_us): a
-                for a in _ANGLES}
+                for a in angles}
         for fut in concurrent.futures.as_completed(futs):
             key, title, out = fut.result()
             results[key] = out
@@ -123,7 +136,7 @@ def run_web_research(ticker, stock_name='', is_us=False, progress_cb=None, max_w
 
     # 依原順序彙整
     parts = []
-    for key, title, *_ in _ANGLES:
+    for key, title, *_ in angles:
         out = results.get(key)
         if out:
             parts.append(f"### {title}\n{out}")
@@ -134,5 +147,5 @@ def run_web_research(ticker, stock_name='', is_us=False, progress_cb=None, max_w
         return {'ok': False, 'brief': None, 'n_angles': 0, 'elapsed_s': elapsed}
 
     brief = "\n\n".join(parts)
-    _p(f"🔎 研究完成:{len(parts)}/{len(_ANGLES)} 角度有料（{elapsed:.0f}s）")
+    _p(f"🔎 研究完成:{len(parts)}/{len(angles)} 角度有料（{elapsed:.0f}s）")
     return {'ok': True, 'brief': brief, 'n_angles': len(parts), 'elapsed_s': elapsed}

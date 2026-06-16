@@ -111,7 +111,7 @@ def run_analysis(source_data, force_update=False):
 _ai_report_job_lock = threading.Lock()
 
 
-def _ai_report_worker(job, ticker, report_format='md'):
+def _ai_report_worker(job, ticker, report_format='md', user_focus=None):
     """在背景 thread 跑完整 AI 報告流程。
 
     job 是 session_state 裡的 dict 參照，thread 透過 _ai_report_job_lock 安全 mutate。
@@ -119,6 +119,7 @@ def _ai_report_worker(job, ticker, report_format='md'):
 
     Args:
         report_format: 'md' = 傳統 Markdown 報告；'html' = 互動儀表板
+        user_focus: 使用者補充關注 / 提問，注入 [USER_FOCUS] + 偏向研究階段查詢
     """
     from ai_report_pipeline import generate_one_report
 
@@ -128,7 +129,8 @@ def _ai_report_worker(job, ticker, report_format='md'):
 
     try:
         result = generate_one_report(ticker, fmt=report_format,
-                                     progress_cb=_progress)
+                                     progress_cb=_progress,
+                                     user_focus=user_focus)
         with _ai_report_job_lock:
             if result['ok']:
                 job['result'] = {
