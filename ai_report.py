@@ -2104,7 +2104,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
    - "{stock_id} {stock_name} 產業趨勢 2026" — 產業動態、上下游供需
    - "{stock_id} {stock_name} 法說會 營運展望" — 最新展望、產品線變化
    - "{stock_id} 競爭對手 比較" — 主要競爭者營收/毛利率比較
-   - "{stock_id} {stock_name} 券商 目標價 評等 調整 2026" — **最新外資/投信目標價與評等變動，務必抓具名券商 + 目標價數字**（例「小摩上調至 140」），寫進 chip.rows(分析師評級列) + bull_bear；系統 [ANALYST_TARGETS] 台股稀疏，這類具名券商 target 多半只能靠搜尋
+   - "{stock_id} {stock_name} 券商 目標價 評等 調整 2026" — **最新外資/投信目標價與評等變動，務必抓具名券商 + 目標價數字 + 發布日期**，寫進 chip.rows(分析師評級列) + bull_bear。⚠️ **時效防呆**：目標價會被一再上修/下修，**務必找「最新一次」、核對日期、舊值已被取代不可引用**（例同券商先前 140、最新 255，只能用 255）；多筆衝突取日期最新那筆。系統 [ANALYST_TARGETS] 台股稀疏，這類具名券商 target 多半只能靠搜尋
    - "{stock_id} {stock_name} ETF 成分股 納入 剔除" — **是否近期被納入/剔除 0050/0056/高股息/主題 ETF（被動資金流是明確 catalyst，含生效日）**；命中就寫進 chip.rows + left_right.catalysts（含日期）
    - 美股請改用英文: "{ticker} industry outlook 2026", "{ticker} competitors analysis", "{ticker} latest earnings guidance", "{ticker} analyst price target upgrade 2026", "{ticker} index ETF inclusion rebalance"
 
