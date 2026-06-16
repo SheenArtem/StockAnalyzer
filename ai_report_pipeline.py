@@ -214,11 +214,11 @@ def generate_one_report(
 
         # --- 5. Call Claude CLI + save ---
         if fmt == 'html':
-            progress_cb("🤖 Claude AI 生成儀表板 JSON 中（10 min timeout，預期 1-5 分鐘）...")
+            progress_cb("🤖 Claude AI 生成儀表板 JSON 中（最長 2 小時 timeout，通常數分鐘）...")
             from ai_report import generate_report_html, save_report_html
             ok, content_or_err, json_data = generate_report_html(
                 ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                timeout=600,  # LLM 規範 (2026-05-01): Claude 10 min
+                timeout=7200,  # 2026-06-16 放寬至 2 小時 (原 600s 太短，深度報告+研究+web search 會超)
                 web_research=web_research,
                 user_focus=user_focus,
             )
@@ -237,11 +237,11 @@ def generate_one_report(
             result['rid'] = rid
             result['content'] = content_or_err
         else:
-            progress_cb("🤖 Claude AI 生成 Markdown 報告中（10 min timeout，預期 1-5 分鐘）...")
+            progress_cb("🤖 Claude AI 生成 Markdown 報告中（最長 2 小時 timeout，通常數分鐘）...")
             from ai_report import generate_report, save_report, post_validate_numbers, send_drift_discord
             ok, content = generate_report(
                 ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                timeout=600,  # LLM 規範 (2026-05-01): Claude 10 min
+                timeout=7200,  # 2026-06-16 放寬至 2 小時 (原 600s 太短，深度報告+研究+web search 會超)
             )
             if not ok:
                 result['error'] = content

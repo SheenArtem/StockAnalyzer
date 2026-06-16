@@ -1072,12 +1072,13 @@ def _render_valuation(val: dict):
 # ============================================================
 
 def _render_ai_report_section():
-    """AI 風向研究報告 -- 匯出 claude.ai 提示詞 (單檔 HTML 網頁) + 貼回存檔。
+    """AI 風向研究報告 -- 🤖 自動產生 (本地 Opus 生 HTML) + 📋 匯出提示詞 (貼 claude.ai) 雙工作流 + 貼回存檔。
 
-    2026-05-30：從本地 Opus CLI 改為「匯出提示詞」工作流。提示詞要求 claude.ai
-    輸出單檔自包含 HTML 網頁（可當 Artifact 預覽/下載），使用者再把整頁 HTML 貼回
-    下方存進報告庫（data/macro_reports/）。不消耗本地 Agent SDK Credit。
-    本地 LLM 版仍可手動跑 `python tools/macro_compass_report.py`。
+    - 🤖 自動產生報告 (2026-06-16 加回)：本地 claude -p Opus 跑 webpage 提示詞 → 直接生
+      單檔 HTML → 存報告庫 (data/macro_reports/)。背景 thread 不卡 UI；會用本地 Agent SDK Credit。
+    - 📋 產生 HTML 提示詞：組提示詞複製貼到 claude.ai 自行生成 (不消耗本地 Credit)，再把整頁
+      HTML 貼回下方存檔。
+    - 本地 LLM 版亦可手動跑 `python tools/macro_compass_report.py`。
     """
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 

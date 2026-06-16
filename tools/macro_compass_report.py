@@ -48,7 +48,7 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 CLAUDE_CLI = shutil.which("claude") or "claude"
 GEMINI_CLI = shutil.which("gemini") or "gemini"
 
-CLAUDE_OPUS_TIMEOUT = 600
+CLAUDE_OPUS_TIMEOUT = 7200  # 2026-06-16 放寬至 2 小時 (原 600s 太短)
 CLAUDE_SONNET_TIMEOUT = 600
 GEMINI_TIMEOUT = 900
 
@@ -538,7 +538,7 @@ def generate_report_html_local(progress_cb=None) -> tuple[bool, str]:
     _p("組裝資料面板中（約數秒）...")
     context = collect_context()
     prompt = build_prompt(context, fmt="webpage")
-    _p(f"Claude Opus 生成 HTML 網頁中（{CLAUDE_OPUS_TIMEOUT // 60} 分 timeout，預期 1-5 分鐘）...")
+    _p("Claude Opus 生成 HTML 網頁中（最長 2 小時 timeout，通常數分鐘）...")
     ok, out = call_claude_opus(prompt)
     if not ok:
         return False, out

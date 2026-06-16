@@ -6,13 +6,13 @@ Any code calling Claude CLI / LLM SDK MUST follow:
 
 | Module | LLM | model flag | effort | extra flag | timeout |
 |---|---|---|---|---|---|
-| **AI Report** (`ai_report.py` / `ai_report_pipeline.py` / `strong_stocks_ai_analysis.py`) | Claude | `--model claude-opus-4-8[1m]` (Opus 4.8 1M, 2026-06-16) | `--effort max` (2026-06-16) | `--allowedTools "*"` | 600s |
+| **AI Report** (`ai_report.py` / `ai_report_pipeline.py` / `strong_stocks_ai_analysis.py`) | Claude | `--model claude-opus-4-8[1m]` (Opus 4.8 1M, 2026-06-16) | `--effort max` (2026-06-16) | `--allowedTools "*"` | **7200s (2h, 2026-06-16)** |
 | **News / short-form / metadata extract** | Claude | `--model sonnet` | `--effort xhigh` | (optional) `--allowedTools` | 600s |
 | **Calendar / structured table extract** | Claude | `--model haiku` | — (fast+cheap 不開 thinking) | — | 600s |
 | **Sector tag extract (YT VTT / batch)** | Claude | `--model sonnet` | `--effort xhigh` | — | 600s |
 | **Brokerage YT extract** (`tools/extract_yt_brokerage.py`) | **codex GPT-5.5 (primary)** + Claude Sonnet (fallback) | codex: `-c model_reasoning_effort=medium`<br>claude: `--model sonnet` | claude `--effort xhigh` | — | 600s |
 | **Multi-agent debate / exploratory** + **AI Report 研究階段** (`report_web_research.py`, 2026-06-16) | Claude | `--model sonnet` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | 600s |
-| **Macro Compass 第二視角** (`tools/macro_compass_report.py`) | Claude | `--model sonnet` 或 `opus` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | 600s |
+| **Macro Compass 第二視角** (`tools/macro_compass_report.py`) | Claude | `--model sonnet` 或 `opus` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | **7200s (2h, 2026-06-16)** |
 
 **Model choice rationale**: AI Report uses Opus (cost not a concern) / News uses Sonnet (balanced) / table extract uses Haiku (fast+cheap)。Gemini CLI 2026-05-20 暫停支援後全面撤除，所有節點改為 Claude 系列。Brokerage YT 2026-05-21 A/B 後改 codex GPT-5.5 primary（速度 4-6x，ticker code 較準，幻覺率 8% 可控）；Sonnet 當 codex quota / JSON 失敗時 fallback，必須帶 `--effort xhigh` 保證 fallback 品質。
 

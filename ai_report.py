@@ -1884,7 +1884,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
 
 
 def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                    timeout=600):
+                    timeout=7200):  # 2026-06-16 放寬至 2 小時 (原 600s)
     """
     呼叫 Claude CLI 生成 AI 研究報告（含 WebSearch 能力）。
 
@@ -2192,7 +2192,7 @@ def render_html_from_claude_output(ticker, raw_output):
 
 
 def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                         timeout=600, web_research=None, user_focus=None):
+                         timeout=7200, web_research=None, user_focus=None):  # 2026-06-16 放寬至 2 小時 (原 600s)
     """
     生成 HTML 互動儀表板報告。
 
