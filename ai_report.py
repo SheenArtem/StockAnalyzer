@@ -1890,7 +1890,7 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 
     LLM 規範 (2026-05-01)：
     - 強制 Opus model + `--allowedTools "*"` 允許所有工具
-    - timeout 預設 10 min (600s)，可由 caller 覆寫
+    - timeout 預設 2 小時 (7200s, 2026-06-16 由 600s 放寬)，可由 caller 覆寫
 
     Args:
         timeout: None = no timeout (default), or seconds
@@ -2196,7 +2196,7 @@ def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_
     """
     生成 HTML 互動儀表板報告。
 
-    LLM 規範 (2026-05-01)：強制 Opus model + `--allowedTools "*"`，timeout 10 min。
+    LLM 規範 (2026-05-01)：強制 Opus model + `--allowedTools "*"`，timeout 2 小時 (2026-06-16 由 10 min 放寬)。
 
     web_research: optional str — 多代理 fan-out 研究底稿 (注入 [WEB_RESEARCH])。
     user_focus: optional str — 使用者補充關注 / 提問 (注入 [USER_FOCUS])。

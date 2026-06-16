@@ -10,7 +10,7 @@ macro_compass_report.py -- 總經大盤風向 AI 報告產生器
   6. 存 data/macro_reports/YYYY-MM-DD_HHMMSS.html
 
 LLM 規範 (CLAUDE.md):
-  - Claude: --model opus --allowedTools "*" (timeout 600s)
+  - Claude: --model opus --allowedTools "*" (timeout 7200s/2h, 2026-06-16 由 600s 放寬)
   - Gemini: gemini-3.1-pro-preview (timeout 900s)
   - Council 統整: --model sonnet --allowedTools "WebSearch,WebFetch" (timeout 600s)
 
@@ -530,7 +530,7 @@ def generate_report_html_local(progress_cb=None) -> tuple[bool, str]:
 
     供 macro_dashboard UI「自動產生報告」按鈕用 -- 對應 claude.ai webpage 工作流的本地版
     (本地 claude -p 跑同一份 webpage 提示詞，要求輸出單檔自包含 HTML)。
-    LLM 規範 (CLAUDE.md Macro Compass)：Opus + effort xhigh + allowedTools，timeout 600s。
+    LLM 規範 (CLAUDE.md Macro Compass)：Opus + effort xhigh + allowedTools，timeout 7200s/2h。
     """
     def _p(m):
         if progress_cb:

@@ -115,7 +115,7 @@ YT 影片同步 → News 題材萃取 → 量價情緒指標 (PUT/小台/期權)
 - **Robustness First**：commit 前必須 end-to-end 跑過、grep caller 確認、fail loud（不要 try/except pass）
 - **資料源優先順序**：見 `CLAUDE.md` Data Source Priority 表（避免重複拉同一資料）
 - **LLM 規範（鎖定 2026-05-01）**：
-  - AI Report (個股 / 強勢股日週報) → Claude Opus + `--allowedTools "*"` + 600s
+  - AI Report (個股 / 強勢股日週報) → Claude Opus 4.8 1M + `--effort max` + `--allowedTools "*"` + 7200s (2h, 2026-06-16)
   - News / 短文 / metadata 抽取 → Claude Sonnet + 600s
   - Calendar / 表格萃取 → Claude Haiku
   - Gemini → `gemini-3.1-pro-preview` + 900s
