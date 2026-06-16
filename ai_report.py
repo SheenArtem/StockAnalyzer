@@ -1942,6 +1942,65 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 # Dashboard Mode — 輸出 HTML 互動儀表板
 # ================================================================
 
+def _build_macro_context(ticker):
+    """[MACRO_CONTEXT] 大盤位階 / 廣度 / 系統性風險燈 (2026-06-16).
+
+    精簡子集 (非整碗 Macro Compass)：只給 LLM 條件化個股的倉位 / 左側積極度 /
+    風險 severity，不供大盤多空喊話。重用現成 macro panel parquet (不重算/不重抓)。
+    台股市場級資料 → 美股 (is_us) 略過回空字串。
+    """
+    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    if is_us:
+        return ''
+    try:
+        import pandas as pd
+        from pathlib import Path as _P
+        repo = _P(__file__).resolve().parent
+        lines = []
+        # 位階 / 估值
+        vp = repo / 'data' / 'macro' / 'valuation_panel.parquet'
+        if vp.exists():
+            v = pd.read_parquet(vp).dropna(subset=['tw_market_pe']).tail(1)
+            if not v.empty:
+                r = v.iloc[0]
+                lines.append(
+                    f"大盤位階 (as of {str(r['date'])[:10]}): 台股 PE {r['tw_market_pe']:.1f} / "
+                    f"PB {r['tw_market_pb']:.2f} / 殖利率 {r['tw_market_yield']:.2f}% / "
+                    f"巴菲特指標百分位 {r['buffett_rank_tw']:.0f}%ile (越高=越貴)")
+        # 廣度
+        bp = repo / 'data' / 'breadth' / 'tw_breadth.parquet'
+        if bp.exists():
+            b = pd.read_parquet(bp).tail(1)
+            if not b.empty:
+                r = b.iloc[0]
+                lines.append(
+                    f"市場廣度 (as of {str(r['date'])[:10]}): 站上 50MA {r['pct_above_50dma']:.0f}% / "
+                    f"站上 200MA {r['pct_above_200dma']:.0f}% / 52週新高 {int(r['new_highs_52w'])} "
+                    f"vs 新低 {int(r['new_lows_52w'])} (參與度 / 內部結構強弱)")
+        # 系統性風險燈
+        rp = repo / 'data' / 'sentiment' / 'risk_score_history.parquet'
+        if rp.exists():
+            rs = pd.read_parquet(rp).tail(1)
+            if not rs.empty:
+                r = rs.iloc[0]
+                lines.append(
+                    f"系統性風險燈 (as of {str(r['date'])[:10]}): 綜合分 {r['composite']:.0f}/100, "
+                    f"燈號={r['zone']} (green/yellow/red；越高=越過熱、系統性回檔風險越大)")
+        if not lines:
+            return ''
+        body = "\n".join(f"- {l}" for l in lines)
+        guard = (
+            "\n\n⚠️ 用途限定：以上為『市場級』狀態，**僅用來條件化本股的倉位大小 / 左側分批積極度 / "
+            "風險 severity**（例：位階偏貴 + 廣度轉弱 + 風險燈黃/紅 → 左側階梯更保守、建議倉位降一級、"
+            "風險區段加註系統性回檔風險）。**禁止**據此喊大盤多空方向、禁止寫與本股無關的總經評論。"
+            "panel 為近日快照，可用 WebSearch 交叉查證當前大盤位階 / 指數 / 利率後再下結論。"
+        )
+        return body + guard
+    except Exception as e:
+        logger.warning("[macro_context] build failed: %s", e)
+        return ''
+
+
 def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
                               web_research=None, user_focus=None):
     """組裝儀表板模式 prompt（要求 Claude 輸出 JSON）
@@ -1992,6 +2051,9 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
     data_sections += [
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]
+    _macro_ctx = _build_macro_context(ticker)
+    if _macro_ctx:
+        data_sections.append(f"[MACRO_CONTEXT]\n{_macro_ctx}")
     if web_research:
         data_sections.append(f"[WEB_RESEARCH]\n{web_research}")
     if user_focus and user_focus.strip():

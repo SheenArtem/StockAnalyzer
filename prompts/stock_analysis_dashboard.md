@@ -224,7 +224,9 @@
 
 ## 數據輸入格式
 
-系統會在下方提供 `[STOCK_INFO]`、`[TRIGGER_SCORE]`、`[TRIGGER_DETAILS]`、`[TECHNICAL_DATA]`、`[CHIP_DATA]`、`[FUNDAMENTAL_DATA]`、`[MARKET_CONTEXT]`、`[LEFT_RIGHT_PLAN]`、`[PATTERN_DATA]`、`[VALUE_SCORE]`、`[VALUATION_PANEL]`、`[NEWS_DATA]`、`[ANALYST_CONSENSUS]`、`[PEER_COMPARISON]`、`[THEME_CONTEXT]`、`[SENTIMENT_CONTEXT]`、`[MARKET_HEDGING_CONTEXT]`、`[NEWS_THEMES]`、`[FORWARD_GUIDANCE]`、`[EARNINGS_CALENDAR]`、`[ANALYST_TARGETS]`、`[LAW_TRANSCRIPT_RAG]` 共 22 個固定區塊，另有 `[NEWS_FLOW_ALERT]`、`[THEME_MOMENTUM]`、`[MATERIAL_EVENTS]`、`[NEWS_EVIDENCE]` 4 個條件式區塊（該檔有資料才出現）。請全部參考後填入 JSON 對應欄位。
+系統會在下方提供 `[STOCK_INFO]`、`[TRIGGER_SCORE]`、`[TRIGGER_DETAILS]`、`[TECHNICAL_DATA]`、`[CHIP_DATA]`、`[FUNDAMENTAL_DATA]`、`[MARKET_CONTEXT]`、`[LEFT_RIGHT_PLAN]`、`[PATTERN_DATA]`、`[VALUE_SCORE]`、`[VALUATION_PANEL]`、`[NEWS_DATA]`、`[ANALYST_CONSENSUS]`、`[PEER_COMPARISON]`、`[THEME_CONTEXT]`、`[SENTIMENT_CONTEXT]`、`[MARKET_HEDGING_CONTEXT]`、`[NEWS_THEMES]`、`[FORWARD_GUIDANCE]`、`[EARNINGS_CALENDAR]`、`[ANALYST_TARGETS]`、`[LAW_TRANSCRIPT_RAG]` 共 22 個固定區塊，另有 `[NEWS_FLOW_ALERT]`、`[THEME_MOMENTUM]`、`[MATERIAL_EVENTS]`、`[NEWS_EVIDENCE]`、`[MACRO_CONTEXT]` 5 個條件式區塊（該檔有資料才出現；`[MACRO_CONTEXT]` 僅台股）。請全部參考後填入 JSON 對應欄位。
+
+`[MACRO_CONTEXT]`（大盤位階 / 廣度 / 系統性風險燈）**只用來條件化個股的 `summary.position_adjustment`、`bull_bear.recommendation.position_size`、`left_right` 左側分批積極度、`risks` severity**（例：位階偏貴+廣度轉弱+風險燈黃/紅 → 倉位降級、左側階梯更保守、risks 加註系統性回檔風險）。**禁止**據此在報告裡喊大盤多空方向或寫與本股無關的總經評論。panel 為近日快照，可用 WebSearch 交叉查證當前大盤狀態。
 
 `[LEFT_RIGHT_PLAN]` 是 deterministic 左側/右側中長線價位（近一年大波段 Fib 回測階梯 + 突破確認位），對應 JSON 的 `left_right` 物件：價位 verbatim 引用，標記「不適用」時 `left_right` 填 `null`。
 
