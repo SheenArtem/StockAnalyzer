@@ -119,22 +119,24 @@
       { indicator: string, current: string, signal: string }
       // indicator = "上銀滾珠螺桿交期"; current = "2.5-3個月"; signal = "回溫"
     ],
-    moat: string,            // 護城河摘要，30-60 字
+    moat: string,            // 護城河摘要，60-120 字（可展開論述，不要只一句）
   },
 
   bull_bear: {
     bull_points: [           // 3-6 條
       { text: string, weight: "高" | "中" | "低" }
+      // text 60-120 字：具名催化 + 數據/時間軸，不要只一句結論（例「DDR4 缺貨延伸至 2027H2，三大原廠退出利基市場，華邦電 25nm 製程吃下車用/工控訂單，Q2 報價季增 15%」）
     ],
     bear_points: [           // 3-6 條
       { text: string, weight: "高" | "中" | "低" }
+      // text 60-120 字：具名風險 + 數據/時間軸，同 bull_points 深度
     ],
     risks: [                 // 3-6 項，按 severity 由高到低排
       {
         risk: string,        // 5-15 字標題
         severity: "高" | "中" | "低",
         horizon: "短期" | "長期",
-        description: string, // 20-40 字
+        description: string, // 40-90 字：說明風險機制 + 觸發條件 + 潛在衝擊幅度
       }
     ],
     recommendation: {
@@ -144,7 +146,7 @@
       entry_zone: string,    // verbatim from rec_entry_low ~ rec_entry_high，例: "580 - 585 元"
       stop_loss: string,     // verbatim from rec_sl_price，例: "562 元 (A. ATR 波動停損)"
       position_size: string, // "標準倉位 / 減碼 5 成 / 輕倉觀望"
-      strategy: string,      // 30-50 字右側交易建議；解釋為何上述數字合理，不得重述/修改進場停損數字
+      strategy: string,      // 50-100 字右側交易建議；解釋為何上述數字合理，不得重述/修改進場停損數字
     },
   },
 
@@ -152,7 +154,7 @@
     // ⚠️ Hard Rule：所有價位必須 verbatim 引用 [LEFT_RIGHT_PLAN] 區塊（DETERMINISTIC），
     // 禁止自行計算/四捨五入。唯一例外 implied_pe = 價位 ÷ [ANALYST_CONSENSUS] Forward EPS（無則 "N/A"）。
     posture: string,         // [LEFT_RIGHT_PLAN] posture_desc，例: "現價貼近/突破波段前高"
-    narrative_left: string,  // 30-60 字左側敘事前提（引用本報告長線 thesis，為何值得逆勢承接）
+    narrative_left: string,  // 50-100 字左側敘事前提（引用本報告長線 thesis，為何值得逆勢承接）
     left_ladder: [           // 必 4 筆，順序 23.6% → 61.8%
       { fib: string, price: number, implied_pe: string, action: string }
       // fib = "23.6%"; price verbatim; implied_pe = "70x" 或 "N/A";
@@ -160,7 +162,7 @@
     ],
     invalidation: string,    // "跌破 XXX（78.6%）視為長多論述受損，停損出場"（XXX verbatim）
     sizing_left: string,     // "分批各 1/4 倉位；總曝險上限 ≤ 投組 3-5%"
-    narrative_right: string, // 30-60 字右側論述（不預測拐點、等趨勢確認的理由）
+    narrative_right: string, // 50-100 字右側論述（不預測拐點、等趨勢確認的理由）
     right_entries: [         // 必 2 筆：進場 A（突破）+ 進場 B（收復 20MA）
       { label: string, condition: string }
       // label = "進場 A"; condition = "站穩 XXX - XXX 帶量突破 → 順勢看 XXX - XXX"（價位 verbatim from entry_A_breakout / targets_ext）
@@ -232,5 +234,5 @@
 - 搜尋 5-8 次。**industry 區塊是搜尋重點**，至少 3 次用於產品結構、供應鏈、競爭格局、成長驅動力。
 - **多來源查證**：質化關鍵論述寫入前至少 2 個獨立來源交叉比對；優先第一手來源（法說/公告/財報）；來源衝突時並列分歧不選邊；單一來源說法標「（單一來源，待證）」。
 - **標註來源**：自由文字敘事欄位（moat / note / catalysts / bull_bear / risks 等）引用搜尋事實時，句末加「（來源: 出處簡稱, YYYY-MM）」；數字欄位維持純數字不受影響。
-- **一定要輸出完整 JSON**，不得截斷。若資料很多，保持精簡（每欄位字串 ≤ 80 字）。
+- **一定要輸出完整 JSON**，不得截斷。**敘事欄位要寫深寫滿**（moat / bull_points.text / bear_points.text / risks.description / growth_drivers.note / recommendation.strategy / left_right narratives 寫到各自字數上限 ~60-120 字，具名催化+數據+時間軸，不要只一句結論）；標籤/數值/short note 類短欄位（signal / value / category / one_liner 等）仍維持精簡。寧可敘事完整也不要為了省字數犧牲深度，但整份 JSON 不得截斷。
 - **不要在 JSON 前後加任何說明文字**。
