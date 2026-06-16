@@ -332,6 +332,39 @@ def render_ai_reports():
 
             st.caption(f"共 {len(_filtered)} 篇報告")
 
+            # === 批次刪除 (2026-06-16)：可複選一次刪多篇，confirm 勾選防誤刪 ===
+            with st.expander("🗑️ 批次刪除報告", expanded=False):
+                _del_opts = {
+                    f"{'📊' if _r.get('format', 'md') == 'html' else '📝'} "
+                    f"{_r.get('date', '')} {_r.get('time', '')[:5]} {_r['ticker']} "
+                    f"({_r['report_id']})": _r['report_id']
+                    for _r in _filtered
+                }
+                _del_sel = st.multiselect(
+                    "選擇要刪除的報告（可複選）",
+                    list(_del_opts.keys()),
+                    key='report_batch_del_sel',
+                )
+                if _del_sel:
+                    _confirm = st.checkbox(
+                        f"我確認刪除選取的 {len(_del_sel)} 篇報告（不可復原）",
+                        key='report_batch_del_confirm',
+                    )
+                    if st.button("🗑️ 刪除選取的報告", type='primary',
+                                 disabled=not _confirm, key='report_batch_del_btn'):
+                        _ok_n, _fail = 0, []
+                        for _lbl in _del_sel:
+                            try:
+                                _delete_report(_del_opts[_lbl])
+                                _ok_n += 1
+                            except Exception as _e:
+                                _fail.append(f"{_del_opts[_lbl]}: {type(_e).__name__}")
+                        if _fail:
+                            st.error(f"已刪除 {_ok_n} 篇，{len(_fail)} 篇失敗：{'; '.join(_fail)}")
+                        else:
+                            st.success(f"已刪除 {_ok_n} 篇報告")
+                        st.rerun()
+
             # Report list
             _list_rows = []
             for _r in _filtered:
