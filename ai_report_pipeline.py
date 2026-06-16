@@ -144,6 +144,7 @@ def generate_one_report(
     ticker: str,
     fmt: str = 'md',
     progress_cb: Optional[Callable[[str], None]] = None,
+    with_research: bool = True,
 ) -> dict:
     """Run full AI report pipeline for one ticker.
 
@@ -152,6 +153,8 @@ def generate_one_report(
         fmt: 'md' or 'html'
         progress_cb: optional callable(msg: str) for progress updates.
             Use `logger.info` for CLI, `lambda m: with lock: job['progress'].append(m)` for UI.
+        with_research: True 時 (僅 html 路徑) 先跑多代理 fan-out web 研究階段
+            (report_web_research)，把已查證底稿注入主報告 prompt;fail-soft。
 
     Returns:
         dict with keys:
@@ -186,6 +189,26 @@ def generate_one_report(
             result['elapsed_s'] = time.time() - t_start
             return result
 
+        # --- 4.5 (html only) 多代理 fan-out web 研究階段 (fail-soft) ---
+        web_research = None
+        if fmt == 'html' and with_research:
+            try:
+                from report_web_research import run_web_research
+                _is_us = bool(ticker) and not ticker.replace('.TW', '').isdigit()
+                _stock_name = ''
+                if fund_data:
+                    for _k in ['stock_name', 'Name', 'shortName']:
+                        _v = fund_data.get(_k, '')
+                        if _v and str(_v) not in ('', 'N/A', 'None'):
+                            _stock_name = str(_v)
+                            break
+                _research = run_web_research(ticker, stock_name=_stock_name,
+                                             is_us=_is_us, progress_cb=progress_cb)
+                if _research.get('ok'):
+                    web_research = _research['brief']
+            except Exception as _re:  # noqa: BLE001 - 研究階段失敗不可阻斷報告
+                logger.warning("[%s] web research stage failed (fail-soft): %s", ticker, _re)
+
         # --- 5. Call Claude CLI + save ---
         if fmt == 'html':
             progress_cb("🤖 Claude AI 生成儀表板 JSON 中（10 min timeout，預期 1-5 分鐘）...")
@@ -193,6 +216,7 @@ def generate_one_report(
             ok, content_or_err, json_data = generate_report_html(
                 ticker, report, chip_data, us_chip_data, fund_data, df_day,
                 timeout=600,  # LLM 規範 (2026-05-01): Claude 10 min
+                web_research=web_research,
             )
             if not ok:
                 result['error'] = content_or_err

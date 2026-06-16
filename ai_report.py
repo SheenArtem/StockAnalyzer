@@ -1905,8 +1905,8 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
     try:
         result = subprocess.run(
             [_CLAUDE_CLI, "-p",
-             "--model", "opus",
-             "--effort", "xhigh",  # 2026-05-21: AI 報告核心品質優先
+             "--model", "claude-opus-4-8[1m]",  # 2026-06-16: Opus 4.8 1M context 版本
+             "--effort", "max",  # 2026-06-16: AI 報告全自動拉到 max (原 xhigh)
              "--allowedTools", "*",
              "--output-format", "text"],
             input=prompt,
@@ -1942,8 +1942,12 @@ def generate_report(ticker, report, chip_data, us_chip_data, fund_data, df_day,
 # Dashboard Mode — 輸出 HTML 互動儀表板
 # ================================================================
 
-def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
-    """組裝儀表板模式 prompt（要求 Claude 輸出 JSON）"""
+def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day, web_research=None):
+    """組裝儀表板模式 prompt（要求 Claude 輸出 JSON）
+
+    web_research: optional str — 多代理 fan-out 研究階段彙整的 [WEB_RESEARCH] brief
+                  (report_web_research.run_web_research)，有提供時注入為已查證研究底稿。
+    """
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
     system_prompt = _load_dashboard_prompt()
 
@@ -1985,6 +1989,8 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
     data_sections += [
         f"[LAW_TRANSCRIPT_RAG]\n{_build_law_transcript_rag(ticker, fund_data)}",
     ]
+    if web_research:
+        data_sections.append(f"[WEB_RESEARCH]\n{web_research}")
     data_block = "\n\n".join(data_sections)
 
     stock_name = ''
@@ -1997,6 +2003,14 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 
     stock_id = ticker.replace('.TW', '') if not is_us else ticker
 
+    # 有並行研究底稿時，提示主代理優先採用 (避免重複查同樣的東西)
+    research_note = ""
+    if web_research:
+        research_note = (
+            "\n\n0. **已附並行查證研究底稿 [WEB_RESEARCH]**：那是 5 個子代理剛用 WebSearch 查證並附來源的最新發現，"
+            "**優先採用**其事實與來源寫入 bull_bear / industry / valuation 敘事；你自己的 WebSearch 只用於補足底稿未涵蓋的缺口，不要重複查同樣的主題。"
+        )
+
     full_prompt = f"""{system_prompt}
 
 ---
@@ -2007,7 +2021,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 
 ---
 
-## 你的任務
+## 你的任務{research_note}
 
 1. **必須使用 WebSearch 工具搜尋以下資訊**（5-8 次，其中至少 3 次用於 industry 區塊，即使系統數據看似齊全也不得略過）：
    - "{stock_id} {stock_name} 產業趨勢 2026" — 產業動態、上下游供需
@@ -2019,9 +2033,15 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
 
    ⚠️ **數值欄位禁用 WebSearch 結果覆蓋**：valuation.peer_comparison / valuation.pe_history / summary.fundamentals 的 PE/PB/DY/ROE 數字必須**直接抄錄** [PEER_COMPARISON] / [FUNDAMENTAL_DATA] 系統供應值（單一 TradingView snapshot 確保跨報告一致），禁止用搜尋到的數字覆蓋，避免「A 報告引用 B 的 PE=X，但 B 自家報告 PE=Y」矛盾。
 
-2. **輸出嚴格符合 schema 的純 JSON**，必含頂層物件：meta / summary / technical / chip / valuation / bull_bear / left_right（[LEFT_RIGHT_PLAN] 標記不適用時 left_right 填 null）
+2. **多來源交叉查證 + 標註來源 (2026-06-16)**：
+   - 每一條**質化關鍵論述**（成長驅動、催化事件、產業拐點、競爭格局、法說展望）寫入 JSON 前，**至少用 2 個獨立來源交叉查證**；僅單一來源 / 一篇新聞支撐的說法，須在該敘事句末標明「（單一來源，待證）」。
+   - **優先採信第一手來源**：公司法說逐字稿 / 重大訊息公告 / 官方財報 / 主管機關 > 二手媒體轉述 > 部落格/論壇。
+   - 來源**衝突時不得擅自選邊**：在對應敘事中並列分歧（例「A 報導擴產 X 萬片，B 法人估僅 Y」），讓讀者自行判斷。
+   - **在自由文字欄位 inline 標註來源**：industry.moat / growth_drivers[].note / lead_indicators[].signal / bull_bear.bull_points[].text / bear_points[].text / risks[].description / left_right.catalysts 等敘事欄位，凡引用 WebSearch 取得的事實，於句末加「（來源: 出處簡稱, YYYY-MM）」。**schema 數字欄位（target/eps/pe/yoy 等）不受此規範，維持純數字型別**；標註務求精簡以免超出各欄位字數上限。
 
-3. **第一個字元必為 `{{`，最後一個字元必為 `}}`**。禁止輸出 markdown 程式碼圍欄、說明文字、或任何非 JSON 內容。"""
+3. **輸出嚴格符合 schema 的純 JSON**，必含頂層物件：meta / summary / technical / chip / valuation / bull_bear / left_right（[LEFT_RIGHT_PLAN] 標記不適用時 left_right 填 null）
+
+4. **第一個字元必為 `{{`，最後一個字元必為 `}}`**。禁止輸出 markdown 程式碼圍欄、說明文字、或任何非 JSON 內容。"""
 
     return full_prompt
 
@@ -2095,23 +2115,26 @@ def render_html_from_claude_output(ticker, raw_output):
 
 
 def generate_report_html(ticker, report, chip_data, us_chip_data, fund_data, df_day,
-                         timeout=600):
+                         timeout=600, web_research=None):
     """
     生成 HTML 互動儀表板報告。
 
     LLM 規範 (2026-05-01)：強制 Opus model + `--allowedTools "*"`，timeout 10 min。
 
+    web_research: optional str — 多代理 fan-out 研究底稿 (注入 [WEB_RESEARCH])。
+
     Returns:
         tuple: (success: bool, html_or_error_msg: str, json_data: dict | None)
     """
-    prompt = assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day)
+    prompt = assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day,
+                                       web_research=web_research)
     logger.info("Dashboard prompt assembled for %s (%d chars)", ticker, len(prompt))
 
     try:
         result = subprocess.run(
             [_CLAUDE_CLI, "-p",
-             "--model", "opus",
-             "--effort", "xhigh",  # 2026-05-21: AI 報告核心品質優先
+             "--model", "claude-opus-4-8[1m]",  # 2026-06-16: Opus 4.8 1M context 版本
+             "--effort", "max",  # 2026-06-16: AI 報告全自動拉到 max (原 xhigh)
              "--allowedTools", "*",
              "--output-format", "text"],
             input=prompt,

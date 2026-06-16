@@ -87,12 +87,13 @@ def render_ai_reports():
         # 「產出格式」radio 隱藏 (2026-06-04)：一律 HTML（MD 生成/儲存邏輯保留待用，還原 radio 即可切回）
         _ai_format = 'html'
 
-        # 「🤖 生成研究報告」(本地 CLI) 按鈕隱藏 -- 只保留「產生 Prompt 貼 claude.ai」流程
-        # (本地 CLI 會吃 Agent SDK Credit；生成邏輯保留待用，僅不顯示按鈕)
-        _gen_clicked = False
-        _prompt_clicked = st.button("📋 產生 Prompt (貼到 claude.ai)", type="primary",
-                                    key='ai_prompt_btn', disabled=_is_running,
-                                    help="組裝 prompt 複製貼到 claude.ai 網頁手動跑（用訂閱 quota，不吃 Agent SDK Credit）")
+        # 「🤖 生成研究報告」(本地 CLI 全自動) 按鈕恢復 (2026-06-16)
+        # 走 ai_report_pipeline.generate_one_report 全自動 path (同 auto_ai_reports.py)，
+        # 背景 thread 跑 + running banner/progress 自動刷新，不卡 UI。
+        # 「📋 產生 Prompt 貼 claude.ai」按鈕移到下方「貼回」區塊上方 (備用流程，2026-06-16)。
+        _gen_clicked = st.button("🤖 生成研究報告 (全自動)", type="primary",
+                                 key='ai_gen_btn', disabled=_is_running,
+                                 help="直接用本地 Claude CLI 跑完整報告 (1-3 分鐘)，自動存報告庫")
 
         if _gen_clicked:
             if not _ai_ticker or not _ai_ticker.strip():
@@ -119,6 +120,16 @@ def render_ai_reports():
                     )
                     _t.start()
                     st.rerun()
+
+        # === 手動 claude.ai 流程 + 貼回區塊：永遠顯示 ===
+        # HTML 模式：從 JSON meta.ticker 自動抓代號（claude.ai 真值優先），form ticker 是 MD fallback
+        st.markdown("---")
+
+        # 「📋 產生 Prompt (貼到 claude.ai)」按鈕：移到貼回區塊上方 (備用流程，2026-06-16)
+        # 用訂閱 quota 手動跑，不吃 Agent SDK Credit pool。
+        _prompt_clicked = st.button("📋 產生 Prompt (貼到 claude.ai)",
+                                    key='ai_prompt_btn', disabled=_is_running,
+                                    help="組裝 prompt 複製貼到 claude.ai 網頁手動跑（用訂閱 quota，不吃 Agent SDK Credit）")
 
         if _prompt_clicked:
             if not _ai_ticker or not _ai_ticker.strip():
@@ -193,9 +204,6 @@ def render_ai_reports():
             with st.expander("📄 顯示 prompt 全文（檢視/手動選取）", expanded=False):
                 st.code(_pr['prompt'], language=None)
 
-        # === 貼回區塊：永遠顯示 ===
-        # HTML 模式：從 JSON meta.ticker 自動抓代號（claude.ai 真值優先），form ticker 是 MD fallback
-        st.markdown("---")
         st.markdown("#### 📥 貼回 claude.ai 輸出")
         # 「貼回類型」radio 隱藏 (2026-06-04)：一律「整頁 HTML 直存」（JSON 灌模板/MD 路徑邏輯保留待用，還原 radio 即可切回）
         _paste_html_mode = 'fullhtml'
