@@ -612,6 +612,11 @@ def load_and_resample(source, force_update=False):
                 df_day = yf.download(ticker_name, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)
                 stock_meta['name'] = ticker_name
             
+            # yfinance 新版對單一 ticker 回 MultiIndex columns ([('Close','AAPL'),...])
+            # -> df['Close'] 變 DataFrame, 害 save_cache / 技術分析 pd.to_numeric 炸
+            # (美股必走 yfinance, cache miss 時 100% 觸發)。攤平成單層 OHLCV 欄名。
+            if not df_day.empty and isinstance(df_day.columns, pd.MultiIndex):
+                df_day.columns = df_day.columns.get_level_values(0)
             # [CACHE] Save to Cache
             if not df_day.empty:
                  cm.save_cache(raw_input, df_day, 'price')

@@ -832,7 +832,12 @@ class CacheManager:
         # 失真 (見 reports/rvol_atr_factor_validation.md)。與 refresh_universe_prices /
         # refresh_backtest_panels 同款三層防線之一。
         if data_type == 'price' and 'Close' in getattr(df, 'columns', []):
-            _c = pd.to_numeric(df['Close'], errors='coerce')
+            # 防 MultiIndex columns 下 df['Close'] 回 DataFrame (yfinance 新版單 ticker
+            # 攤平漏網時的兜底) -- pd.to_numeric 只吃 1-d
+            _close = df['Close']
+            if hasattr(_close, 'ndim') and _close.ndim > 1:
+                _close = _close.iloc[:, 0]
+            _c = pd.to_numeric(_close, errors='coerce')
             df = df[_c.notna() & (_c >= 0.01)]
             if df.empty:
                 return
