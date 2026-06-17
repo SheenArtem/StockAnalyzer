@@ -173,14 +173,18 @@ def _is_cache_stale_monthly(df: pd.DataFrame, today: date, age_days: float = 0) 
         return True
     last_month_date = (today.replace(day=1) - timedelta(days=1))
     last_month_str = last_month_date.strftime("%Y-%m")
+    months_set = None  # 西元 yyyymm 整數集合，供 isolated-gap 偵測
+    mx = None
     try:
         if "revenue_year" in df.columns and "revenue_month" in df.columns:
             ym = (pd.to_numeric(df["revenue_year"], errors="coerce") * 100
                   + pd.to_numeric(df["revenue_month"], errors="coerce")).dropna()
             if ym.empty:
                 return True
+            ym = ym.astype(int)
             mx = int(ym.max())
             cache_latest = f"{mx // 100:04d}-{mx % 100:02d}"
+            months_set = set(ym.tolist())
         elif "date" in df.columns:
             # date = 公告月 (營收月 + 1)，往前推 1 個月還原成營收月
             pub_max = pd.to_datetime(df["date"]).max()
@@ -197,6 +201,21 @@ def _is_cache_stale_monthly(df: pd.DataFrame, today: date, age_days: float = 0) 
     two_months_ago = (today.replace(day=1) - timedelta(days=1)).replace(day=1) - timedelta(days=1)
     if cache_latest < two_months_ago.strftime("%Y-%m"):
         return True
+    # Isolated-gap 偵測：近 12 月內若某月「前後月都在、唯獨自己缺」→ 屬抓取漏列
+    # (非 IPO/停牌的連續/邊界缺)，cache 重抓全歷史 (fixed_wide_start) 可自愈。僅在
+    # mtime>1 天時觸發，避免剛重抓完又被判 stale；FinMind 真缺該月時至多每天重試一次。
+    # 2026-06-17 加：舊邏輯只看 max(營收月)，看不到 2308-style 中間月破洞 (全市場 1863
+    # 檔缺 2026-04，根因見 bulk/backfill 覆寫 + stale 只看 max)。
+    if months_set is not None and mx is not None and age_days > 1.0:
+        def _ym_off(yyyymm: int, k: int) -> int:
+            idx = (yyyymm // 100) * 12 + (yyyymm % 100 - 1) + k
+            return (idx // 12) * 100 + (idx % 12) + 1
+        for k in range(12):
+            c = _ym_off(mx, -k)
+            if (c not in months_set
+                    and _ym_off(c, -1) in months_set
+                    and _ym_off(c, 1) in months_set):
+                return True
     return False
 
 

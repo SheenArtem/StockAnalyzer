@@ -137,7 +137,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--universe", default="data_cache/vfvc_missing_monthly_rev.txt")
     ap.add_argument("--start", default="2015-01-01")
-    ap.add_argument("--end", default="2026-04-30")
+    # end 預設不設限 (抓到 FinMind 最新月)。原硬編碼 "2026-04-30" 是過期日期，
+    # 任何在該日後跑的 backfill 會把 2026-04 之後 (含 2026-04 營收本身，其
+    # FinMind date=2026-05-01) 全切掉 → 全市場月營收破洞根因之一 (2026-06-17)。
+    ap.add_argument("--end", default=None,
+                    help="抓取截止 (FinMind date 欄, 公告月)；預設 None=抓到最新")
     ap.add_argument("--skip-aggregate", action="store_true",
                     help="不自動跑 aggregate（僅測試用）")
     ap.add_argument("--bulk-update", action="store_true",
@@ -175,9 +179,10 @@ def main():
             hour_start = time.time()
 
         try:
-            raw = dl.taiwan_stock_month_revenue(
-                stock_id=sid, start_date=args.start, end_date=args.end,
-            )
+            rev_kwargs = dict(stock_id=sid, start_date=args.start)
+            if args.end:
+                rev_kwargs["end_date"] = args.end
+            raw = dl.taiwan_stock_month_revenue(**rev_kwargs)
             call_count += 1
             time.sleep(1.2)  # Throttle to ~1/sec
 
@@ -205,7 +210,20 @@ def main():
             out_df = raw[present].copy()
 
             # 寫 per-stock live cache（這是 RF-1 的關鍵改動：從 backtest 改寫到 fundamental_cache）
+            # merge 既有 cache (不覆寫): 防單次 FinMind 回傳不完整 (缺月) 時抹掉已有歷史。
+            # 用 (revenue_year, revenue_month) 去重 keep last (新值覆蓋同期、舊獨有期保留)。
             live_path = LIVE_CACHE_DIR / f"month_revenue_{sid}.parquet"
+            if live_path.exists():
+                try:
+                    old_df = pd.read_parquet(live_path)
+                    if old_df is not None and not old_df.empty:
+                        out_df = pd.concat([old_df, out_df], ignore_index=True)
+                except Exception as e:
+                    logger.warning("[%s] read existing cache failed, overwrite: %s", sid, e)
+            if 'revenue_year' in out_df.columns and 'revenue_month' in out_df.columns:
+                out_df = (out_df.sort_values(['revenue_year', 'revenue_month'])
+                          .drop_duplicates(subset=['revenue_year', 'revenue_month'], keep='last')
+                          .reset_index(drop=True))
             out_df.to_parquet(live_path)
             ok_stocks.append(sid)
 
@@ -228,12 +246,19 @@ def main():
     # RF-1 鐵則：per-stock 寫完後，呼叫 aggregate 聚合到 backtest/
     # 確保 backfill 不會再造成 live 與 backtest 資料不一致
     # ================================================================
-    if args.skip_aggregate:
-        logger.warning("--skip-aggregate 啟用，未聚合 backtest/financials_revenue.parquet")
+    if not ok_stocks:
+        logger.warning("No stocks backfilled, skip sync/aggregate")
         return
 
-    if not ok_stocks:
-        logger.warning("No stocks backfilled, skip aggregate")
+    # 同步 fundamental_cache -> finmind_cache (get_monthly_revenue 實際讀取路徑)。
+    # per-stock backfill 只寫 fundamental_cache，不同步則 AI 報告 / value_screener /
+    # position_monitor (走 get_monthly_revenue 讀 finmind_cache) 看不到新資料
+    # (2026-06-17 路徑分裂修)。不受 --skip-aggregate 影響 (那只跳過 backtest/ 聚合)。
+    logger.info("Syncing fundamental_cache -> finmind_cache ...")
+    sync_fundamental_to_finmind_cache()
+
+    if args.skip_aggregate:
+        logger.warning("--skip-aggregate 啟用，未聚合 backtest/financials_revenue.parquet")
         return
 
     logger.info("Running aggregate_fundamental_cache.py --category revenue ...")

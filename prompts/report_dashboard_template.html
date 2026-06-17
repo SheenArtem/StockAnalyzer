@@ -8,7 +8,11 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
 <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- 鎖 babel 7.26.9：8.0.0 起 React preset 預設 automatic runtime，會注入
+     `import {jsx} from "react/jsx-runtime"`，inline text/babel 非 module 執行時崩潰
+     (Cannot use import statement outside a module)。7.x classic runtime 編成
+     React.createElement、吃全域 UMD React，無 ESM import。勿改回未鎖版 (2026-06-17)。 -->
+<script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   html, body { background: #0a0f1e; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", sans-serif; margin: 0; font-size: 16px; line-height: 1.55; }
