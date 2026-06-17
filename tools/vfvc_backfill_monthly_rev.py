@@ -41,6 +41,53 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger("vfvc_bf")
 
 LIVE_CACHE_DIR = ROOT / "data_cache" / "fundamental_cache"
+FINMIND_CACHE_DIR = ROOT / "data_cache" / "finmind_cache"
+
+# get_monthly_revenue (USE_MOPS=false, 預設) 走 cache_manager.get_finmind_cached 讀
+# finmind_cache/，與 bulk-update 寫的 fundamental_cache/ 是兩條路。bulk-update 後必須
+# 同步一份到 finmind_cache，否則排程更新餵不到 get_monthly_revenue（AI 報告 / value_screener /
+# position_monitor 的營收來源）。2026-06-17 修「路徑分裂」根因。
+_FINMIND_SCHEMA = ['date', 'stock_id', 'country', 'revenue',
+                   'revenue_month', 'revenue_year']
+
+
+def sync_fundamental_to_finmind_cache() -> int:
+    """把 fundamental_cache/month_revenue_*.parquet 同步到 finmind_cache/。
+
+    用「營收月」union (concat 後 drop_duplicates by revenue_year+month)，既補上新月、
+    又不退化 finmind_cache 既有的完整歷史。schema 取 FinMind 原始子集。
+    """
+    FINMIND_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    synced, failed = 0, 0
+    for fp in LIVE_CACHE_DIR.glob("month_revenue_*.parquet"):
+        try:
+            fdf = pd.read_parquet(fp)
+            if fdf is None or fdf.empty or 'revenue' not in fdf.columns:
+                continue
+            sub = fdf[[c for c in _FINMIND_SCHEMA if c in fdf.columns]].copy()
+            target = FINMIND_CACHE_DIR / fp.name
+            if target.exists():
+                old = pd.read_parquet(target)
+                if old is not None and not old.empty:
+                    old_sub = old[[c for c in _FINMIND_SCHEMA if c in old.columns]].copy()
+                    sub = pd.concat([old_sub, sub], ignore_index=True)
+            if 'revenue_year' in sub.columns and 'revenue_month' in sub.columns:
+                sub = (sub.sort_values(['revenue_year', 'revenue_month'])
+                          .drop_duplicates(subset=['revenue_year', 'revenue_month'],
+                                           keep='last'))
+            elif 'date' in sub.columns:
+                sub = sub.sort_values('date').drop_duplicates(subset='date', keep='last')
+            # date 欄統一成 FinMind 原生字串格式，避免 concat 混入 Timestamp/str
+            # 造成 object dtype pyarrow 寫入失敗 (2881/2882 金控股案例)
+            if 'date' in sub.columns:
+                sub['date'] = pd.to_datetime(sub['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+            sub.to_parquet(target)
+            synced += 1
+        except Exception as e:
+            failed += 1
+            logger.warning("sync finmind_cache failed %s: %s", fp.name, e)
+    logger.info("Synced fundamental_cache -> finmind_cache: %d ok / %d fail", synced, failed)
+    return synced
 
 
 def run_bulk_update():
@@ -79,6 +126,10 @@ def run_bulk_update():
     logger.info("Aggregate OK")
     for line in result.stdout.splitlines()[-6:]:
         logger.info("  %s", line)
+
+    # 修「路徑分裂」: 同步到 finmind_cache (get_monthly_revenue 實際讀取路徑)
+    logger.info("Syncing fundamental_cache -> finmind_cache ...")
+    sync_fundamental_to_finmind_cache()
     return True
 
 

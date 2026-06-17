@@ -161,14 +161,32 @@ def _is_cache_stale_monthly(df: pd.DataFrame, today: date, age_days: float = 0) 
     （e.g., 2344 5/5 提前公告 Q1）。原邏輯 `day < 13` 等到 13 號才檢查 → 1-12 號公告
     全部漏網 (2026-05-16 修)。
 
+    cache_latest 必須用「營收月」(revenue_year/revenue_month)，不可用 FinMind 的
+    `date` 欄 —— date 是「公告月」(營收月 + 1 月的 1 日)，例：5 月營收 date=2026-06-01、
+    4 月營收 date=2026-05-01。若直接拿 date.max() 算 cache_latest 會 off-by-one：cache
+    只到 4 月營收時 date.max() 前 7 碼 ="2026-05"，被誤當成已有 5 月 → 永遠晚一個月才
+    refresh (2026-06-17 修)。優先用 revenue_year/revenue_month；缺欄才退回 date 往前推 1 月。
+
     新邏輯：每月 1 號起就進入公告窗，若 cache 缺上月資料且 mtime > 1 天就 stale。
     """
-    if "date" not in df.columns or df.empty:
+    if df is None or df.empty:
         return True
     last_month_date = (today.replace(day=1) - timedelta(days=1))
     last_month_str = last_month_date.strftime("%Y-%m")
     try:
-        cache_latest = pd.to_datetime(df["date"]).max().strftime("%Y-%m")
+        if "revenue_year" in df.columns and "revenue_month" in df.columns:
+            ym = (pd.to_numeric(df["revenue_year"], errors="coerce") * 100
+                  + pd.to_numeric(df["revenue_month"], errors="coerce")).dropna()
+            if ym.empty:
+                return True
+            mx = int(ym.max())
+            cache_latest = f"{mx // 100:04d}-{mx % 100:02d}"
+        elif "date" in df.columns:
+            # date = 公告月 (營收月 + 1)，往前推 1 個月還原成營收月
+            pub_max = pd.to_datetime(df["date"]).max()
+            cache_latest = (pub_max.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+        else:
+            return True
     except Exception:
         return True
     # 公告窗：每月 1-10 號為提前公告期 + 10-end 為 deadline 後

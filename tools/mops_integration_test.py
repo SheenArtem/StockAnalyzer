@@ -309,29 +309,63 @@ def test3_calendar_stale():
     import pandas as pd
     results = []
 
-    # --- 月營收 stale ---
+    # --- 月營收 stale (cache_latest 用「營收月」, 防 date=公告月 off-by-one, 2026-06-17) ---
     try:
-        # 模擬 cache latest = 2025-02，today = 2025-04-17
-        fake_df = pd.DataFrame({"date": ["2025-02-01", "2025-01-01"]})
-        fake_today = date(2025, 4, 17)  # 過 13 號
-
-        stale = _is_cache_stale_monthly(fake_df, fake_today)
+        # cache 最新到 2025-01 營收 (FinMind date=公告月 2025-02-01), today=2025-04-17
+        # -> 缺 2/3 月營收 -> stale
+        fake_df = pd.DataFrame({"date": ["2025-02-01", "2025-01-01"],
+                                "revenue_year": [2025, 2024],
+                                "revenue_month": [1, 12]})
+        fake_today = date(2025, 4, 17)
+        stale = _is_cache_stale_monthly(fake_df, fake_today, age_days=5)
         if stale:
             results.append(result_line("T3-monthly-stale", PASS,
-                                       "cache=2025-02 today=2025-04-17 -> stale=True"))
+                                       "rev=2025-01 today=2025-04-17 -> stale=True"))
         else:
             results.append(result_line("T3-monthly-stale", FAIL,
                                        "expected stale=True but got False"))
 
-        # 模擬 today = 2025-04-05 (< 13 號)
-        fake_today2 = date(2025, 4, 5)
-        stale2 = _is_cache_stale_monthly(fake_df, fake_today2)
+        # cache 已含上月營收 (2025-03, date=2025-04-01), today=2025-04-17 -> not stale
+        fake_df2 = pd.DataFrame({"date": ["2025-04-01", "2025-03-01"],
+                                 "revenue_year": [2025, 2025],
+                                 "revenue_month": [3, 2]})
+        stale2 = _is_cache_stale_monthly(fake_df2, fake_today, age_days=5)
         if not stale2:
-            results.append(result_line("T3-monthly-fresh-before-13", PASS,
-                                       "today<13 -> stale=False"))
+            results.append(result_line("T3-monthly-fresh", PASS,
+                                       "rev=2025-03 today=2025-04-17 -> stale=False"))
         else:
-            results.append(result_line("T3-monthly-fresh-before-13", FAIL,
+            results.append(result_line("T3-monthly-fresh", FAIL,
                                        "expected False but got True"))
+
+        # off-by-one regression (核心): cache 只到 4 月營收 (date=公告月 2026-05-01),
+        # today=2026-06-17 -> 舊邏輯 date.max()="2026-05" 誤判 not stale; 新邏輯 cache_latest
+        # =營收月 2026-04 < 2026-05 -> stale=True
+        fake_4m = pd.DataFrame({"date": ["2026-05-01"],
+                                "revenue_year": [2026], "revenue_month": [4]})
+        if _is_cache_stale_monthly(fake_4m, date(2026, 6, 17), age_days=5):
+            results.append(result_line("T3-monthly-offbyone-4m", PASS,
+                                       "rev=2026-04 today=2026-06-17 -> stale=True (was bug)"))
+        else:
+            results.append(result_line("T3-monthly-offbyone-4m", FAIL,
+                                       "off-by-one NOT fixed: rev=2026-04 should be stale"))
+
+        # 同 cache 含上月 (5 月營收, date=2026-06-01), today=2026-06-17 -> not stale
+        fake_5m = pd.DataFrame({"date": ["2026-06-01"],
+                                "revenue_year": [2026], "revenue_month": [5]})
+        if not _is_cache_stale_monthly(fake_5m, date(2026, 6, 17), age_days=5):
+            results.append(result_line("T3-monthly-offbyone-5m", PASS,
+                                       "rev=2026-05 today=2026-06-17 -> stale=False"))
+        else:
+            results.append(result_line("T3-monthly-offbyone-5m", FAIL,
+                                       "rev=2026-05 should NOT be stale on 2026-06-17"))
+
+        # 下個月情境: 同 5 月 cache, today=2026-07-15 -> 缺 6 月 -> stale
+        if _is_cache_stale_monthly(fake_5m, date(2026, 7, 15), age_days=5):
+            results.append(result_line("T3-monthly-nextmonth", PASS,
+                                       "rev=2026-05 today=2026-07-15 -> stale=True"))
+        else:
+            results.append(result_line("T3-monthly-nextmonth", FAIL,
+                                       "expected stale=True next month"))
     except Exception as e:
         results.append(result_line("T3-monthly-stale", FAIL, str(e)))
 
