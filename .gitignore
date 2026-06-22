@@ -12,11 +12,17 @@ ml_models/
 # UI test screenshots (auto-generated, auto-cleaned)
 tools/screenshots/
 tools/screenshots_*/
+test_screenshots/
 
 # 一次性 UI smoke test 腳本
 tools/ui_test_*.py
 tools/ui_smoke_*.py
 tools/*_smoke_test.py
+# Playwright UI 驗證腳本（啟 streamlit 截圖到 test_screenshots/；正式單元測試在 tests/ 與 tools/test_{brokerage_yt,ledger_append,notes_view}.py 仍追蹤）
+tools/test_macro_ai_report_section.py
+tools/test_report_library_scroll_fix.py
+tools/test_report_library_ui.py
+tools/test_whale_picks_tab.py
 
 # 一次性 audit 腳本（驗證後丟，結論寫進 memory）
 tools/audit_*.py
@@ -56,6 +62,8 @@ Desktop.ini
 # AI 報告輸出（使用者生成，不納入版控）
 data/ai_reports/
 data/macro_reports/
+# 總經報告 JSON：正式輸出在 data/macro_reports/，reports/ 下為非正式位置產物
+reports/macro_report_*.json
 
 # Daily-refresh pipeline outputs (每晚重生，untrack 防止 git restore data/ 退回舊版)
 # 保留 tracked: strong_stocks_reports/ (per-day archive)、whale_picks/trade_ledger* (累積 state)、

@@ -1,9 +1,13 @@
 [server]
-# Disable file watcher to avoid Streamlit walking sys.modules and triggering
-# transformers' lazy vision processors (which require torchvision we don't install).
-# Trade-off: editing .py files no longer auto-reloads the app — click "Rerun" in the
-# Streamlit menu, or restart run_app.bat, after code changes.
-fileWatcherType = "none"
+# File watcher ON so editing .py auto-reloads imported modules (no full restart).
+# 2026-05-26 had this set to "none" to silence transformers' lazy-vision-processor
+# ModuleNotFoundError noise (torchvision not installed) when the watcher walked
+# sys.modules. Streamlit 1.52+ fixed this: get_module_paths now guards __path__
+# with a _NamespacePath type check (issue #10992) and wraps extraction in
+# try/except -> at worst one benign WARNING in app.log after RAG runs, no crash.
+# Plus sentence_transformers is lazy-imported, so transformers isn't even in
+# sys.modules until an AI report uses RAG.
+fileWatcherType = "auto"
 
 # Do not auto-open browser on startup.
 headless = true
