@@ -853,15 +853,17 @@ def generate_left_right_plan(df, lookback=250):
         'rung_gap_atr': round(rung_gap / atr, 2) if atr > 0 else None,
         'narrow_rung_note': (f'階距僅 {rung_gap / atr:.1f}×ATR，分批間隔窄，可考慮併批執行'
                              if atr > 0 and rung_gap / atr < 1.0 else None),
+        # above_spot: 該階價位 >= 現價 => 現價已跌破此階, 此批即刻可佈 (非「等漲上去再買」)。
+        # 修 pullback 階梯首階常落在現價上方被誤讀成現價上方買點的問題 (2026-06-22)。
         'left_ladder': [
             {'pct': '23.6%', 'price': snapped[23.6], 'fib_price': fib[23.6],
-             'confluence': conf[23.6], 'action': '首批 1/4'},
+             'confluence': conf[23.6], 'action': '首批 1/4', 'above_spot': snapped[23.6] >= close},
             {'pct': '38.2%', 'price': snapped[38.2], 'fib_price': fib[38.2],
-             'confluence': conf[38.2], 'action': '加碼 1/4'},
+             'confluence': conf[38.2], 'action': '加碼 1/4', 'above_spot': snapped[38.2] >= close},
             {'pct': '50.0%', 'price': snapped[50.0], 'fib_price': fib[50.0],
-             'confluence': conf[50.0], 'action': '加碼 1/4'},
+             'confluence': conf[50.0], 'action': '加碼 1/4', 'above_spot': snapped[50.0] >= close},
             {'pct': '61.8%', 'price': snapped[61.8], 'fib_price': fib[61.8],
-             'confluence': conf[61.8], 'action': '末批 1/4'},
+             'confluence': conf[61.8], 'action': '末批 1/4', 'above_spot': snapped[61.8] >= close},
         ],
         'invalidation_price': snapped[78.6],
         'invalidation_fib': fib[78.6],

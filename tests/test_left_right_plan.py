@@ -377,3 +377,59 @@ class TestPromptBuilder:
         from ai_report import _build_left_right_plan
         txt = _build_left_right_plan(None)
         assert txt.startswith("不適用")
+
+    def test_above_spot_flag_present_and_correct(self):
+        """每階 above_spot = (吸附後價位 >= 現價); 修 pullback 首階落在現價上方被誤讀 (2026-06-22)。"""
+        df = _make_swing_df()  # close 230, swing 95->300
+        plan = generate_left_right_plan(df)
+        assert plan['applicable']
+        cur = plan['current_price']
+        for rung in plan['left_ladder']:
+            assert 'above_spot' in rung
+            assert rung['above_spot'] == (rung['price'] >= cur)
+        # 230 在 23.6%(~251) 與 38.2%(~221) 之間 -> 首階(23.6%) 在現價上方
+        assert plan['left_ladder'][0]['above_spot'] is True
+
+    def test_above_spot_and_framework_rendered_in_injection(self):
+        from ai_report import _build_left_right_plan
+        txt = _build_left_right_plan(_make_swing_df())
+        assert "現價已在此階下方" in txt          # 首階即刻可佈注記
+        assert "framework_reconciliation" in txt  # 時間框架對接段
+        assert "不可混用" in txt
+
+
+class TestStopLadderConsistency:
+    """check_stop_ladder_consistency: 短線 ATR 停損 vs 波段加碼階不相容偵測 (2026-06-22)。"""
+
+    LADDER = {'applicable': True, 'left_ladder': [
+        {'pct': '23.6%', 'price': 106.2}, {'pct': '38.2%', 'price': 94.2},
+        {'pct': '50.0%', 'price': 83.1}, {'pct': '61.8%', 'price': 70.6}]}
+
+    def test_conflict_atr_stop_above_add_rungs(self):
+        from ai_report import check_stop_ladder_consistency
+        # 1815: ATR 停損 85.49 高於 50%(83.1)/61.8%(70.6) 加碼階
+        r = check_stop_ladder_consistency(
+            {'is_actionable': True, 'rec_sl_price': 85.49}, self.LADDER)
+        assert r['conflict'] is True
+        assert r['rungs_below_stop'] == [83.1, 70.6]
+
+    def test_no_conflict_stop_below_all_add_rungs(self):
+        from ai_report import check_stop_ladder_consistency
+        r = check_stop_ladder_consistency(
+            {'is_actionable': True, 'rec_sl_price': 60.0}, self.LADDER)
+        assert r['conflict'] is False
+
+    def test_skip_when_not_actionable_or_none(self):
+        from ai_report import check_stop_ladder_consistency
+        assert check_stop_ladder_consistency({'is_actionable': False}, self.LADDER)['conflict'] is False
+        assert check_stop_ladder_consistency(None, self.LADDER)['conflict'] is False
+        assert check_stop_ladder_consistency(
+            {'is_actionable': True, 'rec_sl_price': 85.49},
+            {'applicable': False})['conflict'] is False
+
+    def test_build_injects_stop_conflict_warning(self):
+        from ai_report import _build_left_right_plan
+        df = _make_swing_df()  # swing 95->300, 加碼階 ~221/197/173
+        txt = _build_left_right_plan(df, {'is_actionable': True, 'rec_sl_price': 250.0})
+        assert "STOP_CONFLICT_WARNING" in txt
+        assert "STOP_CONFLICT_WARNING" not in _build_left_right_plan(df)  # 不帶 action_plan 向後相容

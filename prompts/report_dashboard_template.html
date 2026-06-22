@@ -78,7 +78,7 @@ const {
 } = Recharts;
 
 const COLORS = {
-  bear: "#ef4444", base: "#f59e0b", bull: "#22c55e",
+  bear: "#22c55e", base: "#f59e0b", bull: "#ef4444",  // TW 慣例: bull(多/漲)=紅, bear(空/跌)=綠
   accent: "#38bdf8", gold: "#fbbf24",
   text: "#e2e8f0", muted: "#94a3b8",
   bg: "#0a0f1e", card: "#111827", border: "#1e3a5f",
@@ -129,15 +129,15 @@ function CustomTooltip({ active, payload, label }) {
 
 function verdictColor(v) {
   if (!v) return "slate";
-  if (v.includes("強力買進") || v.includes("買進")) return "emerald";
-  if (v.includes("減碼") || v.includes("賣出")) return "red";
+  if (v.includes("強力買進") || v.includes("買進")) return "red";
+  if (v.includes("減碼") || v.includes("賣出")) return "emerald";
   if (v.includes("觀望")) return "amber";
   return "slate";
 }
 
 function directionColor(d) {
-  if (d === "bull" || d === "多" || d === "正") return "text-emerald-400";
-  if (d === "bear" || d === "空" || d === "負") return "text-red-400";
+  if (d === "bull" || d === "多" || d === "正") return "text-red-400";
+  if (d === "bear" || d === "空" || d === "負") return "text-emerald-400";
   return "text-slate-300";
 }
 
@@ -180,7 +180,7 @@ function App() {
               </h1>
               <p className="text-xs text-slate-500 mt-1">
                 {meta.market || "TW"} · 收盤 {meta.last_price?.toLocaleString() || "N/A"} ·
-                <span className={(meta.change_pct || 0) >= 0 ? " text-emerald-400" : " text-red-400"}>
+                <span className={(meta.change_pct || 0) >= 0 ? " text-red-400" : " text-emerald-400"}>
                   {" "}{(meta.change_pct || 0) >= 0 ? "+" : ""}{meta.change_pct?.toFixed(2) || "0"}%
                 </span>
                 {" "}· 生成於 {meta.generated_at || "N/A"}
@@ -274,7 +274,7 @@ function App() {
                 {["bear", "base", "bull"].map(s => (
                   <button key={s} onClick={() => setEpsScenario(s)}
                     className={`rounded px-2 py-1 text-xs ${epsScenario === s ? "bg-sky-700 text-white" : "bg-slate-800 text-slate-400"}`}>
-                    {s === "bear" ? "🔴 熊" : s === "base" ? "🟡 基準" : "🟢 牛"}
+                    {s === "bear" ? "🟢 熊" : s === "base" ? "🟡 基準" : "🔴 牛"}
                   </button>
                 ))}
               </div>
@@ -303,9 +303,9 @@ function App() {
                 {val.scenarios.map((s, i) => {
                   const isBull = s.scenario === "bull";
                   const isBear = s.scenario === "bear";
-                  const bg = isBull ? "bg-emerald-900/20 border-emerald-700/40" : isBear ? "bg-red-900/20 border-red-700/40" : "bg-amber-900/20 border-amber-700/40";
-                  const txt = isBull ? "text-emerald-300" : isBear ? "text-red-300" : "text-amber-300";
-                  const label = isBull ? "🟢 牛市" : isBear ? "🔴 熊市" : "🟡 基準";
+                  const bg = isBull ? "bg-red-900/20 border-red-700/40" : isBear ? "bg-emerald-900/20 border-emerald-700/40" : "bg-amber-900/20 border-amber-700/40";
+                  const txt = isBull ? "text-red-300" : isBear ? "text-emerald-300" : "text-amber-300";
+                  const label = isBull ? "🔴 牛市" : isBear ? "🟢 熊市" : "🟡 基準";
                   const upside = val.current_price ? ((s.target - val.current_price) / val.current_price * 100).toFixed(1) : null;
                   return (
                     <div key={i} className={`rounded-xl border p-4 ${bg}`}>
@@ -313,7 +313,7 @@ function App() {
                       <p className="text-3xl font-black text-slate-100 mb-1">{s.target?.toLocaleString()}</p>
                       <p className="text-xs text-slate-400">元</p>
                       {upside && (
-                        <p className={`text-xs mt-2 ${upside >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        <p className={`text-xs mt-2 ${upside >= 0 ? "text-red-400" : "text-emerald-400"}`}>
                           {upside >= 0 ? "↑" : "↓"} {Math.abs(upside)}%
                         </p>
                       )}
@@ -403,7 +403,7 @@ function App() {
                     <tr key={i} className="border-b border-slate-800/50">
                       <td className="py-2 text-slate-200 font-medium">{r.segment}</td>
                       <td className="py-2 text-right text-slate-300">{r.pct}%</td>
-                      <td className="py-2 text-center">{r.trend === "up" ? <span className="text-emerald-400">↑</span> : r.trend === "down" ? <span className="text-red-400">↓</span> : <span className="text-slate-500">→</span>}</td>
+                      <td className="py-2 text-center">{r.trend === "up" ? <span className="text-red-400">↑</span> : r.trend === "down" ? <span className="text-emerald-400">↓</span> : <span className="text-slate-500">→</span>}</td>
                       <td className="py-2 text-slate-400 pl-4">{r.note}</td>
                     </tr>
                   ))}
@@ -516,14 +516,18 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(D.left_right.left_ladder || []).map((r, i) => (
+                      {(D.left_right.left_ladder || []).map((r, i) => {
+                        const rprice = parseFloat(String(r.price).replace(/[^0-9.]/g, ""));
+                        const aboveSpot = meta.last_price && rprice && rprice >= meta.last_price;
+                        return (
                         <tr key={i} className="border-b border-slate-800">
                           <td className="py-1.5 text-amber-300">{r.fib}</td>
                           <td className="text-right font-bold text-slate-200">{r.price}</td>
                           <td className="text-right text-slate-400">{r.implied_pe}</td>
-                          <td className="text-right text-emerald-400">{r.action}</td>
+                          <td className="text-right text-red-400">{r.action}{aboveSpot ? <span className="block text-[10px] text-amber-400">↑ 現價已在此階下方 · 此批即刻可佈</span> : null}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                   {D.left_right.sizing_left && <p className="text-[10px] text-slate-500 mt-2">· {D.left_right.sizing_left}</p>}
@@ -543,6 +547,15 @@ function App() {
                   {D.left_right.sizing_right && <p className="text-[10px] text-slate-500 mt-2">· {D.left_right.sizing_right}</p>}
                 </Card>
               </div>
+              {/* 時間框架對接 (2026-06-22): 短線 vs 波段兩套停損不可混用, 靜態說明保證每份報告都顯示 */}
+              <Card className="mt-4 border-l-4 border-l-amber-500 bg-amber-900/10">
+                <p className="text-xs text-amber-200 leading-relaxed">
+                  ⏱️ <b>兩套停損屬不同時間框架，請勿混用</b>：短線交易看上方「投資建議」的進場區間 + ATR 停損；
+                  波段分批承接看「左側」Fib 階梯 + invalidation 停損。
+                  採波段承接時 <b>不可</b> 用短線 ATR 停損提前砍掉尚未到位的加碼階（否則會在加碼階之前就被洗出場）；
+                  純做短線單則用 ATR 停損、不放寬到 invalidation。
+                </p>
+              </Card>
             </div>
           )}
         </Section>
@@ -551,12 +564,12 @@ function App() {
         <Section title="⚖️ 多空">
           {/* 多空對照 */}
           <div className="grid gap-4 md:grid-cols-2">
-            <Card className="border-l-4 border-l-emerald-500">
-              <h2 className="text-sm font-bold text-emerald-300 mb-3">🟢 看多論點</h2>
+            <Card className="border-l-4 border-l-red-500">
+              <h2 className="text-sm font-bold text-red-300 mb-3">🔴 看多論點</h2>
               <div className="grid gap-2">
                 {(bb.bull_points || []).map((p, i) => (
                   <div key={i} className="flex gap-2 text-xs">
-                    <span className="text-emerald-400 font-bold">▲</span>
+                    <span className="text-red-400 font-bold">▲</span>
                     <div className="flex-1">
                       <p className="text-slate-200">{p.text}</p>
                       {p.weight && <p className="text-[10px] text-slate-500 mt-0.5">權重: {p.weight}</p>}
@@ -566,12 +579,12 @@ function App() {
               </div>
             </Card>
 
-            <Card className="border-l-4 border-l-red-500">
-              <h2 className="text-sm font-bold text-red-300 mb-3">🔴 看空論點</h2>
+            <Card className="border-l-4 border-l-emerald-500">
+              <h2 className="text-sm font-bold text-emerald-300 mb-3">🟢 看空論點</h2>
               <div className="grid gap-2">
                 {(bb.bear_points || []).map((p, i) => (
                   <div key={i} className="flex gap-2 text-xs">
-                    <span className="text-red-400 font-bold">▼</span>
+                    <span className="text-emerald-400 font-bold">▼</span>
                     <div className="flex-1">
                       <p className="text-slate-200">{p.text}</p>
                       {p.weight && <p className="text-[10px] text-slate-500 mt-0.5">權重: {p.weight}</p>}
@@ -612,10 +625,10 @@ function App() {
               <h2 className="text-sm font-bold text-sky-300 mb-3">🔔 觸發訊號列表</h2>
               <div className="grid gap-2 md:grid-cols-2">
                 {tech.triggers.map((t, i) => (
-                  <div key={i} className={`rounded-lg border p-3 ${t.type === "bull" ? "border-emerald-700/40 bg-emerald-900/10" : t.type === "bear" ? "border-red-700/40 bg-red-900/10" : "border-slate-700/40 bg-slate-800/30"}`}>
+                  <div key={i} className={`rounded-lg border p-3 ${t.type === "bull" ? "border-red-700/40 bg-red-900/10" : t.type === "bear" ? "border-emerald-700/40 bg-emerald-900/10" : "border-slate-700/40 bg-slate-800/30"}`}>
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-xs text-slate-200 flex-1">{t.text}</p>
-                      <Badge color={t.type === "bull" ? "emerald" : t.type === "bear" ? "red" : "slate"}>
+                      <Badge color={t.type === "bull" ? "red" : t.type === "bear" ? "emerald" : "slate"}>
                         {t.weight > 0 ? "+" : ""}{t.weight?.toFixed(1) || "—"}
                       </Badge>
                     </div>

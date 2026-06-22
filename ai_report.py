@@ -1161,11 +1161,48 @@ def _build_market_context(report):
     return "\n".join(lines) if lines else "N/A"
 
 
-def _build_left_right_plan(df_day):
+def check_stop_ladder_consistency(action_plan, lr_plan):
+    """一致性檢查 (2026-06-22): 短線 ATR 停損 vs 波段 Fib 加碼階是否不相容。
+
+    不相容情境 = 短線停損(rec_sl_price) 高於波段加碼階(38.2%/50%/61.8%)價位
+    -> 若把短線停損套到波段倉, 會在加碼階尚未到位前就被洗出場 (兩套停損混用)。
+
+    Returns:
+        dict {conflict: bool, atr_stop: float, rungs_below_stop: list[float], note: str}
+        informational only, 不阻擋報告生成。
+    """
+    out = {'conflict': False, 'atr_stop': 0.0, 'rungs_below_stop': [], 'note': 'ok'}
+    if not action_plan or not action_plan.get('is_actionable'):
+        out['note'] = 'not actionable, skip'
+        return out
+    if not lr_plan or not lr_plan.get('applicable'):
+        out['note'] = 'left_right not applicable, skip'
+        return out
+    atr_stop = float(action_plan.get('rec_sl_price', 0) or 0)
+    if atr_stop <= 0:
+        out['note'] = 'no atr stop'
+        return out
+    out['atr_stop'] = round(atr_stop, 2)
+    # 加碼階 = ladder 第 2 階起 (首批視為當前佈建; 第 2 階以下才是分批加碼)
+    add_rungs = lr_plan.get('left_ladder', [])[1:]
+    below = [r['price'] for r in add_rungs
+             if r.get('price') and float(r['price']) < atr_stop]
+    if below:
+        out['conflict'] = True
+        out['rungs_below_stop'] = below
+        out['note'] = (f'短線 ATR 停損 {atr_stop:.2f} 高於 {len(below)} 個波段加碼階 {below}; '
+                       '兩套停損不可混用 (採波段承接須改用 invalidation 停損, 否則加碼階未到先被洗出)。')
+    return out
+
+
+def _build_left_right_plan(df_day, action_plan=None):
     """[LEFT_RIGHT_PLAN] 左側 Fib 承接階梯 + 右側突破確認 (deterministic, scenario_engine 計算).
 
     與 [MARKET_CONTEXT] 的 Action Plan 同等級 hard rule：所有價位 verbatim 引用，
     LLM 只負責敘事 / 催化檢查點 / 隱含 Forward PE 推導。
+
+    action_plan: 傳入時跑 check_stop_ladder_consistency, 偵測到短線/波段停損衝突
+    會在注入文字加 [STOP_CONFLICT_WARNING] 並 log.warning (2026-06-22)。
     """
     try:
         from scenario_engine import generate_left_right_plan
@@ -1186,11 +1223,12 @@ def _build_left_right_plan(df_day):
     lines.append(f"  current_price: {lr['current_price']}")
     lines.append("  left_ladder (Fib 回測承接階梯, 已吸附鄰近真實結構):")
     for r in lr['left_ladder']:
+        spot_tag = "  [現價已在此階下方 → 此批即刻可佈, 非等漲上去再買]" if r.get('above_spot') else ""
         if r.get('confluence'):
             lines.append(f"    {r['pct']} -> {r['price']}  {r['action']}（{r['confluence']}）"
-                         f"   # Fib {r['fib_price']}")
+                         f"   # Fib {r['fib_price']}{spot_tag}")
         else:
-            lines.append(f"    {r['pct']} -> {r['price']}  {r['action']}（僅 Fib）")
+            lines.append(f"    {r['pct']} -> {r['price']}  {r['action']}（僅 Fib）{spot_tag}")
     if lr.get('narrow_rung_note'):
         lines.append(f"  ⚠️ {lr['narrow_rung_note']}")
     inv_tag = (f"（{lr['invalidation_confluence']}, Fib {lr['invalidation_fib']}）"
@@ -1211,6 +1249,22 @@ def _build_left_right_plan(df_day):
     stop_tag = f", {lr['right_stop_confluence']}" if lr.get('right_stop_confluence') else ""
     lines.append(f"    stop_structural: {lr['right_stop']} (38.2% 結構頸線{stop_tag})")
     lines.append("    trailing: 沿上彎 20MA 拖曳")
+    # 時間框架對接 (2026-06-22): 短線 Action Plan 與 波段左側階梯 是兩套不同時間框架的停損,
+    # 過去並排注入但無對接語句, 導致「投資建議(ATR 停損) vs 左右側(invalidation 停損)」看似矛盾。
+    lines.append("  framework_reconciliation (時間框架對接 — 報告中務必明確區隔, 兩套停損不可混用):")
+    lines.append("    - 短線框架 = [MARKET_CONTEXT] 的 Action Plan: entry_zone 進場 + ATR 停損(rec_sl_price); 做短打用這套。")
+    lines.append("    - 波段框架 = 上方左側 Fib 階梯分批承接 + invalidation 停損(78.6%); 做建倉用這套。")
+    lines.append("    - 不可混用 (關鍵): 採波段承接時停損用 invalidation, 不得拿短線 ATR 停損提前砍掉尚未到位的"
+                 "加碼階 (否則會在加碼階之前就被洗出場); 純做短線單則用 Action Plan 的 ATR 停損, 不放寬到 invalidation。")
+    lines.append(f"    - verdict 對齊: 現 posture={lr['posture']}; 若為 pullback/deep_pullback 且 Action Plan "
+                 "建議減碼/等拉回, summary.verdict 宜用「區間承接 / 逢回偏多」而非單純「買進」, one_liner 須點明等拉回分批。")
+    # 一致性 guard: 短線 ATR 停損若高於波段加碼階, 注入警告 (LLM 須明確區隔兩套停損) + log
+    if action_plan is not None:
+        _chk = check_stop_ladder_consistency(action_plan, lr)
+        if _chk['conflict']:
+            logger.warning("[left_right] stop/ladder conflict: %s", _chk['note'])
+            lines.append(f"  ⚠️ [STOP_CONFLICT_WARNING] {_chk['note']} "
+                         "報告務必明確標示此為兩套不同時間框架的停損, 不可用短線停損砍掉波段加碼階。")
     return "\n".join(lines)
 
 
@@ -1813,7 +1867,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     data_sections.append(f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us, ticker=ticker)}")
     data_sections.append(f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data, ticker)}")
     data_sections.append(f"[MARKET_CONTEXT]\n{_build_market_context(report)}")
-    data_sections.append(f"[LEFT_RIGHT_PLAN]\n{_build_left_right_plan(df_day)}")
+    data_sections.append(f"[LEFT_RIGHT_PLAN]\n{_build_left_right_plan(df_day, report.get('action_plan'))}")
     data_sections.append(f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}")
     data_sections.append(f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}")
     data_sections.append(f"[VALUATION_PANEL]\n{_build_dcf_panel_context(ticker)}")
@@ -2021,7 +2075,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
         f"[CHIP_DATA]\n{_build_chip_data(chip_data, us_chip_data, is_us, ticker=ticker)}",
         f"[FUNDAMENTAL_DATA]\n{_build_fundamental_data(fund_data, ticker)}",
         f"[MARKET_CONTEXT]\n{_build_market_context(report)}",
-        f"[LEFT_RIGHT_PLAN]\n{_build_left_right_plan(df_day)}",
+        f"[LEFT_RIGHT_PLAN]\n{_build_left_right_plan(df_day, report.get('action_plan'))}",
         f"[PATTERN_DATA]\n{_build_pattern_data(df_day)}",
         f"[VALUE_SCORE]\n{_build_value_score(ticker, fund_data, df_day)}",
         f"[VALUATION_PANEL]\n{_build_dcf_panel_context(ticker)}",
