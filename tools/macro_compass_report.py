@@ -10,7 +10,7 @@ macro_compass_report.py -- 總經大盤風向 AI 報告產生器
   6. 存 data/macro_reports/YYYY-MM-DD_HHMMSS.html
 
 LLM 規範 (CLAUDE.md):
-  - Claude: --model opus --allowedTools "*" (timeout 7200s/2h, 2026-06-16 由 600s 放寬)
+  - Claude: --model opus --allowedTools "WebSearch,WebFetch" (timeout 7200s/2h, 2026-06-16 由 600s 放寬)
   - Gemini: gemini-3.1-pro-preview (timeout 900s)
   - Council 統整: --model sonnet --allowedTools "WebSearch,WebFetch" (timeout 600s)
 
@@ -20,6 +20,7 @@ LLM 規範 (CLAUDE.md):
 from __future__ import annotations
 
 import argparse
+import html as _htmlmod
 import json
 import logging
 import os
@@ -369,6 +370,76 @@ def collect_context() -> str:
 #  Prompt 組裝
 # ============================================================
 
+# 方案 B (2026-06-22)：fmt="json" 用的 schema。Claude 出此 JSON -> 本地模板渲染 HTML。
+# 欄位與 _render_macro_template / render_macro_html_from_json 必須對齊（改一處要改兩處）。
+MACRO_JSON_SCHEMA = """```typescript
+{
+  schema_version: "macro-1.0",
+  meta: {
+    generated_at: string,   // "YYYY-MM-DD HH:MM"，用【資料面板】開頭的市場日期
+    panel_date: string,     // 面板骨幹截止日（多數 panel 的 last date，如 "2026-06-18"）
+    live_date: string,      // 你上網查證當天日期
+    risk_level: "危機"|"嚴重"|"警戒"|"留意"|"安全",  // 5 階燈號，明確選一
+    risk_score: number|null,  // Banner v3 綜合風險 0-100（面板 E 區塊有則填，無填 null）
+    risk_zone: string|null,   // Banner zone（如 "yellow"），無填 null
+    has_user_focus: boolean,  // 是否有 [USER_FOCUS]
+    user_focus_summary: string|null  // 有 focus 時你對該焦點的回應摘要(60-200字含具體數字)，無填 null
+  },
+  tone: {                   // 第1段 當前風險定調
+    one_liner: string,      // 一句話定調（50字內）
+    rationale: string|null, // 為何選這級燈號的補充（40-120字），無填 null
+    drivers: [              // 主要驅動訊號 top 3（必 3 筆，依重要性）
+      { rank: number,       // 1|2|3
+        title: string,      // 短標題（10-20字）
+        direction: "bull"|"bear"|"warn"|"neutral",  // bull=偏多 bear=偏空 warn=警示 neutral=中性
+        detail: string,     // 數據敘事（含 panel 具體數字+百分位），60-150字
+        why: string }       // 為何重要（含領先性分類引用），40-120字
+    ]
+  },
+  scenarios: [              // 第2段 1-4週情境推演，必 3 筆、順序 base/bear/bull、機率加總≈100
+    { kind: "base"|"bear"|"bull",
+      probability: number,  // 機率 %（純數字 0-100）
+      headline: string,     // 情境標題（10-20字）
+      narrative: string,    // 會發生什麼（含可定價的指數點位區間），80-200字
+      triggers: string }    // 觸發條件（優先押真領先指標），40-150字
+  ],
+  cross_validation: {       // 第3段 訊號交叉驗證
+    confirmations: [ { label: string, text: string } ],          // 互相印證（共振），1-4 條
+    conflicts: [ { signal: string, interpretation: string } ],   // 彼此衝突，1-5 列
+    false_positives: [ { text: string,                           // 假警報，2-6 條
+                         risk_level: "高"|"中高"|"中"|"低"|"反向" } ]  // 反向=台股IC驗證反向(如SKEW)
+  },
+  playbook: {               // 第4段 操作建議 (informational SOP-14)
+    position_range: string, // 部位水位區間（如 "5-7 成"）
+    hedging: string,        // 避險工具建議（PUT/反向ETF/現金），40-150字
+    entry_levels: [         // 進場/觀察條件，盡量給具體點位，3-6 列
+      { scenario: string,   // 如 "追高區"/"第一支撐"/"轉守訊號"
+        level: string,      // 加權點位或 indicator level（如 "44,623 (MA20)"、"> 46,465"）
+        action: string,     // 動作（如 "破則減至5成"）
+        direction: "bull"|"bear"|"neutral" }
+    ],
+    note: string|null       // 補充觀察點（如夜盤指引失真提醒），無填 null
+  },
+  freshness: {              // 第5段 資料時效校正與本週前瞻催化（真正價值，務必紮實）
+    panel_corrections: [    // 面板舊值→live 校正，無校正則 [] 並設 all_consistent=true
+      { item: string,       // 項目（如 "VIX"/"密大消費信心"）
+        panel_value: string,// 面板值含日期（如 "17.68〔6/12〕"）；面板無此欄填 "—"
+        live_value: string, // live 校正值含日期
+        source: string }    // 來源／日期
+    ],
+    all_consistent: boolean,// 面板與 live 全一致時 true
+    catalysts: [            // 未來 1-2 週催化，2-8 列
+      { date: string,       // 日期（如 "6/26"/"持續"）
+        event: string, expectation: string, impact: string,
+        direction: "bull"|"bear"|"warn"|"neutral" }
+    ],
+    revision: string|null   // 查證是否改變第1段定調/第2段機率的說明，無填 null
+  },
+  sources: [ { label: string, url: string } ]  // 面板外查證來源，0-12 筆，url 需 http(s) 開頭
+}
+```"""
+
+
 def build_prompt(context: str, fmt: str = "html", user_focus: Optional[str] = None) -> str:
     """組裝報告 prompt。
 
@@ -389,6 +460,23 @@ def build_prompt(context: str, fmt: str = "html", user_focus: Optional[str] = No
         out_fmt_rule = ("- 用台灣繁體中文\n"
                         "- **只輸出 HTML 本身**，HTML 前後不要加任何說明文字、不要包 markdown code fence\n"
                         "- 深色主題（背景 #0a0f1e、文字 #e2e8f0），標題/卡片清楚分區，行動裝置也可讀")
+    elif fmt == "json":
+        # 方案 B：Claude 只出 schema JSON，HTML 由本地模板渲染（不要 Claude 生 HTML）
+        directive = (
+            "請產出一份「總經大盤風向研究報告」，**只輸出一個嚴格符合下方 JSON Schema 的 JSON 物件**。"
+            "以下五段是報告必須涵蓋的內容，請把對應內容填入 schema 各欄位"
+            "（敘事欄位為純文字，不要寫 HTML 標籤；數字含單位/百分位直接寫進字串，"
+            "例 +44.16%、44,623 (MA20)、29.25倍）：")
+
+        def H(n, t):
+            return f"### 第 {n} 段：{t}"
+        out_fmt_rule = (
+            "- 用台灣繁體中文\n"
+            "- **只輸出 JSON 本身**：第一個字元必為 { 、最後一個字元必為 } ；"
+            "禁止 markdown 程式碼圍欄、禁止 JSON 前後任何說明文字\n"
+            "- 敘事欄位純文字（模板會自動套色，勿自行寫 <span> 等 HTML）\n"
+            "- 嚴格符合下列 JSON Schema（欄位名與巢狀結構不可更動；缺資料填 null 或 []）：\n\n"
+            + MACRO_JSON_SCHEMA)
     elif fmt == "md":
         directive = ("請產出一份「總經大盤風向研究報告」，用 **Markdown** 表達"
                      "（## 主標 / ### 次標 / 段落 / `-` 條列），內容必須包含以下五段：")
@@ -521,7 +609,11 @@ def call_claude_opus(prompt: str) -> tuple[bool, str]:
             [CLAUDE_CLI, "-p",
              "--model", "opus",
              "--effort", "xhigh",  # 2026-05-21: 必須 CLI 帶 (settings.json effortLevel 不影響 -p)
-             "--allowedTools", "*",
+             # 2026-06-22: "*" 會讓 Opus 把「輸出 HTML 網頁」當 agentic 任務、自己用 Write
+             # 寫檔到 data/macro_reports/，stdout 只回摘要 -> 驗證找不到 <html> 而失敗。
+             # 限縮為 WebSearch,WebFetch (= council 同款, 符合 CLAUDE.md LLM 規範表)：
+             # 保留上網查證、移除寫檔能力，強制把完整 HTML 印到 stdout。
+             "--allowedTools", "WebSearch,WebFetch",
              "--output-format", "text"],
             input=prompt,
             capture_output=True,
@@ -538,36 +630,361 @@ def call_claude_opus(prompt: str) -> tuple[bool, str]:
         return False, "Claude CLI not found"
 
 
-def generate_report_html_local(progress_cb=None, user_focus: Optional[str] = None) -> tuple[bool, str]:
+# ============================================================
+#  JSON -> HTML 渲染 (方案 B, 2026-06-22)
+#  Claude 出 schema JSON -> 本地純 HTML 模板 (零 CDN, 對齊個股「分工」但更穩)
+#  設計藍本: data/macro_reports/2026-06-22_113600.html (逐字抄 CSS + 五段結構)
+# ============================================================
+
+# 藍本 <style> 逐字搬入 (深色主題 / 紅漲綠跌台股慣例 / 5 階 scale bar)
+MACRO_CSS = """  :root{
+    --bg:#0a0f1e; --card:#131a2e; --card2:#0f1626; --line:#26304a;
+    --txt:#e2e8f0; --muted:#94a3b8; --dim:#64748b;
+    --up:#f87171; --upbg:rgba(248,113,113,.12);      /* 台股慣例：紅=漲/多/正 */
+    --down:#34d399; --downbg:rgba(52,211,153,.12);    /* 綠=跌/空/負 */
+    --warn:#f59e0b; --warnbg:rgba(245,158,11,.13);
+    --blue:#60a5fa; --purple:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    line-height:1.7;font-size:15px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 18px 80px}
+  header.top{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:8px}
+  h1{font-size:24px;margin:0 0 6px;letter-spacing:.5px}
+  .sub{color:var(--muted);font-size:13.5px}
+  .focus{background:linear-gradient(90deg,var(--warnbg),transparent);
+    border-left:3px solid var(--warn);padding:10px 14px;margin:16px 0;border-radius:0 8px 8px 0;font-size:14px}
+  .focus b{color:var(--warn)}
+  h2{font-size:19px;margin:38px 0 14px;padding-left:12px;border-left:4px solid var(--blue);letter-spacing:.5px}
+  h3{font-size:15.5px;margin:18px 0 8px;color:#cbd5e1}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+  .grid{display:grid;gap:12px}
+  @media(min-width:680px){.grid.c3{grid-template-columns:1fr 1fr 1fr}.grid.c2{grid-template-columns:1fr 1fr}}
+  .badge{display:inline-block;padding:3px 11px;border-radius:999px;font-size:12.5px;font-weight:600;letter-spacing:.5px}
+  .b-warn{background:var(--warnbg);color:var(--warn);border:1px solid rgba(245,158,11,.4)}
+  .b-up{background:var(--upbg);color:var(--up);border:1px solid rgba(248,113,113,.35)}
+  .b-down{background:var(--downbg);color:var(--down);border:1px solid rgba(52,211,153,.35)}
+  .b-neu{background:rgba(96,165,250,.12);color:var(--blue);border:1px solid rgba(96,165,250,.35)}
+  .tone{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .tone .big{font-size:30px;font-weight:700;color:var(--warn);letter-spacing:3px}
+  .scale{display:flex;gap:4px;margin:10px 0 4px}
+  .scale span{flex:1;text-align:center;font-size:11.5px;padding:5px 2px;border-radius:6px;color:var(--dim);background:var(--card2);border:1px solid var(--line)}
+  .scale span.on{color:#fff;background:var(--warn);border-color:var(--warn);font-weight:700}
+  ul{margin:6px 0;padding-left:20px}li{margin:5px 0}
+  .num{font-variant-numeric:tabular-nums;font-weight:600}
+  .up{color:var(--up)}.down{color:var(--down)}.warn{color:var(--warn)}.blue{color:var(--blue)}.purple{color:var(--purple)}.muted{color:var(--muted)}
+  .pct{color:var(--dim);font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:12px}
+  td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+  .sc{border-radius:12px;padding:14px 16px;border:1px solid var(--line)}
+  .scA{background:linear-gradient(180deg,rgba(96,165,250,.08),var(--card))}
+  .scB{background:linear-gradient(180deg,rgba(52,211,153,.07),var(--card))}
+  .scC{background:linear-gradient(180deg,rgba(248,113,113,.07),var(--card))}
+  .sc .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .sc .p{font-size:22px;font-weight:700}
+  .tag{font-size:11.5px;color:var(--dim);text-transform:uppercase;letter-spacing:1px}
+  .kv{font-size:13px;color:var(--muted)}.kv b{color:var(--txt)}
+  .cite{color:var(--dim);font-size:11.5px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .corr td:first-child{color:var(--muted)}
+  .foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--dim);font-size:12px}
+  .lvl{font-size:12px;color:var(--dim)}"""
+
+# direction 語意 (台股慣例): bull=紅/多/正, bear=綠/空/負, warn=橙, neutral=藍
+_DIR_TXT = {"bull": "up", "bear": "down", "warn": "warn", "neutral": "blue"}
+_DIR_BADGE = {"bull": "b-up", "bear": "b-down", "warn": "b-warn", "neutral": "b-neu"}
+_RISK_SCALE = ["安全", "留意", "警戒", "嚴重", "危機"]
+# scenario kind -> (CSS class, 標題標籤, 機率色)
+_SCENARIO_META = [("base", "scA", "A · 基本", "blue"),
+                  ("bear", "scB", "B · 悲觀", "down"),
+                  ("bull", "scC", "C · 樂觀", "up")]
+
+
+def _esc(v) -> str:
+    """HTML escape；None -> 空字串。所有 LLM/使用者敘事字串進 HTML 前都過這關。"""
+    return _htmlmod.escape(str(v)) if v is not None else ""
+
+
+def _txt_cls(direction) -> str:
+    return _DIR_TXT.get(direction, "blue")
+
+
+def _badge_cls(direction) -> str:
+    return _DIR_BADGE.get(direction, "b-neu")
+
+
+def _extract_json_from_output(text):
+    """從 Claude 輸出提取 JSON（剝 markdown fence + 撈第一個 { 到最後 }）。
+    與 ai_report._extract_json_from_output 同邏輯，複製進來避免跨模組重 import / 循環依賴。"""
+    text = (text or "").strip()
+    if text.startswith('```'):
+        nl = text.find('\n')
+        if nl > 0:
+            text = text[nl + 1:]
+        text = text.rstrip()
+        if text.endswith('```'):
+            text = text[:-3].rstrip()
+    if not text.startswith('{'):
+        i = text.find('{')
+        if i >= 0:
+            text = text[i:]
+    if not text.endswith('}'):
+        j = text.rfind('}')
+        if j >= 0:
+            text = text[:j + 1]
+    return text
+
+
+def _render_header(data) -> str:
+    meta = data.get("meta", {}) or {}
+    parts = ['<header class="top">']
+    parts.append(f'<h1>總經大盤風向研究報告 '
+                 f'<span class="badge b-warn">{_esc(meta.get("risk_level"))}</span></h1>')
+    sub = []
+    if meta.get("generated_at"):
+        sub.append(f'市場日期 {_esc(meta["generated_at"])}')
+    if meta.get("panel_date"):
+        sub.append(f'面板骨幹截至 {_esc(meta["panel_date"])}')
+    if meta.get("live_date"):
+        sub.append(f'疊加 {_esc(meta["live_date"])} 即時上網查證層')
+    sub.append("informational only / SOP-14")
+    parts.append('<div class="sub">' + ' &nbsp;·&nbsp; '.join(sub) + '</div>')
+    if meta.get("has_user_focus") and meta.get("user_focus_summary"):
+        parts.append(f'<div class="focus"><b>使用者關注 [USER_FOCUS]</b><br>'
+                     f'{_esc(meta["user_focus_summary"])}</div>')
+    parts.append('</header>')
+    return "\n".join(parts)
+
+
+def _render_tone(data) -> str:
+    meta = data.get("meta", {}) or {}
+    tone = data.get("tone", {}) or {}
+    level = meta.get("risk_level", "")
+    scale = "".join((f'<span class="on">{lv}</span>' if lv == level
+                     else f'<span>{lv}</span>') for lv in _RISK_SCALE)
+    banner = ""
+    if meta.get("risk_score") is not None:
+        zone = meta.get("risk_zone")
+        zone_html = f' / zone <b class="warn">{_esc(zone)}</b>' if zone else ""
+        banner = (f'<div class="lvl">Banner v3 綜合風險 '
+                  f'<span class="num warn">{_esc(meta["risk_score"])}</span>{zone_html}</div>')
+    parts = ['<h2>1. 當前風險定調</h2>', '<div class="card">',
+             f'<div class="tone"><span class="big">{_esc(level)}</span>'
+             f'<div><div class="scale">{scale}</div>{banner}</div></div>']
+    if tone.get("one_liner"):
+        parts.append(f'<p style="margin:14px 0 4px"><b>一句話定調：</b>{_esc(tone["one_liner"])}</p>')
+    if tone.get("rationale"):
+        parts.append(f'<p class="muted" style="font-size:13px;margin:6px 0 0">'
+                     f'{_esc(tone["rationale"])}</p>')
+    parts.append('</div>')
+    drivers = tone.get("drivers") or []
+    if drivers:
+        parts.append('<h3>主要驅動訊號 Top 3（依重要性）</h3>')
+        parts.append('<div class="grid c3">')
+        for d in drivers:
+            parts.append('<div class="card">'
+                         f'<span class="badge {_badge_cls(d.get("direction"))}">{_esc(d.get("title"))}</span>'
+                         f'<p class="kv" style="margin:10px 0 4px">{_esc(d.get("detail"))}</p>'
+                         f'<p class="cite"><b>為何重要：</b>{_esc(d.get("why"))}</p></div>')
+        parts.append('</div>')
+    return "\n".join(parts)
+
+
+def _render_scenarios(data) -> str:
+    by_kind = {s.get("kind"): s for s in (data.get("scenarios") or []) if isinstance(s, dict)}
+    parts = ['<h2>2. 1–4 週情境推演</h2>', '<div class="grid c3">']
+    for kind, cls, label, pcls in _SCENARIO_META:
+        s = by_kind.get(kind)
+        if not s:
+            continue
+        prob = s.get("probability")
+        prob_txt = f'{prob}%' if prob is not None else ""
+        parts.append(f'<div class="sc {cls}">'
+                     f'<div class="hd"><span class="tag">Scenario {label}</span>'
+                     f'<span class="p {pcls}">{_esc(prob_txt)}</span></div>'
+                     f'<b>{_esc(s.get("headline"))}</b>'
+                     f'<p class="kv">{_esc(s.get("narrative"))}</p>'
+                     f'<p class="cite"><b>觸發：</b>{_esc(s.get("triggers"))}</p></div>')
+    parts.append('</div>')
+    return "\n".join(parts)
+
+
+def _render_cross(data) -> str:
+    cv = data.get("cross_validation", {}) or {}
+    parts = ['<h2>3. 訊號交叉驗證</h2>']
+    conf = cv.get("confirmations") or []
+    if conf:
+        lis = "".join(f'<li><b>{_esc(c.get("label"))}：</b>{_esc(c.get("text"))}</li>' for c in conf)
+        parts.append(f'<div class="card"><h3 style="margin-top:0">互相印證（共振）</h3><ul>{lis}</ul></div>')
+    conflicts = cv.get("conflicts") or []
+    if conflicts:
+        rows = "".join(f'<tr><td>{_esc(c.get("signal"))}</td>'
+                       f'<td>{_esc(c.get("interpretation"))}</td></tr>' for c in conflicts)
+        parts.append('<div class="card"><h3 style="margin-top:0">彼此衝突（如何解讀）</h3>'
+                     f'<table class="corr"><tr><th>衝突訊號</th><th>解讀</th></tr>{rows}</table></div>')
+    fp = cv.get("false_positives") or []
+    if fp:
+        lis = "".join(f'<li>{_esc(f.get("text"))} '
+                      f'<span class="muted">[假陽性風險：{_esc(f.get("risk_level"))}]</span></li>' for f in fp)
+        parts.append('<div class="card"><h3 style="margin-top:0">False Positive 風險（歷史假警報）</h3>'
+                     f'<ul>{lis}</ul></div>')
+    return "\n".join(parts)
+
+
+def _render_playbook(data) -> str:
+    pb = data.get("playbook", {}) or {}
+    parts = ['<h2>4. 操作建議 '
+             '<span class="badge b-neu">informational only · 非自動 rebalance gate</span></h2>',
+             '<div class="grid c2">']
+    left = ['<div class="card">']
+    if pb.get("position_range"):
+        left.append(f'<h3 style="margin-top:0">部位水位</h3>'
+                    f'<p>建議 <b class="warn num">{_esc(pb["position_range"])}</b> 股票部位。</p>')
+    if pb.get("hedging"):
+        left.append(f'<h3>避險工具</h3><p>{_esc(pb["hedging"])}</p>')
+    left.append('</div>')
+    parts.append("".join(left))
+    levels = pb.get("entry_levels") or []
+    right = ['<div class="card"><h3 style="margin-top:0">進場 / 觀察條件（具體點位）</h3>']
+    if levels:
+        rows = "".join(f'<tr><td>{_esc(l.get("scenario"))}</td>'
+                       f'<td class="r {_txt_cls(l.get("direction"))}">{_esc(l.get("level"))}</td>'
+                       f'<td>{_esc(l.get("action"))}</td></tr>' for l in levels)
+        right.append(f'<table><tr><th>情境</th><th class="r">加權點位 / 指標</th><th>動作</th></tr>{rows}</table>')
+    right.append('</div>')
+    parts.append("".join(right))
+    parts.append('</div>')
+    if pb.get("note"):
+        parts.append(f'<p class="cite">{_esc(pb["note"])}</p>')
+    parts.append('<p class="muted" style="font-size:12.5px">⚠️ 以上為 informational tier'
+                 '（SOP-14 研判背景），<b>非自動投組 rebalance 觸發</b>；實際下單點位以個股分析 tab 為準。</p>')
+    return "\n".join(parts)
+
+
+def _render_freshness(data) -> str:
+    fr = data.get("freshness", {}) or {}
+    parts = ['<h2>5. 資料時效校正與本週前瞻催化 '
+             '<span class="badge b-up">上網查證</span></h2>']
+    pc = fr.get("panel_corrections") or []
+    if pc:
+        rows = "".join(f'<tr><td>{_esc(c.get("item"))}</td><td>{_esc(c.get("panel_value"))}</td>'
+                       f'<td class="warn">{_esc(c.get("live_value"))}</td>'
+                       f'<td class="cite">{_esc(c.get("source"))}</td></tr>' for c in pc)
+        parts.append('<div class="card"><h3 style="margin-top:0">A. 面板時效校正（面板舊值 → live 新值）</h3>'
+                     '<table><tr><th>項目</th><th>面板值</th><th>Live 校正</th><th>來源／日期</th></tr>'
+                     f'{rows}</table></div>')
+    elif fr.get("all_consistent"):
+        parts.append('<div class="card"><h3 style="margin-top:0">A. 面板時效校正</h3>'
+                     '<p class="muted">面板與 live 一致，無需校正。</p></div>')
+    cat = fr.get("catalysts") or []
+    if cat:
+        rows = "".join(f'<tr><td class="num {_txt_cls(c.get("direction"))}">{_esc(c.get("date"))}</td>'
+                       f'<td>{_esc(c.get("event"))}</td><td>{_esc(c.get("expectation"))}</td>'
+                       f'<td>{_esc(c.get("impact"))}</td></tr>' for c in cat)
+        parts.append('<div class="card"><h3 style="margin-top:0">B. 本週前瞻催化（未來 1–2 週）</h3>'
+                     '<table><tr><th>日期</th><th>事件</th><th>結果／預期</th><th>對台股影響</th></tr>'
+                     f'{rows}</table></div>')
+    if fr.get("revision"):
+        parts.append('<div class="card" style="border-color:rgba(245,158,11,.4)">'
+                     '<h3 style="margin-top:0" class="warn">C. 查證是否改變第 1、2 段？</h3>'
+                     f'<p>{_esc(fr["revision"])}</p></div>')
+    return "\n".join(parts)
+
+
+def _render_footer(data) -> str:
+    meta = data.get("meta", {}) or {}
+    valid = [s for s in (data.get("sources") or [])
+             if isinstance(s, dict) and str(s.get("url", "")).startswith("http")]
+    src_html = ""
+    if valid:
+        links = " · ".join(f'<a href="{_esc(s["url"])}">{_esc(s.get("label") or s["url"])}</a>'
+                           for s in valid)
+        src_html = f'資料來源（面板外查證）：{links}<br>'
+    return ('<div class="foot">'
+            f'{src_html}'
+            '面板 A–K 結構序列以面板數值為準；網路層僅補時效校正與前瞻催化。'
+            f'本報告為 informational tier（SOP-14），非自動投組 rebalance 訊號。'
+            f'產生於 {_esc(meta.get("generated_at", ""))}。</div>')
+
+
+def _render_macro_template(data) -> str:
+    """把 schema dict 渲染成完整自包含 HTML 頁（零 CDN、純 inline CSS）。"""
+    meta = data.get("meta", {}) or {}
+    title = f'總經大盤風向研究報告 — {meta.get("generated_at") or meta.get("live_date") or ""}'
+    body = "\n".join([_render_header(data), _render_tone(data), _render_scenarios(data),
+                      _render_cross(data), _render_playbook(data), _render_freshness(data),
+                      _render_footer(data)])
+    return ('<!DOCTYPE html>\n<html lang="zh-Hant">\n<head>\n<meta charset="UTF-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+            f'<title>{_esc(title)}</title>\n<style>\n{MACRO_CSS}\n</style>\n</head>\n'
+            f'<body>\n<div class="wrap">\n{body}\n</div>\n</body>\n</html>')
+
+
+def render_macro_html_from_json(raw_or_data):
+    """把 Claude 回傳的 JSON 渲染成 macro 報告 HTML (純 HTML, 零 CDN)。
+
+    仿個股 ai_report.render_html_from_claude_output 的分工。
+    入參: str (Claude 原始輸出, 會剝 fence) 或 dict (已解析, 測試/重渲染用)。
+    回傳: (ok: bool, html_or_err: str, data: dict|None)。
+    """
+    if isinstance(raw_or_data, dict):
+        data = raw_or_data
+    else:
+        raw = (raw_or_data or "").strip()
+        if not raw:
+            return False, "輸入內容為空", None
+        json_text = _extract_json_from_output(raw)
+        try:
+            data = json.loads(json_text)
+        except json.JSONDecodeError as e:
+            logger.error("macro JSON parse failed: %s", e)
+            return False, f"Claude 回傳的 JSON 格式錯誤: {e}\n\n前 1000 字:\n{json_text[:1000]}", None
+    # 五段必要區塊 fail-loud
+    required = ['meta', 'tone', 'scenarios', 'cross_validation', 'playbook', 'freshness']
+    missing = [k for k in required if k not in data]
+    if missing:
+        return False, f"JSON 缺少必要區塊: {missing}", data
+    # 最低結構防呆 (避免模板 KeyError/TypeError)
+    if not isinstance(data.get('scenarios'), list) or not data['scenarios']:
+        return False, "scenarios 必須為非空陣列", data
+    if not (data.get('meta') or {}).get('risk_level'):
+        return False, "meta.risk_level 缺失", data
+    if not isinstance((data.get('tone') or {}).get('drivers'), list):
+        return False, "tone.drivers 必須為陣列", data
+    try:
+        html = _render_macro_template(data)
+    except Exception as e:
+        logger.error("macro template render failed: %s", e, exc_info=True)
+        return False, f"模板渲染失敗: {e}", data
+    return True, html, data
+
+
+def generate_report_html_local(progress_cb=None, user_focus: Optional[str] = None) -> tuple[bool, str, Optional[dict]]:
     """全自動本地生成：collect_context + build_prompt(webpage) + Claude Opus → (ok, html_or_err).
 
-    供 macro_dashboard UI「自動產生報告」按鈕用 -- 對應 claude.ai webpage 工作流的本地版
-    (本地 claude -p 跑同一份 webpage 提示詞，要求輸出單檔自包含 HTML)。
+    供 macro_dashboard UI「自動產生報告」按鈕用。
+
+    方案 B (2026-06-22)：Claude 只出 schema JSON，HTML 由本地模板 render_macro_html_from_json
+    渲染 -- 取代舊「要 Claude 直接生整頁 HTML」(會誘發 agentic 寫檔且每次樣式不穩)。
+    手動 claude.ai 路 (build_prompt fmt="webpage") 不受影響，維持輸出 HTML 給 Artifact 預覽。
     user_focus: 使用者補充關注 / 提問，注入 [USER_FOCUS]，要求報告敘事優先回應。
-    LLM 規範 (CLAUDE.md Macro Compass)：Opus + effort xhigh + allowedTools，timeout 7200s/2h。
+    LLM 規範 (CLAUDE.md Macro Compass)：Opus + effort xhigh + WebSearch/WebFetch，timeout 7200s/2h。
     """
     def _p(m):
         if progress_cb:
             progress_cb(m)
     _p("組裝資料面板中（約數秒）...")
     context = collect_context()
-    prompt = build_prompt(context, fmt="webpage", user_focus=user_focus)
-    _p("Claude Opus 生成 HTML 網頁中（最長 2 小時 timeout，通常數分鐘）...")
+    prompt = build_prompt(context, fmt="json", user_focus=user_focus)
+    _p("Claude Opus 生成報告 JSON 中（最長 2 小時 timeout，通常數分鐘）...")
     ok, out = call_claude_opus(prompt)
     if not ok:
-        return False, out
-    html = (out or "").strip()
-    # 剝 markdown 圍欄（claude 偶爾用 ```html 包）
-    if html.startswith("```"):
-        nl = html.find("\n")
-        if nl > 0:
-            html = html[nl + 1:]
-        html = html.rstrip()
-        if html.endswith("```"):
-            html = html[:-3].rstrip()
-    if "<html" not in html.lower():
-        return False, ("Claude 回傳內容不是完整 HTML（找不到 <html> 標籤）\n\n前 500 字:\n" + html[:500])
-    return True, html
+        return False, out, None
+    _p("本地模板渲染 HTML 中...")
+    return render_macro_html_from_json(out)
 
 
 def call_gemini(prompt: str) -> tuple[bool, str]:

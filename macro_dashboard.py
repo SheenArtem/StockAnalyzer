@@ -56,14 +56,18 @@ def _macro_report_worker(job, reports_dir, user_focus=None):
             job['progress'].append(msg)
 
     try:
+        import json
         from macro_compass_report import generate_report_html_local
-        ok, html_or_err = generate_report_html_local(progress_cb=_progress, user_focus=user_focus)
+        ok, html_or_err, data = generate_report_html_local(progress_cb=_progress, user_focus=user_focus)
         with _macro_report_job_lock:
             if ok:
                 ts = datetime.now().strftime('%Y-%m-%d_%H%M%S')
                 out = reports_dir / f"{ts}.html"
                 out.write_text(html_or_err, encoding='utf-8')
                 (reports_dir / "latest.html").write_text(html_or_err, encoding='utf-8')
+                if data is not None:  # sidecar JSON：日後換模板可重新渲染（仿個股 save_report_html）
+                    (reports_dir / f"{ts}.json").write_text(
+                        json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
                 job['result'] = out.name
                 job['status'] = 'done'
             else:
