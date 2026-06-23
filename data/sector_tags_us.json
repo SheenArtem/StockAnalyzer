@@ -1,0 +1,1115 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-23",
+  "description": "美股主流題材 sector tag 清單。Phase 1 種子: 由 market-pulse 手刻 us_sector_map(37 檔) 反轉而來。Phase 2 待 3-agent 網路研究擴充/刷新。結構與 sector_tags_manual.json 一致(省 peer_group)。",
+  "source": "bootstrap from market-pulse hand-curated us_sector_map (2026-06-23)",
+  "themes": [
+    {
+      "theme_id": "ai_chips",
+      "theme_name_zh": "AI 晶片",
+      "theme_name_en": "AI Chips",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "NVDA",
+          "name": "NVIDIA",
+          "note": "",
+          "multi_theme": [
+            "datacenter_gpu",
+            "semiconductors"
+          ]
+        },
+        {
+          "ticker": "AMD",
+          "name": "AMD",
+          "note": "",
+          "multi_theme": [
+            "cpu_gpu",
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "datacenter_gpu",
+      "theme_name_zh": "資料中心 GPU",
+      "theme_name_en": "Datacenter GPU",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "NVDA",
+          "name": "NVIDIA",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "semiconductors",
+      "theme_name_zh": "半導體",
+      "theme_name_en": "Semiconductors",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "NVDA",
+          "name": "NVIDIA",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "datacenter_gpu"
+          ]
+        },
+        {
+          "ticker": "AMD",
+          "name": "AMD",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "cpu_gpu"
+          ]
+        },
+        {
+          "ticker": "INTC",
+          "name": "Intel",
+          "note": "",
+          "multi_theme": [
+            "cpu",
+            "foundry"
+          ]
+        },
+        {
+          "ticker": "MU",
+          "name": "Micron",
+          "note": "",
+          "multi_theme": [
+            "memory",
+            "hbm"
+          ]
+        },
+        {
+          "ticker": "AVGO",
+          "name": "Broadcom",
+          "note": "",
+          "multi_theme": [
+            "ai_networking_chips"
+          ]
+        },
+        {
+          "ticker": "MRVL",
+          "name": "Marvell",
+          "note": "",
+          "multi_theme": [
+            "datacenter_chips"
+          ]
+        },
+        {
+          "ticker": "QCOM",
+          "name": "Qualcomm",
+          "note": "",
+          "multi_theme": [
+            "mobile_chips"
+          ]
+        },
+        {
+          "ticker": "TSM",
+          "name": "TSMC",
+          "note": "",
+          "multi_theme": [
+            "foundry"
+          ]
+        },
+        {
+          "ticker": "ARM",
+          "name": "Arm Holdings",
+          "note": "",
+          "multi_theme": [
+            "chip_ip"
+          ]
+        },
+        {
+          "ticker": "SNDK",
+          "name": "Sandisk",
+          "note": "",
+          "multi_theme": [
+            "flash_storage"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "cpu_gpu",
+      "theme_name_zh": "CPU/GPU",
+      "theme_name_en": "CPU/GPU",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "AMD",
+          "name": "AMD",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "cpu",
+      "theme_name_zh": "CPU",
+      "theme_name_en": "CPU",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "INTC",
+          "name": "Intel",
+          "note": "",
+          "multi_theme": [
+            "foundry",
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "foundry",
+      "theme_name_zh": "晶圓代工",
+      "theme_name_en": "Foundry",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "INTC",
+          "name": "Intel",
+          "note": "",
+          "multi_theme": [
+            "cpu",
+            "semiconductors"
+          ]
+        },
+        {
+          "ticker": "TSM",
+          "name": "TSMC",
+          "note": "",
+          "multi_theme": [
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "memory",
+      "theme_name_zh": "記憶體",
+      "theme_name_en": "Memory",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "MU",
+          "name": "Micron",
+          "note": "",
+          "multi_theme": [
+            "hbm",
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "hbm",
+      "theme_name_zh": "HBM",
+      "theme_name_en": "HBM",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "MU",
+          "name": "Micron",
+          "note": "",
+          "multi_theme": [
+            "memory",
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "ai_networking_chips",
+      "theme_name_zh": "AI 網通晶片",
+      "theme_name_en": "AI Networking Chips",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "AVGO",
+          "name": "Broadcom",
+          "note": "",
+          "multi_theme": [
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "datacenter_chips",
+      "theme_name_zh": "資料中心晶片",
+      "theme_name_en": "Datacenter Chips",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "MRVL",
+          "name": "Marvell",
+          "note": "",
+          "multi_theme": [
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "mobile_chips",
+      "theme_name_zh": "手機晶片",
+      "theme_name_en": "Mobile Chips",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "QCOM",
+          "name": "Qualcomm",
+          "note": "",
+          "multi_theme": [
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "chip_ip",
+      "theme_name_zh": "晶片 IP",
+      "theme_name_en": "Chip IP",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "ARM",
+          "name": "Arm Holdings",
+          "note": "",
+          "multi_theme": [
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "semicon_equipment",
+      "theme_name_zh": "半導體設備",
+      "theme_name_en": "Semiconductor Equipment",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "AMAT",
+          "name": "Applied Materials",
+          "note": "",
+          "multi_theme": []
+        },
+        {
+          "ticker": "LRCX",
+          "name": "Lam Research",
+          "note": "",
+          "multi_theme": []
+        },
+        {
+          "ticker": "ASML",
+          "name": "ASML",
+          "note": "",
+          "multi_theme": [
+            "euv_litho"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "euv_litho",
+      "theme_name_zh": "EUV 微影",
+      "theme_name_en": "EUV Lithography",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "ASML",
+          "name": "ASML",
+          "note": "",
+          "multi_theme": [
+            "semicon_equipment"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "flash_storage",
+      "theme_name_zh": "快閃記憶體/儲存",
+      "theme_name_en": "Flash/Storage",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "SNDK",
+          "name": "Sandisk",
+          "note": "",
+          "multi_theme": [
+            "semiconductors"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "hdd_storage",
+      "theme_name_zh": "硬碟/儲存",
+      "theme_name_en": "HDD/Storage",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "WDC",
+          "name": "Western Digital",
+          "note": "",
+          "multi_theme": []
+        },
+        {
+          "ticker": "STX",
+          "name": "Seagate",
+          "note": "",
+          "multi_theme": []
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "ai_server",
+      "theme_name_zh": "AI 伺服器",
+      "theme_name_en": "AI Server",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "SMCI",
+          "name": "Super Micro Computer",
+          "note": "",
+          "multi_theme": [
+            "datacenter"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "datacenter",
+      "theme_name_zh": "資料中心",
+      "theme_name_en": "Datacenter",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "SMCI",
+          "name": "Super Micro Computer",
+          "note": "",
+          "multi_theme": [
+            "ai_server"
+          ]
+        },
+        {
+          "ticker": "NBIS",
+          "name": "Nebius",
+          "note": "",
+          "multi_theme": [
+            "ai_cloud"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "optical_networking",
+      "theme_name_zh": "光通訊",
+      "theme_name_en": "Optical Networking",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "COHR",
+          "name": "Coherent",
+          "note": "",
+          "multi_theme": [
+            "lasers"
+          ]
+        },
+        {
+          "ticker": "LITE",
+          "name": "Lumentum",
+          "note": "",
+          "multi_theme": []
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "lasers",
+      "theme_name_zh": "雷射",
+      "theme_name_en": "Lasers",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "COHR",
+          "name": "Coherent",
+          "note": "",
+          "multi_theme": [
+            "optical_networking"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "fiber_glass",
+      "theme_name_zh": "光纖/玻璃",
+      "theme_name_en": "Fiber/Glass",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "GLW",
+          "name": "Corning",
+          "note": "",
+          "multi_theme": [
+            "display"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "display",
+      "theme_name_zh": "顯示面板",
+      "theme_name_en": "Display",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "GLW",
+          "name": "Corning",
+          "note": "",
+          "multi_theme": [
+            "fiber_glass"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "consumer_electronics",
+      "theme_name_zh": "消費電子",
+      "theme_name_en": "Consumer Electronics",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "AAPL",
+          "name": "Apple",
+          "note": "",
+          "multi_theme": [
+            "iphone_ecosystem"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "iphone_ecosystem",
+      "theme_name_zh": "iPhone 生態",
+      "theme_name_en": "iPhone Ecosystem",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "AAPL",
+          "name": "Apple",
+          "note": "",
+          "multi_theme": [
+            "consumer_electronics"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "azure_cloud",
+      "theme_name_zh": "雲端 Azure",
+      "theme_name_en": "Azure Cloud",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "MSFT",
+          "name": "Microsoft",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "software"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "ai",
+      "theme_name_zh": "AI",
+      "theme_name_en": "AI",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "MSFT",
+          "name": "Microsoft",
+          "note": "",
+          "multi_theme": [
+            "azure_cloud",
+            "software"
+          ]
+        },
+        {
+          "ticker": "GOOGL",
+          "name": "Alphabet",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "online_advertising"
+          ]
+        },
+        {
+          "ticker": "META",
+          "name": "Meta",
+          "note": "",
+          "multi_theme": [
+            "social_media",
+            "digital_advertising"
+          ]
+        },
+        {
+          "ticker": "APP",
+          "name": "AppLovin",
+          "note": "",
+          "multi_theme": [
+            "mobile_advertising"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "software",
+      "theme_name_zh": "軟體",
+      "theme_name_en": "Software",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "MSFT",
+          "name": "Microsoft",
+          "note": "",
+          "multi_theme": [
+            "azure_cloud",
+            "ai"
+          ]
+        },
+        {
+          "ticker": "ORCL",
+          "name": "Oracle",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "database"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "cloud",
+      "theme_name_zh": "雲端",
+      "theme_name_en": "Cloud",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "GOOGL",
+          "name": "Alphabet",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "online_advertising"
+          ]
+        },
+        {
+          "ticker": "ORCL",
+          "name": "Oracle",
+          "note": "",
+          "multi_theme": [
+            "database",
+            "software"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "online_advertising",
+      "theme_name_zh": "網路廣告",
+      "theme_name_en": "Online Advertising",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "GOOGL",
+          "name": "Alphabet",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "ai"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "social_media",
+      "theme_name_zh": "社群",
+      "theme_name_en": "Social Media",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "META",
+          "name": "Meta",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "digital_advertising"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "digital_advertising",
+      "theme_name_zh": "數位廣告",
+      "theme_name_en": "Digital Advertising",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "META",
+          "name": "Meta",
+          "note": "",
+          "multi_theme": [
+            "social_media",
+            "ai"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "ecommerce",
+      "theme_name_zh": "電商",
+      "theme_name_en": "E-commerce",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "AMZN",
+          "name": "Amazon",
+          "note": "",
+          "multi_theme": [
+            "aws_cloud"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "aws_cloud",
+      "theme_name_zh": "雲端 AWS",
+      "theme_name_en": "AWS Cloud",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "AMZN",
+          "name": "Amazon",
+          "note": "",
+          "multi_theme": [
+            "ecommerce"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "streaming",
+      "theme_name_zh": "串流影音",
+      "theme_name_en": "Streaming",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "NFLX",
+          "name": "Netflix",
+          "note": "",
+          "multi_theme": []
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "database",
+      "theme_name_zh": "資料庫",
+      "theme_name_en": "Database",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "ORCL",
+          "name": "Oracle",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "software"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "ai_software",
+      "theme_name_zh": "AI 軟體",
+      "theme_name_en": "AI Software",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "PLTR",
+          "name": "Palantir",
+          "note": "",
+          "multi_theme": [
+            "data_analytics"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "data_analytics",
+      "theme_name_zh": "數據分析",
+      "theme_name_en": "Data Analytics",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "PLTR",
+          "name": "Palantir",
+          "note": "",
+          "multi_theme": [
+            "ai_software"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "mobile_advertising",
+      "theme_name_zh": "行動廣告",
+      "theme_name_en": "Mobile Advertising",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "APP",
+          "name": "AppLovin",
+          "note": "",
+          "multi_theme": [
+            "ai"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "ai_cloud",
+      "theme_name_zh": "AI 雲端",
+      "theme_name_en": "AI Cloud",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "NBIS",
+          "name": "Nebius",
+          "note": "",
+          "multi_theme": [
+            "datacenter"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "ev",
+      "theme_name_zh": "電動車",
+      "theme_name_en": "EV",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "TSLA",
+          "name": "Tesla",
+          "note": "",
+          "multi_theme": [
+            "autonomous_driving",
+            "energy_storage"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "autonomous_driving",
+      "theme_name_zh": "自動駕駛",
+      "theme_name_en": "Autonomous Driving",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "TSLA",
+          "name": "Tesla",
+          "note": "",
+          "multi_theme": [
+            "ev",
+            "energy_storage"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "energy_storage",
+      "theme_name_zh": "儲能",
+      "theme_name_en": "Energy Storage",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "TSLA",
+          "name": "Tesla",
+          "note": "",
+          "multi_theme": [
+            "ev",
+            "autonomous_driving"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "power_equipment",
+      "theme_name_zh": "電力設備",
+      "theme_name_en": "Power Equipment",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "GEV",
+          "name": "GE Vernova",
+          "note": "",
+          "multi_theme": [
+            "energy_transition"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "energy_transition",
+      "theme_name_zh": "能源轉型",
+      "theme_name_en": "Energy Transition",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "GEV",
+          "name": "GE Vernova",
+          "note": "",
+          "multi_theme": [
+            "power_equipment"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "construction_machinery",
+      "theme_name_zh": "工程機械",
+      "theme_name_en": "Construction Machinery",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "CAT",
+          "name": "Caterpillar",
+          "note": "",
+          "multi_theme": [
+            "infrastructure"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "infrastructure",
+      "theme_name_zh": "基建",
+      "theme_name_en": "Infrastructure",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "CAT",
+          "name": "Caterpillar",
+          "note": "",
+          "multi_theme": [
+            "construction_machinery"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "payments",
+      "theme_name_zh": "支付",
+      "theme_name_en": "Payments",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "V",
+          "name": "Visa",
+          "note": "",
+          "multi_theme": [
+            "fintech"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "fintech",
+      "theme_name_zh": "金融科技",
+      "theme_name_en": "Fintech",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "V",
+          "name": "Visa",
+          "note": "",
+          "multi_theme": [
+            "payments"
+          ]
+        },
+        {
+          "ticker": "HOOD",
+          "name": "Robinhood",
+          "note": "",
+          "multi_theme": [
+            "online_brokerage"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "major_banks",
+      "theme_name_zh": "大型銀行",
+      "theme_name_en": "Major Banks",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "JPM",
+          "name": "JPMorgan Chase",
+          "note": "",
+          "multi_theme": [
+            "finance"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "finance",
+      "theme_name_zh": "金融",
+      "theme_name_en": "Finance",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "JPM",
+          "name": "JPMorgan Chase",
+          "note": "",
+          "multi_theme": [
+            "major_banks"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "online_brokerage",
+      "theme_name_zh": "線上券商",
+      "theme_name_en": "Online Brokerage",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "HOOD",
+          "name": "Robinhood",
+          "note": "",
+          "multi_theme": [
+            "fintech"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "fuel_cells",
+      "theme_name_zh": "燃料電池",
+      "theme_name_en": "Fuel Cells",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "BE",
+          "name": "Bloom Energy",
+          "note": "",
+          "multi_theme": [
+            "clean_energy"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "clean_energy",
+      "theme_name_zh": "綠能",
+      "theme_name_en": "Clean Energy",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "BE",
+          "name": "Bloom Energy",
+          "note": "",
+          "multi_theme": [
+            "fuel_cells"
+          ]
+        }
+      ],
+      "tier2": []
+    },
+    {
+      "theme_id": "biotech",
+      "theme_name_zh": "生技新藥",
+      "theme_name_en": "Biotech",
+      "description": "",
+      "tier1": [
+        {
+          "ticker": "APGE",
+          "name": "Apogee Therapeutics",
+          "note": "",
+          "multi_theme": []
+        }
+      ],
+      "tier2": []
+    }
+  ]
+}
