@@ -32,10 +32,14 @@ _CACHE_TTL = 3600  # 1 hour
 _TV_MAP_CACHE = {'data': None, 'ts': 0}
 _TV_MAP_TTL = 7 * 24 * 3600  # 7 days — industry classification rarely changes
 
-_THEME_PATH = Path(__file__).resolve().parent / 'data' / 'sector_tags_manual.json'
+_THEME_DIR = Path(__file__).resolve().parent / 'data'
+_THEME_PATH = _THEME_DIR / 'sector_tags_manual.json'  # 保留 (ai_report 等直接引用 TW 路徑)
+_THEME_FILES = {'tw': 'sector_tags_manual.json', 'us': 'sector_tags_us.json'}
+# TW legacy module globals — ai_report 直接 import _THEME_NAMES 等，保留 backward compat
 _THEME_REVERSE = None   # ticker -> set[theme_id]
 _THEME_MEMBERS = None   # theme_id -> list[ticker]
 _THEME_NAMES = None     # theme_id -> {'zh': str, 'en': str}
+_THEME_IDX = {}         # market -> {'reverse','members','names'} (market-aware cache)
 
 
 # ============================================================
@@ -93,69 +97,79 @@ MANUAL_PEER_OVERRIDE = _expand_groups(_PEER_GROUPS)
 # ============================================================
 # Multi-theme index — 從 sector_tags_manual.json 載入 (lazy)
 # ============================================================
-def _load_theme_index():
-    """載入 sector_tags_manual.json 並建 ticker -> themes / theme -> members 索引。
+def _detect_market(stock_id):
+    """純數字 (含 .TW/.TWO) → tw；含字母 → us。"""
+    s = str(stock_id).replace('.TW', '').replace('.TWO', '').strip()
+    return 'tw' if s.isdigit() else 'us'
 
-    一次載入，cache 在 module global，重啟前不會 reload。
-    Returns: True if loaded successfully, False otherwise.
-    """
-    global _THEME_REVERSE, _THEME_MEMBERS, _THEME_NAMES
-    if _THEME_REVERSE is not None:
-        return True
+
+def _load_theme_index_market(market):
+    """載入並 cache 指定市場的題材索引 (tw=sector_tags_manual.json / us=sector_tags_us.json)。
+    Returns dict {reverse, members, names}。一次載入，cache 在 _THEME_IDX。"""
+    if market in _THEME_IDX:
+        return _THEME_IDX[market]
+    path = _THEME_DIR / _THEME_FILES.get(market, _THEME_FILES['tw'])
+    reverse = defaultdict(set)
+    members = {}
+    names = {}
     try:
-        with _THEME_PATH.open(encoding='utf-8') as f:
+        with path.open(encoding='utf-8') as f:
             manual = json.load(f)
         themes = manual.get('themes', [])
-        reverse = defaultdict(set)
-        members = {}
-        names = {}
         for t in themes:
             if not isinstance(t, dict):
                 continue
             tid = t.get('theme_id')
             if not tid:
                 continue
-            names[tid] = {
-                'zh': t.get('theme_name_zh', tid),
-                'en': t.get('theme_name_en', tid),
-            }
-            members[tid] = []
+            names[tid] = {'zh': t.get('theme_name_zh', tid), 'en': t.get('theme_name_en', tid)}
+            members.setdefault(tid, [])
             for tier_key in ('tier1', 'tier2'):
                 for s in t.get(tier_key, []):
                     sid = str(s.get('ticker', '')).strip()
                     if sid:
                         reverse[sid].add(tid)
                         members[tid].append(sid)
-        _THEME_REVERSE = dict(reverse)
-        _THEME_MEMBERS = members
-        _THEME_NAMES = names
-        logger.info("Loaded %d themes covering %d tickers from %s",
-                    len(themes), len(reverse), _THEME_PATH.name)
-        return True
+        logger.info("Loaded %d themes covering %d tickers from %s (market=%s)",
+                    len(themes), len(reverse), path.name, market)
     except Exception as e:
-        logger.warning("Failed to load theme index from %s: %s", _THEME_PATH, e)
-        _THEME_REVERSE = {}
-        _THEME_MEMBERS = {}
-        _THEME_NAMES = {}
-        return False
+        logger.warning("Failed to load theme index from %s: %s", path, e)
+    idx = {'reverse': dict(reverse), 'members': members, 'names': names}
+    _THEME_IDX[market] = idx
+    return idx
 
 
-def get_ticker_themes(stock_id):
-    """Public API: 回傳 ticker 屬於的 themes list[{id,zh,en}]，不在任何 theme 回 []."""
-    _load_theme_index()
+def _load_theme_index(market='tw'):
+    """Backward-compatible loader (ai_report 直接 call)。TW 額外 mirror 進 legacy globals。
+    Returns True if loaded successfully."""
+    idx = _load_theme_index_market(market)
+    if market == 'tw':
+        global _THEME_REVERSE, _THEME_MEMBERS, _THEME_NAMES
+        _THEME_REVERSE = idx['reverse']
+        _THEME_MEMBERS = idx['members']
+        _THEME_NAMES = idx['names']
+    return bool(idx['reverse'])
+
+
+def get_ticker_themes(stock_id, market=None):
+    """Public API: 回傳 ticker 屬於的 themes list[{id,zh,en}]，不在任何 theme 回 []。
+    market=None 時自動偵測 (純數字→tw / 含字母→us)。"""
+    if market is None:
+        market = _detect_market(stock_id)
+    idx = _load_theme_index_market(market)
     sid = str(stock_id).replace('.TW', '').replace('.TWO', '').strip()
-    tids = _THEME_REVERSE.get(sid, set())
+    tids = idx['reverse'].get(sid, set())
+    names = idx['names']
     return [
-        {'id': t, 'zh': _THEME_NAMES.get(t, {}).get('zh', t),
-         'en': _THEME_NAMES.get(t, {}).get('en', t)}
+        {'id': t, 'zh': names.get(t, {}).get('zh', t), 'en': names.get(t, {}).get('en', t)}
         for t in sorted(tids)
     ]
 
 
-def get_theme_peers(theme_id, exclude_ticker=None):
+def get_theme_peers(theme_id, exclude_ticker=None, market='tw'):
     """Public API: 回傳 theme 內所有 ticker（排除 self）."""
-    _load_theme_index()
-    members = _THEME_MEMBERS.get(theme_id, [])
+    idx = _load_theme_index_market(market)
+    members = idx['members'].get(theme_id, [])
     if exclude_ticker:
         members = [t for t in members if t != exclude_ticker]
     return members
@@ -462,6 +476,7 @@ def get_us_peer_comparison(ticker, max_peers=8):
             'peers': peers_df,
             'rank': rank,
             'total_in_industry': len(peers_df),
+            'themes': get_ticker_themes(ticker, market='us'),  # US 題材 metadata (sector_tags_us.json)
         }
 
         _cache_set(cache_key, result)

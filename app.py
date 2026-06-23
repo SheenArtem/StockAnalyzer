@@ -67,7 +67,7 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.caption("Version: v2026.06.22.1")
+    st.caption("Version: v2026.06.23.1")
 
     # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:
@@ -79,16 +79,17 @@ with st.sidebar:
     # 2026-05-23: 'screener' (自動選股 QM/Value/Mode D) 從 UI 移除 — daily scheduler 已停
     # (commit 56dcc6c)，UI 顯示會 stale 且 100% Whale Picks 拍板後不再需要。
     # 復原方式：把對應 mode 名加回 _mode_options + idx_map (render handler/label 保留為死代碼)
-    _mode_options = ['individual', 'whale_picks', 'market_scan', 'ai_reports', 'macro', 'notes']
+    _mode_options = ['individual', 'whale_picks', 'market_scan', 'ai_reports', 'macro', 'notes', 'curation']
     _mode_labels = {'individual': '📈 個股分析', 'screener': '🔍 自動選股',
                     'market_scan': '📡 市場掃描', 'ai_reports': '📝 AI 報告',
                     'strong_stocks': '🌟 強勢股報告', 'whale_picks': '🐋 主力選股',
                     'macro': '🧭 總經大盤風向',
                     'brokerage_yt': '📺 投顧追蹤',
-                    'notes': '📒 筆記'}
+                    'notes': '📒 筆記',
+                    'curation': '🎨 題材策展'}
     _current_mode = st.session_state.get('app_mode', 'analysis')
     _mode_idx_map = {'whale_picks': 1, 'market_scan': 2,
-                     'ai_reports': 3, 'macro': 4, 'notes': 5}
+                     'ai_reports': 3, 'macro': 4, 'notes': 5, 'curation': 6}
     # 預設 (analysis / individual) 對應 individual 在順序中的位置 = 0
     _mode_idx = _mode_idx_map.get(_current_mode, 0)
     app_mode = st.radio(
@@ -115,6 +116,8 @@ with st.sidebar:
         st.session_state['app_mode'] = 'brokerage_yt'
     elif app_mode == 'notes':
         st.session_state['app_mode'] = 'notes'
+    elif app_mode == 'curation':
+        st.session_state['app_mode'] = 'curation'
     else:
         st.session_state['app_mode'] = 'analysis'
 
@@ -298,6 +301,11 @@ elif st.session_state.get('app_mode') == 'macro':
 elif st.session_state.get('app_mode') == 'notes':
     from notes_view import render_notes
     render_notes()
+
+# 題材策展 (2026-06-23)：多市場 TW/US 半自動策展，按鈕背景觸發 + REVIEW gate，無大盤 banner
+elif st.session_state.get('app_mode') == 'curation':
+    from curation_view import render_curation
+    render_curation()
 
 # 投顧追蹤 2026-05-22 從 UI 移除（節省 codex/Sonnet LLM quota）
 # 復原：把以下三行 elif 取消註解 + app_mode 'brokerage_yt' 加回 _mode_options

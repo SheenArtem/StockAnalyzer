@@ -1437,20 +1437,26 @@ def _build_theme_context(ticker):
     """
     is_us = ticker and not ticker.replace('.TW', '').isdigit()
     if is_us:
-        return "N/A (theme metadata is TW-only, see sector_tags_manual.json)"
+        market = 'us'
+        stock_id = ticker.strip().upper()
+        theme_file = 'sector_tags_us.json'
+        empty_msg = "本檔無題材標記（不在 sector_tags_us.json 名單）。"
+    else:
+        market = 'tw'
+        stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
+        theme_file = 'sector_tags_manual.json'
+        empty_msg = "本檔無 AI era 主流題材標記（不在 sector_tags_manual.json 140 ticker 名單）。"
 
-    stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
     try:
-        from peer_comparison import get_ticker_themes, get_theme_peers, _load_theme_index, _THEME_NAMES
-        _load_theme_index()
-        themes = get_ticker_themes(stock_id)
+        from peer_comparison import get_ticker_themes, get_theme_peers
+        themes = get_ticker_themes(stock_id, market=market)
         if not themes:
-            return "本檔無 AI era 主流題材標記（不在 sector_tags_manual.json 140 ticker 名單）。"
+            return empty_msg
 
         # Load full theme metadata for description
         from pathlib import Path as _P
         import json as _json
-        theme_path = _P(__file__).resolve().parent / 'data' / 'sector_tags_manual.json'
+        theme_path = _P(__file__).resolve().parent / 'data' / theme_file
         with theme_path.open(encoding='utf-8') as _f:
             manual = _json.load(_f)
         theme_full = {t['theme_id']: t for t in manual.get('themes', []) if isinstance(t, dict) and t.get('theme_id')}

@@ -13,6 +13,7 @@ Any code calling Claude CLI / LLM SDK MUST follow:
 | **Brokerage YT extract** (`tools/extract_yt_brokerage.py`) | **codex GPT-5.5 (primary)** + Claude Sonnet (fallback) | codex: `-c model_reasoning_effort=medium`<br>claude: `--model sonnet` | claude `--effort xhigh` | — | 600s |
 | **Multi-agent debate / exploratory** + **AI Report 研究階段** (`report_web_research.py`, 2026-06-16) | Claude | `--model sonnet` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | 600s |
 | **Macro Compass 第二視角** (`tools/macro_compass_report.py`) | Claude | `--model sonnet` 或 `opus` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | **7200s (2h, 2026-06-16)** |
+| **Theme curation (每題材×N 視角)** (`tools/curate_themes_pipeline.py`, 2026-06-23) | Claude | `--model sonnet` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch" --output-format json` | **420s (7min/單題材任務)** — 每 call 只研究 1 題材 (小範圍快、不超時)，題材數×N 視角 + 發掘任務丟並發 pool (上限 8)；`--output-format json` envelope 防 claude -p 長輸出 streaming 掉開頭 |
 
 **Model choice rationale**: AI Report uses Opus (cost not a concern) / News uses Sonnet (balanced) / table extract uses Haiku (fast+cheap)。Gemini CLI 2026-05-20 暫停支援後全面撤除，所有節點改為 Claude 系列。Brokerage YT 2026-05-21 A/B 後改 codex GPT-5.5 primary（速度 4-6x，ticker code 較準，幻覺率 8% 可控）；Sonnet 當 codex quota / JSON 失敗時 fallback，必須帶 `--effort xhigh` 保證 fallback 品質。
 
