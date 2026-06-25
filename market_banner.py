@@ -1235,6 +1235,28 @@ def render_market_banner():
                 unsafe_allow_html=True,
             )
 
+        # ── 三大法人台指期未平倉淨額 (避險成本行下方獨立一行) ──
+        # futures_institutional.parquet (evening 排程)；正=淨多紅 / 負=淨空綠 (台股慣例)
+        fut_inst = data.get('fut_inst') or {}
+        total_oi = fut_inst.get('inst_total_net_oi')
+        if total_oi is not None:
+            def _oi_span(v):
+                c = '#FF4444' if v > 0 else '#00AA00' if v < 0 else '#888888'
+                return f'<span style="color:{c};font-weight:bold">{v:+,.0f}</span>'
+            fut_tip = ("三大法人 (外資/投信/自營) 台指期 (TXF) 多空淨未平倉口數合計；"
+                       "正=淨多 (紅) / 負=淨空 (綠)；"
+                       f"資料日 {fut_inst.get('data_date', '')}")
+            c1.markdown(
+                f'<div style="font-size:0.9rem;line-height:1.5" title="{fut_tip}">'
+                f'法人台指期未平倉 合計 {_oi_span(total_oi)} 口 '
+                f'<span style="color:#888;font-size:0.9em">(外資 '
+                f'{_oi_span(fut_inst.get("foreign_net_oi", 0))} 投信 '
+                f'{_oi_span(fut_inst.get("trust_net_oi", 0))} 自營 '
+                f'{_oi_span(fut_inst.get("dealer_net_oi", 0))})</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
         # ── C2: 台灣 FGI + 進度條 + 子指標表格 ──
         tw_score = tw_fgi.get('score')
         tw_label = tw_fgi.get('label', '')
