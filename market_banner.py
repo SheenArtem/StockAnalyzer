@@ -450,9 +450,10 @@ def _compute_expiry(indicator, data_date, now):
             return _next_tw_refresh_at(_TW_14_CUTOFF, now).timestamp()
         return time.time() + _TW_14_RETRY
 
-    # 14:35 TAIFEX 盤後類 (atm_put / mtx_ratio / opt_inst)
+    # 14:35 TAIFEX 盤後類 (atm_put / mtx_ratio / opt_inst / fut_inst)
     # archiver 寫 parquet, banner 純 disk read; 命中 today -> 隔日 14:35
-    if indicator in ('atm_put', 'mtx_ratio', 'opt_inst'):
+    # fut_inst = 三大法人台指期未平倉 (futures_institutional.parquet, evening 排程更新)
+    if indicator in ('atm_put', 'mtx_ratio', 'opt_inst', 'fut_inst'):
         expected = _expected_tw_date(_TW_1435_CUTOFF, now)
         if data_date == expected:
             return _next_tw_refresh_at(_TW_1435_CUTOFF, now).timestamp()
@@ -661,6 +662,7 @@ _OUT_TO_CACHE = {
     'atm_put': 'atm_put',
     'mtx_ratio': 'mtx_ratio',
     'opt_inst': 'opt_inst',
+    'fut_inst': 'fut_inst',
     'risk_score': 'risk_score',
     'regime': 'regime',
     'regime_ext': 'regime_ext',
@@ -714,6 +716,8 @@ def _pure_fetch(cache_key):
             return _read_sentiment_parquet('minifutures_ratio')
         if cache_key == 'opt_inst':
             return _read_sentiment_parquet('options_institutional')
+        if cache_key == 'fut_inst':
+            return _read_sentiment_parquet('futures_institutional')
         if cache_key == 'risk_score':
             # 讀 archive parquet（archiver = run_taifex_signals_afterclose.bat
             # 第 5 stage / scanner 00:00 後 stage）。零 network，cold load <50ms。
