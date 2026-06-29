@@ -17,6 +17,7 @@ MOPS WAF 解禁探針 — daily 1-req lightweight probe
   排到 Task Scheduler 每日一次（建議 09:00，MOPS 晨間流量低）
 """
 
+import argparse
 import json
 import logging
 import sys
@@ -134,6 +135,11 @@ def notify_discord(msg: str) -> bool:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description="MOPS WAF 解禁探針")
+    ap.add_argument("--no-notify", action="store_true",
+                    help="只更新狀態檔，不送 Discord 通知（仍記錄連續成功次數）")
+    args = ap.parse_args()
+
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     success, detail = probe_mops()
     log.info("MOPS probe: %s (%s)", "SUCCESS" if success else "FAIL", detail)
@@ -152,7 +158,12 @@ def main() -> int:
                 f"連續 {state['consecutive_successes']} 天探測成功，可恢復 USE_MOPS=true：\n"
                 f"改 `cache_manager.py:21` 預設回 `\"true\"`，或 `set USE_MOPS=true`"
             )
-            if notify_discord(msg):
+            if args.no_notify:
+                log.info("MOPS unblock detected but --no-notify set, skip Discord; "
+                         "consecutive=%d (state marked notified to avoid backlog)",
+                         state["consecutive_successes"])
+                state["notified"] = True
+            elif notify_discord(msg):
                 log.info("Discord notified")
                 state["notified"] = True
             else:

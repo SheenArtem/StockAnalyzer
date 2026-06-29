@@ -12,8 +12,9 @@ REM    4. Action: Start a program
 REM       Program: C:\GIT\StockAnalyzer\run_mops_probe.bat
 REM       Start in: C:\GIT\StockAnalyzer
 REM
-REM  Auto Discord notify after 3 consecutive unblock detections
-REM  (requires DISCORD_WEBHOOK_URL in local/.env).
+REM  Discord notify DISABLED 2026-06-29 per user request (--no-notify).
+REM  Probe still runs and tracks consecutive successes in the state file;
+REM  to re-enable Discord push, drop "--no-notify" from the python line below.
 REM  State file: data_cache/mops_probe_state.json
 REM ============================================================
 
@@ -26,7 +27,7 @@ if exist mops_probe_prev.log del mops_probe_prev.log
 if exist mops_probe.log ren mops_probe.log mops_probe_prev.log
 
 echo [%date% %time%] MOPS probe started >> mops_probe.log
-python tools\mops_probe.py >> mops_probe.log 2>&1
+python tools\mops_probe.py --no-notify >> mops_probe.log 2>&1
 echo [%date% %time%] MOPS probe finished >> mops_probe.log
 echo. >> mops_probe.log
 
