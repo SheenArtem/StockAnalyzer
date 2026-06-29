@@ -377,6 +377,54 @@ def _fetch_margin_twse_one_day(dt: datetime) -> list:
     return records
 
 
+# ---- margin (TPEX OTC ALL, by-date batch) ----
+# TPEX margin balance batch endpoint. Returns all OTC credit-eligible stocks in
+# one call (like TWSE MI_MARGN ALL), replacing the slow FinMind per-stock path.
+# Field positions (verified 2026-06-29 against margin_bal_result.php):
+#   0 代號 | 3 融資買進 4 融資賣出 6 融資今日餘額
+#         | 11 融券賣出 12 融券買進(回補) 14 融券今日餘額
+def _fetch_margin_tpex_one_day(dt: datetime) -> list:
+    """Fetch TPEX all-market margin balance for one date (batch, like TWSE)."""
+    roc_date = _tpex_date(dt)
+    url = "https://www.tpex.org.tw/web/stock/margin_trading/margin_balance/margin_bal_result.php"
+    params = {"l": "zh-tw", "o": "json", "d": roc_date}
+    time.sleep(_TWSE_REQUEST_INTERVAL)
+    data = _fetch_json(url, params)
+    if not data:
+        return []
+
+    rows = data.get("aaData", [])
+    if not rows:
+        tables = data.get("tables", [])
+        if tables and isinstance(tables[0], dict):
+            rows = tables[0].get("data", [])
+    if not rows:
+        return []
+
+    records = []
+    for row in rows:
+        if len(row) < 15:
+            continue
+        sid = str(row[0]).strip()
+        if not sid.isdigit() or len(sid) != 4:
+            continue
+        try:
+            records.append({
+                "date": dt.strftime("%Y-%m-%d"),
+                "stock_id": sid,
+                "margin_buy":     _safe_int(row[3]),
+                "margin_sell":    _safe_int(row[4]),
+                "margin_balance": _safe_int(row[6]),
+                "short_buy":      _safe_int(row[12]),   # 融券買進(回補)
+                "short_sell":     _safe_int(row[11]),
+                "short_balance":  _safe_int(row[14]),
+                "market": "tpex",
+            })
+        except Exception:
+            continue
+    return records
+
+
 # ---- short_sale (TWT93U TWSE ALL) ----
 # Fields: 代號 名稱 | [融券]前日餘額 賣出 買進 現券 今日餘額 次一營業日限額
 #                  | [借券賣出]前日餘額 當日賣出 當日還券 當日調整 當日餘額 次一營業日可限額 備註
@@ -540,7 +588,9 @@ def download_margin(dates: list, universe: pd.DataFrame, tpex_ids: set, dl,
     """
     Download margin trading (融資融券).
     TWSE stocks: MI_MARGN ALL batch per date.
-    TPEX stocks: FinMind per-stock.
+    TPEX stocks: margin_bal_result.php ALL batch per date (1 call/day).
+    NOTE: tpex_ids/dl no longer used by margin (kept for caller signature
+    stability with download_short_sale); TPEX margin is now a batch endpoint.
     """
     dataset = "margin"
     key_cols = ["date", "stock_id"]
@@ -568,38 +618,17 @@ def download_margin(dates: list, universe: pd.DataFrame, tpex_ids: set, dl,
         _flush(dataset, buffer, key_cols)
         buffer = []
 
-    # Phase 2: TPEX stocks via FinMind
-    logger.info("[margin] Phase 2/2: TPEX stocks via FinMind (%d stocks)", len(tpex_ids))
-    start_str = dates[0].strftime("%Y-%m-%d")
-    end_str   = dates[-1].strftime("%Y-%m-%d")
-
-    for j, sid in enumerate(sorted(tpex_ids)):
-        raw = _finmind_call(dl, "taiwan_stock_margin_purchase_short_sale",
-                            stock_id=sid, start_date=start_str, end_date=end_str)
-        if raw.empty:
-            logger.debug("[margin] TPEX FinMind empty for %s", sid)
-            fallback_count += 1
-            continue
-        if "date" not in raw.columns:
-            continue
-        keep = {
-            "MarginPurchaseBuy": "margin_buy",
-            "MarginPurchaseSell": "margin_sell",
-            "MarginPurchaseTodayBalance": "margin_balance",
-            "ShortSaleBuy": "short_buy",
-            "ShortSaleSell": "short_sell",
-            "ShortSaleTodayBalance": "short_balance",
-        }
-        recs = []
-        for _, row in raw.iterrows():
-            rec = {"date": str(row["date"])[:10], "stock_id": sid, "market": "tpex"}
-            for src, dst in keep.items():
-                rec[dst] = int(row[src]) if src in raw.columns and pd.notna(row[src]) else 0
-            recs.append(rec)
-        buffer.extend(recs)
-        fallback_count += 1
-
-        if (j + 1) % buffer_cap == 0 and buffer:
+    # Phase 2: TPEX batch by date (margin_bal_result.php ALL, like TWSE)
+    logger.info("[margin] Phase 2/2: TPEX batch (%d dates)", len(dates))
+    for i, dt in enumerate(dates):
+        recs = _fetch_margin_tpex_one_day(dt)
+        if recs:
+            buffer.extend(recs)
+            ok_days += 1
+        else:
+            logger.warning("[margin] No TPEX data for %s", dt.strftime("%Y-%m-%d"))
+            fail_days += 1
+        if (i + 1) % buffer_cap == 0 and buffer:
             _flush(dataset, buffer, key_cols)
             buffer = []
 
