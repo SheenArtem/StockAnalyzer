@@ -26,9 +26,15 @@ REM Rotate log: keep only previous + current
 if exist mops_probe_prev.log del mops_probe_prev.log
 if exist mops_probe.log ren mops_probe.log mops_probe_prev.log
 
-echo [%date% %time%] MOPS probe started >> mops_probe.log
+call :log "MOPS probe started"
 python tools\mops_probe.py --no-notify >> mops_probe.log 2>&1
-echo [%date% %time%] MOPS probe finished >> mops_probe.log
+call :log "MOPS probe finished"
 echo. >> mops_probe.log
 
 exit /b 0
+
+REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+:log
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] %~1 >> mops_probe.log
+goto :eof

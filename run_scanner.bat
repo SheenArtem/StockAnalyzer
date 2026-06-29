@@ -57,7 +57,7 @@ if exist scanner_prev.log del scanner_prev.log
 if exist scanner.log ren scanner.log scanner_prev.log
 
 REM Log start time
-echo [%date% %time%] Scanner started >> scanner.log
+call :log "Scanner started"
 
 REM ------------------------------------------------------------
 REM E1 YT sync: fetch transcripts + LLM extract + build panel.
@@ -66,20 +66,20 @@ REM sector_tags_dynamic.parquet. Best-effort: failures do not affect PY_EXIT.
 REM Late-upload shows (after 00:00 cutoff) will be captured on next day's run.
 REM Added 2026-04-25, replaces standalone run_yt_sync.bat scheduled task.
 REM ------------------------------------------------------------
-echo [%date% %time%] YT sync Stage 1 fetch starting >> scanner.log
+call :log "YT sync Stage 1 fetch starting"
 python tools\fetch_yt_transcripts.py --end 3 >> scanner.log 2>&1
 set YT_EC1=%ERRORLEVEL%
-echo [%date% %time%] YT sync Stage 1 done (exit=%YT_EC1%) >> scanner.log
+call :log "YT sync Stage 1 done (exit=%YT_EC1%)"
 
-echo [%date% %time%] YT sync Stage 2 extract starting >> scanner.log
+call :log "YT sync Stage 2 extract starting"
 python tools\extract_yt_sector_tags.py --all >> scanner.log 2>&1
 set YT_EC2=%ERRORLEVEL%
-echo [%date% %time%] YT sync Stage 2 done (exit=%YT_EC2%) >> scanner.log
+call :log "YT sync Stage 2 done (exit=%YT_EC2%)"
 
-echo [%date% %time%] YT sync Stage 3 panel starting >> scanner.log
+call :log "YT sync Stage 3 panel starting"
 python tools\build_yt_sector_panel.py >> scanner.log 2>&1
 set YT_EC3=%ERRORLEVEL%
-echo [%date% %time%] YT sync done (EC1=%YT_EC1% EC2=%YT_EC2% EC3=%YT_EC3%) >> scanner.log
+call :log "YT sync done (EC1=%YT_EC1% EC2=%YT_EC2% EC3=%YT_EC3%)"
 
 REM ------------------------------------------------------------
 REM Brokerage YT sync (added 2026-05-21, DISABLED 2026-05-22 per user request):
@@ -93,20 +93,20 @@ REM   python tools\build_yt_brokerage_panel.py
 REM To re-enable scheduled run: remove the "goto skip_brokerage_yt" line below.
 REM ------------------------------------------------------------
 goto skip_brokerage_yt
-echo [%date% %time%] Brokerage YT sync Stage 1 fetch starting >> scanner.log
+call :log "Brokerage YT sync Stage 1 fetch starting"
 python tools\fetch_yt_brokerage.py --end 3 >> scanner.log 2>&1
 set BYT_EC1=%ERRORLEVEL%
-echo [%date% %time%] Brokerage YT Stage 1 done (exit=%BYT_EC1%) >> scanner.log
+call :log "Brokerage YT Stage 1 done (exit=%BYT_EC1%)"
 
-echo [%date% %time%] Brokerage YT Stage 2 extract starting >> scanner.log
+call :log "Brokerage YT Stage 2 extract starting"
 python tools\extract_yt_brokerage.py --all >> scanner.log 2>&1
 set BYT_EC2=%ERRORLEVEL%
-echo [%date% %time%] Brokerage YT Stage 2 done (exit=%BYT_EC2%) >> scanner.log
+call :log "Brokerage YT Stage 2 done (exit=%BYT_EC2%)"
 
-echo [%date% %time%] Brokerage YT Stage 3 panel starting >> scanner.log
+call :log "Brokerage YT Stage 3 panel starting"
 python tools\build_yt_brokerage_panel.py >> scanner.log 2>&1
 set BYT_EC3=%ERRORLEVEL%
-echo [%date% %time%] Brokerage YT done (EC1=%BYT_EC1% EC2=%BYT_EC2% EC3=%BYT_EC3%) >> scanner.log
+call :log "Brokerage YT done (EC1=%BYT_EC1% EC2=%BYT_EC2% EC3=%BYT_EC3%)"
 :skip_brokerage_yt
 
 REM ------------------------------------------------------------
@@ -128,10 +128,10 @@ REM     reader fallback for graceful degradation; Robustness > cleanliness)
 REM POC accuracy ~95% strict (Day 1-3 audit, commit de836ba).
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
-echo [%date% %time%] News theme extract starting >> scanner.log
+call :log "News theme extract starting"
 python tools\news_theme_extract.py >> scanner.log 2>&1
 set NEWS_EC=%ERRORLEVEL%
-echo [%date% %time%] News theme extract done (exit=%NEWS_EC%) >> scanner.log
+call :log "News theme extract done (exit=%NEWS_EC%)"
 
 REM ------------------------------------------------------------
 REM News flow anomaly detection (Phase 1 #4).
@@ -139,9 +139,9 @@ REM Added 2026-05-02: today >= 3 articles AND >= 3x 7d_avg per ticker.
 REM Council BLOCKER #7: informational only, NOT in scanner ranking.
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
-echo [%date% %time%] News flow anomaly starting >> scanner.log
+call :log "News flow anomaly starting"
 python tools\news_flow_anomaly.py >> scanner.log 2>&1
-echo [%date% %time%] News flow anomaly done >> scanner.log
+call :log "News flow anomaly done"
 
 REM ------------------------------------------------------------
 REM Theme momentum (Phase 1 #5).
@@ -149,9 +149,9 @@ REM Added 2026-05-02: theme heating (today>=3 AND ratio>=2x) / cooling
 REM (30d_avg>=3 AND today=0). Council BLOCKER #7: informational only.
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
-echo [%date% %time%] Theme momentum starting >> scanner.log
+call :log "Theme momentum starting"
 python tools\theme_momentum.py >> scanner.log 2>&1
-echo [%date% %time%] Theme momentum done >> scanner.log
+call :log "Theme momentum done"
 
 REM ------------------------------------------------------------
 REM ATM PUT premium archiver (hedge cost daily snapshot).
@@ -161,9 +161,9 @@ REM baseline (need >= 30 trading days for z-score / threshold logic later).
 REM Replaces ad-hoc get_opt.py.
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
-echo [%date% %time%] ATM PUT premium archive starting >> scanner.log
+call :log "ATM PUT premium archive starting"
 python tools\fetch_atm_put_premium.py >> scanner.log 2>&1
-echo [%date% %time%] ATM PUT premium archive done >> scanner.log
+call :log "ATM PUT premium archive done"
 
 REM ------------------------------------------------------------
 REM Mini/Major futures OI ratio archiver (retail positioning proxy).
@@ -173,9 +173,9 @@ REM data/sentiment/minifutures_ratio.parquet for baseline accumulation
 REM (need >= 30 trading days for z-score / threshold logic).
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
-echo [%date% %time%] Minifutures ratio archive starting >> scanner.log
+call :log "Minifutures ratio archive starting"
 python tools\fetch_minifutures_ratio.py >> scanner.log 2>&1
-echo [%date% %time%] Minifutures ratio archive done >> scanner.log
+call :log "Minifutures ratio archive done"
 
 REM ------------------------------------------------------------
 REM Options institutional OI archiver (TXO 3-institution call/put OI).
@@ -186,9 +186,9 @@ REM Writes 1 row/day to data/sentiment/options_institutional.parquet
 REM for inst_pc_oi_skew baseline (>= 30 trading days for z-score).
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
-echo [%date% %time%] Options institutional archive starting >> scanner.log
+call :log "Options institutional archive starting"
 python tools\fetch_options_institutional.py >> scanner.log 2>&1
-echo [%date% %time%] Options institutional archive done >> scanner.log
+call :log "Options institutional archive done"
 
 REM MOPS probe stage removed 2026-05-05 (USE_MOPS default flipped to false).
 REM To reactivate: set USE_MOPS=true and restore tools\mops_probe.py invocation here.
@@ -198,17 +198,17 @@ REM RF-1 cache consistency check: detect fundamental_cache vs backtest drift.
 REM On drift, --fix runs aggregate repair (non-blocking for scan).
 REM Added 2026-04-21: guard against VF-VC type events.
 REM ------------------------------------------------------------
-echo [%date% %time%] RF-1 consistency check starting >> scanner.log
+call :log "RF-1 consistency check starting"
 python tools\rf1_cache_consistency_check.py --fix >> scanner.log 2>&1
-echo [%date% %time%] RF-1 consistency check done >> scanner.log
+call :log "RF-1 consistency check done"
 
 REM ------------------------------------------------------------
 REM VF-G4 shadow run: log daily market regime for post-hoc volatile-only analysis.
 REM Added 2026-04-21: no scanner logic change; feeds shadow_regime_analysis.py.
 REM ------------------------------------------------------------
-echo [%date% %time%] Market regime logger starting >> scanner.log
+call :log "Market regime logger starting"
 python tools\market_regime_logger.py >> scanner.log 2>&1
-echo [%date% %time%] Market regime logger done >> scanner.log
+call :log "Market regime logger done"
 
 REM Run QM + Value (TW only) -- VF-VC P3-b live 2026-04-20.
 REM Value weights 30/25/30/15/0 (V_rev_heavy, WF 24 quarters 15 beats V_live 63%).
@@ -255,13 +255,13 @@ REM stale data.
 REM To re-enable: remove the "goto skip_mode_d" line below.
 REM ------------------------------------------------------------
 goto skip_mode_d
-echo [%date% %time%] Step-A engine starting >> scanner.log
+call :log "Step-A engine starting"
 python tools\step_a_engine.py >> scanner.log 2>&1
-echo [%date% %time%] Step-A engine done >> scanner.log
+call :log "Step-A engine done"
 
-echo [%date% %time%] Paper trade engine starting >> scanner.log
+call :log "Paper trade engine starting"
 python tools\paper_trade_engine.py >> scanner.log 2>&1
-echo [%date% %time%] Paper trade engine done >> scanner.log
+call :log "Paper trade engine done"
 :skip_mode_d
 
 REM ------------------------------------------------------------
@@ -280,10 +280,10 @@ REM 100%% Whale Picks production strategy does not depend on strong_stocks_*.
 REM To re-enable: remove the "goto skip_strong_stocks_all" line below.
 set SS_EC1=SKIP
 goto skip_strong_stocks_all
-echo [%date% %time%] Strong stocks Stage 1 enrich+bucket starting >> scanner.log
+call :log "Strong stocks Stage 1 enrich+bucket starting"
 python tools\strong_stocks_daily.py >> scanner.log 2>&1
 set SS_EC1=%ERRORLEVEL%
-echo [%date% %time%] Strong stocks Stage 1 done (exit=%SS_EC1%) >> scanner.log
+call :log "Strong stocks Stage 1 done (exit=%SS_EC1%)"
 :skip_strong_stocks_all
 
 REM DISABLED 2026-05-21 per user request: save Agent SDK Credit quota (Anthropic billing split effective 2026-06-15).
@@ -296,24 +296,24 @@ REM To re-enable scheduled run: remove the "goto skip_strong_stocks_ai" line bel
 set SS_EC2=SKIP
 set SS_EC3=SKIP
 goto skip_strong_stocks_ai
-echo [%date% %time%] Strong stocks Stage 2 AI analysis starting >> scanner.log
+call :log "Strong stocks Stage 2 AI analysis starting"
 python tools\strong_stocks_ai_analysis.py >> scanner.log 2>&1
 set SS_EC2=%ERRORLEVEL%
-echo [%date% %time%] Strong stocks Stage 2 done (exit=%SS_EC2%) >> scanner.log
+call :log "Strong stocks Stage 2 done (exit=%SS_EC2%)"
 
-echo [%date% %time%] Strong stocks Stage 3 render starting >> scanner.log
+call :log "Strong stocks Stage 3 render starting"
 python tools\strong_stocks_render.py >> scanner.log 2>&1
 set SS_EC3=%ERRORLEVEL%
 :skip_strong_stocks_ai
-echo [%date% %time%] Strong stocks done (EC1=%SS_EC1% EC2=%SS_EC2% EC3=%SS_EC3%) >> scanner.log
+call :log "Strong stocks done (EC1=%SS_EC1% EC2=%SS_EC2% EC3=%SS_EC3%)"
 
 REM Discord daily summary DISABLED 2026-05-04 per user request: cancel scan-result
 REM Discord pushes (covers QM Top 5 + Step-A alerts + paper trade summary block).
 REM To re-enable: remove the "goto skip_discord_summary" line directly below.
 goto skip_discord_summary
-echo [%date% %time%] Discord daily summary starting >> scanner.log
+call :log "Discord daily summary starting"
 python tools\discord_daily_summary.py >> scanner.log 2>&1
-echo [%date% %time%] Discord daily summary done >> scanner.log
+call :log "Discord daily summary done"
 :skip_discord_summary
 
 REM ------------------------------------------------------------
@@ -353,33 +353,33 @@ REM ~4.5h; yfinance batch has no quota and finishes in ~2 min. MUST run BEFORE
 REM refresh_backtest_panels (which only AGGREGATES these CSVs
 REM into ohlcv_tw.parquet) so Whale Picks screens on fresh prices. Best-effort.
 REM ------------------------------------------------------------
-echo [%date% %time%] Universe price refresh starting >> scanner.log
+call :log "Universe price refresh starting"
 python tools\refresh_universe_prices.py >> scanner.log 2>&1
-echo [%date% %time%] Universe price refresh done >> scanner.log
+call :log "Universe price refresh done"
 
 REM Market breadth panel rebuild (RESTORED 2026-05-30). Reads the fresh
 REM data_cache/*_price.csv above; feeds macro_dashboard "Market Breadth"
 REM section (ADL / McClellan / new-high-low). build_tw_breadth.py was never
 REM wired into any scheduler before, so it sat frozen at 2026-05-08. ~10s
 REM local aggregate. Best-effort: failure does not affect scanner exit.
-echo [%date% %time%] TW breadth panel starting >> scanner.log
+call :log "TW breadth panel starting"
 python tools\build_tw_breadth.py >> scanner.log 2>&1
-echo [%date% %time%] TW breadth panel done >> scanner.log
+call :log "TW breadth panel done"
 
-echo [%date% %time%] Refresh backtest panels starting >> scanner.log
+call :log "Refresh backtest panels starting"
 python tools\refresh_backtest_panels.py >> scanner.log 2>&1
-echo [%date% %time%] Refresh backtest panels done >> scanner.log
+call :log "Refresh backtest panels done"
 
-echo [%date% %time%] Whale picks selector starting >> scanner.log
+call :log "Whale picks selector starting"
 python tools\whale_picks_screener.py --silent --push-if-month-end >> scanner.log 2>&1
-echo [%date% %time%] Whale picks done >> scanner.log
+call :log "Whale picks done"
 
 REM Whale picks daily alerts (early-entry + trailing-stop).
 REM Detects rapid rank rises (outside top-100 -> top-30 in 7d) + active
 REM holdings drop >= 15%% from M15 rebalance close. Best-effort.
-echo [%date% %time%] Whale picks alerts starting >> scanner.log
+call :log "Whale picks alerts starting"
 python tools\whale_picks_alerts.py >> scanner.log 2>&1
-echo [%date% %time%] Whale picks alerts done >> scanner.log
+call :log "Whale picks alerts done"
 
 REM 2026-05-26: Whale picks ledger incremental append (M15 self-gated).
 REM Runs daily but only reconciles when today == M15 rebal day AND holdings
@@ -387,15 +387,15 @@ REM was just refreshed (rebalance_date == today). Otherwise no-op.
 REM Reconciles alert_adds (mid-month manual adds): upgrade->'system' if entered
 REM new top-10, else force-exit. Closes still_holding 'upgraded' rows if they
 REM fell out of top-10. Best-effort.
-echo [%date% %time%] Whale picks ledger append starting >> scanner.log
+call :log "Whale picks ledger append starting"
 python tools\whale_picks_ledger_append.py --rebal >> scanner.log 2>&1
-echo [%date% %time%] Whale picks ledger append done >> scanner.log
+call :log "Whale picks ledger append done"
 
 REM Portfolio-level backtest vs TWII (refresh NAV / annual stats for UI).
 REM Reads trade_ledger.parquet + ohlcv_tw.parquet. ~2-3 sec. Best-effort.
-echo [%date% %time%] Whale picks portfolio backtest starting >> scanner.log
+call :log "Whale picks portfolio backtest starting"
 python tools\whale_picks_portfolio_backtest.py --start 2016-01-15 >> scanner.log 2>&1
-echo [%date% %time%] Whale picks portfolio backtest done >> scanner.log
+call :log "Whale picks portfolio backtest done"
 
 REM ------------------------------------------------------------
 REM Chip history institutional resume (daily).
@@ -406,9 +406,9 @@ REM margin / short_sale resume moved to run_tdcc_weekly.bat (TPEX FinMind
 REM per-stock fallback is too slow for daily: 12 days = 3.6h per dataset).
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
-echo [%date% %time%] Chip history resume starting >> scanner.log
+call :log "Chip history resume starting"
 python tools\chip_history_dl.py --dataset institutional --resume >> scanner.log 2>&1
-echo [%date% %time%] Chip history resume done >> scanner.log
+call :log "Chip history resume done"
 
 REM ------------------------------------------------------------
 REM Earnings calendar fetch (News Initiative Phase 1 #2).
@@ -416,9 +416,9 @@ REM Added 2026-05-02: LLM parse moneylink HTML -> Sonnet extract -> parquet.
 REM Forward calendar (~6 weeks ahead) for B4 [EARNINGS_CALENDAR] AI report.
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
-echo [%date% %time%] Earnings calendar fetch starting >> scanner.log
+call :log "Earnings calendar fetch starting"
 python tools\earnings_calendar_fetch.py >> scanner.log 2>&1
-echo [%date% %time%] Earnings calendar fetch done >> scanner.log
+call :log "Earnings calendar fetch done"
 
 REM ------------------------------------------------------------
 REM Auto-generate AI reports for QM office picks (top 3).
@@ -428,28 +428,28 @@ REM   To re-enable: remove the "goto skip_ai_reports" line directly below.
 REM   All original logic preserved for easy revival.
 REM ------------------------------------------------------------
 goto skip_ai_reports
-echo [%date% %time%] Auto AI reports smoke check starting >> scanner.log
+call :log "Auto AI reports smoke check starting"
 python tools\auto_ai_reports.py --smoke >> scanner.log 2>&1
 set AI_SMOKE_EXIT=%ERRORLEVEL%
 if not "%AI_SMOKE_EXIT%"=="0" (
-    echo [%date% %time%] [FAIL] auto_ai_reports smoke check FAILED exit=%AI_SMOKE_EXIT% >> scanner.log
+    call :log "[FAIL] auto_ai_reports smoke check FAILED exit=%AI_SMOKE_EXIT%"
     python tools\report_batch_failure.py --stage auto_ai_reports_smoke --exit-code %AI_SMOKE_EXIT% >> scanner.log 2>&1
     goto skip_ai_reports
 )
 
-echo [%date% %time%] Auto AI reports starting >> scanner.log
+call :log "Auto AI reports starting"
 python tools\auto_ai_reports.py --n 3 --format md >> scanner.log 2>&1
 set AI_RUN_EXIT=%ERRORLEVEL%
 if not "%AI_RUN_EXIT%"=="0" (
-    echo [%date% %time%] [FAIL] auto_ai_reports FAILED exit=%AI_RUN_EXIT% >> scanner.log
+    call :log "[FAIL] auto_ai_reports FAILED exit=%AI_RUN_EXIT%"
     python tools\report_batch_failure.py --stage auto_ai_reports --exit-code %AI_RUN_EXIT% >> scanner.log 2>&1
 ) else (
-    echo [%date% %time%] Auto AI reports done (exit=0) >> scanner.log
+    call :log "Auto AI reports done (exit=0)"
 )
 
 :skip_ai_reports
 REM Log end time (include python exit code so Task Scheduler shows non-zero on failure)
-echo [%date% %time%] Scanner finished (exit=%PY_EXIT%) >> scanner.log
+call :log "Scanner finished (exit=%PY_EXIT%)"
 
 REM ------------------------------------------------------------
 REM Layer 4: post-check verifier.
@@ -462,7 +462,7 @@ REM ------------------------------------------------------------
 python tools\verify_scan_stages.py >> scanner.log 2>&1
 set POST_EXIT=%ERRORLEVEL%
 if not "%POST_EXIT%"=="0" (
-    echo [%date% %time%] [FAIL] verify_scan_stages detected missing stages exit=%POST_EXIT% >> scanner.log
+    call :log "[FAIL] verify_scan_stages detected missing stages exit=%POST_EXIT%"
     REM Only promote post-check failure to PY_EXIT if scanner itself reported success
     REM (do not mask an already-failing scanner exit code).
     if "%PY_EXIT%"=="0" set PY_EXIT=%POST_EXIT%
@@ -470,3 +470,9 @@ if not "%POST_EXIT%"=="0" (
 
 echo. >> scanner.log
 exit /b %PY_EXIT%
+
+REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+:log
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] %~1 >> scanner.log
+goto :eof

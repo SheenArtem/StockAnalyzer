@@ -70,28 +70,34 @@ cd /d C:\GIT\StockAnalyzer
 
 set PYTHONIOENCODING=utf-8
 
-echo [%date% %time%] Macro panels dawn starting >> macro_panels.log
+call :log "Macro panels dawn starting"
 
-echo [%date% %time%] [stage]ETF flows (HYG/JNK/LQD/TLT/SPY/MOVE/EEM/EMB/FXI/EWJ + HG/GC/CL commodities) >> macro_panels.log
+call :log "[stage]ETF flows (HYG/JNK/LQD/TLT/SPY/MOVE/EEM/EMB/FXI/EWJ + HG/GC/CL commodities)"
 python tools\fetch_etf_flows.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]CNN Fear-Greed history (US sentiment; GitHub mirror + CNN endpoint top-up; offline IC panel) >> macro_panels.log
+call :log "[stage]CNN Fear-Greed history (US sentiment; GitHub mirror + CNN endpoint top-up; offline IC panel)"
 python tools\fetch_cnn_fgi.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]Market cap panel (listed total mktcap + margin/mktcap pct) >> macro_panels.log
+call :log "[stage]Market cap panel (listed total mktcap + margin/mktcap pct)"
 python tools\build_market_cap_panel.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]Systemic chip panel (5-group aggregate, depends on above) >> macro_panels.log
+call :log "[stage]Systemic chip panel (5-group aggregate, depends on above)"
 python tools\build_systemic_chip_panel.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]FRED macro panel (27 FRED CSV + ICE DXY; slowest, deliberately last) >> macro_panels.log
+call :log "[stage]FRED macro panel (27 FRED CSV + ICE DXY; slowest, deliberately last)"
 python tools\fetch_fred_macro.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]Leadership panel (SOX+IXIC level/MA-dist + RS vs TWII + TSM ADR premium) >> macro_panels.log
+call :log "[stage]Leadership panel (SOX+IXIC level/MA-dist + RS vs TWII + TSM ADR premium)"
 python tools\build_leadership_panel.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] Macro panels dawn done >> macro_panels.log
+call :log "Macro panels dawn done"
 
 REM Best-effort: failures do not fail the task. Next-day evening + dawn
 REM will retry.
 exit /b 0
+
+REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+:log
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] %~1 >> macro_panels.log
+goto :eof

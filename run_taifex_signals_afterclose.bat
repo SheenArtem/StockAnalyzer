@@ -54,53 +54,59 @@ cd /d C:\GIT\StockAnalyzer
 
 set PYTHONIOENCODING=utf-8
 
-echo [%date% %time%] TAIFEX afterclose archive starting >> taifex_afterclose.log
+call :log "TAIFEX afterclose archive starting"
 
-echo [%date% %time%] [stage]ATM PUT premium >> taifex_afterclose.log
+call :log "[stage]ATM PUT premium"
 python tools\fetch_atm_put_premium.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]Minifutures OI ratio >> taifex_afterclose.log
+call :log "[stage]Minifutures OI ratio"
 python tools\fetch_minifutures_ratio.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]Options institutional >> taifex_afterclose.log
+call :log "[stage]Options institutional"
 python tools\fetch_options_institutional.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]Daily PCR + FGI append (BL-5 Part 2) >> taifex_afterclose.log
+call :log "[stage]Daily PCR + FGI append (BL-5 Part 2)"
 python tools\append_today_pcr_fgi.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]Banner Risk Score archive (depends on PCR/FGI above) >> taifex_afterclose.log
+call :log "[stage]Banner Risk Score archive (depends on PCR/FGI above)"
 python tools\archive_risk_score.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]Banner TW FGI archive (5 sub-scores snapshot) >> taifex_afterclose.log
+call :log "[stage]Banner TW FGI archive (5 sub-scores snapshot)"
 python tools\archive_tw_fgi.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]Banner M1B ratio archive (CBC + TWSE FMTQIK) >> taifex_afterclose.log
+call :log "[stage]Banner M1B ratio archive (CBC + TWSE FMTQIK)"
 python tools\archive_m1b_ratio.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]CBC time deposits monthly fetch + notify (1.5-2mo lag) >> taifex_afterclose.log
+call :log "[stage]CBC time deposits monthly fetch + notify (1.5-2mo lag)"
 python tools\fetch_cbc_time_deposits.py --notify >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]System 2 daily check (informational tier) >> taifex_afterclose.log
+call :log "[stage]System 2 daily check (informational tier)"
 python tools\system2_daily_check.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]Vol Complex archive (VIX termstruct / VVIX / SKEW / OVX, informational) >> taifex_afterclose.log
+call :log "[stage]Vol Complex archive (VIX termstruct / VVIX / SKEW / OVX, informational)"
 python tools\fred_fetcher.py --refresh >> taifex_afterclose.log 2>&1
 python tools\archive_vol_complex.py --notify >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]System 3 VIX term check (4.06x lift at backwardation, SOP-14) >> taifex_afterclose.log
+call :log "[stage]System 3 VIX term check (4.06x lift at backwardation, SOP-14)"
 python tools\system3_vix_term_check.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]System 3 daily check (1w-1mo early warning) >> taifex_afterclose.log
+call :log "[stage]System 3 daily check (1w-1mo early warning)"
 python tools\system3_daily_check.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]System 3 MOVE shock alert (S3-a, SOP-14 informational) >> taifex_afterclose.log
+call :log "[stage]System 3 MOVE shock alert (S3-a, SOP-14 informational)"
 python tools\system3_move_check.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] [stage]System 3 SPX gap-down alert (S3-b, SOP-14 informational) >> taifex_afterclose.log
+call :log "[stage]System 3 SPX gap-down alert (S3-b, SOP-14 informational)"
 python tools\system3_spx_check.py >> taifex_afterclose.log 2>&1
 
-echo [%date% %time%] TAIFEX afterclose archive done >> taifex_afterclose.log
+call :log "TAIFEX afterclose archive done"
 
 REM Best-effort: failures do not fail the task. The 00:00 scanner run is
 REM the authoritative source of truth (TUE-SAT) and will pick up gaps.
 exit /b 0
+
+REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+:log
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] %~1 >> taifex_afterclose.log
+goto :eof

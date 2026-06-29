@@ -41,15 +41,21 @@ cd /d "%~dp0"
 set PYTHONIOENCODING=utf-8
 set LOG=universe_refresh_monthly.log
 
-echo [%DATE% %TIME%] === Universe refresh monthly start === >> %LOG%
+call :log "=== Universe refresh monthly start ==="
 
-echo [%DATE% %TIME%] [stage]TDCC universe download (1-1 master, incl delisted) >> %LOG%
+call :log "[stage]TDCC universe download (1-1 master, incl delisted)"
 python tools\tdcc_universe_download.py >> %LOG% 2>&1
 
-echo [%DATE% %TIME%] [stage]Build PIT universe (full + industry -> universe_tw_pit) >> %LOG%
+call :log "[stage]Build PIT universe (full + industry -> universe_tw_pit)"
 python tools\build_pit_universe.py >> %LOG% 2>&1
 
-echo [%DATE% %TIME%] === Universe refresh monthly done === >> %LOG%
+call :log "=== Universe refresh monthly done ==="
 
 REM Best-effort: failures do not fail the task. Next month retries.
 exit /b 0
+
+REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+:log
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] %~1 >> %LOG%
+goto :eof

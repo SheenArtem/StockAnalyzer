@@ -16,7 +16,8 @@ cd /d "%~dp0.."
 
 echo ==============================================================
 echo VF-L1a verify + retry workflow
-echo Started: %DATE% %TIME%
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo Started: %TS%
 echo ==============================================================
 
 echo.
@@ -65,7 +66,8 @@ python tools\verify_cache_coverage.py ^
 :done
 echo.
 echo ==============================================================
-echo Finished: %DATE% %TIME%
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo Finished: %TS%
 echo Final coverage report:   data_cache\vfl1a_final_report.json
 echo Still missing (if any):  data_cache\vfl1a_final_missing.txt
 echo ==============================================================

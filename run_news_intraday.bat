@@ -21,9 +21,15 @@ set PYTHONIOENCODING=utf-8
 if exist news_intraday_prev.log del news_intraday_prev.log
 if exist news_intraday.log ren news_intraday.log news_intraday_prev.log
 
-echo [%date% %time%] Intraday monitor started >> news_intraday.log
+call :log "Intraday monitor started"
 python tools\news_intraday_monitor.py >> news_intraday.log 2>&1
 set PY_EXIT=%ERRORLEVEL%
-echo [%date% %time%] Intraday monitor finished (exit=%PY_EXIT%) >> news_intraday.log
+call :log "Intraday monitor finished (exit=%PY_EXIT%)"
 
 exit /b %PY_EXIT%
+
+REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+:log
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] %~1 >> news_intraday.log
+goto :eof

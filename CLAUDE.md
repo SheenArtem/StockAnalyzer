@@ -42,11 +42,13 @@ Before any commit (feature / fix / refactor / docs), do AT LEAST ONE of:
 
 ---
 
-## ⚠️ BAT files: ASCII-only hard rule
+## ⚠️ BAT files: ASCII-only + CRLF hard rule
 
 **所有 `.bat` 必須純 ASCII (0x00-0x7F)** — CP950 解析 UTF-8 BAT 會 silent scheduler failure。Chinese REM/echo/full-width 全禁。替代：`—`→`--` / `→`→`->` / `✓✗⚠`→`[OK][FAIL][WARN]`。
 
-範圍：`run_*.bat` / `tools/*.bat` / `run_app.bat` 一律 ASCII，pre-commit hook 自動擋。
+**且必須 CRLF 行尾** — cmd.exe 用 byte-offset 追蹤 batch 執行位置且假設 CRLF；**LF-only 檔會讓 `goto` 跳錯行**（byte 累計偏移），停用區塊的 `goto skip_*` 失效→誤跑 dead code（2026-06-29 run_scanner_weekly 因此誤觸 `git push`）。詳見 memory `project_bat_crlf_goto_corruption`。
+
+範圍：`run_*.bat` / `tools/*.bat` / `run_app.bat` 一律 ASCII + CRLF，pre-commit hook 自動擋（含 lone-LF 偵測）。
 
 ---
 

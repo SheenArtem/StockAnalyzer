@@ -52,34 +52,40 @@ cd /d C:\GIT\StockAnalyzer
 
 set PYTHONIOENCODING=utf-8
 
-echo [%date% %time%] Macro panels evening starting >> macro_panels.log
+call :log "Macro panels evening starting"
 
-echo [%date% %time%] [stage]Institutional total (TW 3 majors, FinMind --days 30) >> macro_panels.log
+call :log "[stage]Institutional total (TW 3 majors, FinMind --days 30)"
 python tools\fetch_institutional_total.py --days 30 >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]Futures institutional (TAIFEX TXF 3 majors, feeds systemic_chip Group A) >> macro_panels.log
+call :log "[stage]Futures institutional (TAIFEX TXF 3 majors, feeds systemic_chip Group A)"
 python tools\fetch_futures_institutional.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]AAII sentiment (weekly Thursday XLS) >> macro_panels.log
+call :log "[stage]AAII sentiment (weekly Thursday XLS)"
 python tools\fetch_aaii_sentiment.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]TW LEI panel (NDC monthly) >> macro_panels.log
+call :log "[stage]TW LEI panel (NDC monthly)"
 python tools\fetch_tw_lei_panel.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]Valuation panel (TWSE PE incremental + Buffett) >> macro_panels.log
+call :log "[stage]Valuation panel (TWSE PE incremental + Buffett)"
 python tools\build_valuation_panel.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]Universe price refresh (evening pass, avoids midnight yfinance NaN-Close) >> macro_panels.log
+call :log "[stage]Universe price refresh (evening pass, avoids midnight yfinance NaN-Close)"
 python tools\refresh_universe_prices.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]TW breadth panel (same-day rows) >> macro_panels.log
+call :log "[stage]TW breadth panel (same-day rows)"
 python tools\build_tw_breadth.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] [stage]Systemic chip panel (same-day TWII close for market-level tile) >> macro_panels.log
+call :log "[stage]Systemic chip panel (same-day TWII close for market-level tile)"
 python tools\build_systemic_chip_panel.py >> macro_panels.log 2>&1
 
-echo [%date% %time%] Macro panels evening done >> macro_panels.log
+call :log "Macro panels evening done"
 
 REM Best-effort: failures do not fail the task. Dawn run picks up gaps via
 REM systemic_chip dependency check.
 exit /b 0
+
+REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+:log
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] %~1 >> macro_panels.log
+goto :eof

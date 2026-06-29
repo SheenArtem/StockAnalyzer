@@ -21,11 +21,13 @@ cd /d "%~dp0"
 set PYTHONIOENCODING=utf-8
 set LOG=bulk_revenue_monthly.log
 
-echo [%DATE% %TIME%] === Bulk revenue monthly start === >> %LOG%
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] === Bulk revenue monthly start === >> %LOG%
 
 python tools\vfvc_backfill_monthly_rev.py --bulk-update >> %LOG% 2>&1
 set EC=%ERRORLEVEL%
 
-echo [%DATE% %TIME%] === Bulk revenue monthly done (exit=%EC%) === >> %LOG%
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] === Bulk revenue monthly done (exit=%EC%) === >> %LOG%
 
 exit /b %EC%

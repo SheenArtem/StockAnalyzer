@@ -61,17 +61,23 @@ REM To re-enable the scheduled run: remove the "goto skip_c1" line below AND
 REM re-create the task (Register-ScheduledTask, or via taskschd.msc:
 REM Monthly day 11 at 01:00 -> this BAT).
 REM ============================================================
-echo [%DATE% %TIME%] === C1 tilt monthly refresh DISABLED (skipped) === >> %LOG%
+call :log "=== C1 tilt monthly refresh DISABLED (skipped) ==="
 goto skip_c1
 
-echo [%DATE% %TIME%] === C1 tilt monthly refresh start === >> %LOG%
+call :log "=== C1 tilt monthly refresh start ==="
 
 python tools\compute_c1_tilt.py >> %LOG% 2>&1
 set EC=%ERRORLEVEL%
 
-echo [%DATE% %TIME%] === C1 tilt refresh done (exit=%EC%) === >> %LOG%
+call :log "=== C1 tilt refresh done (exit=%EC%) ==="
 
 exit /b %EC%
 
 :skip_c1
 exit /b 0
+
+REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+:log
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] %~1 >> %LOG%
+goto :eof
