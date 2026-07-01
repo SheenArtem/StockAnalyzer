@@ -48,14 +48,56 @@ def _pct(price, prev):
 #  美股：Yahoo Finance v8 chart（單檔迴圈；~15min 延遲的近即時價）
 # ====================================================================
 
-def _yahoo_chart_meta(symbol: str) -> dict:
-    """回單檔 v8 chart 的 meta dict（含 regularMarketPrice / chartPreviousClose）或 None。"""
+def _yahoo_chart_result(symbol: str) -> dict:
+    """Return the first Yahoo v8 chart result for a symbol, or None."""
     r = requests.get(_YF_CHART_URL.format(sym=symbol),
                      params={'range': '5d', 'interval': '1d'},
                      headers={'User-Agent': _YF_UA}, timeout=15)
     j = r.json()
     res = (j.get('chart', {}) or {}).get('result')
-    return (res[0].get('meta') if res else None)
+    return res[0] if res else None
+
+
+def _yahoo_chart_meta(symbol: str) -> dict:
+    result = _yahoo_chart_result(symbol)
+    return (result.get('meta') if result else None)
+
+
+def _prev_close_from_chart(result: dict, price) -> float | None:
+    """Derive previous close from Yahoo daily bars.
+
+    Yahoo's chartPreviousClose is the close before the requested chart window
+    when range=5d, not necessarily yesterday's close.
+    Do not compare with the Taiwan calendar date; a US trading session crosses
+    two Taiwan calendar days.
+    """
+    try:
+        quotes = ((result.get('indicators', {}) or {}).get('quote') or [])
+        closes = quotes[0].get('close') or []
+    except (AttributeError, IndexError):
+        return None
+
+    vals = []
+    for close in closes:
+        if close is None:
+            continue
+        try:
+            vals.append(float(close))
+        except (TypeError, ValueError):
+            continue
+    if not vals:
+        return None
+
+    try:
+        px = float(price) if price is not None else None
+    except (TypeError, ValueError):
+        px = None
+
+    if px is not None and len(vals) >= 2:
+        tolerance = max(0.01, abs(px) * 0.0005)
+        if abs(vals[-1] - px) <= tolerance:
+            return vals[-2]
+    return vals[-1]
 
 
 def get_us_quotes(tickers: list) -> dict:
@@ -63,16 +105,21 @@ def get_us_quotes(tickers: list) -> dict:
     out = {}
     for t in [t for t in tickers if t]:
         try:
-            meta = _yahoo_chart_meta(t)
+            result = _yahoo_chart_result(t)
         except (requests.RequestException, ValueError) as e:
             logger.warning("yahoo v8 chart %s failed: %s", t, e)
             continue
+        meta = (result.get('meta') if result else None)
         if not meta:
             continue
         price = meta.get('regularMarketPrice')
-        prev = meta.get('chartPreviousClose')
+        prev = _prev_close_from_chart(result, price)
+        if prev is None:
+            prev = meta.get('regularMarketPreviousClose')
         if prev is None:
             prev = meta.get('previousClose')
+        if prev is None:
+            prev = meta.get('chartPreviousClose')
         price = float(price) if price is not None else None
         prev = float(prev) if prev is not None else None
         out[t] = {
