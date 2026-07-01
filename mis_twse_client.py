@@ -45,6 +45,10 @@ _USER_AGENT = (
 _MIN_INTERVAL_SEC = 3.0
 _REQ_TIMEOUT_SEC = 10
 
+# 單一 ex_ch 可 pipe 併查多檔（market-pulse 實測 50 檔/請求 OK）。
+# 用於「有界」的投組批次查價（≤數十檔），非全市場掃描 — 後者仍禁（見檔頭）。
+_MAX_BATCH = 50
+
 # 指數代碼用 tse_ 前綴，跟普通股同 endpoint
 # t00 = 加權指數, t13 = 電子類, etc
 _INDEX_IDS = {'t00', 't13', 't14', 't40', 't51', 'tx0'}
@@ -181,6 +185,75 @@ class MisTwseClient:
 
         return _parse_quote(data, prefix)
 
+    def _fetch_many(self, ex_ch: str) -> list:
+        """打 API（ex_ch 可用 '|' 併多檔），回所有「有真實資料」的 msgArray element。
+        單檔 _fetch 只取 [0]；此版回整批供投組批次查價。"""
+        with self._lock:
+            self._ensure_cookie()
+            self._throttle()
+            try:
+                r = self._session.get(
+                    _BASE_URL,
+                    params={'ex_ch': ex_ch, 'json': 1, 'delay': 0},
+                    timeout=_REQ_TIMEOUT_SEC,
+                )
+            except requests.RequestException as e:
+                logger.warning("mis.twse batch fetch failed: %s", e)
+                return []
+        if r.status_code != 200:
+            logger.warning("mis.twse batch HTTP %d (possibly banned)", r.status_code)
+            return []
+        try:
+            j = r.json()
+        except json.JSONDecodeError:
+            logger.error("mis.twse batch non-JSON response (possibly banned)")
+            return []
+        return [e for e in j.get('msgArray', []) if _has_real_data(e)]
+
+    def get_quotes(self, stock_ids: list) -> dict:
+        """批次即時報價（投組用）。回 {原輸入代號: quote_dict}（同 get_quote 的 dict）。
+
+        策略：先用「已知 prefix（cache）否則 tse_」把整組 pipe 併查，
+        缺的再用 otc_ 補查一輪 -> 一個投組通常 1~2 個請求搞定（各批 ≤50 檔、批間 3s 節流）。
+        查無 / 失敗的代號不會出現在回傳 dict（上層自行 fallback EOD）。
+        """
+        norm = {}  # sid(小寫純代號) -> 原輸入
+        for raw in stock_ids:
+            sid = str(raw).upper().replace('.TWO', '').replace('.TW', '').strip().lower()
+            if sid:
+                norm.setdefault(sid, raw)
+
+        result = {}
+        pending = list(norm.keys())
+        for want_prefix in ('tse', 'otc'):
+            if not pending:
+                break
+            still = []
+            for i in range(0, len(pending), _MAX_BATCH):
+                chunk = pending[i:i + _MAX_BATCH]
+                ex_items = []
+                for sid in chunk:
+                    pref = ('tse' if sid in _INDEX_IDS
+                            else (self._prefix_cache.get(sid) or want_prefix))
+                    ex_items.append(f'{pref}_{sid}.tw')
+                got = {}
+                for e in self._fetch_many('|'.join(ex_items)):
+                    code = str(e.get('c', '')).strip().lower()
+                    ex = e.get('ex') or want_prefix  # 'tse' | 'otc'
+                    if not code:
+                        continue
+                    self._prefix_cache[code] = ex
+                    parsed = _parse_quote(e, ex)
+                    if parsed is not None:
+                        got[code] = parsed
+                for sid in chunk:
+                    if sid in got:
+                        result[norm[sid]] = got[sid]
+                    else:
+                        still.append(sid)
+            pending = still
+        return result
+
 
 def _has_real_data(elem: dict) -> bool:
     """判斷 mis.twse 回的 msgArray element 是否真的有報價資料。
@@ -294,6 +367,11 @@ def get_client() -> MisTwseClient:
 def get_quote(stock_id: str) -> Optional[dict]:
     """便利函式，等同 get_client().get_quote(stock_id)。"""
     return get_client().get_quote(stock_id)
+
+
+def get_quotes(stock_ids: list) -> dict:
+    """便利函式，等同 get_client().get_quotes(stock_ids)（投組批次查價）。"""
+    return get_client().get_quotes(stock_ids)
 
 
 def is_tw_trading_hours(now: Optional[datetime] = None) -> bool:

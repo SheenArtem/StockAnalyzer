@@ -8,3 +8,6 @@ tracking/
 positions.json
 latest/position_alerts.json
 latest/position_history.json
+# 個人交易紀錄 / 投資組合（真實持股與損益 = 敏感財務資料；本 repo 會 push GitHub，
+# 比照 positions.json local only, never push；使用者要備份可自行處理）
+manual_trades/
