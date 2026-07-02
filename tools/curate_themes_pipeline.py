@@ -163,6 +163,19 @@ def _canonical_ticker_themes(canonical: dict) -> dict:
     return dict(idx)
 
 
+def _canonical_pair_names(canonical: dict) -> dict:
+    """(ticker, theme_id) -> 股名 from canonical (current truth)。供移除候選補股名用。"""
+    idx = {}
+    for t in canonical.get("themes", []):
+        tid = t.get("theme_id")
+        for tier in ("tier1", "tier2"):
+            for s in t.get(tier, []):
+                tk = str(s.get("ticker", "")).strip()
+                if tk:
+                    idx[(tk, tid)] = s.get("name", "")
+    return idx
+
+
 def _theme_name_map(canonical: dict) -> dict:
     return {t["theme_id"]: t.get("theme_name_zh", t["theme_id"]) for t in canonical.get("themes", [])}
 
@@ -544,6 +557,7 @@ def compute_diff(market: str, canonical: dict, consensus: dict, new_themes: list
     cur = _canonical_ticker_themes(canonical)  # ticker -> set(theme_id)
     cur_pairs = {(tk, tid) for tk, tids in cur.items() for tid in tids}
     theme_names = _theme_name_map(canonical)
+    cur_names = _canonical_pair_names(canonical)  # (ticker, theme_id) -> 股名
 
     proposed_pairs = set(consensus.keys())
 
@@ -568,6 +582,7 @@ def compute_diff(market: str, canonical: dict, consensus: dict, new_themes: list
         if (tk, tid) not in proposed_pairs:
             removed.append({
                 "ticker": tk, "theme_id": tid, "theme_name_zh": theme_names.get(tid, tid),
+                "name": cur_names.get((tk, tid), ""),
                 "reason": "無 agent 再提議 (drift-out 候選)",
                 "proposed_by": "manual", "auto_suggest": False,  # 移除永遠人工
             })

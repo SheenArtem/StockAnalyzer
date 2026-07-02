@@ -91,7 +91,7 @@ def _render_diff_section(market: str, diff: dict) -> None:
     if removed:
         df_rm = pd.DataFrame([{
             "approve": False,
-            "ticker": r["ticker"],
+            "ticker": r["ticker"], "name": r.get("name", ""),
             "題材": f"{r.get('theme_name_zh', '')} ({r['theme_id']})",
             "原因": r.get("reason", ""),
             "_key": f"{r['ticker']}|{r['theme_id']}",
