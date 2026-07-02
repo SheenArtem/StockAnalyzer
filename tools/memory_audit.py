@@ -56,6 +56,17 @@ PENDING_PATTERNS = [
     r"低優先",
 ]
 
+# pending 字眼若落在這些語境，屬技術名詞 / 歷史已定案 / 歸檔結論（非「待辦聲稱」）
+# → 豁免，避免每次 audit 都 flag 已人工驗過的 false positive。
+# 維護：新增豁免加一條「窄」regex（別誤殺真 stale 的 pending 聲稱）；
+#       2026-06-25 首批三條 = yfinance「未完成 bar」/ planning「未做被取代」/ validation「D 歸檔未驗」。
+PENDING_EXEMPTIONS = [
+    r"未完成\s*(bar|[kK]\s*[線棒])",        # 「未完成 bar」= 未收盤 K 線（技術名詞）
+    r"未做.{0,15}取代",                      # 「未做…被X取代」= 歷史已定案
+    r"歸檔.{0,4}未驗",                        # 「D 歸檔未驗」= 評為 D 級不再驗的結論
+    r"未驗.{0,8}(歸檔|告段落|D\s*級)",        # 「未驗…告段落 / D 級」反向語序
+]
+
 # link 檔的「完工 marker」
 COMPLETION_PATTERNS = [
     r"✅",
@@ -99,10 +110,28 @@ def parse_index(path: Path) -> list[IndexEntry]:
     return out
 
 
+def _exempt_spans(desc: str) -> list:
+    """回傳所有「豁免語境」的 (start, end) 區間（PENDING_EXEMPTIONS 命中處）。"""
+    spans = []
+    for ex in PENDING_EXEMPTIONS:
+        for m in re.finditer(ex, desc):
+            spans.append((m.start(), m.end()))
+    return spans
+
+
 def scan_pending(desc: str) -> str | None:
-    """描述中是否含 pending 字眼？回傳第一個 hit pattern。"""
+    """描述中是否含 pending 字眼？回傳第一個「非豁免」的 hit pattern。
+
+    豁免：pending 字眼若落在 PENDING_EXEMPTIONS 語境（技術名詞 / 歷史已定案 /
+    歸檔結論，如「未完成 bar」「未做被X取代」「D 歸檔未驗」）→ 不算 pending 聲稱，
+    跳過繼續找下一個。真 stale 的 pending 聲稱（「#2 未做」「P1 待開工」）不受影響。
+    """
+    spans = _exempt_spans(desc)
     for pat in PENDING_PATTERNS:
-        if re.search(pat, desc):
+        for m in re.finditer(pat, desc):
+            # 此 pending hit 與任一豁免區間重疊 → 略過
+            if any(m.start() < e and s < m.end() for s, e in spans):
+                continue
             return pat
     return None
 
