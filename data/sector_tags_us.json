@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-23",
+  "generated_at": "2026-06-30",
   "description": "美股主流題材 sector tag 清單。Phase 1 種子: 由 market-pulse 手刻 us_sector_map(37 檔) 反轉而來。Phase 2 待 3-agent 網路研究擴充/刷新。結構與 sector_tags_manual.json 一致(省 peer_group)。",
   "source": "bootstrap from market-pulse hand-curated us_sector_map (2026-06-23)",
   "themes": [
@@ -15,6 +15,10 @@
           "name": "NVIDIA",
           "note": "",
           "multi_theme": [
+            "ai",
+            "ai_networking_chips",
+            "cpu_gpu",
+            "datacenter_chips",
             "datacenter_gpu",
             "semiconductors"
           ]
@@ -24,12 +28,56 @@
           "name": "AMD",
           "note": "",
           "multi_theme": [
+            "cpu",
             "cpu_gpu",
+            "datacenter_chips",
+            "datacenter_gpu",
             "semiconductors"
           ]
+        },
+        {
+          "ticker": "AVGO",
+          "name": "Broadcom",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "ai_networking_chips",
+            "datacenter_chips",
+            "iphone_ecosystem",
+            "semiconductors"
+          ],
+          "confidence": 96,
+          "sources": [
+            "https://hashrateindex.com/blog/design-partners-ai-asic-market-part-2/",
+            "https://markets.financialcontent.com/stocks/article/marketminute-2026-3-24-broadcoms-ai-revenue-rockets-106-to-84-billion-as-custom-silicon-dominates-the-infrastructure-build-out",
+            "https://news.alphastreet.com/broadcom-avgo-custom-chip-strategy-targets-60b-hyperscaler-ai-infrastructure-market/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "MRVL",
+          "name": "Marvell Technology",
+          "note": "",
+          "multi_theme": [
+            "ai_networking_chips",
+            "datacenter_chips",
+            "semiconductors"
+          ],
+          "confidence": 91,
+          "sources": [
+            "https://moneymorning.com/2026/05/27/marvell-mrvl-earnings-tonight-custom-ai-chips-hyperscalers-2026",
+            "https://seekingalpha.com/article/4841780-marvell-amazon-and-microsoft-tailwinds-ahead-custom-ai-monetization-grows",
+            "https://tech-insider.org/marvell-technology-stock-surge-custom-ai-chip-2026/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "datacenter_gpu",
@@ -42,12 +90,38 @@
           "name": "NVIDIA",
           "note": "",
           "multi_theme": [
+            "ai",
             "ai_chips",
+            "ai_networking_chips",
+            "cpu_gpu",
+            "datacenter_chips",
             "semiconductors"
           ]
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "AMD",
+          "name": "Advanced Micro Devices",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "cpu",
+            "cpu_gpu",
+            "datacenter_chips",
+            "semiconductors"
+          ],
+          "confidence": 91,
+          "sources": [
+            "https://finance.yahoo.com/news/instinct-gpus-drive-data-center-161400232.html",
+            "https://siliconanalysts.com/analysis/amd-vs-nvidia-ai-gpu-market-share-2026",
+            "https://siliconanalysts.com/research/ai-data-center-value-chain"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "semiconductors",
@@ -60,7 +134,11 @@
           "name": "NVIDIA",
           "note": "",
           "multi_theme": [
+            "ai",
             "ai_chips",
+            "ai_networking_chips",
+            "cpu_gpu",
+            "datacenter_chips",
             "datacenter_gpu"
           ]
         },
@@ -70,7 +148,10 @@
           "note": "",
           "multi_theme": [
             "ai_chips",
-            "cpu_gpu"
+            "cpu",
+            "cpu_gpu",
+            "datacenter_chips",
+            "datacenter_gpu"
           ]
         },
         {
@@ -87,8 +168,9 @@
           "name": "Micron",
           "note": "",
           "multi_theme": [
-            "memory",
-            "hbm"
+            "flash_storage",
+            "hbm",
+            "memory"
           ]
         },
         {
@@ -96,7 +178,11 @@
           "name": "Broadcom",
           "note": "",
           "multi_theme": [
-            "ai_networking_chips"
+            "ai",
+            "ai_chips",
+            "ai_networking_chips",
+            "datacenter_chips",
+            "iphone_ecosystem"
           ]
         },
         {
@@ -104,6 +190,8 @@
           "name": "Marvell",
           "note": "",
           "multi_theme": [
+            "ai_chips",
+            "ai_networking_chips",
             "datacenter_chips"
           ]
         },
@@ -128,7 +216,10 @@
           "name": "Arm Holdings",
           "note": "",
           "multi_theme": [
-            "chip_ip"
+            "chip_ip",
+            "cpu",
+            "cpu_gpu",
+            "mobile_chips"
           ]
         },
         {
@@ -136,7 +227,8 @@
           "name": "Sandisk",
           "note": "",
           "multi_theme": [
-            "flash_storage"
+            "flash_storage",
+            "memory"
           ]
         }
       ],
@@ -154,11 +246,57 @@
           "note": "",
           "multi_theme": [
             "ai_chips",
+            "cpu",
+            "datacenter_chips",
+            "datacenter_gpu",
             "semiconductors"
           ]
+        },
+        {
+          "ticker": "NVDA",
+          "name": "NVIDIA",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "ai_chips",
+            "ai_networking_chips",
+            "datacenter_chips",
+            "datacenter_gpu",
+            "semiconductors"
+          ],
+          "confidence": 99,
+          "sources": [
+            "https://carboncredits.com/nvidia-controls-92-of-the-gpu-market-in-2025-and-reveals-next-gen-ai-supercomputer/",
+            "https://siliconanalysts.com/analysis/amd-vs-nvidia-ai-gpu-market-share-2026",
+            "https://siliconanalysts.com/analysis/nvidia-ai-accelerator-market-share-2024-2026"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "ARM",
+          "name": "Arm Holdings",
+          "note": "",
+          "multi_theme": [
+            "chip_ip",
+            "cpu",
+            "mobile_chips",
+            "semiconductors"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://247wallst.com/investing/2026/05/08/arm-is-quietly-becoming-the-cpu-backbone-of-ai/",
+            "https://markets.financialcontent.com/stocks/article/marketminute-2026-3-26-silicon-architect-ascendant-arm-holdings-skyrockets-16-as-agi-cpu-dominance-signals-new-era-for-ai-hardware",
+            "https://www.msn.com/en-us/money/other/which-cpu-company-has-dominated-2026-intel-amd-or-arm-holdings/ar-AA21PaAd"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "cpu",
@@ -174,6 +312,47 @@
             "foundry",
             "semiconductors"
           ]
+        },
+        {
+          "ticker": "AMD",
+          "name": "Advanced Micro Devices",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "cpu_gpu",
+            "datacenter_chips",
+            "datacenter_gpu",
+            "semiconductors"
+          ],
+          "confidence": 97,
+          "sources": [
+            "https://wccftech.com/amd-cpu-market-share-huge-growth-q4-2025-ryzen-desktop-highest-revenue-ever/",
+            "https://wccftech.com/amd-posts-record-server-cpu-revenue-in-q1-2026-red-team-commands-30-percent-market/",
+            "https://winbuzzer.com/2026/05/14/amd-epyc-surges-to-record-server-revenue-share-and-xcxwbn/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "ARM",
+          "name": "Arm Holdings",
+          "note": "",
+          "multi_theme": [
+            "chip_ip",
+            "cpu_gpu",
+            "mobile_chips",
+            "semiconductors"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://247wallst.com/investing/2026/04/24/which-cpu-company-has-dominated-2026-intel-amd-or-arm-holdings/",
+            "https://finance.biggo.com/news/US_ARM_2026-05-06",
+            "https://finance.yahoo.com/markets/stocks/articles/cpu-company-dominated-2026-intel-152352921.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -202,7 +381,38 @@
           ]
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "GFS",
+          "name": "GlobalFoundries",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 90,
+          "sources": [
+            "https://anysilicon.com/news/semiconductor-foundry-revenue-grew-in-q1-2026-driven-by-ai-power-management-and-specialty-technologies/",
+            "https://gf.com/news-events/news/globalfoundries-acquires-advanced-micro-foundry-accelerating-silicon-photonics-global-leadership-and-expanding-ai-infrastructure-portfolio/",
+            "https://investors.gf.com/news-releases/news-release-details/globalfoundries-reports-fourth-quarter-2025-and-fiscal-year-2025"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "UMC",
+          "name": "United Microelectronics (NYSE ADR)",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 86,
+          "sources": [
+            "https://anysilicon.com/news/semiconductor-foundry-revenue-grew-in-q1-2026-driven-by-ai-power-management-and-specialty-technologies/",
+            "https://stockanalysis.com/stocks/umc/",
+            "https://www.businesswire.com/news/home/20260429074239/en/UMC-Reports-First-Quarter-2026-Results"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "memory",
@@ -215,12 +425,49 @@
           "name": "Micron",
           "note": "",
           "multi_theme": [
+            "flash_storage",
             "hbm",
             "semiconductors"
           ]
+        },
+        {
+          "ticker": "SNDK",
+          "name": "SanDisk Corporation",
+          "note": "",
+          "multi_theme": [
+            "flash_storage",
+            "semiconductors"
+          ],
+          "confidence": 90,
+          "sources": [
+            "https://finance.yahoo.com/quote/SNDK/",
+            "https://intellectia.ai/blog/7-best-memory-semiconductor-stocks-2026",
+            "https://stockanalysis.com/stocks/sndk/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "RMBS",
+          "name": "Rambus Inc.",
+          "note": "",
+          "multi_theme": [
+            "chip_ip"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://stockanalysis.com/stocks/rmbs/market-cap/",
+            "https://www.businesswire.com/news/home/20260304595773/en/Rambus-Sets-New-Benchmark-for-AI-Memory-Performance-with-Industry-Leading-HBM4E-Controller-IP",
+            "https://www.rambus.com/rambus-sets-new-benchmark-for-ai-memory-performance-with-industry-leading-hbm4e-controller-ip/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "hbm",
@@ -233,12 +480,31 @@
           "name": "Micron",
           "note": "",
           "multi_theme": [
+            "flash_storage",
             "memory",
             "semiconductors"
           ]
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "AMAT",
+          "name": "Applied Materials",
+          "note": "",
+          "multi_theme": [
+            "semicon_equipment"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://ir.appliedmaterials.com/news-releases/news-release-details/applied-materials-announces-second-quarter-2026-results",
+            "https://www.marketbeat.com/originals/4-memorable-ways-to-play-the-hbm-market-boom/",
+            "https://www.nasdaq.com/articles/applied-materials-fy25-hbm-revenues-hit-15b-new-growth-driver"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "ai_networking_chips",
@@ -251,11 +517,72 @@
           "name": "Broadcom",
           "note": "",
           "multi_theme": [
+            "ai",
+            "ai_chips",
+            "datacenter_chips",
+            "iphone_ecosystem",
             "semiconductors"
           ]
+        },
+        {
+          "ticker": "MRVL",
+          "name": "Marvell Technology",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "datacenter_chips",
+            "semiconductors"
+          ],
+          "confidence": 94,
+          "sources": [
+            "https://finance.yahoo.com/technology/ai/articles/marvell-p-500-debut-ai-011623956.html",
+            "https://hashrateindex.com/blog/design-partners-ai-asic-market-part-2/",
+            "https://investor.marvell.com/news-events/press-releases/detail/95/marvell-technology-inc-reports-first-quarter-of-fiscal-year-2026-financial-results"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "CRDO",
+          "name": "Credo Technology",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 86,
+          "sources": [
+            "https://finance.yahoo.com/markets/stocks/articles/crdo-bets-optical-boom-drive-125200835.html",
+            "https://markets.financialcontent.com/stocks/article/finterra-2026-2-10-the-backbone-of-ai-a-comprehensive-research-feature-on-credo-technology-group-crdo",
+            "https://nai500.com/blog/2026/02/ai-networking-pops-csco-anet-avgo-mrvl-nvda/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "NVDA",
+          "name": "NVIDIA",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "ai_chips",
+            "cpu_gpu",
+            "datacenter_chips",
+            "datacenter_gpu",
+            "semiconductors"
+          ],
+          "confidence": 85,
+          "sources": [
+            "https://alcapitaladvisory.com/research/intelligence/ai-infrastructure.html",
+            "https://investor.nvidia.com/news/press-release-details/2025/NVIDIA-Announces-Spectrum-X-Photonics-Co-Packaged-Optics-Networking-Switches-to-Scale-AI-Factories-to-Millions-of-GPUs/default.aspx",
+            "https://nai500.com/blog/2026/02/ai-networking-pops-csco-anet-avgo-mrvl-nvda/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "datacenter_chips",
@@ -268,11 +595,78 @@
           "name": "Marvell",
           "note": "",
           "multi_theme": [
+            "ai_chips",
+            "ai_networking_chips",
             "semiconductors"
           ]
+        },
+        {
+          "ticker": "NVDA",
+          "name": "NVIDIA",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "ai_chips",
+            "ai_networking_chips",
+            "cpu_gpu",
+            "datacenter_gpu",
+            "semiconductors"
+          ],
+          "confidence": 97,
+          "sources": [
+            "https://seekingalpha.com/news/4592277-nvidia-amd-still-among-bofas-top-chip-stocks-as-ai-likely-to-stay-stronger-for-longer",
+            "https://semiengineering.com/data-center-cpu-dominance-is-shifting-to-amd-and-arm/",
+            "https://siliconanalysts.com/analysis/amd-vs-nvidia-ai-gpu-market-share-2026"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "AVGO",
+          "name": "Broadcom",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "ai_chips",
+            "ai_networking_chips",
+            "iphone_ecosystem",
+            "semiconductors"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://investors.broadcom.com/news-releases/news-release-details/broadcom-inc-announces-first-quarter-fiscal-year-2026-financial",
+            "https://markets.financialcontent.com/stocks/article/marketminute-2026-3-24-broadcoms-ai-revenue-rockets-106-to-84-billion-as-custom-silicon-dominates-the-infrastructure-build-out",
+            "https://oplexa.com/custom-asic-market-2026-hyperscalers-ditching-nvidia/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "AMD",
+          "name": "Advanced Micro Devices",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "cpu",
+            "cpu_gpu",
+            "datacenter_gpu",
+            "semiconductors"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://finance.yahoo.com/news/bofa-hikes-2026-chips-forecast-to-13-trillion-names-nvidia-broadcom-marvell-amd-as-top-drivers-164800203.html",
+            "https://gpuinsights.net/nvidia-amd-ai-chips-data-center-war-2026/",
+            "https://ir.amd.com/news-events/press-releases/detail/1284/amd-reports-first-quarter-2026-financial-results"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "mobile_chips",
@@ -287,6 +681,26 @@
           "multi_theme": [
             "semiconductors"
           ]
+        },
+        {
+          "ticker": "ARM",
+          "name": "Arm Holdings",
+          "note": "",
+          "multi_theme": [
+            "chip_ip",
+            "cpu",
+            "cpu_gpu",
+            "semiconductors"
+          ],
+          "confidence": 89,
+          "sources": [
+            "https://markets.financialcontent.com/stocks/article/finterra-2026-4-3-arm-holdings-deep-dive-the-architect-of-the-ai-revolution",
+            "https://newsroom.arm.com/news/arm-q2-fye26-results",
+            "https://newsroom.arm.com/news/arm-q3-fye26-results"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -302,11 +716,47 @@
           "name": "Arm Holdings",
           "note": "",
           "multi_theme": [
+            "cpu",
+            "cpu_gpu",
+            "mobile_chips",
             "semiconductors"
           ]
+        },
+        {
+          "ticker": "RMBS",
+          "name": "Rambus",
+          "note": "",
+          "multi_theme": [
+            "memory"
+          ],
+          "confidence": 90,
+          "sources": [
+            "https://finance.yahoo.com/news/rambus-reports-fourth-quarter-fiscal-210500981.html",
+            "https://investor.rambus.com/press-releases/press-release-details/2026/Rambus-Reports-First-Quarter-2026-Financial-Results/default.aspx",
+            "https://www.ainvest.com/news/rambus-2025-q2-performance-catalyst-ai-driven-data-center-growth-2507/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "CEVA",
+          "name": "CEVA Inc",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 89,
+          "sources": [
+            "https://seekingalpha.com/news/4552773-ceva-outlines-8-percentminus-12-percent-revenue-growth-target-for-2026-while-expanding-ai-and",
+            "https://stockanalysis.com/stocks/ceva/",
+            "https://uk.investing.com/news/stock-market-news/earnings-call-transcript-cevas-q1-2026-earnings-beat-forecasts-stock-declines-93CH-4667100"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "semicon_equipment",
@@ -318,7 +768,9 @@
           "ticker": "AMAT",
           "name": "Applied Materials",
           "note": "",
-          "multi_theme": []
+          "multi_theme": [
+            "hbm"
+          ]
         },
         {
           "ticker": "LRCX",
@@ -333,9 +785,72 @@
           "multi_theme": [
             "euv_litho"
           ]
+        },
+        {
+          "ticker": "KLAC",
+          "name": "KLA Corporation",
+          "note": "",
+          "multi_theme": [
+            "euv_litho"
+          ],
+          "confidence": 97,
+          "sources": [
+            "https://finance.biggo.com/news/US_KLAC_2026-04-29",
+            "https://finance.yahoo.com/markets/stocks/articles/onto-vs-klac-semiconductor-equipment-140900213.html",
+            "https://futurumgroup.com/insights/kla-corporation-q2-fy-2026-results-beat-on-ai-led-demand/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "ONTO",
+          "name": "Onto Innovation",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 89,
+          "sources": [
+            "https://finance.yahoo.com/markets/stocks/articles/onto-vs-klac-semiconductor-equipment-140900213.html",
+            "https://stockanalysis.com/stocks/onto/",
+            "https://www.businesswire.com/news/home/20260219147495/en/Onto-Innovation-Reports-2025-Fourth-Quarter-and-Full-Year-Results"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "CAMT",
+          "name": "Camtek",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 86,
+          "sources": [
+            "https://stockanalysis.com/stocks/camt/",
+            "https://www.camtek.com/solutions/inspection-metrology/",
+            "https://www.wallstreetzen.com/industries/best-semiconductor-equipment-stocks"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "TER",
+          "name": "Teradyne",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 85,
+          "sources": [
+            "https://investors.teradyne.com/news-events/press-releases/detail/433/teradyne-reports-fourth-quarter-and-full-year-2025-results",
+            "https://investors.teradyne.com/news-events/press-releases/detail/440/teradyne-reports-first-quarter-2026-results",
+            "https://www.kalkine.com/news/general-news/teradyne-q1-2026-results-ai-driven-semiconductor-test-demand-lifts-revenue-87-and-margins-to-record-highs/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "euv_litho",
@@ -352,7 +867,40 @@
           ]
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "KLAC",
+          "name": "KLA Corporation",
+          "note": "",
+          "multi_theme": [
+            "semicon_equipment"
+          ],
+          "confidence": 90,
+          "sources": [
+            "https://ir.kla.com/news-events/press-releases/detail/500/kla-corporation-reports-fiscal-2025-fourth-quarter-and-full",
+            "https://markets.financialcontent.com/wral/article/predictstreet-2025-12-15-kla-corporation-klac-the-unseen-architect-of-the-ai-revolution",
+            "https://ng.investing.com/news/company-news/kla-q4-2025-slides-revenue-jumps-24-yoy-wafer-inspection-surges-52-93CH-2038015"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "ENTG",
+          "name": "Entegris, Inc.",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 86,
+          "sources": [
+            "https://finance.yahoo.com/sectors/technology/articles/entegris-jsr-corporation-inpria-corporation-231000952.html",
+            "https://investor.entegris.com/news/news-details/2026/Entegris-and-JSR-CorporationInpria-Corporation-Announce-Non-Exclusive-Cross-Licensing-to-EUV-Lithography/default.aspx",
+            "https://stockstotrade.com/news/entegris-inc-entg-news-2026_06_18/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "flash_storage",
@@ -365,8 +913,43 @@
           "name": "Sandisk",
           "note": "",
           "multi_theme": [
+            "memory",
             "semiconductors"
           ]
+        },
+        {
+          "ticker": "MU",
+          "name": "Micron Technology",
+          "note": "",
+          "multi_theme": [
+            "hbm",
+            "memory",
+            "semiconductors"
+          ],
+          "confidence": 91,
+          "sources": [
+            "https://finance.yahoo.com/markets/stocks/articles/microns-ssd-growth-drives-nand-133300701.html",
+            "https://finance.yahoo.com/sectors/technology/articles/ai-driven-ssd-demand-drive-123300567.html",
+            "https://futurumgroup.com/insights/micron-technology-q1-fy-2026-sets-records-strong-q2-outlook/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "PSTG",
+          "name": "Pure Storage",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://finance.yahoo.com/news/pure-storage-inc-pstg-q4-050226157.html",
+            "https://markets.financialcontent.com/stocks/article/predictstreet-2026-1-2-pure-storage-pstg-the-architecture-of-the-ai-factory-and-the-future-of-the-all-flash-data-center",
+            "https://markets.financialcontent.com/wral/article/predictstreet-2026-1-2-pure-storage-pstg-the-architecture-of-the-ai-factory-and-the-future-of-the-all-flash-data-center"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -405,9 +988,55 @@
           "multi_theme": [
             "datacenter"
           ]
+        },
+        {
+          "ticker": "DELL",
+          "name": "Dell Technologies",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 95,
+          "sources": [
+            "https://enterprisedna.co/resources/news/dell-ai-server-record-q1-fy2027-2026/",
+            "https://finance.yahoo.com/news/dell-hpe-reap-revenue-gains-160806804.html",
+            "https://futurumgroup.com/insights/dell-q4-fy-2026-earnings-highlight-ai-optimized-server-ramp/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "HPE",
+          "name": "Hewlett Packard Enterprise",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://futurumgroup.com/insights/hpe-q2-fy-2026-ai-orders-remain-strong-as-supply-constraints-persist/",
+            "https://phemex.com/blogs/hpe-surges-after-best-ai-infrastructure-quarter",
+            "https://qz.com/hpe-earnings-record-revenue-ai-server-demand-060126"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "CLS",
+          "name": "Celestica Inc.",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 90,
+          "sources": [
+            "https://investor.wedbush.com/wedbush/article/marketminute-2026-2-12-celestica-cls-raises-2026-targets-amid-explosive-ai-infrastructure-demand",
+            "https://www.amd.com/en/newsroom/press-releases/2026-3-16-amd-and-celestica-announce-collaboration-to-a.html",
+            "https://www.investing.com/news/company-news/celestica-q1-2026-slides-revenue-surges-53-ai-demand-drives-outlook-raise-93CH-4641771"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "datacenter",
@@ -430,9 +1059,70 @@
           "multi_theme": [
             "ai_cloud"
           ]
+        },
+        {
+          "ticker": "EQIX",
+          "name": "Equinix",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 95,
+          "sources": [
+            "https://marketwise.com/investing/best-data-center-reits-ai-infrastructure/",
+            "https://www.ad-hoc-news.de/boerse/news/ueberblick/equinix-inc-stock-us29444u7033-ai-partnership-with-cisco-and-nvidia/69556881",
+            "https://www.globenewswire.com/news-release/2026/04/30/3284530/0/en/united-states-data-center-colocation-databook-report-2026-72-37-bn-market-led-by-equinix-and-digital-realty-as-qts-iron-mountain-and-ai-developers-accelerate-capacity-expansion-for.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "VRT",
+          "name": "Vertiv Holdings",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 92,
+          "sources": [
+            "https://finance.yahoo.com/markets/stocks/articles/vertiv-vrt-expanding-role-ai-202523078.html",
+            "https://finance.yahoo.com/markets/stocks/articles/vrt-vs-smci-data-center-152000990.html",
+            "https://news.alphastreet.com/vertiv-holdings-nysevrt-extends-2026-rally-after-64-surge-ai-data-center-demand-and-cooling-backlog-in-focus/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "ANET",
+          "name": "Arista Networks",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 90,
+          "sources": [
+            "https://exoswan.com/ai-infrastructure-stocks/",
+            "https://finance.yahoo.com/news/arista-expands-105b-ai-networking-031336873.html",
+            "https://www.heygotrade.com/en/blog/ai-infrastructure-stocks-picks-and-shovels-playbook/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "DLR",
+          "name": "Digital Realty Trust",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 89,
+          "sources": [
+            "https://finance.yahoo.com/sectors/technology/articles/united-states-data-center-colocation-080900200.html",
+            "https://marketwise.com/investing/best-data-center-reits-ai-infrastructure/",
+            "https://www.datacenterdynamics.com/en/news/data-center-colo-results-q4-2025-digital-realty-equinix-iron-mountain-american-tower/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "optical_networking",
@@ -452,10 +1142,58 @@
           "ticker": "LITE",
           "name": "Lumentum",
           "note": "",
-          "multi_theme": []
+          "multi_theme": [
+            "lasers"
+          ]
+        },
+        {
+          "ticker": "CIEN",
+          "name": "Ciena Corporation",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 93,
+          "sources": [
+            "https://companiesmarketcap.com/ciena/marketcap/",
+            "https://finance.yahoo.com/markets/stocks/articles/cien-q2-earnings-beat-ai-151300410.html",
+            "https://industrialanalyst.substack.com/p/optical-networking-earnings-recap"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "FN",
+          "name": "Fabrinet",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 91,
+          "sources": [
+            "https://tickerspark.ai/top-stocks/best-ai-optical-networking-stocks",
+            "https://www.ainvest.com/news/fabrinet-strategic-aws-partnership-telecom-growth-high-conviction-play-ai-driven-optical-manufacturing-2508/",
+            "https://www.sahmcapital.com/news/content/surging-16t-transceiver-shipments-could-be-a-game-changer-for-fabrinet-fn-2025-10-10"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "AAOI",
+          "name": "Applied Optoelectronics",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 86,
+          "sources": [
+            "https://247wallst.com/investing/2026/04/10/applied-optoelectronics-could-double-revenue-to-1-billion-in-2026/",
+            "https://247wallst.com/investing/2026/06/01/applied-optoelectronics-is-up-439-in-2026-is-it-outperforming-other-optics-stocks-like-lumentum-and-coherent/",
+            "https://seekingalpha.com/article/4911255-applied-optoelectronics-800g-and-1_6t-ramp-can-keep-driving-stock-higher"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "lasers",
@@ -470,9 +1208,57 @@
           "multi_theme": [
             "optical_networking"
           ]
+        },
+        {
+          "ticker": "IPGP",
+          "name": "IPG Photonics",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 92,
+          "sources": [
+            "https://beyondspx.com/quote/IPGP/analysis/ipg-photonics-margin-repair-meets-technology-moat-in-the-laser-wars-nasdaq-ipgp",
+            "https://finance.yahoo.com/markets/stocks/articles/ipg-photonics-corporation-ipgp-announces-132414624.html",
+            "https://investor.ipgphotonics.com/news/news-details/2026/IPG-Photonics-Announces-Fourth-Quarter-2025-Financial-Results/default.aspx"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "LITE",
+          "name": "Lumentum Holdings",
+          "note": "",
+          "multi_theme": [
+            "optical_networking"
+          ],
+          "confidence": 90,
+          "sources": [
+            "https://companiesmarketcap.com/lumentum/marketcap/",
+            "https://investor.lumentum.com/financial-news-releases/news-details/2026/Lumentum-Demonstrates-Industry-Leading-Technologies-and-Products-for-Scale-Out-Scale-Up-and-Scale-Across-AI-Infrastructure-at-OFC-2026/default.aspx",
+            "https://markets.financialcontent.com/stocks/article/finterra-2026-3-26-the-light-engine-of-ai-a-deep-dive-into-lumentum-holdings-lite-and-the-16t-revolution"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "LASR",
+          "name": "nLIGHT Inc",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 89,
+          "sources": [
+            "https://finance.yahoo.com/markets/stocks/articles/nlight-lasr-story-shifting-toward-001909804.html",
+            "https://finance.yahoo.com/sectors/technology/articles/nlight-laser-weapons-next-capacity-182200367.html",
+            "https://public.com/stocks/lasr/market-cap"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "fiber_glass",
@@ -485,7 +1271,8 @@
           "name": "Corning",
           "note": "",
           "multi_theme": [
-            "display"
+            "display",
+            "iphone_ecosystem"
           ]
         }
       ],
@@ -502,11 +1289,43 @@
           "name": "Corning",
           "note": "",
           "multi_theme": [
-            "fiber_glass"
+            "fiber_glass",
+            "iphone_ecosystem"
           ]
+        },
+        {
+          "ticker": "OLED",
+          "name": "Universal Display Corporation",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 92,
+          "sources": [
+            "https://ir.oled.com/newsroom/press-releases/press-release-details/2026/Universal-Display-Corporation-Announces-First-Quarter-2026-Financial-Results/default.aspx",
+            "https://ir.oled.com/newsroom/press-releases/press-release-details/2026/Universal-Display-Corporation-Announces-Fourth-Quarter-and-Full-Year-2025-Financial-Results/default.aspx",
+            "https://simplywall.st/stocks/us/semiconductors/nasdaq-oled/universal-display/news/what-universal-display-oleds-ai-supply-chain-jitters-and-gov/amp"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "HIMX",
+          "name": "Himax Technologies Inc",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 85,
+          "sources": [
+            "https://finance.yahoo.com/news/himax-powering-next-generation-intelligent-103000348.html",
+            "https://seekingalpha.com/article/4851107-himax-technologies-the-automotive-segment-is-still-a-drag",
+            "https://simplywall.st/stocks/us/semiconductors/nasdaq-himx/himax-technologies/news/a-look-at-himax-technologies-himx-valuation-after-ai-chip-op"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "consumer_electronics",
@@ -521,9 +1340,55 @@
           "multi_theme": [
             "iphone_ecosystem"
           ]
+        },
+        {
+          "ticker": "GRMN",
+          "name": "Garmin Ltd.",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 89,
+          "sources": [
+            "https://companiesmarketcap.com/electronics/largest-electronic-manufacturing-by-market-cap/",
+            "https://finance.yahoo.com/markets/stocks/articles/garmin-q1-2026-earnings-beat-141216334.html",
+            "https://finance.yahoo.com/news/investors-reacting-garmin-grmn-expanding-100735691.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "SONY",
+          "name": "Sony Group Corporation",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 87,
+          "sources": [
+            "https://companiesmarketcap.com/sony/marketcap/",
+            "https://deepmarketinsights.com/statistic/4/top-consumer-electronics-companies-by-market-cap",
+            "https://finance.yahoo.com/quote/SONY/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "LOGI",
+          "name": "Logitech International SA",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 85,
+          "sources": [
+            "https://companiesmarketcap.com/logitech/marketcap/",
+            "https://finance.yahoo.com/news/logitech-international-sa-logi-q3-050116669.html",
+            "https://stockanalysis.com/stocks/industry/consumer-electronics/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "iphone_ecosystem",
@@ -540,7 +1405,62 @@
           ]
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "CRUS",
+          "name": "Cirrus Logic",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 92,
+          "sources": [
+            "https://convergedigest.com/apple-expands-u-s-supply-chain-with-coherent-broadcom-gf-amkor-corning/",
+            "https://finance.yahoo.com/markets/stocks/articles/cirrus-logic-apple-manufacturing-role-161043141.html",
+            "https://finance.yahoo.com/markets/stocks/articles/cirrus-logic-vs-qualcomm-mobile-153400481.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "GLW",
+          "name": "Corning",
+          "note": "",
+          "multi_theme": [
+            "display",
+            "fiber_glass"
+          ],
+          "confidence": 89,
+          "sources": [
+            "https://appleosophy.com/2025/08/07/apple-commits-2-5-billion-in-corning-to-produce-all-iphone-and-watch-glass-in-the-u-s/",
+            "https://convergedigest.com/apple-expands-u-s-supply-chain-with-coherent-broadcom-gf-amkor-corning/",
+            "https://finance.yahoo.com/news/corning-launches-corning-gorilla-glass-130100557.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "AVGO",
+          "name": "Broadcom",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "ai_chips",
+            "ai_networking_chips",
+            "datacenter_chips",
+            "semiconductors"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://seekingalpha.com/article/4768725-broadcom-apple-chip-revenue-gains-and-losses",
+            "https://www.ainvest.com/news/apple-iphone-17-semiconductor-supply-chain-investment-opportunities-diversified-ecosystem-2509-93/",
+            "https://www.mobileworldlive.com/apple/apple-closes-in-on-in-house-bluetooth-wi-fi-chip/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "azure_cloud",
@@ -554,6 +1474,7 @@
           "note": "",
           "multi_theme": [
             "ai",
+            "cloud",
             "software"
           ]
         }
@@ -572,6 +1493,7 @@
           "note": "",
           "multi_theme": [
             "azure_cloud",
+            "cloud",
             "software"
           ]
         },
@@ -580,7 +1502,9 @@
           "name": "Alphabet",
           "note": "",
           "multi_theme": [
+            "autonomous_driving",
             "cloud",
+            "digital_advertising",
             "online_advertising"
           ]
         },
@@ -589,8 +1513,9 @@
           "name": "Meta",
           "note": "",
           "multi_theme": [
-            "social_media",
-            "digital_advertising"
+            "digital_advertising",
+            "online_advertising",
+            "social_media"
           ]
         },
         {
@@ -598,11 +1523,97 @@
           "name": "AppLovin",
           "note": "",
           "multi_theme": [
-            "mobile_advertising"
+            "digital_advertising",
+            "mobile_advertising",
+            "online_advertising"
           ]
+        },
+        {
+          "ticker": "AMZN",
+          "name": "Amazon",
+          "note": "",
+          "multi_theme": [
+            "aws_cloud",
+            "cloud",
+            "digital_advertising",
+            "ecommerce",
+            "online_advertising"
+          ],
+          "confidence": 91,
+          "sources": [
+            "https://futurumgroup.com/insights/ai-capex-2026-the-690b-infrastructure-sprint/",
+            "https://futurumgroup.com/insights/amazon-q1-fy-2026-aws-momentum-builds-as-ai-infrastructure-spend-surges/",
+            "https://futurumgroup.com/insights/amazon-q4-fy-2025-revenue-beat-aws-24-amid-200b-capex-plan/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "NVDA",
+          "name": "Nvidia",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "ai_networking_chips",
+            "cpu_gpu",
+            "datacenter_chips",
+            "datacenter_gpu",
+            "semiconductors"
+          ],
+          "confidence": 98,
+          "sources": [
+            "https://intellectia.ai/blog/nvda-stock-earnings-analysis-may-2026",
+            "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-fourth-quarter-and-fiscal-2026",
+            "https://stockanalysis.com/stocks/nvda/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "AVGO",
+          "name": "Broadcom",
+          "note": "",
+          "multi_theme": [
+            "ai_chips",
+            "ai_networking_chips",
+            "datacenter_chips",
+            "iphone_ecosystem",
+            "semiconductors"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://bingx.com/en/learn/article/top-ai-cloud-infrastructure-stocks-to-buy-hypercaler-capex-neocloud-boom",
+            "https://futurumgroup.com/insights/ai-capex-2026-the-690b-infrastructure-sprint/",
+            "https://markets.financialcontent.com/stocks/article/marketminute-2026-3-24-broadcoms-ai-revenue-rockets-106-to-84-billion-as-custom-silicon-dominates-the-infrastructure-build-out"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "PLTR",
+          "name": "Palantir",
+          "note": "",
+          "multi_theme": [
+            "ai_software",
+            "data_analytics",
+            "software"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://247wallst.com/investing/2026/06/03/servicenow-vs-palantir-which-enterprise-ai-stock-belongs-in-a-retirement-portfolio/",
+            "https://intellectia.ai/news/stock/palantir-pltr-2026-outlook-121-revenue-growth-and-51-profit-margin",
+            "https://medium.com/@JPStanleyX/palantir-2026-the-enterprise-ai-operating-system-thats-already-printing-60-growth-442eeda671e2"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "software",
@@ -615,8 +1626,9 @@
           "name": "Microsoft",
           "note": "",
           "multi_theme": [
+            "ai",
             "azure_cloud",
-            "ai"
+            "cloud"
           ]
         },
         {
@@ -624,12 +1636,103 @@
           "name": "Oracle",
           "note": "",
           "multi_theme": [
+            "ai_cloud",
             "cloud",
             "database"
           ]
+        },
+        {
+          "ticker": "CRM",
+          "name": "Salesforce",
+          "note": "",
+          "multi_theme": [
+            "ai_software",
+            "cloud"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://technologychecker.io/blog/salesforce-statistics-trends-insights-and-salesforce-market-share",
+            "https://www.fool.com/coverage/charts/2026/06/25/salesforce-vs-servicenow-what-do-their-revenue-trends-tell-investors/",
+            "https://www.srgresearch.com/articles/microsoft-leads-saas-market-salesforce-adobe-oracle-and-sap-follow"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "NOW",
+          "name": "ServiceNow",
+          "note": "",
+          "multi_theme": [
+            "ai_software",
+            "cloud"
+          ],
+          "confidence": 91,
+          "sources": [
+            "https://companiesmarketcap.com/servicenow/marketcap/",
+            "https://cyntexa.com/blog/servicenow-statistics/",
+            "https://diginomica.com/servicenow-beats-q1-2026-guidance-ai-deals-accelerate-and-outcome-based-pricing-zavery-isnt-buying"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "ADBE",
+          "name": "Adobe",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 85,
+          "sources": [
+            "https://247wallst.com/investing/2026/04/13/salesforce-jumps-5-adobe-climbs-6-snowflake-rockets-9-in-a-broad-software-sector-rebound/",
+            "https://artificall.com/analysis/companies/comparisons/adobe-vs-palantir-technologies/",
+            "https://www.indexbox.io/blog/software-stocks-decline-in-2026-servicenow-salesforce-adobe-analyzed/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "PLTR",
+          "name": "Palantir Technologies",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "ai_software",
+            "data_analytics"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://companiesmarketcap.com/software/largest-software-companies-by-market-cap/",
+            "https://finance.yahoo.com/markets/article/palantir-and-salesforce-put-softwares-rebound-on-trial-alphacheck-165851900.html",
+            "https://finance.yahoo.com/markets/stocks/articles/multibillion-dollar-defense-contracts-palantir-140000191.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "SNOW",
+          "name": "Snowflake",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "data_analytics",
+            "database"
+          ],
+          "confidence": 85,
+          "sources": [
+            "https://blockonomi.com/bank-of-americas-top-5-software-stock-picks-for-second-half-2026-snowflake-datadog-lead-the-pack/",
+            "https://capital.com/en-int/markets/shares/snowflake-inc-share-price/market-cap",
+            "https://stockanalysis.com/stocks/snow/market-cap/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "cloud",
@@ -643,6 +1746,8 @@
           "note": "",
           "multi_theme": [
             "ai",
+            "autonomous_driving",
+            "digital_advertising",
             "online_advertising"
           ]
         },
@@ -651,12 +1756,109 @@
           "name": "Oracle",
           "note": "",
           "multi_theme": [
+            "ai_cloud",
             "database",
             "software"
           ]
+        },
+        {
+          "ticker": "MSFT",
+          "name": "Microsoft (Azure)",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "azure_cloud",
+            "software"
+          ],
+          "confidence": 97,
+          "sources": [
+            "https://businesstats.com/big-three-hold-dominant-lead-in-accelerating-cloud-market/",
+            "https://holori.com/cloud-market-share-2026-top-cloud-vendors-in-2026/",
+            "https://www.geekwire.com/2026/microsoft-tops-wall-street-expectations-reports-accelerating-azure-growth-and-37b-ai-run-rate/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "AMZN",
+          "name": "Amazon (AWS)",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "aws_cloud",
+            "digital_advertising",
+            "ecommerce",
+            "online_advertising"
+          ],
+          "confidence": 97,
+          "sources": [
+            "https://bingx.com/en/learn/article/top-ai-cloud-infrastructure-stocks-to-buy-hypercaler-capex-neocloud-boom",
+            "https://businesstats.com/big-three-hold-dominant-lead-in-accelerating-cloud-market/",
+            "https://www.cnbc.com/2026/04/29/aws-earnings-q1-2026.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "SNOW",
+          "name": "Snowflake",
+          "note": "",
+          "multi_theme": [
+            "data_analytics",
+            "database",
+            "software"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://247wallst.com/investing/2026/05/07/snowflake-is-up-9-today-is-it-outperforming-other-cloud-stocks-like-servicenow/",
+            "https://blockonomi.com/bank-of-americas-top-5-software-stock-picks-for-second-half-2026-snowflake-datadog-lead-the-pack/",
+            "https://www.cnbc.com/2026/05/27/snowflake-amazon-graviton-cloud-chips.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "NOW",
+          "name": "ServiceNow",
+          "note": "",
+          "multi_theme": [
+            "ai_software",
+            "software"
+          ],
+          "confidence": 89,
+          "sources": [
+            "https://247wallst.com/investing/2026/05/07/snowflake-is-up-9-today-is-it-outperforming-other-cloud-stocks-like-servicenow/",
+            "https://investsnips.com/best-cloud-computing-stocks/",
+            "https://www.benzinga.com/trading-ideas/movers/26/04/51740497/saas-stock-meltdown-servicenow-salesforce-cloudflare-snowflake-hit-hard"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "CRM",
+          "name": "Salesforce",
+          "note": "",
+          "multi_theme": [
+            "ai_software",
+            "software"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://investsnips.com/best-cloud-computing-stocks/",
+            "https://www.benzinga.com/trading-ideas/movers/26/04/51740497/saas-stock-meltdown-servicenow-salesforce-cloudflare-snowflake-hit-hard",
+            "https://www.fool.com/investing/stock-market/market-sectors/information-technology/cloud-stocks/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "online_advertising",
@@ -669,12 +1871,91 @@
           "name": "Alphabet",
           "note": "",
           "multi_theme": [
+            "ai",
+            "autonomous_driving",
             "cloud",
-            "ai"
+            "digital_advertising"
           ]
+        },
+        {
+          "ticker": "META",
+          "name": "Meta Platforms",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "digital_advertising",
+            "social_media"
+          ],
+          "confidence": 97,
+          "sources": [
+            "https://almcorp.com/blog/meta-vs-google-ad-revenue-2026/",
+            "https://infotechlead.com/digital/meta-q1-2026-revenue-jumps-33-as-ai-advertising-surge-drives-145-bn-capital-spending-strategy-95484",
+            "https://thenextweb.com/news/meta-surpass-google-digital-ad-revenue-emarketer-2026"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "APP",
+          "name": "AppLovin",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "digital_advertising",
+            "mobile_advertising"
+          ],
+          "confidence": 91,
+          "sources": [
+            "https://247wallst.com/investing/2026/05/08/trade-desk-tumbles-13-applovin-holds-gains-as-ad-tech-q1-earnings-split-wall-street/",
+            "https://finance.yahoo.com/markets/stocks/articles/applovins-axon-max-power-70-184700734.html",
+            "https://investors.applovin.com/news/news-details/2026/AppLovin-Announces-First-Quarter-2026-Financial-Results/default.aspx"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "AMZN",
+          "name": "Amazon",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "aws_cloud",
+            "cloud",
+            "digital_advertising",
+            "ecommerce"
+          ],
+          "confidence": 89,
+          "sources": [
+            "https://bestmediainfo.com/mediainfo/advertising/amazon-ads-revenue-rises-24-to-172-bn-in-q1-jassy-sees-ai-expanding-advertiser-base-11780878",
+            "https://www.adweek.com/commerce/amazon-hits-70-billion-in-ad-revenue-over-the-past-12-months/",
+            "https://www.marketingdive.com/news/amazon-annual-ad-revenue-passes-68b-boosted-by-full-funnel-strategy/811569/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "TTD",
+          "name": "The Trade Desk",
+          "note": "",
+          "multi_theme": [
+            "digital_advertising"
+          ],
+          "confidence": 89,
+          "sources": [
+            "https://finance.yahoo.com/news/ttd-vs-mgni-ad-tech-143200735.html",
+            "https://investors.thetradedesk.com/news-and-events/news/news-details/2026/The-Trade-Desk-Reports-First-Quarter-2026-Financial-Results/default.aspx",
+            "https://investors.thetradedesk.com/news-and-events/news/news-details/2026/The-Trade-Desk-Reports-Fourth-Quarter-and-Fiscal-Year-2025-Financial-Results/default.aspx"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "social_media",
@@ -688,11 +1969,58 @@
           "note": "",
           "multi_theme": [
             "ai",
-            "digital_advertising"
+            "digital_advertising",
+            "online_advertising"
           ]
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "PINS",
+          "name": "Pinterest",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 89,
+          "sources": [
+            "https://stockanalysis.com/list/social-media-stocks/",
+            "https://www.benzinga.com/money/best-social-media-stocks",
+            "https://www.fool.com/investing/2026/01/02/meta-platforms-vs-pinterest-which-social-media/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "SNAP",
+          "name": "Snap Inc.",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 89,
+          "sources": [
+            "https://finance.yahoo.com/quote/SNAP/",
+            "https://mlq.ai/stocks/SNAP/q1-2026-earnings/",
+            "https://s25.q4cdn.com/442043304/files/doc_financials/2026/q1/Snap-Inc-Q1-2026-Investor-Letter.pdf"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "RDDT",
+          "name": "Reddit",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 87,
+          "sources": [
+            "https://finance.yahoo.com/media-advertising/articles/reddit-rddt-targets-1-billion-150812640.html",
+            "https://investsnips.com/list-of-publicly-traded-social-media-companies/",
+            "https://seekingalpha.com/news/4592853-reddit-is-growing-revenue-per-user-faster-than-other-social-media-platforms"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "digital_advertising",
@@ -705,12 +2033,91 @@
           "name": "Meta",
           "note": "",
           "multi_theme": [
-            "social_media",
-            "ai"
+            "ai",
+            "online_advertising",
+            "social_media"
           ]
+        },
+        {
+          "ticker": "GOOGL",
+          "name": "Alphabet",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "autonomous_driving",
+            "cloud",
+            "online_advertising"
+          ],
+          "confidence": 97,
+          "sources": [
+            "https://www.aboutchromebooks.com/google-ads-revenue/",
+            "https://www.cnbc.com/2026/04/29/alphabet-googl-q1-2026-earnings.html",
+            "https://www.demandsage.com/google-ads-statistics/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "APP",
+          "name": "AppLovin",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "mobile_advertising",
+            "online_advertising"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://finance.yahoo.com/markets/stocks/articles/applovin-corporation-q1-2026-earnings-123000909.html",
+            "https://finance.yahoo.com/markets/stocks/articles/applovins-axon-max-power-70-184700734.html",
+            "https://finance.yahoo.com/news/applovins-ai-technology-drives-explosive-161100768.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "TTD",
+          "name": "The Trade Desk",
+          "note": "",
+          "multi_theme": [
+            "online_advertising"
+          ],
+          "confidence": 89,
+          "sources": [
+            "https://finance.yahoo.com/news/ttd-vs-mgni-ad-tech-143200735.html",
+            "https://www.financialcontent.com/article/marketminute-2026-3-20-the-trade-desk-defies-market-slump-ad-tech-giant-gains-34-as-programmatic-advertising-remains-a-bright-spot",
+            "https://www.indexbox.io/blog/applovin-and-rivals-advertising-software-q1-2026-review/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "AMZN",
+          "name": "Amazon",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "aws_cloud",
+            "cloud",
+            "ecommerce",
+            "online_advertising"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://salesduo.com/blog/future-of-amazon-advertising/",
+            "https://tinuiti.com/research-insights/research/digital-ads-benchmark-report/",
+            "https://www.darkroomagency.com/observatory/understanding-the-pinterest-and-amazon-ads-alliance-brand-opportunities"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "ecommerce",
@@ -723,11 +2130,61 @@
           "name": "Amazon",
           "note": "",
           "multi_theme": [
-            "aws_cloud"
+            "ai",
+            "aws_cloud",
+            "cloud",
+            "digital_advertising",
+            "online_advertising"
           ]
+        },
+        {
+          "ticker": "SHOP",
+          "name": "Shopify",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 94,
+          "sources": [
+            "https://novadata.io/resources/news/amazon-shopify-50-percent-us-ecommerce-2026",
+            "https://simplywall.st/stocks/us/software/nasdaq-shop/shopify/future",
+            "https://www.digitalapplied.com/blog/shopify-statistics-2026-platform-growth-data"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "MELI",
+          "name": "MercadoLibre",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 92,
+          "sources": [
+            "https://www.fool.com/investing/2026/02/13/best-growth-stock-to-buy-amazon-mercadolibre/",
+            "https://www.sec.gov/Archives/edgar/data/0001099590/000109959026000014/meli-20260507xex991.htm",
+            "https://www.stocktitan.net/sec-filings/MELI/8-k-mercadolibre-inc-reports-material-event-2be491b4d333.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "CPNG",
+          "name": "Coupang",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 86,
+          "sources": [
+            "https://finance.yahoo.com/markets/stocks/articles/south-korea-ecommerce-opportunity-affirms-185018058.html",
+            "https://intellectia.ai/news/stock/investment-opportunities-in-ecommerce-giants-coupang-and-mercadolibre",
+            "https://www.insidermonkey.com/blog/south-korea-ecommerce-opportunity-affirms-coupang-inc-cpng-as-a-high-growth-large-cap-stock-to-invest-in-1785721/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "aws_cloud",
@@ -740,7 +2197,11 @@
           "name": "Amazon",
           "note": "",
           "multi_theme": [
-            "ecommerce"
+            "ai",
+            "cloud",
+            "digital_advertising",
+            "ecommerce",
+            "online_advertising"
           ]
         }
       ],
@@ -759,7 +2220,38 @@
           "multi_theme": []
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "DIS",
+          "name": "Walt Disney (Disney+/Hulu)",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://247wallst.com/investing/2026/05/12/analysts-see-20-upside-for-disney-on-new-streaming-profitability-milestone/",
+            "https://admiralmarkets.com/education/articles/shares/streaming-stocks",
+            "https://www.fool.com/investing/stock-market/market-sectors/communication/media-stocks/streaming-service-stocks/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "ROKU",
+          "name": "Roku",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://variety.com/2026/tv/news/roku-q4-2025-earnings-2026-revenue-forecast-1236660031/",
+            "https://www.mediapost.com/publications/article/412954/roku-remains-top-ctv-open-ad-platform-with-32-sha.html",
+            "https://www.mediapost.com/publications/article/414358/roku-surpasses-100m-global-households.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "database",
@@ -772,12 +2264,48 @@
           "name": "Oracle",
           "note": "",
           "multi_theme": [
+            "ai_cloud",
             "cloud",
             "software"
           ]
+        },
+        {
+          "ticker": "MDB",
+          "name": "MongoDB",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 92,
+          "sources": [
+            "https://coincentral.com/snowflake-datadog-and-mongodb-why-bofa-is-bullish-on-these-software-stocks/",
+            "https://finance.yahoo.com/news/mdb-vs-snow-which-data-platform-155500859.html",
+            "https://kalkine.com/news/earnings/why-mongodb-nasdaq-mdb-stock-surged-23-after-hours-following-blowout-ai-driven-earnings-beat"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "SNOW",
+          "name": "Snowflake",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "data_analytics",
+            "software"
+          ],
+          "confidence": 89,
+          "sources": [
+            "https://247wallst.com/investing/2026/05/28/snowflake-explodes-37-on-6-billion-amazon-deal-as-ceo-calls-q1-an-ai-inflection-point/",
+            "https://seekingalpha.com/article/4910496-snowflake-mongodb-palantir-servicenow-have-much-more-upside",
+            "https://www.fool.com/coverage/better-buy/2026/06/03/snowflake-vs-mongodb-which-technology-stock-is-a-better-buy-in-2026/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "ai_software",
@@ -790,8 +2318,46 @@
           "name": "Palantir",
           "note": "",
           "multi_theme": [
-            "data_analytics"
+            "ai",
+            "data_analytics",
+            "software"
           ]
+        },
+        {
+          "ticker": "NOW",
+          "name": "ServiceNow",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "software"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://247wallst.com/investing/2026/05/29/servicenow-soars-14-on-enterprise-ai-rotation-as-dells-blowout-earnings-lift-software-sector/",
+            "https://diginomica.com/servicenow-beats-q1-2026-guidance-ai-deals-accelerate-and-outcome-based-pricing-zavery-isnt-buying",
+            "https://fortune.com/2026/05/06/servicenow-30-billion-revenue-not-crazy-why/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "CRM",
+          "name": "Salesforce",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "software"
+          ],
+          "confidence": 91,
+          "sources": [
+            "https://futurumgroup.com/insights/salesforce-q4-fy-2026-earnings-show-agentic-ai-scaling-guidance-steadies/",
+            "https://investor.salesforce.com/news/news-details/2026/Salesforce-Delivers-Record-Fourth-Quarter-Fiscal-2026-Results/default.aspx",
+            "https://markets.financialcontent.com/stocks/article/marketminute-2026-2-25-salesforce-q4-2026-earnings-agentic-ai-drives-revenue-beat-and-enterprise-transformation"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -807,8 +2373,29 @@
           "name": "Palantir",
           "note": "",
           "multi_theme": [
-            "ai_software"
+            "ai",
+            "ai_software",
+            "software"
           ]
+        },
+        {
+          "ticker": "SNOW",
+          "name": "Snowflake Inc.",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "database",
+            "software"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://6sense.com/tech/data-warehousing/snowflake-market-share",
+            "https://futurumgroup.com/insights/snowflake-q4-fy-2026-results-highlight-ai-led-consumption-and-platform-expansion/",
+            "https://stockanalysis.com/stocks/snow/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -824,7 +2411,9 @@
           "name": "AppLovin",
           "note": "",
           "multi_theme": [
-            "ai"
+            "ai",
+            "digital_advertising",
+            "online_advertising"
           ]
         }
       ],
@@ -843,6 +2432,40 @@
           "multi_theme": [
             "datacenter"
           ]
+        },
+        {
+          "ticker": "CRWV",
+          "name": "CoreWeave",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 95,
+          "sources": [
+            "https://agentmarketcap.ai/blog/2026/04/10/coreweave-gpu-cloud-ipo-agent-compute-infrastructure-2026",
+            "https://futurumgroup.com/insights/coreweave-ipo-filing-specialized-ai-cloud-infrastructure/",
+            "https://investors.coreweave.com/news/news-details/2026/CoreWeave-Reports-Strong-First-Quarter-2026-Results/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "ORCL",
+          "name": "Oracle (OCI)",
+          "note": "",
+          "multi_theme": [
+            "cloud",
+            "database",
+            "software"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://futurumgroup.com/insights/oracle-q3-fy-2026-earnings-driven-by-oci-ai-infrastructure-demand/",
+            "https://futurumgroup.com/insights/oracle-q4-fy-2026-ai-workloads-accelerate-cloud-and-database-growth/",
+            "https://investor.oracle.com/investor-news/news-details/2026/Oracle-Announces-Record-Q4-and-FY-2026-Results-Driven-by-Cloud-Infrastructure--Cloud-Applications/default.aspx"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -863,7 +2486,23 @@
           ]
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "RIVN",
+          "name": "Rivian Automotive",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 85,
+          "sources": [
+            "https://seekingalpha.com/article/4882737-rivian-return-to-growth-in-2026",
+            "https://seekingalpha.com/news/4551650-rivian-targets-62000-67000-vehicle-deliveries-for-2026-as-r2-launch-approaches",
+            "https://stockanalysis.com/stocks/rivn/market-cap/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "autonomous_driving",
@@ -876,12 +2515,63 @@
           "name": "Tesla",
           "note": "",
           "multi_theme": [
-            "ev",
-            "energy_storage"
+            "energy_storage",
+            "ev"
           ]
+        },
+        {
+          "ticker": "MBLY",
+          "name": "Mobileye Global",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://stockanalysis.com/stocks/mbly/",
+            "https://stockstotrade.com/news/mobileye-global-inc-mbly-news-2026_05_13/",
+            "https://techcrunch.com/2025/02/10/lyft-to-launch-mobileye-powered-robotaxis-as-soon-as-2026-starting-with-dallas/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "GOOGL",
+          "name": "Alphabet (Waymo)",
+          "note": "",
+          "multi_theme": [
+            "ai",
+            "cloud",
+            "digital_advertising",
+            "online_advertising"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://builtin.com/articles/waymo-robotaxis",
+            "https://techcrunch.com/2026/02/02/waymo-raises-16-billion-round-to-scale-robotaxi-fleet-london-tokyo/",
+            "https://www.bloomberg.com/news/articles/2026-02-02/waymo-raises-16-billion-from-alphabet-others-to-expand-service"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "AUR",
+          "name": "Aurora Innovation",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 87,
+          "sources": [
+            "https://capital.com/en-int/markets/shares/aurora-innovation-inc-share-price/market-cap",
+            "https://finance.yahoo.com/news/aurora-autonomous-freight-expansion-tech-140725459.html",
+            "https://ir.aurora.tech/news-events/press-releases/detail/128/aurora-expands-driverless-trucking-service-from-fort-worth-to-el-paso"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "energy_storage",
@@ -894,9 +2584,24 @@
           "name": "Tesla",
           "note": "",
           "multi_theme": [
-            "ev",
-            "autonomous_driving"
+            "autonomous_driving",
+            "ev"
           ]
+        },
+        {
+          "ticker": "FLNC",
+          "name": "Fluence Energy",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 93,
+          "sources": [
+            "https://finance.yahoo.com/news/record-backlog-2026-revenue-guidance-101025495.html",
+            "https://greenstocksresearch.com/fluence-energy-q2-fy2026-hyperscaler-deals-and-a-record-backlog/",
+            "https://ir.fluenceenergy.com/news-releases/news-release-details/fluence-named-tier-1-energy-storage-supplier-sp-global-commodity"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -912,11 +2617,46 @@
           "name": "GE Vernova",
           "note": "",
           "multi_theme": [
-            "energy_transition"
+            "clean_energy",
+            "energy_transition",
+            "nuclear_smr"
           ]
+        },
+        {
+          "ticker": "ETN",
+          "name": "Eaton Corporation",
+          "note": "",
+          "multi_theme": [
+            "energy_transition"
+          ],
+          "confidence": 95,
+          "sources": [
+            "https://finance.biggo.com/news/US_ETN_2026-05-05",
+            "https://finance.yahoo.com/markets/stocks/articles/eaton-vs-vertiv-industrials-stock-135223994.html",
+            "https://news.alphastreet.com/eaton-etn-posts-record-q1-revenue-as-electrical-backlog-surges-48-on-data-center-demand/amp/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "HUBB",
+          "name": "Hubbell Incorporated",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://finance.biggo.com/news/US_HUBB_2026-04-30",
+            "https://greenstocksresearch.com/grid-hardware-stocks/",
+            "https://news.alphastreet.com/hubbell-hubb-has-a-utility-grid-and-electrification-story-bigger-than-a-housing-cycle-label/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "energy_transition",
@@ -929,11 +2669,100 @@
           "name": "GE Vernova",
           "note": "",
           "multi_theme": [
+            "clean_energy",
+            "nuclear_smr",
             "power_equipment"
           ]
+        },
+        {
+          "ticker": "NEE",
+          "name": "NextEra Energy",
+          "note": "",
+          "multi_theme": [
+            "clean_energy"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://en.wikipedia.org/wiki/NextEra_Energy",
+            "https://finance.yahoo.com/news/nextera-energy-vs-ge-vernova-122000874.html",
+            "https://finance.yahoo.com/news/nextera-nee-anticipates-adding-30-104711159.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "FSLR",
+          "name": "First Solar",
+          "note": "",
+          "multi_theme": [
+            "clean_energy"
+          ],
+          "confidence": 90,
+          "sources": [
+            "https://carboncredits.com/__trashed-6/",
+            "https://carboncredits.com/the-top-4-clean-energy-stocks-dominating-2026-as-ai-supercharges-power-demand/",
+            "https://finance.yahoo.com/sectors/energy/articles/first-solar-inc-fslr-q1-071924707.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "ETN",
+          "name": "Eaton Corporation",
+          "note": "",
+          "multi_theme": [
+            "power_equipment"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://stocktwits.com/news-articles/markets/equity/etn-gev-nee-pwr-vrt-stocks-stand-to-gain-after-us-flags-power-grid-as-defense-priority/cZBN1XwRe2m",
+            "https://www.eaton.com/us/en-us/company/news-insights/energy-transition.html",
+            "https://www.ess-news.com/2026/05/12/us-transformer-market-faces-severe-supply-constraints-as-lead-times-extend-to-four-years/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "PWR",
+          "name": "Quanta Services",
+          "note": "",
+          "multi_theme": [
+            "infrastructure"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://investors.quantaservices.com/news-events/press-releases/detail/386/",
+            "https://quantstrategy.io/blog/investing-in-power-grid-upgrades-key-infrastructure-players/",
+            "https://simplywall.st/stocks/us/capital-goods/nyse-pwr/quanta-services/news/assessing-quanta-services-pwr-valuation-after-2026-investor"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "CEG",
+          "name": "Constellation Energy",
+          "note": "",
+          "multi_theme": [
+            "clean_energy",
+            "nuclear_smr"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://stocktwits.com/news-articles/markets/equity/etn-gev-nee-pwr-vrt-stocks-stand-to-gain-after-us-flags-power-grid-as-defense-priority/cZBN1XwRe2m",
+            "https://tickeron.com/blogs/constellation-energy-ceg-shows-strength-in-q1-2026-amid-clean-energy-growth-13561/",
+            "https://www.financialcontent.com/article/finterra-2026-3-23-the-nuclear-ai-powerhouse-a-deep-dive-into-constellation-energy-ceg"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "construction_machinery",
@@ -950,7 +2779,23 @@
           ]
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "TEX",
+          "name": "Terex Corporation",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 87,
+          "sources": [
+            "https://equipmentfinancenews.com/news/construction/terex-sales-rise-5-7-in-2025/",
+            "https://investors.terex.com/news/news-details/2026/Terex-Reports-Fourth-Quarter-and-Full-Year-2025-Results/default.aspx",
+            "https://www.einpresswire.com/article/902788877/global-aerial-work-platforms-market-dominated-by-north-america-as-terex-and-oshkosh-expand-construction-access-solutions"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "infrastructure",
@@ -965,6 +2810,68 @@
           "multi_theme": [
             "construction_machinery"
           ]
+        },
+        {
+          "ticker": "VMC",
+          "name": "Vulcan Materials",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 92,
+          "sources": [
+            "https://matrixbcg.com/blogs/competitors/vulcanmaterials",
+            "https://simplywall.st/stocks/us/materials/nyse-vmc/vulcan-materials/news/a-look-at-vulcan-materials-vmc-valuation-as-earnings-near-an",
+            "https://stockstory.org/us/stocks/nyse/vmc/news/earnings-call/vmc-q1-2026-deep-dive-data-center-demand-and-public-infrastructure-drive-outperformance"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "PWR",
+          "name": "Quanta Services",
+          "note": "",
+          "multi_theme": [
+            "energy_transition"
+          ],
+          "confidence": 94,
+          "sources": [
+            "https://finimize.com/content/pwr-asset-snapshot",
+            "https://simplywall.st/stocks/us/capital-goods/nyse-pwr/quanta-services/news/how-record-backlog-and-higher-2026-eps-outlook-could-shape-q",
+            "https://stockanalysis.com/etf/pave/holdings/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "MLM",
+          "name": "Martin Marietta Materials",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 90,
+          "sources": [
+            "https://markets.financialcontent.com/stocks/article/marketminute-2026-2-12-infrastructure-resilience-martin-mariettas-2025-results-signal-continued-strength-in-us-public-works",
+            "https://simplywall.st/stocks/us/materials/nyse-mlm/martin-marietta-materials/news/martin-marietta-mlm-lifts-2026-volume-outlook-after-q4-miss",
+            "https://www.nasdaq.com/articles/zacks-industry-outlook-highlights-vulcan-materials-and-martin-marietta-materials"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "ACM",
+          "name": "AECOM",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://finance.yahoo.com/news/does-aecoms-record-backlog-signal-135800275.html",
+            "https://www.businesswire.com/news/home/20260511700814/en/AECOM-reports-second-quarter-fiscal-2026-results",
+            "https://www.tradingview.com/news/zacks:a639d9497094b:0-aecom-retains-construction-business-strategic-win-or-risk/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -980,11 +2887,63 @@
           "name": "Visa",
           "note": "",
           "multi_theme": [
+            "finance",
             "fintech"
           ]
+        },
+        {
+          "ticker": "MA",
+          "name": "Mastercard Incorporated",
+          "note": "",
+          "multi_theme": [
+            "finance",
+            "fintech"
+          ],
+          "confidence": 98,
+          "sources": [
+            "https://finance.yahoo.com/quote/MA/",
+            "https://stockanalysis.com/etf/iyg/holdings/",
+            "https://stockanalysis.com/stocks/ma/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "PYPL",
+          "name": "PayPal Holdings Inc.",
+          "note": "",
+          "multi_theme": [
+            "fintech"
+          ],
+          "confidence": 87,
+          "sources": [
+            "https://finance.yahoo.com/markets/stocks/articles/paypal-stock-down-15-2026-130002785.html",
+            "https://finance.yahoo.com/news/fintech-marketplace-forecast-report-2025-095100433.html",
+            "https://markets.financialcontent.com/stocks/article/finterra-2026-1-16-paypal-pypl-2026-deep-dive-navigating-the-ai-pivot-and-the-bnpl-regulatory-rollercoaster"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "FISV",
+          "name": "Fiserv Inc.",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://finance.yahoo.com/news/zacks-industry-outlook-highlights-visa-161400578.html",
+            "https://stockanalysis.com/etf/finx/holdings/",
+            "https://www.nasdaq.com/articles/zacks-industry-outlook-highlights-visa-mastercard-paypal-fiserv-and-global-payments"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "fintech",
@@ -997,6 +2956,7 @@
           "name": "Visa",
           "note": "",
           "multi_theme": [
+            "finance",
             "payments"
           ]
         },
@@ -1007,9 +2967,60 @@
           "multi_theme": [
             "online_brokerage"
           ]
+        },
+        {
+          "ticker": "MA",
+          "name": "Mastercard Inc.",
+          "note": "",
+          "multi_theme": [
+            "finance",
+            "payments"
+          ],
+          "confidence": 95,
+          "sources": [
+            "https://companiesmarketcap.com/mastercard/marketcap/",
+            "https://explore.nemo.money/en/stocks/compare/visa-vs-mastercard",
+            "https://finviz.com/news/306201/mastercards-value-added-services-boom-in-2025-buy-hold-or-sell"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "COIN",
+          "name": "Coinbase Global",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 85,
+          "sources": [
+            "https://finance.yahoo.com/news/coinbase-sees-etfs-stablecoins-tokenization-074935449.html",
+            "https://markets.financialcontent.com/wral/article/finterra-2026-2-26-coinbase-in-2026-from-crypto-exchange-to-financial-infrastructure-powerhouse",
+            "https://stockanalysis.com/etf/finx/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "PYPL",
+          "name": "PayPal Holdings Inc.",
+          "note": "",
+          "multi_theme": [
+            "payments"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://247wallst.com/investing/2026/04/13/paypal-jumps-5-affirm-rockets-6-sofi-rises-4-in-a-broad-payments-and-fintech-rebound/",
+            "https://finance.yahoo.com/markets/stocks/articles/best-fintech-stocks-buy-2026-015000026.html",
+            "https://seekingalpha.com/article/4870201-paypal-vs-fiserv-which-is-the-better-comeback-bet"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "major_banks",
@@ -1024,6 +3035,89 @@
           "multi_theme": [
             "finance"
           ]
+        },
+        {
+          "ticker": "BAC",
+          "name": "Bank of America",
+          "note": "",
+          "multi_theme": [
+            "finance"
+          ],
+          "confidence": 95,
+          "sources": [
+            "https://companiesmarketcap.com/banks/largest-banks-by-market-cap/",
+            "https://finance.yahoo.com/news/bank-earnings-to-cap-banner-2025-set-the-table-for-growth-in-2026-everything-is-moving-up-at-the-same-time-100007938.html",
+            "https://markets.financialcontent.com/stocks/article/marketminute-2026-4-15-bank-of-america-shatters-q1-2026-estimates-as-investment-banking-and-trading-revenue-reach-new-heights"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "GS",
+          "name": "Goldman Sachs",
+          "note": "",
+          "multi_theme": [
+            "finance"
+          ],
+          "confidence": 94,
+          "sources": [
+            "https://companiesmarketcap.com/goldman-sachs/marketcap/",
+            "https://tickeron.com/blogs/goldman-sachs-gs-vs-morgan-stanley-ms-what-q1-2026-earnings-could-reveal-about-investment-banking-leaders-12472/",
+            "https://www.macrotrends.net/stocks/charts/GS/goldman-sachs/market-cap"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "MS",
+          "name": "Morgan Stanley",
+          "note": "",
+          "multi_theme": [
+            "finance"
+          ],
+          "confidence": 94,
+          "sources": [
+            "https://companiesmarketcap.com/morgan-stanley/marketcap/",
+            "https://finance.yahoo.com/news/bank-earnings-to-cap-banner-2025-set-the-table-for-growth-in-2026-everything-is-moving-up-at-the-same-time-100007938.html",
+            "https://tickeron.com/blogs/goldman-sachs-gs-vs-morgan-stanley-ms-what-q1-2026-earnings-could-reveal-about-investment-banking-leaders-12472/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "WFC",
+          "name": "Wells Fargo",
+          "note": "",
+          "multi_theme": [
+            "finance"
+          ],
+          "confidence": 93,
+          "sources": [
+            "https://247wallst.com/investing/2026/02/19/citigroup-vs-wells-fargo-which-wins-on-dividends-buybacks-interest-rate-exposure/",
+            "https://companiesmarketcap.com/banks/largest-banks-by-market-cap/",
+            "https://finance.yahoo.com/quote/WFC/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "C",
+          "name": "Citigroup",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 91,
+          "sources": [
+            "https://companiesmarketcap.com/citigroup/marketcap/",
+            "https://tradingeconomics.com/c:us:market-capitalization",
+            "https://www.investing.com/news/analyst-ratings/wells-fargo-raises-citi-stock-price-target-on-restructuring-outlook-93CH-4644219"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -1041,9 +3135,129 @@
           "multi_theme": [
             "major_banks"
           ]
+        },
+        {
+          "ticker": "GS",
+          "name": "The Goldman Sachs Group",
+          "note": "",
+          "multi_theme": [
+            "major_banks"
+          ],
+          "confidence": 93,
+          "sources": [
+            "https://disfold.com/united-states/sector/financials/companies/",
+            "https://markets.financialcontent.com/stocks/article/marketminute-2026-3-26-wall-streets-strategic-renaissance-goldman-sachs-and-morgan-stanley-surge-amid-a-2026-m-and-a-supercycle",
+            "https://stockanalysis.com/stocks/gs/market-cap/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "V",
+          "name": "Visa Inc.",
+          "note": "",
+          "multi_theme": [
+            "fintech",
+            "payments"
+          ],
+          "confidence": 92,
+          "sources": [
+            "https://www.ainvest.com/news/visa-mastercard-2026-stablecoin-bets-flow-analysis-2603/",
+            "https://www.fool.com/investing/stock-market/market-sectors/financials/",
+            "https://www.fool.com/research/largest-financial-companies/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "MA",
+          "name": "Mastercard Incorporated",
+          "note": "",
+          "multi_theme": [
+            "fintech",
+            "payments"
+          ],
+          "confidence": 90,
+          "sources": [
+            "https://www.fool.com/investing/2026/01/31/buy-visa-mastercard-comeback-2026/",
+            "https://www.fool.com/research/largest-financial-companies/",
+            "https://www.harianbasis.co/en/visa-mastercard-diverge-q1-2026-revenue"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "BLK",
+          "name": "BlackRock Inc.",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://www.fool.com/investing/stock-market/market-sectors/financials/",
+            "https://www.fool.com/research/largest-financial-companies/",
+            "https://www.sec.gov/Archives/edgar/data/0000844779/000094040026021271/BRFEXE0BR033126.htm"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "MS",
+          "name": "Morgan Stanley",
+          "note": "",
+          "multi_theme": [
+            "major_banks"
+          ],
+          "confidence": 89,
+          "sources": [
+            "https://finance.yahoo.com/quote/SCHW/",
+            "https://www.cnbc.com/2026/04/15/morgan-stanley-ms-earnings-1q-2026.html",
+            "https://www.cnbc.com/2026/06/24/jpmorgan-goldman-sachs-fed-stress-test.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "BAC",
+          "name": "Bank of America Corp.",
+          "note": "",
+          "multi_theme": [
+            "major_banks"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://markets.financialcontent.com/stocks/article/marketminute-2026-4-3-bank-of-america-earnings-preview-resilience-and-resurgence-in-q1-2026",
+            "https://stockanalysis.com/etf/xlf/holdings/",
+            "https://stockanalysis.com/stocks/bac/market-cap/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "WFC",
+          "name": "Wells Fargo & Company",
+          "note": "",
+          "multi_theme": [
+            "major_banks"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://www.alpha-sense.com/largest-banks-by-market-cap/",
+            "https://www.fool.com/investing/stock-market/market-sectors/financials/",
+            "https://www.fool.com/research/largest-financial-companies/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "online_brokerage",
@@ -1058,6 +3272,36 @@
           "multi_theme": [
             "fintech"
           ]
+        },
+        {
+          "ticker": "SCHW",
+          "name": "Charles Schwab",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 94,
+          "sources": [
+            "https://content.schwab.com/web/retail/public/about-schwab/schw_8k_01212026.pdf",
+            "https://investingintheweb.com/brokers/largest-online-brokers-by-aum/",
+            "https://www.ibisworld.com/united-states/industry/online-stock-brokerages/4755/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "IBKR",
+          "name": "Interactive Brokers",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 94,
+          "sources": [
+            "https://investingintheweb.com/brokers/largest-online-brokers-by-aum/",
+            "https://seekingalpha.com/news/4540754-interactive-brokers-signals-continued-global-expansion-and-record-client-growth-with-1m-new-accounts-in-2025",
+            "https://www.barchart.com/story/news/17933/what-to-expect-from-interactive-brokers-q2-2026-earnings-report"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
@@ -1077,7 +3321,23 @@
           ]
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "PLUG",
+          "name": "Plug Power",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 85,
+          "sources": [
+            "https://247wallst.com/investing/2026/05/11/fuelcell-energy-surges-18-plug-power-climbs-13-bloom-energy-rallies-12-as-fuel-cell-stocks-ignite/",
+            "https://247wallst.com/investing/2026/05/12/plug-power-rises-9-then-retreats-is-it-outperforming-other-fuel-cell-stocks-like-fuelcell-energy-and-bloom-energy/",
+            "https://247wallst.com/investing/2026/05/27/plug-power-is-up-6-but-fuelcell-energy-and-bloom-energy-are-in-the-red-whats-going-on-with-fuel-cell-stocks/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "clean_energy",
@@ -1092,9 +3352,96 @@
           "multi_theme": [
             "fuel_cells"
           ]
+        },
+        {
+          "ticker": "NEE",
+          "name": "NextEra Energy",
+          "note": "",
+          "multi_theme": [
+            "energy_transition"
+          ],
+          "confidence": 93,
+          "sources": [
+            "https://companiesmarketcap.com/nextera-energy/marketcap/",
+            "https://en.wikipedia.org/wiki/NextEra_Energy",
+            "https://greentechlead.com/sustainability/nextera-energy-sustainability-report-2025-98-zero-emissions-power-325-bn-clean-energy-investment-plan-and-real-zero-target-by-2045-53695"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "FSLR",
+          "name": "First Solar",
+          "note": "",
+          "multi_theme": [
+            "energy_transition"
+          ],
+          "confidence": 91,
+          "sources": [
+            "https://simplywall.st/stocks/us/semiconductors/nasdaq-fslr/first-solar/news/first-solar-fslr-stock-could-be-85-overvalued-after-its-rece",
+            "https://spglobal.com/commodity-insights/en/news-research/blog/energy-transition/090925-tier-1-cleantech-companies-pv-wind-turbine-bess",
+            "https://stockanalysis.com/etf/icln/holdings/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "GEV",
+          "name": "GE Vernova",
+          "note": "",
+          "multi_theme": [
+            "energy_transition",
+            "nuclear_smr",
+            "power_equipment"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://www.blackridgeresearch.com/blog/top-wind-turbine-manufacturers-makers-companies-suppliers",
+            "https://www.gevernova.com/news/taxonomy/term/9480",
+            "https://www.macrotrends.net/stocks/charts/GEV/ge-vernova/market-cap"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "ENPH",
+          "name": "Enphase Energy",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 85,
+          "sources": [
+            "https://finance.yahoo.com/quote/ENPH/",
+            "https://spglobal.com/commodity-insights/en/news-research/blog/energy-transition/090925-tier-1-cleantech-companies-pv-wind-turbine-bess",
+            "https://stockanalysis.com/etf/icln/holdings/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
-      "tier2": []
+      "tier2": [
+        {
+          "ticker": "CEG",
+          "name": "Constellation Energy",
+          "note": "",
+          "multi_theme": [
+            "energy_transition",
+            "nuclear_smr"
+          ],
+          "confidence": 86,
+          "sources": [
+            "https://money.usnews.com/investing/articles/renewable-energy-stocks-to-consider",
+            "https://www.heygotrade.com/en/blog/ceg-vs-vst-ai-utility-stocks/",
+            "https://www.nerdwallet.com/investing/learn/5-renewable-energy-stocks-to-watch"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        }
+      ]
     },
     {
       "theme_id": "biotech",
@@ -1107,9 +3454,257 @@
           "name": "Apogee Therapeutics",
           "note": "",
           "multi_theme": []
+        },
+        {
+          "ticker": "VRTX",
+          "name": "Vertex Pharmaceuticals",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 95,
+          "sources": [
+            "https://companiesmarketcap.com/vertex-pharmaceuticals/marketcap/",
+            "https://investors.vrtx.com/news-releases/news-release-details/vertex-provides-pipeline-and-business-updates-advance-upcoming-1",
+            "https://www.fool.com/investing/2026/03/05/2-biotech-giants-to-buy-in-2026/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "REGN",
+          "name": "Regeneron Pharmaceuticals",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 92,
+          "sources": [
+            "https://investor.regeneron.com/news-releases/news-release-details/regeneron-reports-first-quarter-2026-financial-and-operating",
+            "https://investsnips.com/best-biotech-stocks/",
+            "https://www.fool.com/investing/2026/03/05/2-biotech-giants-to-buy-in-2026/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "ARGX",
+          "name": "Argenx",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 89,
+          "sources": [
+            "https://argenx.com/news/2026/press-release-3291372",
+            "https://www.fiercebiotech.com/biotech/top-5-stock-picks-biotech-2026-william-blair",
+            "https://www.genengnews.com/a-lists/top-25-biotech-companies-heading-into-2026/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-30"
         }
       ],
       "tier2": []
+    },
+    {
+      "theme_id": "nuclear_smr",
+      "theme_name_zh": "核能復興/小型模組化反應爐",
+      "theme_name_en": "Nuclear Renaissance / Small Modular Reactors",
+      "description": "AI資料中心電力需求暴增，Microsoft與CEG簽署20年核電協議重啟Three Mile Island；GEV股價2026年YTD漲逾51%，CEG漲36%；全球第一個NRC認證SMR設計問世，鈾礦→核電商→SMR開發商三段受益；與現有clean_energy/fuel_cells性質不同，屬無碳穩定基載電力供給鏈。",
+      "tier1": [
+        {
+          "ticker": "CEG",
+          "name": "Constellation Energy",
+          "confidence": 90,
+          "sources": [
+            "https://www.fool.com/investing/2026/04/15/nuclear-is-energy-story-of-2026-here-are-3-stocks/",
+            "https://finance.yahoo.com/energy/articles/buy-3-nuclear-energy-stocks-163900924.html"
+          ],
+          "note": "",
+          "multi_theme": [
+            "clean_energy",
+            "energy_transition"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "CCJ",
+          "name": "Cameco",
+          "confidence": 87,
+          "sources": [
+            "https://exoswan.com/small-modular-reactor-stocks/",
+            "https://themesetfs.com/insights/5-nuclear-stocks-to-watch-as-smrs-and-microreactors-advance"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "GEV",
+          "name": "GE Vernova",
+          "confidence": 85,
+          "sources": [
+            "https://www.fool.com/coverage/better-buy/2026/06/25/constellation-energy-vs-ge-vernova-which-utilities-stock-is-a-better-buy-in-2026/"
+          ],
+          "note": "",
+          "multi_theme": [
+            "clean_energy",
+            "energy_transition",
+            "power_equipment"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "OKLO",
+          "name": "Oklo",
+          "confidence": 70,
+          "sources": [
+            "https://exoswan.com/small-modular-reactor-stocks/"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "VST",
+          "name": "Vistra Energy",
+          "confidence": 72,
+          "sources": [
+            "https://www.fool.com/investing/stock-market/market-sectors/energy/nuclear/"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        }
+      ],
+      "sources": [],
+      "confidence": 70
+    },
+    {
+      "theme_id": "glp1_obesity",
+      "theme_name_zh": "GLP-1減重藥/代謝疾病治療",
+      "theme_name_en": "GLP-1 Obesity Drugs / Metabolic Therapeutics",
+      "description": "Wegovy/Ozempic/Zepbound掀起全球減重藥革命；LLY代謝健康部門2025年營收近400億美元，NVO糖尿病肥胖部門約440億美元；2026年口服GLP-1（orflorglipron/oral Wegovy）相繼上市擴大市場；心血管、腎病、NASH等新適應症持續延伸，第二梯次競爭者加速進入。現有biotech為廣義，此題材規模與驅動力獨立。",
+      "tier1": [
+        {
+          "ticker": "LLY",
+          "name": "Eli Lilly",
+          "confidence": 95,
+          "sources": [
+            "https://www.cnbc.com/2026/02/04/eli-lilly-novo-nordisk-earnings-glp1-market.html",
+            "https://www.heygotrade.com/en/blog/eli-lilly-lly-vs-novo-nordisk-nvo-2026-glp1/"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "NVO",
+          "name": "Novo Nordisk",
+          "confidence": 92,
+          "sources": [
+            "https://www.cnbc.com/2025/12/23/wegovy-maker-novo-nordisk-shares-surge-after-glp-1-pill-approval.html"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "VKTX",
+          "name": "Viking Therapeutics",
+          "confidence": 74,
+          "sources": [
+            "https://www.morningstar.com/business/insights/blog/markets/obesity-drug-industry-forecast"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        }
+      ],
+      "sources": [],
+      "confidence": 70
+    },
+    {
+      "theme_id": "cybersecurity",
+      "theme_name_zh": "AI驅動網路資安平台",
+      "theme_name_en": "AI-Driven Cybersecurity Platform",
+      "description": "AI攻防升級使資安支出從選擇性轉為結構性必需；CRWD Q1 FY2026營收+26% YoY、ARR達55億美元；PANW平台化策略加速收斂（Q3有機bookings加速）；Agentic AI新攻擊面催生新一輪換代需求；全球市場2025~2034年CAGR 13.8%，Zero Trust/SASE整合推動格局集中。現有清單完全無資安相關題材。",
+      "tier1": [
+        {
+          "ticker": "CRWD",
+          "name": "CrowdStrike",
+          "confidence": 92,
+          "sources": [
+            "https://www.cybersecuritydive.com/news/crowdstrike-palo-alto-networks-ai-cyber-demand/821999/",
+            "https://www.investing.com/analysis/crowdstrike-and-palo-alto-lead-the-agentic-ai-cybersecurity-push-200677318"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "PANW",
+          "name": "Palo Alto Networks",
+          "confidence": 90,
+          "sources": [
+            "https://www.fool.com/investing/2026/03/13/crowdstrike-vs-palo-alto-networks-which-cybersecur/"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "FTNT",
+          "name": "Fortinet",
+          "confidence": 82,
+          "sources": [
+            "https://www.morningstar.com/stocks/3-cybersecurity-stocks-invest-ai-reshapes-industries"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        },
+        {
+          "ticker": "ZS",
+          "name": "Zscaler",
+          "confidence": 79,
+          "sources": [
+            "https://finance.yahoo.com/news/4-cybersecurity-stocks-strong-demand-133700766.html"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-30"
+        }
+      ],
+      "sources": [],
+      "confidence": 70
     }
   ]
 }

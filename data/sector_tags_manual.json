@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-04-27",
+  "generated_at": "2026-06-24",
   "description": "台股 AI era 主流題材 sector tag 手動清單 (Q12-c answer)。peer_group 用於 Pair Divergence 驗證。multi_theme 由 merge_sector_tags.py 自動交叉索引。",
   "source": "3 x general-purpose agent web research (MoneyDJ, 鉅亨, 券商報告, 經濟日報) 2026-04-24",
   "themes": [
@@ -46,7 +46,9 @@
           "ticker": "2356",
           "name": "英業達",
           "note": "L6/L10 伺服器代工、AI server 出貨量二線",
-          "multi_theme": []
+          "multi_theme": [
+            "ai_pc_soc"
+          ]
         },
         {
           "ticker": "3706",
@@ -132,12 +134,6 @@
           "multi_theme": []
         },
         {
-          "ticker": "6412",
-          "name": "群電",
-          "note": "散熱模組與風扇、AI server 切入中",
-          "multi_theme": []
-        },
-        {
           "ticker": "3338",
           "name": "泰碩",
           "note": "熱導管 / VC 均熱板，AI server 跟隨者",
@@ -186,20 +182,12 @@
           "ticker": "6282",
           "name": "康舒",
           "note": "金仁寶集團 PSU 三雄，AI server 2025Q3 量產",
-          "multi_theme": [
-            "ev_supply_chain"
-          ]
+          "multi_theme": []
         },
         {
           "ticker": "3015",
           "name": "全漢",
           "note": "中功率 PSU、AI server 追隨者",
-          "multi_theme": []
-        },
-        {
-          "ticker": "3078",
-          "name": "僑威",
-          "note": "PSU 二線廠、AI server 切入中",
           "multi_theme": []
         },
         {
@@ -267,7 +255,8 @@
           "name": "臻鼎-KY",
           "note": "以軟板為主，HDI/MSAP/HLC 延伸題材",
           "multi_theme": [
-            "apple_supply_chain"
+            "apple_supply_chain",
+            "cowos_advanced_package"
           ]
         }
       ],
@@ -321,12 +310,6 @@
           "multi_theme": []
         },
         {
-          "ticker": "5340",
-          "name": "建榮",
-          "note": "玻纖布廠、AI 伺服器 CCL 上游受惠",
-          "multi_theme": []
-        },
-        {
           "ticker": "8358",
           "name": "金居",
           "note": "銅箔廠，HVLP 銅箔為高速 CCL 關鍵原料",
@@ -367,7 +350,9 @@
           "ticker": "2313",
           "name": "華通",
           "note": "AI 伺服器 + LEO 衛星雙引擎",
-          "multi_theme": []
+          "multi_theme": [
+            "leo_satellite_supply"
+          ]
         }
       ],
       "tier2": [
@@ -384,22 +369,25 @@
           "multi_theme": []
         },
         {
-          "ticker": "5289",
-          "name": "宜鼎",
-          "note": "工業應用 PCB / 儲存為主，AI 切入有限（待確認）",
-          "multi_theme": []
-        },
-        {
           "ticker": "2367",
           "name": "燿華",
           "note": "低軌衛星 + PCB 雙引擎，AI server 純度中等",
           "multi_theme": []
         },
         {
-          "ticker": "6476",
-          "name": "高技",
-          "note": "2025 資本支出 10 億擴多層高速板",
-          "multi_theme": []
+          "ticker": "5439",
+          "name": "高技企業",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 85,
+          "sources": [
+            "https://cmnews.com.tw/article/cmoneyairesearcher-0c8e087c-cbfd-11f0-a15b-6b387000f618",
+            "https://money.udn.com/money/story/5607/8983259",
+            "https://news.cnyes.com/news/id/6503716"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "pair_divergence_suitable": true,
@@ -425,14 +413,17 @@
           "note": "FoCoS 2026H2 量產、先進封裝 2026 營收 19 億美元",
           "multi_theme": [
             "apple_supply_chain",
-            "cowos_advanced_package"
+            "cowos_advanced_package",
+            "mobile_soc"
           ]
         },
         {
           "ticker": "2449",
           "name": "京元電子",
           "note": "AI GPU 與 Google TPU 測試訂單，2026 營收 YoY +40%",
-          "multi_theme": []
+          "multi_theme": [
+            "mobile_soc"
+          ]
         }
       ],
       "tier2": [
@@ -440,7 +431,10 @@
           "ticker": "6239",
           "name": "力成",
           "note": "記憶體封測龍頭、HBM 與 AI server 間接受惠",
-          "multi_theme": []
+          "multi_theme": [
+            "cowos_advanced_package",
+            "foplp_packaging"
+          ]
         },
         {
           "ticker": "6257",
@@ -459,6 +453,21 @@
           "name": "精材",
           "note": "CIS 晶圓級封裝，AI 純度低但屬先進封裝共振",
           "multi_theme": []
+        },
+        {
+          "ticker": "3264",
+          "name": "欣銓",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://money.udn.com/money/story/11074/9217528",
+            "https://news.cnyes.com/news/id/6253980",
+            "https://news.cnyes.com/news/id/6278656"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "pair_divergence_suitable": true,
@@ -706,7 +715,9 @@
           "name": "台積電",
           "note": "CoWoS 技術提供者，2026 月產能目標 11-14 萬片",
           "multi_theme": [
-            "apple_supply_chain"
+            "ai_pc_soc",
+            "apple_supply_chain",
+            "mobile_soc"
           ]
         },
         {
@@ -731,7 +742,8 @@
           "note": "CoWoS 外包主要承接廠，月產能 3-4 萬片",
           "multi_theme": [
             "advanced_test",
-            "apple_supply_chain"
+            "apple_supply_chain",
+            "mobile_soc"
           ]
         }
       ],
@@ -775,10 +787,38 @@
           "multi_theme": []
         },
         {
-          "ticker": "6641",
-          "name": "基士德-KY",
-          "note": "先進封裝設備周邊",
-          "multi_theme": []
+          "ticker": "4958",
+          "name": "臻鼎-KY",
+          "note": "",
+          "multi_theme": [
+            "abf_substrate",
+            "apple_supply_chain"
+          ],
+          "confidence": 83,
+          "sources": [
+            "https://blog.growin.tv/advanced-packaging-stocks/",
+            "https://wantrich.chinatimes.com/news/20260519900253-420101"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        },
+        {
+          "ticker": "6239",
+          "name": "力成",
+          "note": "",
+          "multi_theme": [
+            "advanced_test",
+            "foplp_packaging"
+          ],
+          "confidence": 82,
+          "sources": [
+            "https://money.udn.com/money/story/5612/9128342",
+            "https://news.cnyes.com/news/id/6010890"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "pair_divergence_suitable": true,
@@ -831,12 +871,6 @@
           "name": "力積電",
           "note": "DRAM 代工 + 3D 堆疊技術",
           "multi_theme": []
-        },
-        {
-          "ticker": "2337",
-          "name": "旺宏",
-          "note": "NOR Flash + 3D NAND，DDR4 降評但有替代機會",
-          "multi_theme": []
         }
       ],
       "pair_divergence_suitable": true,
@@ -862,6 +896,24 @@
             "ai_pc_soc",
             "asic_design_service"
           ]
+        },
+        {
+          "ticker": "2330",
+          "name": "台積電",
+          "note": "",
+          "multi_theme": [
+            "ai_pc_soc",
+            "apple_supply_chain",
+            "cowos_advanced_package"
+          ],
+          "confidence": 93,
+          "sources": [
+            "https://www.technetbooks.com/2026/04/mediatek-dimensity-9600-redesign.html",
+            "https://www.trendforce.com/news/2026/04/27/news-tsmc-3nm-monthly-capacity-may-hit-180k-wafers-by-2026-up-over-40-yoy-on-ai-demand/"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "tier2": [
@@ -870,6 +922,38 @@
           "name": "聯詠",
           "note": "中低階手機 SoC + 顯示驅動 IC，部分重疊但主業不同",
           "multi_theme": []
+        },
+        {
+          "ticker": "3711",
+          "name": "日月光投控",
+          "note": "",
+          "multi_theme": [
+            "advanced_test",
+            "apple_supply_chain",
+            "cowos_advanced_package"
+          ],
+          "confidence": 85,
+          "sources": [
+            "https://www.nasdaq.com/press-release/ase-expands-its-chip-packaging-and-testing-facility-enable-next-gen-applications-2025"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        },
+        {
+          "ticker": "2449",
+          "name": "京元電子",
+          "note": "",
+          "multi_theme": [
+            "advanced_test"
+          ],
+          "confidence": 80,
+          "sources": [
+            "https://www.digitimes.com/news/a20251105PD210/kyec-ai-chip-testing-taiwan.html"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "pair_divergence_suitable": false,
@@ -894,6 +978,24 @@
             "asic_design_service",
             "mobile_soc"
           ]
+        },
+        {
+          "ticker": "2330",
+          "name": "台積電",
+          "note": "",
+          "multi_theme": [
+            "apple_supply_chain",
+            "cowos_advanced_package",
+            "mobile_soc"
+          ],
+          "confidence": 95,
+          "sources": [
+            "https://blog.wistock.ai/practical-cases-experience-sharing/ai-pc-2026-taiwan-supply-chain-growth/",
+            "https://www.bnext.com.tw/article/91101/nvidia-rtx-spark-ai-pc"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "tier2": [
@@ -934,6 +1036,23 @@
           "multi_theme": [
             "ai_server_odm"
           ]
+        },
+        {
+          "ticker": "2356",
+          "name": "英業達",
+          "note": "",
+          "multi_theme": [
+            "ai_server_odm"
+          ],
+          "confidence": 84,
+          "sources": [
+            "https://news.futunn.com/en/post/74042049/",
+            "https://technews.tw/2026/06/05/computex-2026-nvidia-rtx-spark-debut-mediatek-ai-pc-entry/",
+            "https://www.ctee.com.tw/news/20260603701394-430502"
+          ],
+          "status": "active",
+          "proposed_by": "agent_consensus",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "pair_divergence_suitable": false,
@@ -1010,18 +1129,6 @@
           "name": "嘉基",
           "note": "光通訊模組，2028 CPO scale-up 潛在受惠",
           "multi_theme": []
-        },
-        {
-          "ticker": "3402",
-          "name": "漢科",
-          "note": "矽光子製程設備周邊",
-          "multi_theme": []
-        },
-        {
-          "ticker": "6863",
-          "name": "永道-KY",
-          "note": "光纖跳接線二線追隨",
-          "multi_theme": []
         }
       ],
       "pair_divergence_suitable": true,
@@ -1061,7 +1168,9 @@
           "name": "台積電",
           "note": "A 系列 / M 系列晶片獨家代工，Apple 最大單一客戶",
           "multi_theme": [
-            "cowos_advanced_package"
+            "ai_pc_soc",
+            "cowos_advanced_package",
+            "mobile_soc"
           ]
         },
         {
@@ -1077,7 +1186,8 @@
           "name": "臻鼎-KY",
           "note": "iPhone 軟板 PCB 核心供應商",
           "multi_theme": [
-            "abf_substrate"
+            "abf_substrate",
+            "cowos_advanced_package"
           ]
         },
         {
@@ -1126,7 +1236,8 @@
           "note": "Apple 晶片封測主力",
           "multi_theme": [
             "advanced_test",
-            "cowos_advanced_package"
+            "cowos_advanced_package",
+            "mobile_soc"
           ]
         },
         {
@@ -1142,6 +1253,35 @@
           "multi_theme": [
             "optical_lens"
           ]
+        },
+        {
+          "ticker": "3376",
+          "name": "新日興",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 87,
+          "sources": [
+            "https://money.udn.com/money/story/11162/8818849",
+            "https://www.moneyweekly.com.tw/ArticleData/Info/Article/221985",
+            "https://www.sinotrade.com.tw/richclub/industry/%E8%98%8B%E6%9E%9C%E6%91%BA%E7%96%8A%E6%A9%9F2026%E5%B9%B4%E4%B8%8A%E5%B8%82%E5%9C%A8%E5%8D%B3-%E5%8F%B0%E5%BB%A0%E4%BE%9B%E6%87%89%E9%8F%88%E5%90%8D%E5%96%AE-%E6%8A%80%E8%A1%93%E4%BA%AE%E9%BB%9E%E8%88%87%E6%8A%95%E8%B3%87%E6%A9%9F%E6%9C%83%E5%85%A8%E8%A7%A3%E6%9E%90-%E7%94%A2%E6%A5%AD%E7%86%B1%E8%A9%B1-686b30e4dbf91900ba763c8b"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        },
+        {
+          "ticker": "3527",
+          "name": "兆利",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 82,
+          "sources": [
+            "https://money.udn.com/money/story/11162/8818849",
+            "https://money.udn.com/money/story/12040/8970100"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "pair_divergence_suitable": true,
@@ -1171,7 +1311,9 @@
           "ticker": "6285",
           "name": "啟碁",
           "note": "Starlink 用戶終端主要供應 + 5G FWA + 企業網通",
-          "multi_theme": []
+          "multi_theme": [
+            "leo_satellite_supply"
+          ]
         },
         {
           "ticker": "5388",
@@ -1194,34 +1336,12 @@
           "multi_theme": []
         },
         {
-          "ticker": "2419",
-          "name": "仲琦",
-          "note": "明泰子公司，cable modem 出貨高成長",
-          "multi_theme": []
-        },
-        {
           "ticker": "3491",
           "name": "昇達科",
           "note": "低軌衛星波導管龍頭 + 6G 毫米波",
-          "multi_theme": []
-        },
-        {
-          "ticker": "2316",
-          "name": "楠梓電",
-          "note": "網通 PCB 二線追隨",
-          "multi_theme": []
-        },
-        {
-          "ticker": "2332",
-          "name": "友訊",
-          "note": "消費性網通品牌，二線",
-          "multi_theme": []
-        },
-        {
-          "ticker": "6142",
-          "name": "友勁",
-          "note": "WiFi 模組二線追隨",
-          "multi_theme": []
+          "multi_theme": [
+            "leo_satellite_supply"
+          ]
         }
       ],
       "pair_divergence_suitable": true,
@@ -1295,32 +1415,14 @@
           "ticker": "8255",
           "name": "朋程",
           "note": "車用整流二極體 / IGBT 與強茂合作",
-          "multi_theme": []
-        },
-        {
-          "ticker": "2328",
-          "name": "廣宇",
-          "note": "鴻海旗下連接器",
-          "multi_theme": []
+          "multi_theme": [
+            "sic_third_gen_semi"
+          ]
         },
         {
           "ticker": "3552",
           "name": "同致",
           "note": "車用電子 / 倒車雷達",
-          "multi_theme": []
-        },
-        {
-          "ticker": "6282",
-          "name": "康舒",
-          "note": "EV 充電 / 電源模組",
-          "multi_theme": [
-            "ai_power"
-          ]
-        },
-        {
-          "ticker": "4534",
-          "name": "慶騰",
-          "note": "汽車傳動軸",
           "multi_theme": []
         }
       ],
@@ -1404,6 +1506,22 @@
           "name": "越峰",
           "note": "碳化矽磨料二線",
           "multi_theme": []
+        },
+        {
+          "ticker": "8255",
+          "name": "朋程",
+          "note": "",
+          "multi_theme": [
+            "ev_supply_chain"
+          ],
+          "confidence": 88,
+          "sources": [
+            "https://blog.fugle.tw/post/earnings-call-8255-2025-08-29",
+            "https://www.moneydj.com/kmdj/news/newsviewer.aspx?a=1a7c1f3b-4b2e-421f-a670-e560315436fb"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "pair_divergence_suitable": true,
@@ -1516,12 +1634,6 @@
           "name": "先進光",
           "note": "車用 ADAS 鏡頭模組",
           "multi_theme": []
-        },
-        {
-          "ticker": "6291",
-          "name": "佳能",
-          "note": "機器人之眼熱門股",
-          "multi_theme": []
         }
       ],
       "pair_divergence_suitable": true,
@@ -1592,21 +1704,9 @@
           "multi_theme": []
         },
         {
-          "ticker": "1504",
-          "name": "東元",
-          "note": "馬達 / 驅動，工業機器人基礎",
-          "multi_theme": []
-        },
-        {
           "ticker": "8374",
           "name": "羅昇",
           "note": "自動化傳動代理 + 機器人零件",
-          "multi_theme": []
-        },
-        {
-          "ticker": "6525",
-          "name": "捷敏-KY",
-          "note": "機器人功率模組",
           "multi_theme": []
         },
         {
@@ -1616,6 +1716,20 @@
           "multi_theme": [
             "optical_lens"
           ]
+        },
+        {
+          "ticker": "4571",
+          "name": "鈞興-KY",
+          "note": "",
+          "multi_theme": [],
+          "confidence": 88,
+          "sources": [
+            "https://news.tvbs.com.tw/money/3196926",
+            "https://vocus.cc/article/69fc698efd8978000140cc83"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
         }
       ],
       "pair_divergence_suitable": true,
@@ -1668,6 +1782,141 @@
         "https://www.iek.org.tw/EXEC/E03_iek_view_post_html.cfm?actiontype=view&postid=37289"
       ],
       "confidence": 90
+    },
+    {
+      "theme_id": "leo_satellite_supply",
+      "theme_name_zh": "低軌衛星供應鏈",
+      "theme_name_en": "LEO Satellite Supply Chain",
+      "description": "2026-06 SpaceX以SPCX代號掛牌NASDAQ(市值逾2兆美元)為直接催化劑；第一代Starlink衛星壽命約5年，2026起換機潮啟動；SpaceX密訪台廠擴大下單昇達科/華通；台廠在PCB(華通~90%市占)與RF衛星元件佔全球獨特地位；昇達科Q1 2026衛星營收YoY+131%、占比升至80%；新聞動能計數41，與現有24個題材id均無重疊(gaas_compound_semi涵蓋穩懋已排除在Tier1外)",
+      "tier1": [
+        {
+          "ticker": "3491",
+          "name": "昇達科",
+          "confidence": 87,
+          "sources": [
+            "https://uanalyze.com.tw/articles/8476350370",
+            "https://www.sinotrade.com.tw/richclub/hotstock/SpaceX%E4%BD%8E%E8%AA%BF%E8%A8%AA%E5%8F%B0%E6%93%B4%E5%A4%A7%E4%B8%8B%E5%96%AE-%E6%98%87%E9%81%94%E7%A7%91-%E8%8F%AF%E9%80%9A%E6%88%90%E9%87%8D%E9%BB%9E%E5%B0%8D%E8%B1%A1-%E5%8F%B0%E5%BB%A0%E5%A4%AA%E7%A9%BA%E4%BE%9B%E6%87%89%E9%8F%88%E5%85%A8%E8%A7%A3%E6%9E%90-%E8%82%A1%E5%B8%82%E8%A9%B1%E9%A1%8C-69733dea69e5022612a7aa66"
+          ],
+          "note": "",
+          "multi_theme": [
+            "networking_5g"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        },
+        {
+          "ticker": "2313",
+          "name": "華通",
+          "confidence": 85,
+          "sources": [
+            "https://tw.stock.yahoo.com/news/%E4%B8%8D%E5%8F%AA%E8%8F%AF%E9%80%9A%E8%A6%81%E9%A3%86-%E9%80%994%E6%AA%94%E4%BD%8E%E8%BB%8C%E8%A1%9B%E6%98%9F",
+            "https://www.pocket.tw/school/report/perspective/7049/"
+          ],
+          "note": "",
+          "multi_theme": [
+            "pcb_hard"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "6271",
+          "name": "同欣電",
+          "confidence": 70,
+          "sources": [
+            "https://blog.growin.tv/tw-leo-stock/"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        },
+        {
+          "ticker": "6285",
+          "name": "啟碁",
+          "confidence": 68,
+          "sources": [
+            "https://readmo.cmoney.tw/article/6e437e13-e802-4a43-902f-7380eeb3d725"
+          ],
+          "note": "",
+          "multi_theme": [
+            "networking_5g"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        }
+      ],
+      "sources": [],
+      "confidence": 70,
+      "pair_divergence_suitable": false,
+      "pair_divergence_note": "",
+      "liquidity_warnings": []
+    },
+    {
+      "theme_id": "foplp_packaging",
+      "theme_name_zh": "FOPLP 面板級封裝",
+      "theme_name_en": "Fan-Out Panel Level Packaging",
+      "description": "以矩形面板取代圓形晶圓進行封裝，面積利用率大幅提升、單位成本可降30-40%；與現有cowos_advanced_package(圓形晶圓CoWoS路線)為不同技術路徑，面板廠跨界是台股獨有機會；台積電CoPoS試產+日月光310mm產線+群創月產>4000萬顆+力成510mm擴建，2026年量產放量催化；三大法人2026-05單周砸82.5億元買進群創；群創YT近期高達40次提及；新聞動能中明確出現「FOPLP封裝」詞條",
+      "tier1": [
+        {
+          "ticker": "3481",
+          "name": "群創",
+          "confidence": 82,
+          "sources": [
+            "https://tw.stock.yahoo.com/news/foplp%E6%8A%80%E8%A1%93-%E7%8E%BB%E7%92%83%E5%9F%BA%E6%9D%BF%E5%BC%95%E7%88%86-%E4%B8%89%E5%A4%A7%E6%B3%95%E4%BA%BA%E7%A0%8182-5%E5%84%84%E9%80%B2%E8%BB%8C%E7%BE%A4%E5%89%B5-%E5%86%8D%E8%A3%9C%E8%A1%80%E8%8F%AF%E9%80%9A2-130000902.html",
+            "https://www.sinotrade.com.tw/richclub/hotstock/FOPLP%E6%98%AF%E4%BB%80%E9%BA%BC-FOPLP%E6%A6%82%E5%BF%B5%E8%82%A1%E6%9C%89%E5%93%AA%E4%BA%9B-%E5%BE%9E%E7%BE%A4%E5%89%B5%E5%88%B0%E8%A8%AD%E5%82%99%E9%8F%88-%E5%85%88%E9%80%B2%E5%B0%81%E8%A3%9D%E6%96%B0%E9%A1%AF%E5%AD%B8%E5%AE%8C%E6%95%B4%E8%A7%A3%E6%9E%90-%E8%82%A1%E5%B8%82%E8%A9%B1%E9%A1%8C-6951faa7bcaa6016909f431a"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        },
+        {
+          "ticker": "6239",
+          "name": "力成",
+          "confidence": 78,
+          "sources": [
+            "https://cmnews.com.tw/article/cmoney-c2c37956-557d-11f1-950e-7036aa99abc8",
+            "https://www.esunsec.com.tw/article/post/593"
+          ],
+          "note": "",
+          "multi_theme": [
+            "advanced_test",
+            "cowos_advanced_package"
+          ],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        }
+      ],
+      "tier2": [
+        {
+          "ticker": "8027",
+          "name": "鈦昇",
+          "confidence": 65,
+          "sources": [
+            "https://leveragetw.com/glass-core-substrate-tgv/",
+            "https://money.udn.com/money/story/124512/9510203"
+          ],
+          "note": "",
+          "multi_theme": [],
+          "status": "active",
+          "proposed_by": "agent_single",
+          "last_reviewed": "2026-06-24"
+        }
+      ],
+      "sources": [],
+      "confidence": 70,
+      "pair_divergence_suitable": false,
+      "pair_divergence_note": "",
+      "liquidity_warnings": []
     }
   ]
 }
