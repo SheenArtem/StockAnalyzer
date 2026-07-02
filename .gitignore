@@ -55,6 +55,9 @@ Desktop.ini
 .claude/*
 !.claude/skills/
 
+# 跨 agent 本機 handoff 檔（AGENTS.md: local handoff files by default，不入版控）
+.ai/
+
 # Runtime artifacts
 *.stackdump
 *.log
