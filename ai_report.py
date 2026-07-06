@@ -2585,41 +2585,4 @@ def post_validate_numbers(report_md, action_plan, tolerance_pct=0.5):
     }
 
 
-def send_drift_discord(ticker, drift_check, webhook_url=None):
-    """Send drift warning to Discord. Returns True on success.
-
-    Reads DISCORD_WEBHOOK_URL from local/.env if webhook_url not given.
-    Silently no-op (returns False) if webhook unconfigured.
-    """
-    if not drift_check or not drift_check.get('drift'):
-        return False
-    if not webhook_url:
-        env_path = os.path.join(os.path.dirname(__file__), 'local', '.env')
-        if os.path.exists(env_path):
-            with open(env_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if line.startswith('DISCORD_WEBHOOK_URL='):
-                        webhook_url = line.strip().split('=', 1)[1].strip()
-                        break
-    if not webhook_url:
-        return False
-
-    expected = drift_check.get('expected_numbers', [])
-    unexpected = drift_check.get('unexpected_numbers', [])
-    content = (
-        f"**[DRIFT_DETECTED] {ticker} AI 報告 Section 8 漂移**\n"
-        f"Ground truth (action_plan): `{expected}`\n"
-        f"Unexpected in 三欄: `{unexpected}`\n"
-        f"Note: {drift_check.get('note', '')}\n"
-        f"_提示：Phase 1 hard rule 在此案例失效，請人工 audit 並考慮 Phase 2 dataclass refactor 或調整 prompt_"
-    )
-    try:
-        import requests
-        resp = requests.post(webhook_url, json={'content': content}, timeout=10)
-        return resp.status_code == 204
-    except Exception as e:
-        logger.error("Discord drift notification failed: %s", e)
-        return False
-
-
 from datetime import datetime

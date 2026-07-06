@@ -28,14 +28,12 @@ Schema (每日一 row):
 
 CLI:
   python tools/archive_vol_complex.py            # rebuild full + save
-  python tools/archive_vol_complex.py --notify   # 偵測 regime 升級時推 Discord (state file dedupe)
+  (--notify Discord push removed 2026-07-06; regime 狀態每次 run 都印在 log)
 """
 from __future__ import annotations
 
 import argparse
-import json
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -49,7 +47,6 @@ logger = logging.getLogger(__name__)
 
 CACHE_DIR = REPO / "data_cache" / "fred"
 OUT = REPO / "data" / "sentiment" / "vol_complex_history.parquet"
-NOTIFY_STATE = REPO / "data" / "sentiment" / "_vol_complex_last_alert.json"
 
 # 閾值（用戶 framework，未經 IC 驗證 - informational tier）
 THRESHOLDS = {
@@ -115,97 +112,8 @@ def build_panel() -> pd.DataFrame:
     return df
 
 
-def _format_alert(latest_row, prev_row=None) -> str:
-    lights = {
-        'VIX/VIX3M': (latest_row['vix_vix3m_ratio'], latest_row['vix_vix3m_ratio_light']),
-        'VVIX':      (latest_row['vvix'], latest_row['vvix_light']),
-        'SKEW':      (latest_row['skew'], latest_row['skew_light']),
-        'OVX':       (latest_row['ovx'], latest_row['ovx_light']),
-    }
-    emoji = {'green': ':green_circle:', 'yellow': ':yellow_circle:',
-             'orange': ':orange_circle:', 'red': ':red_circle:'}
-
-    lines = [
-        f"**:warning: Vol Complex regime → {latest_row['regime'].upper()}** ({latest_row['date'].strftime('%Y-%m-%d')})",
-        f"亮燈數: {int(latest_row['lit_count'])} / 4",
-    ]
-    for name, (val, light) in lights.items():
-        if isinstance(val, float):
-            lines.append(f"• {emoji[light]} {name}: {val:.2f}")
-    if prev_row is not None:
-        lines.append(f"\n_前次 regime: {prev_row['regime']} (lit {int(prev_row['lit_count'])})_")
-    lines.append("_informational tier / 美股經驗閾值未經台股 IC 驗證 / 不接 portfolio gating_")
-    return "\n".join(lines)
-
-
-def push_discord(text: str) -> bool:
-    import requests
-    url = os.environ.get('DISCORD_WEBHOOK_MACRO') or os.environ.get('DISCORD_WEBHOOK')
-    if not url:
-        logger.info("No DISCORD_WEBHOOK[_MACRO] env, skip push")
-        return False
-    try:
-        r = requests.post(url, json={'content': text}, timeout=20)
-        r.raise_for_status()
-        logger.info("Discord push OK")
-        return True
-    except Exception as e:
-        logger.error("Discord push failed: %s", e)
-        return False
-
-
-def _load_last_alert() -> dict | None:
-    if not NOTIFY_STATE.exists():
-        return None
-    try:
-        return json.loads(NOTIFY_STATE.read_text(encoding='utf-8'))
-    except Exception:
-        return None
-
-
-def _save_last_alert(state: dict):
-    NOTIFY_STATE.parent.mkdir(parents=True, exist_ok=True)
-    NOTIFY_STATE.write_text(json.dumps(state, default=str, ensure_ascii=False), encoding='utf-8')
-
-
-def maybe_notify(df: pd.DataFrame, force: bool = False):
-    """regime 從低升高 (monitor→warning / warning→high_alert / ...→defensive) 才推。
-    同日不重複。回到 green / 持平 / 下降都不推。"""
-    if df.empty:
-        return
-    latest = df.iloc[-1]
-    today_str = pd.Timestamp(latest['date']).strftime('%Y-%m-%d')
-    latest_regime = latest['regime']
-    latest_lit = int(latest['lit_count'])
-
-    last = _load_last_alert() or {}
-    if not force and last.get('date') == today_str:
-        logger.info("Already alerted today (%s), skip", today_str)
-        return
-
-    prev_lit = last.get('lit_count', -1)
-    if not force and latest_lit <= prev_lit:
-        logger.info("Lit count %d <= last alerted %d, skip (only escalation triggers)",
-                    latest_lit, prev_lit)
-        # 但 state 仍要更新 date 避免今日重判
-        _save_last_alert({'date': today_str, 'lit_count': latest_lit, 'regime': latest_regime})
-        return
-
-    if not force and latest_regime == 'green':
-        logger.info("Regime green, skip")
-        _save_last_alert({'date': today_str, 'lit_count': 0, 'regime': 'green'})
-        return
-
-    prev_row = df.iloc[-2] if len(df) >= 2 else None
-    msg = _format_alert(latest, prev_row)
-    if push_discord(msg):
-        _save_last_alert({'date': today_str, 'lit_count': latest_lit, 'regime': latest_regime})
-
-
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--notify', action='store_true', help='regime 升級時推 Discord')
-    ap.add_argument('--force-notify', action='store_true', help='強制推 (忽略 state)')
     ap.add_argument('--no-save', action='store_true', help='只算不寫 parquet')
     args = ap.parse_args()
 
@@ -226,9 +134,6 @@ def main():
         OUT.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(OUT, index=False)
         logger.info("Saved -> %s", OUT)
-
-    if args.notify or args.force_notify:
-        maybe_notify(df, force=args.force_notify)
 
     return 0
 

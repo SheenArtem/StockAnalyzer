@@ -645,7 +645,7 @@ def render_whale_picks() -> None:
 
 **強制紀律**：
 - M15 那天**強制換股**，不擇時、不情緒
-- 月中任何信號（QM / 新聞 / Discord push）= **informational only**
+- 月中任何信號（QM / 新聞 / 警報）= **informational only**
 - 看 NAV「年度」單位，不看「月度」
 
 **完全不用做的事**：
@@ -722,5 +722,5 @@ def render_whale_picks() -> None:
 
     st.caption(
         f"資料生成於 {obj.get('asof', '?')}。**每日自動更新** (run_scanner.bat)，"
-        f"M15 rebal 日 (每月 15 號或之前最後交易日) 自動 Discord push (`DISCORD_WEBHOOK_WHALE_PICKS`)。"
+        f"M15 rebal 日 (每月 15 號或之前最後交易日) 於 scanner.log 記錄 marker。"
     )

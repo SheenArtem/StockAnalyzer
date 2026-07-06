@@ -138,113 +138,6 @@ def check_scan_health(result, market, scan_type):
     return True, []
 
 
-def send_alert_notification(scan_type, market, issues, webhook_url=None):
-    """把健康檢查 alert 也送到 Discord（若有設 webhook）。"""
-    if not webhook_url:
-        env_path = Path('local/.env')
-        if env_path.exists():
-            with open(env_path, 'r') as f:
-                for line in f:
-                    if line.startswith('DISCORD_WEBHOOK_URL='):
-                        webhook_url = line.strip().split('=', 1)[1].strip()
-                        break
-    if not webhook_url:
-        return False
-    content = (f"🚨 **SCAN ALERT** — {scan_type.upper()} [{market.upper()}] "
-               f"{datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
-               + "\n".join(f"• {i}" for i in issues))
-    try:
-        import requests
-        resp = requests.post(webhook_url, json={'content': content}, timeout=10)
-        return resp.status_code == 204
-    except Exception as e:
-        logger.error("Alert Discord notification failed: %s", e)
-        return False
-
-
-def _load_yt_panel():
-    """Lazy-load YT sector panel for mention lookup. Returns None if unavailable."""
-    try:
-        import pandas as pd
-        panel_path = Path('data/sector_tags_dynamic.parquet')
-        if not panel_path.exists():
-            return None
-        return pd.read_parquet(panel_path)
-    except Exception as e:
-        logger.debug("YT panel load skipped: %s", e)
-        return None
-
-
-def _fmt_yt_hint(ticker: str, panel, days: int = 7) -> str:
-    """1-char emoji + count if this ticker has recent YT mentions. '' if none."""
-    if panel is None or panel.empty:
-        return ""
-    try:
-        import pandas as pd
-        from datetime import date, timedelta
-        cutoff = date.today() - timedelta(days=days)
-        sub = panel[(panel['ticker'] == ticker) & (panel['date'] >= cutoff)]
-        if sub.empty:
-            return ""
-        n = len(sub)
-        sent_avg = sub['sentiment'].mean()
-        icon = "🟢" if sent_avg > 0.3 else ("🔴" if sent_avg < -0.3 else "⚪")
-        return f" {icon}YT×{n}"
-    except Exception:
-        return ""
-
-
-def send_discord_notification(result, webhook_url=None):
-    """Send scan summary to Discord via webhook."""
-    if not webhook_url:
-        # Try to read from local/.env
-        env_path = Path('local/.env')
-        if env_path.exists():
-            with open(env_path, 'r') as f:
-                for line in f:
-                    if line.startswith('DISCORD_WEBHOOK_URL='):
-                        webhook_url = line.strip().split('=', 1)[1].strip()
-                        break
-    if not webhook_url:
-        return False
-
-    scan_type = result.get('scan_type', 'momentum')
-    market = result.get('market', 'tw')
-    label = {'momentum': 'Momentum', 'value': 'Value'}.get(scan_type, scan_type)
-    mkt_label = {'tw': 'Taiwan', 'us': 'US'}.get(market, market)
-
-    results = result.get('results', [])
-    top5 = results[:5]
-
-    # Load YT panel once for all top5 lookups (TW only; US tickers not covered by YT panel)
-    yt_panel = _load_yt_panel() if market == 'tw' else None
-
-    lines = [f"**{label} Screener [{mkt_label}]** — {result.get('scan_date', '?')} {result.get('scan_time', '')}",
-             f"Scanned {result.get('total_scanned', 0)} → Passed {result.get('passed_initial', 0)} → Scored {result.get('scored_count', 0)}",
-             ""]
-
-    if scan_type == 'value':
-        for i, r in enumerate(top5, 1):
-            yt_hint = _fmt_yt_hint(r['stock_id'], yt_panel)
-            lines.append(f"{i}. **{r['stock_id']}** {r.get('name', '')[:6]} "
-                         f"PE={r.get('PE', 0):.1f} Score={r.get('value_score', 0):.1f}{yt_hint}")
-    else:
-        for i, r in enumerate(top5, 1):
-            sigs = ', '.join(r.get('signals', [])[:2])
-            yt_hint = _fmt_yt_hint(r['stock_id'], yt_panel)
-            lines.append(f"{i}. **{r['stock_id']}** {r.get('name', '')[:6]} "
-                         f"Score={r.get('trigger_score', 0):+.1f} [{sigs}]{yt_hint}")
-
-    content = '\n'.join(lines)
-    try:
-        import requests
-        resp = requests.post(webhook_url, json={'content': content}, timeout=10)
-        return resp.status_code == 204
-    except Exception as e:
-        logger.error("Discord notification failed: %s", e)
-        return False
-
-
 def git_push_results(data_dir='data'):
     """Stage and push scan results to remote."""
     try:
@@ -377,8 +270,6 @@ def main():
                         help='Number of results (default: 20)')
     parser.add_argument('--push', action='store_true',
                         help='Git push results after scan')
-    parser.add_argument('--notify', action='store_true',
-                        help='Send results to Discord webhook (needs DISCORD_WEBHOOK_URL in local/.env)')
     parser.add_argument('--output-dir', default='data',
                         help='Output directory (default: data)')
     parser.add_argument('--stage1-only', action='store_true',
@@ -476,12 +367,8 @@ def main():
                 MomentumScreener.save_results(m_result, args.output_dir)
                 progress(f"Momentum [{mkt}] results saved")
                 _append_regime_filter_audit('momentum', mkt, len(m_result.get('results', [])), regime_filter_info)
-                # Level 1 health check
+                # Level 1 health check (issues already logged loudly inside)
                 healthy, issues = check_scan_health(m_result, mkt, 'momentum')
-                if not healthy and args.notify:
-                    send_alert_notification('momentum', mkt, issues)
-                if args.notify:
-                    send_discord_notification(m_result)
                 if not args.quiet:
                     print_summary(m_result)
 
@@ -514,8 +401,6 @@ def main():
                 # Level 1 health check
                 healthy, issues = check_scan_health(v_result, mkt, 'value')
                 if not healthy:
-                    if args.notify:
-                        send_alert_notification('value', mkt, issues)
                     # Fail-loud (added 2026-04-24): degenerate Value scan must not exit 0.
                     # Protects against silent data-source failures (FinMind 429 /
                     # TWSE timeout) that otherwise leave value_result.json stale.
@@ -524,8 +409,6 @@ def main():
                         mkt, ' | '.join(issues),
                     )
                     sys.exit(3)
-                if args.notify:
-                    send_discord_notification(v_result)
             if not args.quiet:
                 print_value_summary(v_result)
 
@@ -546,8 +429,6 @@ def main():
             progress(f"QM [{mkt}] results saved")
             _append_regime_filter_audit('qm', mkt, len(qm_result.get('results', [])), regime_filter_info)
             healthy, issues = check_scan_health(qm_result, mkt, 'qm')
-            if not healthy and args.notify:
-                send_alert_notification('qm', mkt, issues)
             if not args.quiet:
                 print_summary(qm_result)
 

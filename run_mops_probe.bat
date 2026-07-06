@@ -12,9 +12,9 @@ REM    4. Action: Start a program
 REM       Program: C:\GIT\StockAnalyzer\run_mops_probe.bat
 REM       Start in: C:\GIT\StockAnalyzer
 REM
-REM  Discord notify DISABLED 2026-06-29 per user request (--no-notify).
-REM  Probe still runs and tracks consecutive successes in the state file;
-REM  to re-enable Discord push, drop "--no-notify" from the python line below.
+REM  Discord notify code removed entirely 2026-07-06 (was disabled since
+REM  2026-06-29). Probe tracks consecutive successes in the state file and
+REM  logs "MOPS WAF unblock detected" when threshold is reached.
 REM  State file: data_cache/mops_probe_state.json
 REM ============================================================
 
@@ -27,7 +27,7 @@ if exist mops_probe_prev.log del mops_probe_prev.log
 if exist mops_probe.log ren mops_probe.log mops_probe_prev.log
 
 call :log "MOPS probe started"
-python tools\mops_probe.py --no-notify >> mops_probe.log 2>&1
+python tools\mops_probe.py >> mops_probe.log 2>&1
 call :log "MOPS probe finished"
 echo. >> mops_probe.log
 

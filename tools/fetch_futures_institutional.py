@@ -191,7 +191,7 @@ def fetch_futures_inst(start: date, end: date, token: str) -> pd.DataFrame:
             time.sleep(5)
 
     if not all_rows:
-        log.error("All chunks returned empty — check FinMind token quota")
+        log.error("All chunks returned empty — holiday, data not yet published, or FinMind quota")
         return pd.DataFrame()
     return pd.DataFrame(all_rows)
 
@@ -257,6 +257,14 @@ def main():
                 fetch_start = next_day
         except Exception as e:
             log.warning("Could not read existing parquet (%s), will re-fetch", e)
+
+    # Saturday runs (schedule is TUE-SAT) resume to a weekend-only window --
+    # FinMind has no rows there by definition. Pre-2026-07-06 this fell through
+    # to the chunked-fetch ERROR path and cried "check quota" every Saturday.
+    if not any((fetch_start + timedelta(days=i)).weekday() < 5
+               for i in range((end - fetch_start).days + 1)):
+        log.info("No weekday in %s ~ %s (weekend window), nothing to fetch", fetch_start, end)
+        return
 
     log.info("Fetching TXF futures inst: %s ~ %s", fetch_start, end)
     df_new = fetch_futures_inst(fetch_start, end, token)

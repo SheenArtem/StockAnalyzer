@@ -10,11 +10,11 @@ REM  Why DAILY and not TUE-SAT (load-bearing -- do NOT narrow to weekdays):
 REM    The Whale Picks production strategy rebalances on M15 = the last weekday
 REM    on or before the 15th of the month (whale_picks_screener.py
 REM    _is_mid_month_rebal_day). When the 15th falls on a MONDAY, M15 IS that
-REM    Monday. A TUE-SAT schedule skips Monday, so in those months
-REM    whale_picks_screener.py --push-if-month-end AND
-REM    whale_picks_ledger_append.py --rebal (both self-gate on today==M15)
-REM    would NEVER fire -- the entire monthly rebalance push + ledger reconcile
-REM    is silently lost (~1-2 months/year, whenever the 15th is a Monday).
+REM    Monday. A TUE-SAT schedule skips Monday, so in those months the
+REM    whale_picks_screener M15 marker AND whale_picks_ledger_append.py --rebal
+REM    (both self-gate on today==M15) would NEVER fire -- the entire monthly
+REM    rebalance marker + ledger reconcile is silently lost (~1-2 months/year,
+REM    whenever the 15th is a Monday).
 REM    Running every day guarantees the M15 day is always hit. (M15 is never
 REM    Sat/Sun by definition, so Monday is the only at-risk weekday.)
 REM
@@ -215,7 +215,7 @@ REM Value weights 30/25/30/15/0 (V_rev_heavy, WF 24 quarters 15 beats V_live 63%
 REM Chain: QM skips tracking; Value runs tracking last.
 REM --regime-filter: VF-G4 DRY-RUN logs today's regime vs volatile filter
 REM (audit only, does not drop picks).
-REM --notify removed 2026-05-04 per user request: cancel scan-result Discord pushes.
+REM --notify flag + Discord code removed entirely 2026-07-06 (Discord retired).
 REM
 REM DISABLED 2026-05-23 per user request: 100%% Whale Picks is production strategy
 REM (backtest gross CAGR 28%% / Sharpe 1.67; realistic net ~23-27%% / Sharpe 1.46 per 2026-06-09 cost audit), QM + Value scanner downgraded to informational only.
@@ -245,7 +245,6 @@ REM ------------------------------------------------------------
 REM Mode D Phase 2 Wave 2/3 pipeline (2026-04-25):
 REM   1. Step-A engine -> daily_alerts.json (forced/suggested/info)
 REM   2. Paper trade engine -> open_trades.json + trade_log.jsonl
-REM   3. Discord daily summary -> single code block 1 push/day
 REM Best-effort: failures do not affect scanner exit code.
 REM
 REM DISABLED 2026-05-23 per user request: 100%% Whale Picks is production strategy,
@@ -307,23 +306,16 @@ set SS_EC3=%ERRORLEVEL%
 :skip_strong_stocks_ai
 call :log "Strong stocks done (EC1=%SS_EC1% EC2=%SS_EC2% EC3=%SS_EC3%)"
 
-REM Discord daily summary DISABLED 2026-05-04 per user request: cancel scan-result
-REM Discord pushes (covers QM Top 5 + Step-A alerts + paper trade summary block).
-REM To re-enable: remove the "goto skip_discord_summary" line directly below.
-goto skip_discord_summary
-call :log "Discord daily summary starting"
-python tools\discord_daily_summary.py >> scanner.log 2>&1
-call :log "Discord daily summary done"
-:skip_discord_summary
+REM Discord daily summary REMOVED 2026-07-06 (Discord retired; tool file deleted).
+REM Was disabled since 2026-05-04. See git history for the stage block.
 
 REM ------------------------------------------------------------
-REM Whale Picks selector (daily silent compute + M15 Discord push).
+REM Whale Picks selector (daily silent compute; M15 marker logged).
 REM Added 2026-05-16: composite_score 7-feature K=10 default (Sharpe 1.52, MDD -9%)
 REM + composite_parsi 8-factor still computed (Sharpe 1.01 K=20, secondary)
 REM (per docs/whale_picks_spec.md v0.10 -- M15 rebal locked 2026-05-22).
 REM Daily compute keeps UI fresh (4/8 factors update daily: price/volume).
-REM Push only on M15 rebal day = last weekday on/before 15th of month.
-REM (--push-if-month-end flag kept for backward compat, actual gate is M15.)
+REM Discord push removed 2026-07-06; M15 rebal day logs a marker line instead.
 REM Best-effort: failures do not affect scanner exit.
 REM ------------------------------------------------------------
 REM RE-ENABLED 2026-05-22 per user request: whale_picks pure Python, no LLM quota.
@@ -332,7 +324,7 @@ REM walk-forward 0.20 -> 0.63 (+0.43). Sell-the-news hypothesis falsified by MIX
 REM See reports/whale_picks_rebal_timing/REPORT.md for full controlled experiment.
 REM Manual trigger:
 REM   python tools\refresh_backtest_panels.py
-REM   python tools\whale_picks_screener.py --silent --push-if-month-end
+REM   python tools\whale_picks_screener.py --silent
 REM   python tools\whale_picks_alerts.py
 
 REM 2026-05-22 added refresh_backtest_panels to fix pipeline staleness bug.
@@ -371,7 +363,7 @@ python tools\refresh_backtest_panels.py >> scanner.log 2>&1
 call :log "Refresh backtest panels done"
 
 call :log "Whale picks selector starting"
-python tools\whale_picks_screener.py --silent --push-if-month-end >> scanner.log 2>&1
+python tools\whale_picks_screener.py --silent >> scanner.log 2>&1
 call :log "Whale picks done"
 
 REM Whale picks daily alerts (early-entry + trailing-stop).
@@ -427,13 +419,14 @@ REM DISABLED 2026-04-29 per user request: cancel daily auto AI reports.
 REM   To re-enable: remove the "goto skip_ai_reports" line directly below.
 REM   All original logic preserved for easy revival.
 REM ------------------------------------------------------------
+REM (report_batch_failure.py Discord pinger deleted 2026-07-06; [FAIL] log lines
+REM  below are the failure record now.)
 goto skip_ai_reports
 call :log "Auto AI reports smoke check starting"
 python tools\auto_ai_reports.py --smoke >> scanner.log 2>&1
 set AI_SMOKE_EXIT=%ERRORLEVEL%
 if not "%AI_SMOKE_EXIT%"=="0" (
     call :log "[FAIL] auto_ai_reports smoke check FAILED exit=%AI_SMOKE_EXIT%"
-    python tools\report_batch_failure.py --stage auto_ai_reports_smoke --exit-code %AI_SMOKE_EXIT% >> scanner.log 2>&1
     goto skip_ai_reports
 )
 
@@ -442,7 +435,6 @@ python tools\auto_ai_reports.py --n 3 --format md >> scanner.log 2>&1
 set AI_RUN_EXIT=%ERRORLEVEL%
 if not "%AI_RUN_EXIT%"=="0" (
     call :log "[FAIL] auto_ai_reports FAILED exit=%AI_RUN_EXIT%"
-    python tools\report_batch_failure.py --stage auto_ai_reports --exit-code %AI_RUN_EXIT% >> scanner.log 2>&1
 ) else (
     call :log "Auto AI reports done (exit=0)"
 )
@@ -455,7 +447,7 @@ REM ------------------------------------------------------------
 REM Layer 4: post-check verifier.
 REM Parses scanner.log to confirm every expected BAT echo marker fired
 REM and that git push happened at least twice (QM + Value). Missing any
-REM marker = silent scheduler failure -> Discord ping.
+REM marker = silent scheduler failure -> loud log line + non-zero exit.
 REM Non-zero exit here propagates to %PY_EXIT% so Task Scheduler sees it.
 REM Added 2026-04-24 after CJK BAT incident.
 REM ------------------------------------------------------------

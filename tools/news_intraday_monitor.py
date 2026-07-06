@@ -8,7 +8,7 @@
 3. batch LLM (沿用 build_extraction_prompt + N=20 split)
 4. append archive + rebuild articles_recent (即時 SoT)
 5. 觸發 alert: news_count_30min >= ALERT_NEWS_THRESHOLD OR material_event 命中
-   → Discord push (沿用 send_alert_notification)
+   → alert 內容印進 log (Discord push 已移除 2026-07-06)
 
 Cost: 9 slot/day × 1 batch + 1 盤後 batch ≈ 10 LLM calls/day, ~$4-5/月
 
@@ -18,8 +18,7 @@ Council BLOCKER #7: informational only, NOT auto-feed paper_trade 直到
 CLI:
     python tools/news_intraday_monitor.py
     python tools/news_intraday_monitor.py --window-min 30
-    python tools/news_intraday_monitor.py --dry-run    # 抓但不 LLM 不 push
-    python tools/news_intraday_monitor.py --no-discord  # 跑全鏈但不送 Discord
+    python tools/news_intraday_monitor.py --dry-run    # 抓但不 LLM 不寫檔
 """
 from __future__ import annotations
 
@@ -222,31 +221,12 @@ def evaluate_trigger(merged: list[dict]) -> tuple[bool, list[str]]:
     return (len(alerts) > 0, alerts)
 
 
-def push_discord(slot_label: str, alerts: list[str], n_articles: int) -> bool:
-    """送 Discord (沿用 scanner_job.send_alert_notification)."""
-    try:
-        from scanner_job import send_alert_notification
-    except ImportError as e:
-        logger.error("cannot import scanner_job: %s", e)
-        return False
-    issues = [
-        f"窗口: 近 30 min ({slot_label})",
-        f"新文章數: {n_articles}",
-        "",
-    ]
-    issues.extend(alerts)
-    return send_alert_notification(scan_type='news_intraday', market='TW',
-                                    issues=issues)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--window-min', type=int, default=30,
                     help='抓近 N 分鐘新文章 (default 30)')
     ap.add_argument('--dry-run', action='store_true',
-                    help='只抓不 LLM 不 push (debug)')
-    ap.add_argument('--no-discord', action='store_true',
-                    help='跑全鏈但不送 Discord')
+                    help='只抓不 LLM 不寫檔 (debug)')
     ap.add_argument('--force', action='store_true',
                     help='略過 weekday/holiday 檢查強跑 (debug)')
     args = ap.parse_args()
@@ -311,7 +291,7 @@ def main():
                 rebuild_stats['analyst_targets']['rows'],
                 rebuild_stats['material_events']['rows'])
 
-    # 5. Trigger eval + Discord
+    # 5. Trigger eval — alerts land in the log (Discord removed 2026-07-06)
     should_push, alerts = evaluate_trigger(merged)
     if not should_push:
         logger.info("No trigger hit, exit clean")
@@ -320,13 +300,6 @@ def main():
     logger.info("Trigger HIT: %d alerts", len(alerts))
     for a in alerts:
         logger.info("  %s", a)
-
-    if args.no_discord:
-        logger.info("--no-discord: skip push")
-        return
-
-    sent = push_discord(slot_label, alerts, len(merged))
-    logger.info("Discord push: %s", "sent" if sent else "NOT sent (no webhook)")
 
 
 if __name__ == '__main__':

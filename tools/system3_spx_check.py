@@ -13,16 +13,17 @@ Why this exists alongside S3-a (^MOVE): Jaccard=0.060 极低重叠.
 
 Behavior:
   - Read fred_panel.parquet → SP500_close (FRED SP500 series, 2010+)
+    (stale input -> exit 1 loudly)
   - Compute today's 1d return = (close - prev_close) / prev_close
   - 4 levels: green > -1.5% / yellow -1.5% to -2.5% / orange -2.5% to -3% / red <= -3%
-  - Discord push on FIRST cross into yellow / orange / red within 3 TD cooldown
+  - Print alert on FIRST cross into yellow / orange / red within 3 TD cooldown
     (shorter than ^MOVE/ma_dist_60: shock concurrent 連續觸發是 real risk amplification)
+    (Discord push removed 2026-07-06; alert goes to stdout -> scheduler log)
   - State file: data/sentiment/system3_spx_last_alert.json
 
 SOP-14 informational tier:
   - SPX 1d shock is CONFIRMATION grade, not anticipation
   - "TW 開盤前 brace gap-down" warning, not "提前一週減碼" trigger
-  - Optimal push timing: 08:30 TPE (NY close +6.5h, before TW 09:00 open)
 
 Usage:
   python tools/system3_spx_check.py [--dry-run] [--as-of YYYY-MM-DD] [--force]
@@ -39,7 +40,6 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 FRED_PANEL_PATH = ROOT / "data" / "macro" / "fred_panel.parquet"
 STATE_PATH = ROOT / "data" / "sentiment" / "system3_spx_last_alert.json"
-ENV_FILE = ROOT / "local" / ".env"
 
 # Thresholds: SPX 1d return (negative); lower = worse
 THRESHOLDS = {
@@ -49,6 +49,8 @@ THRESHOLDS = {
 }
 LEVEL_RANK = {"green": 0, "yellow": 1, "orange": 2, "red": 3}
 COOLDOWN_DAYS = 3   # Calendar days; shorter than ^MOVE 60d (concurrent shocks chain)
+# FRED SP500 publishes T+1; weekend + holiday + lag ~5 days max normal gap
+STALE_LIMIT_DAYS = 7
 
 # Conditional lift stats from validate_spx_gap_shock_ic.py POC
 COND_STATS = {
@@ -61,15 +63,6 @@ COND_STATS = {
 }
 BASELINE_HIT_20D_NEG10 = 4.4
 BASELINE_TWII_GAP_NEG1 = 2.5
-
-
-def read_webhook() -> str | None:
-    if not ENV_FILE.exists():
-        return None
-    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-        if line.startswith("DISCORD_WEBHOOK_URL="):
-            return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return None
 
 
 def load_spx() -> pd.Series:
@@ -209,28 +202,6 @@ def format_alert(state: dict) -> str:
     )
 
 
-def push_discord(message: str, dry_run: bool) -> int:
-    if dry_run:
-        print("=== DRY RUN ===", file=sys.stderr)
-        print(message, file=sys.stderr)
-        return 0
-    webhook = read_webhook()
-    if not webhook:
-        print("[system3_spx] No DISCORD_WEBHOOK_URL configured.", file=sys.stderr)
-        return 1
-    try:
-        import requests
-        resp = requests.post(webhook, json={"content": f"```\n{message}\n```"}, timeout=10)
-        if resp.status_code != 204:
-            print(f"[system3_spx] Discord status {resp.status_code}: {resp.text[:200]}", file=sys.stderr)
-            return 1
-        print(f"[system3_spx] Pushed {len(message)} chars to Discord.", file=sys.stderr)
-        return 0
-    except Exception as e:
-        print(f"[system3_spx] Push failed: {type(e).__name__}: {e}", file=sys.stderr)
-        return 1
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
@@ -240,6 +211,15 @@ def main() -> int:
 
     spx = load_spx()
     as_of = pd.Timestamp(args.as_of) if args.as_of else None
+
+    if as_of is None:
+        last_bar = spx.index[-1]
+        age_days = int((pd.Timestamp.now().normalize() - last_bar).days)
+        if age_days > STALE_LIMIT_DAYS:
+            print(f"[system3_spx] ERROR: SP500 input stale -- last bar {last_bar.date()} is {age_days} days old "
+                  f"(limit {STALE_LIMIT_DAYS}); check macro dawn fred_panel refresh", file=sys.stderr)
+            return 1
+
     state = compute_today_state(spx, as_of=as_of)
 
     if state["ret_1d"] is None:
@@ -258,8 +238,8 @@ def main() -> int:
         print(f"[system3_spx] no alert ({reason or 'green'}); silent")
         return 0
 
-    msg = format_alert(state)
-    rc = push_discord(msg, args.dry_run)
+    # Discord removed 2026-07-06: alert lands in the scheduler log via stdout
+    print(format_alert(state))
 
     if not args.dry_run:
         save_state({
@@ -268,7 +248,7 @@ def main() -> int:
             "ret_1d": state["ret_1d"],
             "spx_close": state["spx_close"],
         })
-    return rc
+    return 0
 
 
 if __name__ == "__main__":

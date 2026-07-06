@@ -1,9 +1,9 @@
 """Scanner post-run stage verifier.
 
 Called at end of run_scanner.bat. Parses scanner.log and checks every expected
-stage marker is present. Any missing stage = silent scheduler failure -> Discord
-ping + non-zero exit so Task Scheduler surfaces the failure instead of showing
-a bogus exit=0.
+stage marker is present. Any missing stage = silent scheduler failure -> loud
+log message + non-zero exit so Task Scheduler surfaces the failure instead of
+showing a bogus exit=0. (Discord ping removed 2026-07-06.)
 
 Catches the failure modes we've burned on:
   - 2026-04-20 exit=9009 (CJK REM breaks cmd.exe CP950 parsing)
@@ -17,10 +17,9 @@ Usage (from run_scanner.bat, AFTER "Scanner finished" echo, BEFORE exit /b):
 
 Exit code:
     0 = all expected stages present
-    1 = one or more stages missing (Discord pinged if webhook configured)
+    1 = one or more stages missing
 """
 
-import os
 import re
 import sys
 from datetime import datetime
@@ -42,7 +41,7 @@ REQUIRED_STAGES = [
     # Step-A engine + Paper trade engine markers disabled 2026-05-23 (goto skip_mode_d).
     # 100% Whale Picks production 不依賴 Mode D pipeline。
     # Re-add ('Step-A engine done', ...) + ('Paper trade engine done', ...) when reactivating.
-    # Discord daily summary disabled 2026-05-04 (run_scanner.bat goto skip_discord_summary).
+    # Discord daily summary removed 2026-07-06 (tool deleted; was disabled since 2026-05-04).
     # Substack sync stage removed 2026-05-21 (v2026.05.21.3 整套 rm, marker no longer fires).
     ('Chip history resume done', r'\] Chip history resume done'),
     ('News flow anomaly done', r'\] News flow anomaly done'),
@@ -69,38 +68,9 @@ EXPECTED_PUSH_MIN = 0
 PUSH_MARKER_RE = r'(Pushed: scan:|No changes to push)'
 
 
-def _read_webhook():
-    env_path = ROOT / 'local' / '.env'
-    if not env_path.exists():
-        return None
-    try:
-        for line in env_path.read_text(encoding='utf-8').splitlines():
-            if line.startswith('DISCORD_WEBHOOK_URL='):
-                return line.split('=', 1)[1].strip().strip('"').strip("'")
-    except Exception:
-        return None
-    return None
-
-
-def _ping_discord(msg):
-    webhook = _read_webhook()
-    if not webhook:
-        print('[verify_scan_stages] No DISCORD_WEBHOOK_URL configured, skipping ping.')
-        return
-    try:
-        import requests
-        resp = requests.post(webhook, json={'content': msg}, timeout=10)
-        if resp.status_code != 204:
-            print(f'[verify_scan_stages] Discord ping returned status {resp.status_code}')
-    except Exception as e:
-        print(f'[verify_scan_stages] Discord ping failed: {type(e).__name__}: {e}')
-
-
 def main():
     if not LOG_PATH.exists():
-        msg = f':rotating_light: **Scanner post-check FAIL** - scanner.log not found at {LOG_PATH}'
-        print(msg)
-        _ping_discord(msg)
+        print(f'[verify_scan_stages] FAIL - scanner.log not found at {LOG_PATH}')
         return 1
 
     log_text = LOG_PATH.read_text(encoding='utf-8', errors='replace')
@@ -136,15 +106,12 @@ def main():
 
     ts = datetime.now().strftime('%Y-%m-%d %H:%M')
     msg = (
-        f':rotating_light: **Scanner post-check FAIL** - {ts}\n'
-        '```\n'
+        f'[verify_scan_stages] FAIL - {ts}\n'
         + '\n'.join(problems)
-        + '\n```\n'
-        'Likely causes: BAT parsing error (CP950/CJK), scanner silent exit, '
+        + '\nLikely causes: BAT parsing error (CP950/CJK), scanner silent exit, '
         'or an entire stage skipped. Check scanner.log.'
     )
     print(msg)
-    _ping_discord(msg)
     return 1
 
 

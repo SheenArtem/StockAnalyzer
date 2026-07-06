@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 def _smoke_imports():
     """Pre-flight import check: verify every lazily-imported symbol exists BEFORE the scheduler
     commits to a long Claude CLI run. Catches module rename / API drift (2026-04-22 事件的原型）。
-    Fails LOUDLY with the missing symbol so run_scanner.bat can alert Discord.
+    Fails LOUDLY with the missing symbol so run_scanner.bat logs a [FAIL] marker.
     """
     required = [
         ('ai_report_pipeline', 'generate_one_report'),

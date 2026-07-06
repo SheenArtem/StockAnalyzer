@@ -16,12 +16,13 @@ Why this exists:
 
 Behavior:
   - Read data/sentiment/vol_complex_history.parquet (archive_vol_complex 寫的)
+    (stale input -> exit 1 loudly; ^VIX3M 曾斷更 6/26~7/3 整條 panel 跟著凍結)
   - 級別: yellow >= 0.95 / orange >= 1.00 / red >= 1.05
-  - Discord push 只在「級別 upgrade」時觸發 (cooldown 60 calendar days)
+  - 警報只在「級別 upgrade」時印 stdout -> 排程 log (Discord 已移除 2026-07-06)
   - State file: data/sentiment/system3_vix_term_last_alert.json
 
 SOP-14 tier:
-  - Discord 警報文字加重 (4.06x lift 是真訊號)
+  - 警報文字加重 (4.06x lift 是真訊號)
   - 但 **不接 auto-rebalance** — vix3m → TWII 經 risk-off flow 間接
   - 與 banner D + System 2 trigger + System 3 MOVE 三角驗證
 
@@ -32,7 +33,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -41,7 +41,6 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 VC_PATH = ROOT / "data" / "sentiment" / "vol_complex_history.parquet"
 STATE_PATH = ROOT / "data" / "sentiment" / "system3_vix_term_last_alert.json"
-ENV_FILE = ROOT / "local" / ".env"
 
 THRESHOLDS = {
     "yellow": 0.95,
@@ -50,6 +49,8 @@ THRESHOLDS = {
 }
 LEVEL_RANK = {"green": 0, "yellow": 1, "orange": 2, "red": 3}
 COOLDOWN_DAYS = 60
+# US market longest closure ~4-5 calendar days; older = broken producer/source
+STALE_LIMIT_DAYS = 7
 
 # Conditional lift stats from validate_vol_complex_ic.py (n=4565 panel)
 COND_STATS = {
@@ -58,20 +59,6 @@ COND_STATS = {
     "red":    {"hit_20d_neg10": 27.1, "fwd_20d_med": -3.03, "lift": 4.06, "n_sample": 214},
 }
 BASELINE_HIT_20D_NEG10 = 6.7
-
-
-def read_webhook() -> str | None:
-    """讀 DISCORD_WEBHOOK_MACRO (優先) 或 DISCORD_WEBHOOK_URL；fallback local/.env。"""
-    env = os.environ.get('DISCORD_WEBHOOK_MACRO') or os.environ.get('DISCORD_WEBHOOK_URL')
-    if env:
-        return env
-    if not ENV_FILE.exists():
-        return None
-    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-        for key in ('DISCORD_WEBHOOK_MACRO=', 'DISCORD_WEBHOOK_URL='):
-            if line.startswith(key):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return None
 
 
 def classify(ratio: float) -> str:
@@ -190,28 +177,6 @@ def format_alert(state: dict) -> str:
     )
 
 
-def push_discord(message: str, dry_run: bool) -> int:
-    if dry_run:
-        print("=== DRY RUN ===", file=sys.stderr)
-        print(message, file=sys.stderr)
-        return 0
-    webhook = read_webhook()
-    if not webhook:
-        print("[system3_vix_term] No DISCORD_WEBHOOK_MACRO/URL configured.", file=sys.stderr)
-        return 1
-    try:
-        import requests
-        resp = requests.post(webhook, json={"content": f"```\n{message}\n```"}, timeout=10)
-        if resp.status_code not in (200, 204):
-            print(f"[system3_vix_term] Discord status {resp.status_code}: {resp.text[:200]}", file=sys.stderr)
-            return 1
-        print(f"[system3_vix_term] Pushed {len(message)} chars to Discord.", file=sys.stderr)
-        return 0
-    except Exception as e:
-        print(f"[system3_vix_term] Push failed: {type(e).__name__}: {e}", file=sys.stderr)
-        return 1
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
@@ -230,6 +195,14 @@ def main() -> int:
         print("[system3_vix_term] Insufficient history; silent.")
         return 0
 
+    if as_of is None:
+        age_days = int((pd.Timestamp.now().normalize() - state["today"]).days)
+        if age_days > STALE_LIMIT_DAYS:
+            print(f"[system3_vix_term] ERROR: vol_complex input stale -- last bar {state['today'].date()} "
+                  f"is {age_days} days old (limit {STALE_LIMIT_DAYS}); "
+                  f"run tools/fred_fetcher.py --refresh + tools/archive_vol_complex.py", file=sys.stderr)
+            return 1
+
     print(f"[system3_vix_term] today={state['today'].date()} "
           f"vix={state['vix']:.2f} vix3m={state['vix3m']:.2f} "
           f"ratio={state['ratio']:.4f} level={state['level']}")
@@ -246,8 +219,8 @@ def main() -> int:
         print(f"[system3_vix_term] no alert ({reason or 'green'}); silent")
         return 0
 
-    msg = format_alert(state)
-    rc = push_discord(msg, args.dry_run)
+    # Discord removed 2026-07-06: alert lands in the scheduler log via stdout
+    print(format_alert(state))
 
     if not args.dry_run:
         save_state({
@@ -257,7 +230,7 @@ def main() -> int:
             "vix": state["vix"],
             "vix3m": state["vix3m"],
         })
-    return rc
+    return 0
 
 
 if __name__ == "__main__":

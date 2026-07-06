@@ -238,7 +238,7 @@ def generate_one_report(
             result['content'] = content_or_err
         else:
             progress_cb("🤖 Claude AI 生成 Markdown 報告中（最長 2 小時 timeout，通常數分鐘）...")
-            from ai_report import generate_report, save_report, post_validate_numbers, send_drift_discord
+            from ai_report import generate_report, save_report, post_validate_numbers
             ok, content = generate_report(
                 ticker, report, chip_data, us_chip_data, fund_data, df_day,
                 timeout=7200,  # 2026-06-16 放寬至 2 小時 (原 600s 太短，深度報告+研究+web search 會超)
@@ -252,8 +252,7 @@ def generate_one_report(
             drift_check = post_validate_numbers(content, report.get('action_plan'))
             if drift_check['drift']:
                 progress_cb(f"⚠️ 偵測到 Section 8 漂移: {drift_check['unexpected_numbers']} (預期 {drift_check['expected_numbers']})")
-                logger.warning("[%s] DRIFT_DETECTED: %s", ticker, drift_check)
-                send_drift_discord(ticker, drift_check)  # 不阻擋，仍繼續存檔
+                logger.warning("[%s] DRIFT_DETECTED: %s", ticker, drift_check)  # 不阻擋，仍繼續存檔 (Discord 通知已移除 2026-07-06)
                 # 在報告頂部加 badge 警告人工 audit
                 badge = (
                     f"> ⚠️ **[DRIFT_DETECTED]** Section 8 三欄出現未預期數字 "

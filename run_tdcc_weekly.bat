@@ -35,14 +35,13 @@ REM  BL-4: weekly_chip_report (4 top-10 boards: consec buy/sell days + weekly am
 REM  Independent stage; runs even if TDCC failed (uses own data source)
 REM ============================================================
 call :log "Weekly chip report started"
-REM Discord push DISABLED 2026-06-29 per user request: cancel weekly chip Discord summary.
-REM Report MD still generated; to re-enable add "--push-discord" back below.
+REM Discord push code removed entirely 2026-07-06 (was disabled since 2026-06-29).
 python tools/weekly_chip_report.py >> tdcc_weekly.log 2>&1
 set CHIP_EXIT=%ERRORLEVEL%
 call :log "Weekly chip report finished (exit=%CHIP_EXIT%)"
 
 if not "%CHIP_EXIT%"=="0" (
-    python tools/report_batch_failure.py --stage weekly_chip --exit-code %CHIP_EXIT% --log-file tdcc_weekly.log >> tdcc_weekly.log 2>&1
+    call :log "[FAIL] weekly_chip_report FAILED exit=%CHIP_EXIT%"
 )
 
 REM ============================================================

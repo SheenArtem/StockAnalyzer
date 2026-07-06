@@ -11,14 +11,17 @@ COVID 2020-02 / Trump tariff 2025-03 are pure shocks ma_dist_60 cannot anticipat
 ^MOVE catches Treasury vol regime shifts that often lead equity selloffs.
 
 Behavior:
-  - Read data_cache/fred/move.parquet (yfinance ^MOVE, 22 yr hist)
+  - Read data_cache/fred/move.parquet (yfinance ^MOVE, 22 yr hist; kept fresh by
+    fred_fetcher --refresh -- "move" added to SYMBOLS 2026-07-06 after a 2-month
+    silent freeze at 2026-05-08; stale input now exits 1 loudly)
   - Compute 5d delta z-score against 252d rolling mean/std of 5d deltas
   - 4 levels: green <1.5 / yellow 1.5-2.5 / orange 2.5-3.0 / red >=3.0
-  - Discord push on FIRST cross into yellow / orange / red within 60-day cooldown
+  - Print alert on FIRST cross into yellow / orange / red within 60-day cooldown
+    (Discord push removed 2026-07-06; alert goes to stdout -> scheduler log)
   - State file: data/sentiment/system3_move_last_alert.json
 
 SOP-14 tier:
-  - Discord alert is "watch for hedge sizing" -- DO NOT auto-rebalance
+  - Alert is "watch for hedge sizing" -- DO NOT auto-rebalance
   - ^MOVE -> ^TWII transmission is indirect (USD/TWD + risk-off equity flows)
   - Pair with banner D (ma_dist_60) + System 2 (drawdown trigger) for triangulation
   - At z>=3.0, fwd 20d hit -10% prob = 31% (3.43x baseline 9%) — actionable scarce signal
@@ -38,7 +41,6 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 MOVE_PATH = ROOT / "data_cache" / "fred" / "move.parquet"
 STATE_PATH = ROOT / "data" / "sentiment" / "system3_move_last_alert.json"
-ENV_FILE = ROOT / "local" / ".env"
 
 THRESHOLDS = {
     "yellow": 1.5,
@@ -47,6 +49,8 @@ THRESHOLDS = {
 }
 LEVEL_RANK = {"green": 0, "yellow": 1, "orange": 2, "red": 3}
 COOLDOWN_DAYS = 60   # Calendar days; same regime won't re-fire within this window
+# US bond market longest closure ~4-5 calendar days; older = broken producer
+STALE_LIMIT_DAYS = 7
 
 # Conditional lift stats from validate_move_5d_shock_ic.py POC
 COND_STATS = {
@@ -55,15 +59,6 @@ COND_STATS = {
     "red":    {"hit_20d_neg10": 31.2, "fwd_20d_med": -4.30, "lift": 3.43, "n_sample": 64},
 }
 BASELINE_HIT_20D_NEG10 = 9.1
-
-
-def read_webhook() -> str | None:
-    if not ENV_FILE.exists():
-        return None
-    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-        if line.startswith("DISCORD_WEBHOOK_URL="):
-            return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return None
 
 
 def load_move() -> pd.Series:
@@ -186,28 +181,6 @@ def format_alert(state: dict) -> str:
     )
 
 
-def push_discord(message: str, dry_run: bool) -> int:
-    if dry_run:
-        print("=== DRY RUN ===", file=sys.stderr)
-        print(message, file=sys.stderr)
-        return 0
-    webhook = read_webhook()
-    if not webhook:
-        print("[system3_move] No DISCORD_WEBHOOK_URL configured.", file=sys.stderr)
-        return 1
-    try:
-        import requests
-        resp = requests.post(webhook, json={"content": f"```\n{message}\n```"}, timeout=10)
-        if resp.status_code != 204:
-            print(f"[system3_move] Discord status {resp.status_code}: {resp.text[:200]}", file=sys.stderr)
-            return 1
-        print(f"[system3_move] Pushed {len(message)} chars to Discord.", file=sys.stderr)
-        return 0
-    except Exception as e:
-        print(f"[system3_move] Push failed: {type(e).__name__}: {e}", file=sys.stderr)
-        return 1
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
@@ -217,6 +190,15 @@ def main() -> int:
 
     move = load_move()
     as_of = pd.Timestamp(args.as_of) if args.as_of else None
+
+    if as_of is None:
+        last_bar = move.index[-1]
+        age_days = int((pd.Timestamp.now().normalize() - last_bar).days)
+        if age_days > STALE_LIMIT_DAYS:
+            print(f"[system3_move] ERROR: ^MOVE input stale -- last bar {last_bar.date()} is {age_days} days old "
+                  f"(limit {STALE_LIMIT_DAYS}); run tools/fred_fetcher.py --refresh", file=sys.stderr)
+            return 1
+
     state = compute_today_state(move, as_of=as_of)
 
     if state["z"] is None:
@@ -233,8 +215,8 @@ def main() -> int:
         print(f"[system3_move] no alert ({reason or 'green'}); silent")
         return 0
 
-    msg = format_alert(state)
-    rc = push_discord(msg, args.dry_run)
+    # Discord removed 2026-07-06: alert lands in the scheduler log via stdout
+    print(format_alert(state))
 
     if not args.dry_run:
         save_state({
@@ -243,7 +225,7 @@ def main() -> int:
             "z": state["z"],
             "move_close": state["move_close"],
         })
-    return rc
+    return 0
 
 
 if __name__ == "__main__":

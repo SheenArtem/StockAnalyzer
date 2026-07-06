@@ -44,6 +44,9 @@ SYMBOLS = {
     "vvix": "^VVIX",     # VIX 的 VIX (VIX 選擇權隱波)，反映尾端對沖需求
     "skew": "^SKEW",     # CBOE SKEW，OTM put 相對價格 = 左尾溢價
     "ovx": "^OVX",       # CBOE Crude Oil ETF VIX，地緣事件領先指標
+    # 2026-07-06 補漏: system3_move_check 讀 move.parquet 但從未在 --refresh 清單內
+    # (5/9 手動抓一次後凍結, S3-a 吃了兩個月舊資料)
+    "move": "^MOVE",     # ICE BofA MOVE，美債隱波 (S3-a shock alert 輸入)
 }
 
 

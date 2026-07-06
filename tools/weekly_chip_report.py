@@ -18,7 +18,6 @@ Spec (2026-04-27 user 確認):
 CLI:
     python tools/weekly_chip_report.py
     python tools/weekly_chip_report.py --week-end 2026-04-25
-    python tools/weekly_chip_report.py --push-discord
 """
 from __future__ import annotations
 
@@ -339,7 +338,6 @@ def main():
     ap.add_argument("--week-end", type=str, default=None,
                     help="週末交易日 YYYY-MM-DD (default 取 institutional 最新日)")
     ap.add_argument("--out-dir", type=str, default=None, help="輸出目錄 (default reports/)")
-    ap.add_argument("--push-discord", action="store_true", help="完成後送 Discord 摘要")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir) if args.out_dir else OUT_DIR
@@ -389,51 +387,6 @@ def main():
     out_path = out_dir / f"weekly_chip_report_{week_end.strftime('%Y-%m-%d')}.md"
     out_path.write_text("\n".join(L), encoding='utf-8')
     print(f"Written: {out_path}")
-
-    if args.push_discord:
-        push_summary(week_end, window, dim_results, name_map, out_path)
-
-
-def push_summary(week_end, window, dim_results, name_map, out_path):
-    """送 Discord 摘要: 各維度連續買賣超 Top 1 + 當週金額 Top 1。"""
-    sys.path.insert(0, str(REPO))
-    try:
-        from scanner_job import send_alert_notification
-    except Exception as e:
-        print(f"[push_discord] cannot import scanner_job: {e}")
-        return
-
-    def label(sid):
-        n = name_map.get(str(sid), '')
-        return f"{sid} {n}".strip()
-
-    def top1(df, col_days):
-        if df.empty:
-            return "(無)"
-        r = df.iloc[0]
-        amt = r['weekly_net_amount_k']
-        amt_str = f"{amt:+,.0f}k" if pd.notna(amt) else "-"
-        if col_days:
-            return f"{label(r['stock_id'])} {int(r[col_days])}日 {amt_str}"
-        return f"{label(r['stock_id'])} {amt_str}"
-
-    issues = [f"窗口: {window[0].date()} ~ {window[-1].date()}", ""]
-    for net_col, dim_name, _ in NET_DIMENSIONS:
-        cb, cs, ba, sa, _bs, _ss = dim_results[net_col]
-        issues.extend([
-            f"=== {dim_name} ===",
-            f"連續買: {top1(cb, 'consec_buy')}",
-            f"連續賣: {top1(cs, 'consec_sell')}",
-            f"買超王: {top1(ba, '')}",
-            f"賣超王: {top1(sa, '')}",
-            "",
-        ])
-    issues.append(f"完整報告: {out_path.name}")
-    try:
-        ok = send_alert_notification(scan_type='weekly_chip', market='TW', issues=issues)
-        print(f"[push_discord] {'sent' if ok else 'NOT sent (no webhook)'}")
-    except Exception as e:
-        print(f"[push_discord] ERROR: {type(e).__name__}: {e}")
 
 
 if __name__ == "__main__":

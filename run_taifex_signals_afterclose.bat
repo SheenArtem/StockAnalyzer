@@ -77,15 +77,21 @@ python tools\archive_tw_fgi.py >> taifex_afterclose.log 2>&1
 call :log "[stage]Banner M1B ratio archive (CBC + TWSE FMTQIK)"
 python tools\archive_m1b_ratio.py >> taifex_afterclose.log 2>&1
 
-call :log "[stage]CBC time deposits monthly fetch + notify (1.5-2mo lag)"
-python tools\fetch_cbc_time_deposits.py --notify >> taifex_afterclose.log 2>&1
+call :log "[stage]CBC time deposits monthly fetch (1.5-2mo lag)"
+python tools\fetch_cbc_time_deposits.py >> taifex_afterclose.log 2>&1
+
+REM TAIEX daily refresh MUST run before System 2/3 checks: the parquet was a
+REM one-shot manual fetch (frozen at 2026-05-08 for 2 months, checks silently
+REM evaluated stale data). Added 2026-07-06.
+call :log "[stage]TAIEX price refresh (System 2/3 input)"
+python tools\refresh_taiex_price.py >> taifex_afterclose.log 2>&1
 
 call :log "[stage]System 2 daily check (informational tier)"
 python tools\system2_daily_check.py >> taifex_afterclose.log 2>&1
 
 call :log "[stage]Vol Complex archive (VIX termstruct / VVIX / SKEW / OVX, informational)"
 python tools\fred_fetcher.py --refresh >> taifex_afterclose.log 2>&1
-python tools\archive_vol_complex.py --notify >> taifex_afterclose.log 2>&1
+python tools\archive_vol_complex.py >> taifex_afterclose.log 2>&1
 
 call :log "[stage]System 3 VIX term check (4.06x lift at backwardation, SOP-14)"
 python tools\system3_vix_term_check.py >> taifex_afterclose.log 2>&1

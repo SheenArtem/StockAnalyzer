@@ -92,7 +92,7 @@ CNYES_API_CATS = [
 CNYES_API_LIMIT = 30  # 每 category 抓 30 篇
 
 # BLOCKER #8 (Commit 6) — cnyes graceful degradation state file
-# 連續失敗 N 次 → 自動退到 RSS-only mode + Discord WARN
+# 連續失敗 N 次 → 自動退到 RSS-only mode + log WARN
 CNYES_FAIL_STATE_PATH = REPO / 'data_cache' / 'news_theme_pop' / '_cnyes_fail_state.json'
 CNYES_FAIL_THRESHOLD = 5  # 連續 5 次 403/429/timeout → degraded mode
 
@@ -355,29 +355,17 @@ def _save_cnyes_fail_state(state: dict) -> None:
 
 
 def _notify_cnyes_degraded(state: dict) -> None:
-    """Push Discord WARN when cnyes API hits degraded mode (Phase 0 Commit 6).
+    """Log WARN when cnyes API hits degraded mode (Phase 0 Commit 6).
 
-    Only notify once per degradation episode (degraded_notified flag).
-    Reset notification flag when service recovers.
+    Only warn once per degradation episode (degraded_notified flag).
+    Reset flag when service recovers. (Discord webhook removed 2026-07-06.)
     """
     if state.get('degraded_notified'):
         return
-    try:
-        # Best-effort Discord webhook (non-blocking)
-        import os as _os
-        webhook = _os.environ.get('DISCORD_WEBHOOK_URL', '')
-        if webhook:
-            requests.post(webhook, json={
-                'content': (f'⚠️ News pipeline degraded: cnyes API '
-                            f'{state["consecutive_fails"]} 次連續失敗，'
-                            f'fallback to UDN + Google News only')
-            }, timeout=5)
-        logger.warning("cnyes API degraded mode triggered after %d consecutive fails",
-                       state['consecutive_fails'])
-        state['degraded_notified'] = True
-        _save_cnyes_fail_state(state)
-    except Exception as e:
-        logger.debug("Discord webhook notify failed: %s", e)
+    logger.warning("cnyes API degraded mode triggered after %d consecutive fails; "
+                   "fallback to UDN + Google News only", state['consecutive_fails'])
+    state['degraded_notified'] = True
+    _save_cnyes_fail_state(state)
 
 
 def fetch_cnyes_api(label: str, category: str, limit: int = 30, days: int = 7) -> list[dict]:

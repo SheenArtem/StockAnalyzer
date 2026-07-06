@@ -22,7 +22,7 @@ Council BLOCKER #7: informational only, 不入 scanner 排序。Backtest 閘門:
 - archive >= 6 月後跑 cross-sectional decile ret 5d/20d
 - baseline_strip 同 sector + 同 regime CAR
 - pass gate: 4/5 OOS year + LOO COVID/2022 不顛覆 sign
-- 不過閘門前: derived parquet + Discord push + AI 報告 [NEWS_FLOW_ALERT] 段
+- 不過閘門前: derived parquet + AI 報告 [NEWS_FLOW_ALERT] 段 (Discord push 已移除 2026-07-06)
 
 CLI:
     python tools/news_flow_anomaly.py

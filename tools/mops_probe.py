@@ -3,7 +3,7 @@ MOPS WAF 解禁探針 — daily 1-req lightweight probe
 
 2026-04-18 MOPS WAF ban 本機 IP 後，USE_MOPS=false rollback 到 FinMind。
 此腳本每日跑一次（Windows Task Scheduler），只打 1 個 MOPS request 探測，
-連續 3 天成功就 Discord 通知「可恢復 USE_MOPS=true」。
+連續 3 天成功就在 log 標記「可恢復 USE_MOPS=true」(Discord 通知已移除 2026-07-06)。
 
 設計原則：
 - 繞過 mops_fetcher 的 circuit breaker + throttle，避免探針失敗污染正常流程
@@ -111,34 +111,8 @@ def save_state(state: dict) -> None:
     )
 
 
-def read_discord_webhook() -> str | None:
-    env_path = Path(__file__).parent.parent / "local" / ".env"
-    if not env_path.exists():
-        return None
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        if line.startswith("DISCORD_WEBHOOK_URL="):
-            return line.split("=", 1)[1].strip()
-    return None
-
-
-def notify_discord(msg: str) -> bool:
-    url = read_discord_webhook()
-    if not url:
-        log.warning("No DISCORD_WEBHOOK_URL in local/.env, skip notify")
-        return False
-    try:
-        r = requests.post(url, json={"content": msg}, timeout=10)
-        return r.status_code == 204
-    except Exception as e:
-        log.error("Discord notify failed: %s", e)
-        return False
-
-
 def main() -> int:
-    ap = argparse.ArgumentParser(description="MOPS WAF 解禁探針")
-    ap.add_argument("--no-notify", action="store_true",
-                    help="只更新狀態檔，不送 Discord 通知（仍記錄連續成功次數）")
-    args = ap.parse_args()
+    argparse.ArgumentParser(description="MOPS WAF 解禁探針").parse_args()
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     success, detail = probe_mops()
@@ -153,21 +127,11 @@ def main() -> int:
         log.info("Consecutive successes: %d / %d", state["consecutive_successes"], NOTIFY_THRESHOLD)
 
         if state["consecutive_successes"] >= NOTIFY_THRESHOLD and not state.get("notified"):
-            msg = (
-                f"✅ **MOPS WAF 解禁** — {now}\n"
-                f"連續 {state['consecutive_successes']} 天探測成功，可恢復 USE_MOPS=true：\n"
-                f"改 `cache_manager.py:21` 預設回 `\"true\"`，或 `set USE_MOPS=true`"
-            )
-            if args.no_notify:
-                log.info("MOPS unblock detected but --no-notify set, skip Discord; "
-                         "consecutive=%d (state marked notified to avoid backlog)",
-                         state["consecutive_successes"])
-                state["notified"] = True
-            elif notify_discord(msg):
-                log.info("Discord notified")
-                state["notified"] = True
-            else:
-                log.warning("Discord notify failed, will retry next run")
+            # Discord removed 2026-07-06: unblock detection lands in the log only
+            log.info("MOPS WAF unblock detected — %d consecutive successes; "
+                     "USE_MOPS=true can be restored (cache_manager.py:21 or set USE_MOPS=true)",
+                     state["consecutive_successes"])
+            state["notified"] = True
     else:
         if state.get("consecutive_successes", 0) > 0:
             log.info("Reset consecutive from %d to 0", state["consecutive_successes"])

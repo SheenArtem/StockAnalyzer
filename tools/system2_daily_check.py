@@ -3,15 +3,17 @@ System 2 daily check - informational tier (SOP-14 PARTIAL).
 
 Per Phase 2.5 verdict 2026-05-09: model beats binary baseline B (Sharpe +0.132,
 MDD +18.7pp) but does not beat best-single-feature D. SOP-14 informational tier
-chosen -- Discord push P(A)/P(B)/P(C) when -5% triggers, NO portfolio rebalance.
+chosen -- alert P(A)/P(B)/P(C) when -5% triggers, NO portfolio rebalance.
+(Discord push removed 2026-07-06; alert now printed to stdout -> scheduler log.)
 
 Behavior:
   1. Load latest TAIEX, compute drawdown from 60d rolling high
+     (stale input -> exit 1 loudly; 2026-05~07 froze silently at 2026-05-08)
   2. If today's drawdown <= -5% AND no active 60d hold window:
        train multinomial logistic on full event history (76 events)
        compute today's features (ma_dist_60 + rv_20d)
        predict P(A_small) / P(B_medium) / P(C_crash)
-       push Discord alert
+       print alert to stdout
        write state file with hold-until date
   3. Otherwise: silent (log only)
 
@@ -20,7 +22,7 @@ Usage:
 
 Output:
   data/sentiment/system2_last_trigger.json  (state)
-  Discord push (if triggered)
+  stdout alert block (if triggered)
 """
 from __future__ import annotations
 
@@ -41,21 +43,13 @@ TAIEX_PATH = ROOT / "data_cache" / "TAIEX_price.parquet"
 EVENTS_PATH = ROOT / "reports" / "system2_events.parquet"
 FEATURES_PATH = ROOT / "reports" / "system2_features.parquet"
 STATE_PATH = ROOT / "data" / "sentiment" / "system2_last_trigger.json"
-ENV_FILE = ROOT / "local" / ".env"
 
 WINDOW_DAYS = 60
 TRIGGER = -0.05
 HOLD_DAYS = 60
 SELECTED_FEATURES = ["ma_dist_60", "rv_20d"]
-
-
-def read_webhook() -> str | None:
-    if not ENV_FILE.exists():
-        return None
-    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-        if line.startswith("DISCORD_WEBHOOK_URL="):
-            return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return None
+# TW longest market closure (CNY) is ~9-11 calendar days; older = broken producer
+STALE_LIMIT_DAYS = 12
 
 
 def load_taiex() -> pd.DataFrame:
@@ -142,29 +136,6 @@ def write_state(trigger_date: pd.Timestamp, expires: pd.Timestamp, payload: dict
     STATE_PATH.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def push_discord(message: str, dry_run: bool) -> int:
-    if dry_run:
-        print("=== DRY RUN ===", file=sys.stderr)
-        print(message, file=sys.stderr)
-        return 0
-    webhook = read_webhook()
-    if not webhook:
-        print("[system2_daily_check] No DISCORD_WEBHOOK_URL configured.", file=sys.stderr)
-        return 1
-    try:
-        import requests
-        resp = requests.post(webhook, json={"content": f"```\n{message}\n```"}, timeout=10)
-        if resp.status_code != 204:
-            print(f"[system2_daily_check] Discord status {resp.status_code}: {resp.text[:200]}",
-                  file=sys.stderr)
-            return 1
-        print(f"[system2_daily_check] Pushed {len(message)} chars to Discord.", file=sys.stderr)
-        return 0
-    except Exception as e:
-        print(f"[system2_daily_check] Push failed: {type(e).__name__}: {e}", file=sys.stderr)
-        return 1
-
-
 def format_alert(feat: dict, proba: dict) -> str:
     p_a = proba["A_small"] * 100
     p_b = proba["B_medium"] * 100
@@ -206,6 +177,15 @@ def main() -> int:
 
     taiex = load_taiex()
     as_of = pd.Timestamp(args.as_of) if args.as_of else None
+
+    if as_of is None:
+        last_bar = taiex.index[-1]
+        age_days = int((pd.Timestamp.now().normalize() - last_bar).days)
+        if age_days > STALE_LIMIT_DAYS:
+            print(f"[system2] ERROR: TAIEX input stale -- last bar {last_bar.date()} is {age_days} days old "
+                  f"(limit {STALE_LIMIT_DAYS}); run tools/refresh_taiex_price.py", file=sys.stderr)
+            return 1
+
     today, feat = compute_today_features(taiex, as_of=as_of)
 
     print(f"[system2] today={today.date()} close={feat['close']:.2f} drawdown={feat['drawdown']:.2%}")
@@ -229,8 +209,8 @@ def main() -> int:
     for c in ["A_small", "B_medium", "C_crash"]:
         proba.setdefault(c, 0.0)
 
-    msg = format_alert(feat, proba)
-    rc = push_discord(msg, args.dry_run)
+    # Discord removed 2026-07-06: alert lands in the scheduler log via stdout
+    print(format_alert(feat, proba))
 
     if not args.dry_run:
         expires_idx = min(taiex.index.get_loc(today) + HOLD_DAYS, len(taiex) - 1)
@@ -243,7 +223,7 @@ def main() -> int:
             "ma_dist_60": feat["ma_dist_60"],
             "rv_20d": feat["rv_20d"],
         })
-    return rc
+    return 0
 
 
 if __name__ == "__main__":

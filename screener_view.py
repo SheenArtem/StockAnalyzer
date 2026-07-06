@@ -1780,7 +1780,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
 
             # Section 1: 劇本進行式 (Pair Divergence info display, Wave 1 #1)
             st.markdown("#### 📜 劇本進行式")
-            st.caption("同業 pair 近 20 日表現差 — 純觀察，V12 已驗 C 級無 edge，不進 Pick 不發 Discord")
+            st.caption("同業 pair 近 20 日表現差 — 純觀察，V12 已驗 C 級無 edge，不進 Pick")
 
             # V12 12 pairs (from tools/v12_pair_divergence_ic.py)
             _PAIRS = [
@@ -1849,7 +1849,7 @@ MeanRev Composite 是 5 個高度相關指標（corr 0.78-0.93）的 252 日 z-s
 
             # Section 2: 題材熱度展開 (themes → ticker, Wave 1 #8)
             st.markdown("#### 🔥 題材熱度展開")
-            st.caption("節目整集討論題材 + 反查同題材股 (weak signal，不進 Pick 不發 Discord)")
+            st.caption("節目整集討論題材 + 反查同題材股 (weak signal，不進 Pick)")
             _videos_path = _Path('data/yt_videos_panel.parquet')
             _sector_json = _Path('data/sector_tags_manual.json')
             from datetime import date as _date_d3, timedelta as _td_d3

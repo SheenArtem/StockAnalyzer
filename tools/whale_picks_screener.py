@@ -17,13 +17,11 @@ Config (LOCKED per v13_kgrid 2026-05-16 + rebal-timing 2026-05-22):
 Output:
   - data/whale_picks/latest.parquet — full universe scored
   - data/whale_picks/{YYYY-MM-DD}.parquet — dated snapshot
-  - data/latest/whale_picks_top20.json — Discord/UI payload
-  - Optional Discord push (if --push)
+  - data/latest/whale_picks_top20.json — UI payload
 
 Usage:
     python tools/whale_picks_screener.py                  # latest as-of today
     python tools/whale_picks_screener.py --asof 2025-12-31
-    python tools/whale_picks_screener.py --push           # send Discord
 """
 from __future__ import annotations
 
@@ -226,7 +224,7 @@ def render_top_k(scored: pd.DataFrame, K: int = K_DEFAULT,
 
 
 def save_outputs(top: pd.DataFrame, full: pd.DataFrame, asof: date) -> Dict[str, str]:
-    """Save parquet snapshots + JSON for Discord/UI."""
+    """Save parquet snapshots + JSON for UI."""
     asof_str = asof.isoformat()
     paths = {}
 
@@ -240,7 +238,7 @@ def save_outputs(top: pd.DataFrame, full: pd.DataFrame, asof: date) -> Dict[str,
     full.to_parquet(lp, index=False)
     paths['latest'] = str(lp)
 
-    # Top-K JSON for UI / Discord
+    # Top-K JSON for UI
     # 2026-05-16: production default 切 composite_score (Sharpe 1.49 vs composite_parsi 1.01)
     json_obj = {
         'asof': asof_str,
@@ -264,47 +262,6 @@ def save_outputs(top: pd.DataFrame, full: pd.DataFrame, asof: date) -> Dict[str,
 
     log.info("Saved outputs: %s", paths)
     return paths
-
-
-def format_discord_message(top: pd.DataFrame, asof: date) -> str:
-    """Format top-K as Discord-friendly bullet list (no MD tables per feedback)."""
-    lines = []
-    lines.append(f"🐋 **Whale Picks Top-{len(top)} ({asof.isoformat()})**")
-    lines.append(f"_8-factor composite_parsi / industry-neutral / monthly / informational tier_")
-    lines.append("")
-    for i, r in top.iterrows():
-        sname = str(r.get('stock_name') or '')
-        score = float(r['composite_parsi'])
-        fs = r.get('f_score')
-        eps = r.get('eps_yoy')
-        close = r.get('Close')
-        fs_s = f"{fs:.1f}" if pd.notna(fs) else "n/a"
-        eps_s = f"{eps*100:+.1f}%" if pd.notna(eps) else "n/a"
-        close_s = f"{close:.1f}" if pd.notna(close) else "n/a"
-        lines.append(f"{i+1:>2}. **{r['stock_id']}** {sname}  score={score:+.2f}  F={fs_s}  EPS%={eps_s}  close={close_s}")
-    lines.append("")
-    lines.append("_Per docs/whale_picks_spec.md §13: 永遠 informational tier, 不接 portfolio gating, live winrate 預期低於 backtest_")
-    return "\n".join(lines)
-
-
-def push_discord(text: str) -> bool:
-    """Send to Discord via webhook from env DISCORD_WEBHOOK_WHALE_PICKS or DISCORD_WEBHOOK."""
-    import requests
-    url = os.environ.get('DISCORD_WEBHOOK_WHALE_PICKS') or os.environ.get('DISCORD_WEBHOOK')
-    if not url:
-        log.warning("No Discord webhook env set (DISCORD_WEBHOOK_WHALE_PICKS / DISCORD_WEBHOOK)")
-        return False
-    # Discord limits 2000 chars per message
-    chunks = [text[i:i+1900] for i in range(0, len(text), 1900)]
-    for c in chunks:
-        try:
-            r = requests.post(url, json={'content': c}, timeout=20)
-            r.raise_for_status()
-        except Exception as e:
-            log.error("Discord push failed: %s", e)
-            return False
-    log.info("Discord push OK (%d chunks)", len(chunks))
-    return True
 
 
 def _is_mid_month_rebal_day(d: date) -> bool:
@@ -333,10 +290,6 @@ def main():
     parser.add_argument('--composite', default='composite_score',
                         choices=['composite_score', 'composite_parsi'],
                         help='Ranking composite (default: composite_score, honest Sharpe 1.49)')
-    parser.add_argument('--push', action='store_true', help='Push top-K to Discord (unconditional)')
-    parser.add_argument('--push-if-month-end', action='store_true',
-                        help='Push only on M15 rebal day = last weekday on/before 15th '
-                             '(flag name kept for backward-compat scanner.bat; actual gate is M15)')
     parser.add_argument('--silent', action='store_true', help='Suppress top-K stdout print (for cron use)')
     parser.add_argument('--debug-ticker', default=None,
                         help='Print rank/score for specific stock_id (e.g. 2344) for sanity check')
@@ -377,14 +330,10 @@ def main():
         log.info("Top-%d picks:", len(top))
         print(top.to_string(index=False))
 
-    # Decide push: explicit --push always, --push-if-month-end conditional (M15 gate)
-    should_push = args.push
-    if args.push_if_month_end and _is_mid_month_rebal_day(asof):
-        should_push = True
-        log.info("Today (%s) is M15 rebal day (≤15 last weekday) → enabling Discord push", asof)
-    if should_push:
-        msg = format_discord_message(top, asof)
-        push_discord(msg)
+    # M15 marker for the scheduler log (Discord push removed 2026-07-06;
+    # top-K list lives in whale_picks_top20.json + UI)
+    if _is_mid_month_rebal_day(asof):
+        log.info("Today (%s) is M15 rebal day — top-%d saved to %s", asof, len(top), paths.get('json'))
 
 
 if __name__ == "__main__":

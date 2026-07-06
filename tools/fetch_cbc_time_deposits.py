@@ -31,9 +31,7 @@ CLI:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -46,7 +44,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 OUT = REPO / "data" / "sentiment" / "time_deposits_history.parquet"
-NOTIFY_STATE = REPO / "data" / "sentiment" / "_time_deposits_last_notified.json"
 
 COL_PERIOD = 0
 COL_QUASI_MONEY = 11
@@ -122,76 +119,10 @@ def print_summary(df: pd.DataFrame):
         print(f"  {r['period']}  {r['time_deposits_mil_twd']/1e6:6.2f} 兆  {arrow} {r['time_deposits_mom_pct']:+.2f}%")
 
 
-def build_discord_message(df: pd.DataFrame) -> str:
-    """產生月變動 Discord 訊息（純文字 + bullet，沒用 MD 表格）。"""
-    latest = df.iloc[-1]
-    p = latest['period']
-    bal = latest['time_deposits_mil_twd'] / 1e6
-    mom = latest['time_deposits_mom_pct']
-    yoy = latest['time_deposits_yoy_pct']
-    qm = latest['quasi_money_mil_twd'] / 1e6
-    ratio = latest['m1b_to_time_deposits_ratio']
-
-    last3 = df.tail(3)['time_deposits_mom_pct'].tolist()
-    if len(last3) == 3 and all(v < 0 for v in last3):
-        signal = f":warning: **連 3 月 MoM 為負** ({last3[0]:+.2f} / {last3[1]:+.2f} / {last3[2]:+.2f}%) — 資金離開存款體系 risk-on 強訊號"
-    elif len(last3) >= 2 and all(v < 0 for v in last3[-2:]):
-        signal = f":bulb: 連 2 月 MoM 為負 ({last3[-2]:+.2f} / {last3[-1]:+.2f}%) — 觀察第 3 月"
-    elif mom < 0:
-        signal = f"單月 MoM 為負 ({mom:+.2f}%) — 留意是否續跌"
-    else:
-        signal = f"定存仍在增長 (MoM {mom:+.2f}%) — 沒有資金外流訊號"
-
-    lines = [
-        f"**🏦 台灣總定存餘額更新 — {p}**",
-        f"• 定存餘額：**{bal:.2f} 兆 TWD** (MoM {mom:+.2f}% / YoY {yoy:+.2f}%)",
-        f"• 準貨幣計：{qm:.2f} 兆",
-        f"• M1B/定存 比：{ratio:.3f}",
-        f"• 訊號：{signal}",
-        f"_資料源：CBC EF15M01 月頻 (1.5-2 月 lag) / informational tier_",
-    ]
-    return "\n".join(lines)
-
-
-def push_discord(text: str) -> bool:
-    """月變動推 Discord；無 webhook env 直接 skip 不算錯。"""
-    import requests
-    url = os.environ.get('DISCORD_WEBHOOK_MACRO') or os.environ.get('DISCORD_WEBHOOK')
-    if not url:
-        logger.info("No DISCORD_WEBHOOK[_MACRO] env set, skip push")
-        return False
-    try:
-        r = requests.post(url, json={'content': text}, timeout=20)
-        r.raise_for_status()
-        logger.info("Discord push OK")
-        return True
-    except Exception as e:
-        logger.error("Discord push failed: %s", e)
-        return False
-
-
-def _load_last_notified() -> str | None:
-    if not NOTIFY_STATE.exists():
-        return None
-    try:
-        return json.loads(NOTIFY_STATE.read_text(encoding='utf-8')).get('period')
-    except Exception:
-        return None
-
-
-def _save_last_notified(period: str):
-    NOTIFY_STATE.parent.mkdir(parents=True, exist_ok=True)
-    NOTIFY_STATE.write_text(json.dumps({'period': period}, ensure_ascii=False), encoding='utf-8')
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--no-save', action='store_true', help='只 print 不寫 parquet')
     ap.add_argument('--force-refresh', action='store_true', help='忽略 7 天快取強制重抓 CSV')
-    ap.add_argument('--notify', action='store_true',
-                    help='偵測到新月資料時推 Discord (state file 去重，同月只推一次)')
-    ap.add_argument('--force-notify', action='store_true',
-                    help='強制推送 (忽略 state file)，debug 用')
     args = ap.parse_args()
 
     raw = load_cbc_series(force_refresh=args.force_refresh)
@@ -204,16 +135,6 @@ def main():
                     OUT, len(df), df.iloc[0]['period'], df.iloc[-1]['period'])
 
     print_summary(df)
-
-    if args.notify or args.force_notify:
-        latest_period = str(df.iloc[-1]['period'])
-        last_notified = _load_last_notified()
-        if not args.force_notify and last_notified == latest_period:
-            logger.info("Already notified for period %s, skip", latest_period)
-        else:
-            msg = build_discord_message(df)
-            if push_discord(msg):
-                _save_last_notified(latest_period)
 
     return 0
 

@@ -1,5 +1,5 @@
 """
-System 3 daily check - 1w-1mo crash early-warning Discord push.
+System 3 daily check - 1w-1mo crash early-warning alert (stdout -> scheduler log).
 
 Per Phase 3.4 verdict 2026-05-09 (commit pending): single ma_dist_60 rolling
 252d rank is best gating policy (Sharpe 0.898, MDD -19.5% vs B&H -31.6%).
@@ -8,8 +8,10 @@ feature on Sharpe -- ship single-feature gauge.
 
 Behavior:
   - Read latest TAIEX, compute today's ma_dist_60 rolling-252d rank
+    (stale input -> exit 1 loudly; 2026-05~07 froze silently at 2026-05-08)
   - 4 levels: green <0.65 / yellow 0.65-0.85 / orange 0.85-0.95 / red >=0.95
-  - Push Discord on FIRST cross into yellow / orange / red within 60-day cooldown
+  - Print alert on FIRST cross into yellow / orange / red within 60-day cooldown
+    (Discord push removed 2026-07-06; alert goes to stdout -> scheduler log)
   - State file: data/sentiment/system3_last_alert.json tracks last cross + cooldown
 
 Lead-time honest disclosure (per Phase 3.4 audit, 70 events 1999-2026):
@@ -18,7 +20,7 @@ Lead-time honest disclosure (per Phase 3.4 audit, 70 events 1999-2026):
   - Misses 40% of crashes (sudden exogenous shocks like COVID 2020 / 2022 Fed / 2025-03)
 
 SOP-14 informational tier:
-  - Discord alert is "early warning to consider hedge / reduce" -- NOT auto-rebalance
+  - Alert is "early warning to consider hedge / reduce" -- NOT auto-rebalance
   - Pair with banner D (now-state) + composite + HMM regime for triangulation
 
 Usage:
@@ -41,7 +43,6 @@ from regime_extension import LEVEL_STATS, BASELINE_10PCT, BASELINE_5PCT, LEAD_RE
 
 TAIEX_PATH = ROOT / "data_cache" / "TAIEX_price.parquet"
 STATE_PATH = ROOT / "data" / "sentiment" / "system3_last_alert.json"
-ENV_FILE = ROOT / "local" / ".env"
 
 THRESHOLDS = {
     "yellow": 0.65,
@@ -50,15 +51,8 @@ THRESHOLDS = {
 }
 LEVEL_RANK = {"green": 0, "yellow": 1, "orange": 2, "red": 3}
 COOLDOWN_DAYS = 60   # Trading days; same regime won't re-fire within this window
-
-
-def read_webhook() -> str | None:
-    if not ENV_FILE.exists():
-        return None
-    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-        if line.startswith("DISCORD_WEBHOOK_URL="):
-            return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return None
+# TW longest market closure (CNY) is ~9-11 calendar days; older = broken producer
+STALE_LIMIT_DAYS = 12
 
 
 def load_taiex() -> pd.DataFrame:
@@ -127,7 +121,7 @@ def save_state(state: dict) -> None:
 
 
 def should_alert(today_state: dict, prev_state: dict, taiex: pd.DataFrame) -> tuple[bool, str | None]:
-    """Decide if today's reading warrants a new Discord alert.
+    """Decide if today's reading warrants a new alert.
 
     Rules:
       - Alert when level *escalates* (today_rank > yesterday at threshold band)
@@ -199,28 +193,6 @@ def format_alert(state: dict) -> str:
     )
 
 
-def push_discord(message: str, dry_run: bool) -> int:
-    if dry_run:
-        print("=== DRY RUN ===", file=sys.stderr)
-        print(message, file=sys.stderr)
-        return 0
-    webhook = read_webhook()
-    if not webhook:
-        print("[system3] No DISCORD_WEBHOOK_URL configured.", file=sys.stderr)
-        return 1
-    try:
-        import requests
-        resp = requests.post(webhook, json={"content": f"```\n{message}\n```"}, timeout=10)
-        if resp.status_code != 204:
-            print(f"[system3] Discord status {resp.status_code}: {resp.text[:200]}", file=sys.stderr)
-            return 1
-        print(f"[system3] Pushed {len(message)} chars to Discord.", file=sys.stderr)
-        return 0
-    except Exception as e:
-        print(f"[system3] Push failed: {type(e).__name__}: {e}", file=sys.stderr)
-        return 1
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
@@ -230,6 +202,15 @@ def main() -> int:
 
     taiex = load_taiex()
     as_of = pd.Timestamp(args.as_of) if args.as_of else None
+
+    if as_of is None:
+        last_bar = taiex.index[-1]
+        age_days = int((pd.Timestamp.now().normalize() - last_bar).days)
+        if age_days > STALE_LIMIT_DAYS:
+            print(f"[system3] ERROR: TAIEX input stale -- last bar {last_bar.date()} is {age_days} days old "
+                  f"(limit {STALE_LIMIT_DAYS}); run tools/refresh_taiex_price.py", file=sys.stderr)
+            return 1
+
     state = compute_today_state(taiex, as_of=as_of)
 
     if state["rank"] is None:
@@ -246,8 +227,8 @@ def main() -> int:
         print(f"[system3] no alert ({reason or 'green'}); silent")
         return 0
 
-    msg = format_alert(state)
-    rc = push_discord(msg, args.dry_run)
+    # Discord removed 2026-07-06: alert lands in the scheduler log via stdout
+    print(format_alert(state))
 
     if not args.dry_run:
         save_state({
@@ -256,7 +237,7 @@ def main() -> int:
             "rank": state["rank"],
             "ma_dist_60": state["ma_dist_60"],
         })
-    return rc
+    return 0
 
 
 if __name__ == "__main__":

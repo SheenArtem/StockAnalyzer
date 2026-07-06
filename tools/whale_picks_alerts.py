@@ -7,25 +7,24 @@ Three alert types (2026-05-16 後從原 2 種擴充為 3 種):
 
 (A) Early-entry signal — rapid rank rise:
     A ticker whose composite_score rank moved from >100 (7d ago)
-    to ≤30 (today) → 主力剛發動候選 → Discord push.
+    to ≤30 (today) → 主力剛發動候選。
 
 (B) Trailing stop / early exit:
     Active holdings (last M15 rebal's top-10) that dropped ≥ 15% from
-    rebalance-day close → 不等下次 rebal 才出 → Discord push.
+    rebalance-day close → 不等下次 rebal 才出。
 
 (C) Mid-rebal BUY 候選 (2bfacf9 新加):
     Rank by composite_score 在 (10, 20] + 5d return ≥ 15% + 不在當前 holdings
-    → M15 rebal 漏抓的 mid-cycle 爆發股 (e.g., 2344 case) → Discord push.
+    → M15 rebal 漏抓的 mid-cycle 爆發股 (e.g., 2344 case)。
     不自動進場、僅手動評估提醒。
 
 Outputs:
 - data/whale_picks/_active_holdings.json — refreshed on M15 rebal day
-- Discord push only if any alerts triggered
+- Alert text printed to stdout -> scanner.log (Discord push removed 2026-07-06)
 
 Usage:
     python tools/whale_picks_alerts.py            # run alerts
     python tools/whale_picks_alerts.py --update-holdings  # force refresh holdings
-    python tools/whale_picks_alerts.py --dry-run  # log to stdout, no Discord
 """
 from __future__ import annotations
 
@@ -395,12 +394,12 @@ def detect_early_exits(today: date, snapshots: List[date], holdings: Optional[Di
 
 
 # ============================================================
-# Discord push
+# Alert formatting (stdout -> scanner.log; Discord removed 2026-07-06)
 # ============================================================
 
-def format_discord_alert(entries: List[Dict], exits: List[Dict],
-                         mid_buys: List[Dict], today: date) -> str:
-    """Format alert message for Discord."""
+def format_alert(entries: List[Dict], exits: List[Dict],
+                 mid_buys: List[Dict], today: date) -> str:
+    """Format alert message block."""
     lines = [f"🐋 **Whale Picks 警報 ({today.isoformat()})**"]
 
     if entries:
@@ -434,24 +433,6 @@ def format_discord_alert(entries: List[Dict], exits: List[Dict],
     return "\n".join(lines)
 
 
-def push_discord(text: str) -> bool:
-    import requests
-    url = os.environ.get('DISCORD_WEBHOOK_WHALE_PICKS') or os.environ.get('DISCORD_WEBHOOK')
-    if not url:
-        log.warning("No Discord webhook env set")
-        return False
-    chunks = [text[i:i+1900] for i in range(0, len(text), 1900)]
-    for c in chunks:
-        try:
-            r = requests.post(url, json={'content': c}, timeout=20)
-            r.raise_for_status()
-        except Exception as e:
-            log.error("Discord push failed: %s", e)
-            return False
-    log.info("Discord push OK")
-    return True
-
-
 # ============================================================
 # Main
 # ============================================================
@@ -461,7 +442,6 @@ def main():
     parser.add_argument('--asof', default=date.today().isoformat())
     parser.add_argument('--update-holdings', action='store_true',
                         help='Force refresh _active_holdings.json from today snapshot')
-    parser.add_argument('--dry-run', action='store_true', help='Print alerts to stdout, no Discord')
     args = parser.parse_args()
 
     today = date.fromisoformat(args.asof)
@@ -473,15 +453,19 @@ def main():
     exits = detect_early_exits(today, snapshots, holdings)
     mid_buys = detect_mid_month_buys(today, snapshots, holdings)
 
-    msg = format_discord_alert(entries, exits, mid_buys, today)
+    msg = format_alert(entries, exits, mid_buys, today)
     if not msg:
         log.info("No alerts to push")
         return
 
-    if args.dry_run:
-        print(msg)
-        return
-    push_discord(msg)
+    # Discord removed 2026-07-06: alert lands in scanner.log via stdout.
+    # Alert text has emoji -> force utf-8 so a cp950 console never crashes
+    # (scanner.bat sets PYTHONIOENCODING=utf-8, but direct runs must survive too).
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+    print(msg)
 
 
 if __name__ == "__main__":

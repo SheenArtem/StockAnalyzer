@@ -886,6 +886,11 @@ def main():
                 start_date = next_day
 
         dates = _generate_trading_dates(start_date, args.end_date)
+        if not dates:
+            # Sunday/holiday resume: window after last saved day has no weekday
+            # (pre-2026-07-06 this crashed IndexError on dates[0] every Sunday)
+            logger.info("[%s] No weekday in %s ~ %s, nothing to do", dataset, start_date, args.end_date)
+            continue
         logger.info("[%s] %d trading days (%s ~ %s)", dataset, len(dates), dates[0].strftime("%Y-%m-%d"), dates[-1].strftime("%Y-%m-%d"))
 
         if dataset == "institutional":
