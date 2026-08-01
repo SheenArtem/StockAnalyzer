@@ -15,9 +15,17 @@ fred_fetcher.py — 三風險同步 (宋分擇時 #3) 資料層
               (HYG drop = HY spread widen)
   - 所有資料 daily, 緩存到 data_cache/fred/
 
+資料源 (2026-08-01 起雙源):
+  - CBOE 系指數 (VIX/VIX3M/VVIX/SKEW/OVX): CBOE 官方日線 CSV 為權威值，
+    yfinance 補官方檔缺的早期歷史 (如 VIX3M 2006~2009)。
+    緣由: Yahoo ^VIX3M/^MOVE 自 2026-07-20 斷供，只回一筆 NaN 尾列，
+    害 vol_complex 面板凍在 7/17、NaN 尾列還騙過日期式 staleness check。
+  - 非 CBOE (TNX/HYG/MOVE): 僅 yfinance。MOVE 是 ICE 指數無官方免費源，
+    斷供時靠 dropna 後的日期讓下游 staleness check 正確 fail loud。
+
 Usage:
   python tools/fred_fetcher.py --refresh
-  → 寫 data_cache/fred/{tnx,vix,vix3m,hyg}.parquet
+  → 寫 data_cache/fred/{tnx,vix,vix3m,hyg,vvix,skew,ovx,move}.parquet
 """
 from __future__ import annotations
 
@@ -49,6 +57,11 @@ SYMBOLS = {
     "move": "^MOVE",     # ICE BofA MOVE，美債隱波 (S3-a shock alert 輸入)
 }
 
+# CBOE 官方日線 CSV — 這些指數的真來源 (Yahoo 只是轉載, 2026-07-20 起 ^VIX3M 斷供)
+CBOE_INDICES = {"vix": "VIX", "vix3m": "VIX3M", "vvix": "VVIX", "skew": "SKEW", "ovx": "OVX"}
+CBOE_URL = "https://cdn.cboe.com/api/global/us_indices/daily_prices/{name}_History.csv"
+STALE_WARN_DAYS = 7  # 與 system3_*_check 的 STALE_LIMIT_DAYS 一致
+
 
 def fetch_one(label: str, symbol: str, period: str = "max") -> pd.DataFrame:
     import yfinance as yf
@@ -60,7 +73,26 @@ def fetch_one(label: str, symbol: str, period: str = "max") -> pd.DataFrame:
     df.index = pd.to_datetime(df.index).tz_localize(None)
     df = df.rename(columns={"Close": label})
     df.index.name = "date"
-    return df
+    # 砍 NaN 列: yfinance 斷供時回「有日期無收盤」尾列, 落地會騙過日期式 staleness check
+    return df.dropna(subset=[label])
+
+
+def fetch_cboe(label: str, name: str) -> pd.DataFrame:
+    """CBOE 官方歷史 CSV → 單欄 DataFrame (schema 與 fetch_one 一致)。"""
+    import io
+
+    import requests
+    r = requests.get(CBOE_URL.format(name=name), timeout=30)
+    r.raise_for_status()
+    df = pd.read_csv(io.StringIO(r.text))
+    df["DATE"] = pd.to_datetime(df["DATE"])
+    df = df.set_index("DATE")
+    # 兩種 schema: OHLC 型 (VIX/VIX3M: DATE,OPEN,HIGH,LOW,CLOSE) 取 CLOSE;
+    # 兩欄型 (VVIX/SKEW/OVX: DATE,<指數名>) 取最後一欄
+    col = "CLOSE" if "CLOSE" in df.columns else df.columns[-1]
+    df = df[[col]].rename(columns={col: label})
+    df.index.name = "date"
+    return df.astype(float).dropna().sort_index()
 
 
 def refresh_all(period: str = "max") -> dict:
@@ -68,12 +100,23 @@ def refresh_all(period: str = "max") -> dict:
     for label, symbol in SYMBOLS.items():
         print(f"Fetching {label} ({symbol})...")
         df = fetch_one(label, symbol, period)
+        if label in CBOE_INDICES:
+            try:
+                cboe = fetch_cboe(label, CBOE_INDICES[label])
+                # 官方值優先, yfinance 只補官方檔沒有的早期歷史 (VIX3M pre-2009)
+                df = cboe.combine_first(df) if not df.empty else cboe
+                print(f"  CBOE official merged: last bar {cboe.index[-1].date()}")
+            except Exception as e:
+                print(f"  WARN: CBOE fetch failed for {label} ({e}); yfinance only")
         if not df.empty:
             df.to_parquet(CACHE_DIR / f"{label}.parquet")
             out[label] = df
             print(f"  OK: {len(df)} rows, {df.index[0].date()} ~ {df.index[-1].date()}")
+            age = int((pd.Timestamp.now().normalize() - df.index[-1]).days)
+            if age > STALE_WARN_DAYS:
+                print(f"  WARN: {label} last bar {df.index[-1].date()} is {age} days old -- all sources stale")
         else:
-            print(f"  WARN: {label} empty")
+            print(f"  WARN: {label} empty; keeping previous cache")
     return out
 
 

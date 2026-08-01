@@ -65,7 +65,9 @@ def load_move() -> pd.Series:
     df = pd.read_parquet(MOVE_PATH)
     df.index = pd.to_datetime(df.index)
     s = df["move"].sort_index().astype(float)
-    return s
+    # 砍 NaN 尾列: 2026-08-01 Yahoo 斷供期塞過一筆 NaN 列, 日期夠新騙過 staleness
+    # check → z=nan → 假綠燈靜默; 濾掉後 index[-1] = 最後有效 bar, 該叫就會叫
+    return s.dropna()
 
 
 def classify(z: float) -> str:
