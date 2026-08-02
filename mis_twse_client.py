@@ -163,6 +163,9 @@ class MisTwseClient:
         Returns:
             dict 含以下欄位（盤中 partial bar）：
                 price (float)         成交價 (z 為 '-' 則 fallback pz)
+                price_source (str)    'z' | 'pz' | 'mid' | 'prev_close'（價格取自哪一層）
+                name (str|None)       簡稱，如 '台積電'（payload 的 n）
+                full_name (str|None)  全名，如 '台灣積體電路製造股份有限公司'（payload 的 nf）
                 volume (int|None)     當日累積量 (指數為 None)
                 open (float|None)
                 high (float|None)
@@ -336,6 +339,10 @@ def _parse_quote(data: dict, listing: str) -> Optional[dict]:
     return {
         'price': price,
         'price_source': price_source,  # 'z' | 'pz' | 'mid' | 'prev_close'
+        # n = 簡稱（台積電）、nf = 全名（台灣積體電路製造股份有限公司）。
+        # payload 一直都有這兩欄，別再誤以為批次報價不回股名。
+        'name': (data.get('n') or '').strip() or None,
+        'full_name': (data.get('nf') or '').strip() or None,
         'volume': _to_int(data.get('v')),
         'open': _to_float(data.get('o')),
         'high': _to_float(data.get('h')),

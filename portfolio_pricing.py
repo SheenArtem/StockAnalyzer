@@ -222,7 +222,7 @@ def get_tw_quotes(tickers: list) -> dict:
             'currency': 'TWD',
             'source': 'mis.twse',
             'market_state': 'REGULAR',
-            'name': None,
+            'name': q.get('name'),      # mis.twse payload 的 n（簡稱）
             'asof': q.get('time'),
         }
     return out

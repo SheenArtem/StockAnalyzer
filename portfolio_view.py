@@ -272,6 +272,7 @@ def _holdings_table(valued, quotes, market, ytd_map):
         mv = r['market_value']
         rows.append({
             '代號': r['ticker'],
+            '名稱': q.get('name') or '',
             '權重%': (mv / total_mv) if (mv is not None and total_mv > 0) else None,
             'YTD%': ytd_map.get(r['ticker']),         # 今年以來（基準=去年末收盤）
             '總報酬率%': r['return_pct'],               # 相對持有均價的累積報酬
