@@ -56,6 +56,7 @@
 | 第六節 `notes_view.py:4` docstring 說 st.tabs | ✅ 未 commit | 改為 radio 並說明原因，與同檔 96-97 行一致 |
 | 第六節 舊 `compute_revenue_score` 仍是 look-ahead | ✅ 未 commit | 標 DEPRECATED 並改為呼叫即 `NotImplementedError`（保留 VF-VC 驗證脈絡，但不可能再被誤用）|
 | 第六節 `portfolio_pricing` Yahoo 被擋無 log | ✅ 未 commit | 補 `raise_for_status()`（401/429 原本被 `r.json()` 吞成 None）+ 兩處 `continue` 補 log |
+| 第六節 持股表「名稱」欄消失 | ✅ `5d46e7a` | **原報告推測「刻意」的理由不成立**：實打 `getStockInfo.jsp` 三檔確認 payload 一直有 `n`／`nf` 且中文解碼正確，是 `_parse_quote` 丟掉的；該欄首版即存在，由 `ff80466` 夾帶刪除。補回欄位 + 報價層帶出股名 + 8 條測試（HEAD 對照 7 條紅）|
 | 第六節 殘留 Whale 文字 | ✅ 未 commit | 活程式碼那處（`twse_api.py`「所有 4 條 picks line」）更正；3 處在有日期的歷史報告內，只在「提議未來動作」處加註，刻意不改寫當時結論 |
 
 **P0-1 的實際效果**：6,486 列（7.7%）分數變動；4,455 列 / 848 檔的 `z_score` 由「有限低值」回到 NaN，平均 quality_score **+15.1**；富邦金 2881 由 5 → 30。對 `value_screener.py:576` 大型股通道的影響：22 檔金融股的 955 個季列中，`quality_score >= 50` 的列數由 **0 → 275**。
@@ -63,9 +64,7 @@
 **P0-1 的意外收穫**：對照 HEAD 逐欄比對時發現 FinMind 主要拼法是 `NoncurrentLiabilities`（小寫 c），佔 76,367 / 83,934 列。HEAD 只找 `NonCurrentLiabilities`，導致 **F5 長期負債比與 ROIC 兩個分支對 93% 的股票從未生效**。這次的別名合併順帶修好了它 —— 這也是修正後與 HEAD 差異達 40% 的原因，方向正確。同時已把別名表拆成 `_SPELLING_ALIASES`（同義字，安全）與 `_PROXY_ALIASES`（代理值，仍待處理），拆分經驗證為行為中性。
 
 **仍未處理**：
-- **第四、五、六、九節全部已修。** 全套測試 384 → **530**。
-- 唯一剩下的原報告項目：`portfolio_view.py` 持股表「名稱」欄消失 —— 需先確認是否刻意
-  （`mis.twse` 批次報價本來就不回股名），屬產品決策不是缺陷。
+- **第四、五、六、九節全部已修，原報告項目已全數結案。** 全套測試 384 → **538**。
 - 新增的待辦（本輪查出，非原報告）：
   - `ohlcv_tw.parquet` 的 11 個部分橫斷面日回填（TWSE 可行、TPEX 不可行）。
   - 2026-04-13~04-29 那 13 個交易日的抓取斷層（已可被 `report_coverage_gaps` 偵測，
@@ -290,6 +289,7 @@
 - 移除不徹底的文字殘留 4 處：`reports/rvol_atr_factor_validation.md:14` 與 `:209`、`docs/research/technical_analysis_first_principles_2026-06-07.md:178`、`twse_api.py:1420`。
 - `.gitignore:21` 註解仍把已刪除的 `tools/test_ledger_append.py` 列為「仍追蹤」的正式測試。
 - `portfolio_view.py:238` 持股表改版時「名稱」欄消失，commit 說明未提及 —— 請確認是否刻意（`mis.twse` 批次報價本來就不回股名）。
+  - ⚠️ **括號內的理由是錯的，已修（`5d46e7a`）**：實打 `getStockInfo.jsp` 確認 payload 一直都有 `n`（簡稱）與 `nf`（全名），是 `_parse_quote` 自己丟掉的。而該欄在投組 tab 首版（`15006ea`）就存在，是 `ff80466`（Whale 移除，單一 commit 刪 234 檔）夾帶拿掉的 —— 那個 commit message 逐項列了它對本檔的必要修補，唯獨沒提刪欄與整批欄位重排。**不是產品決策，是缺陷。**
 - `portfolio_pricing.py:175` Yahoo 被擋（401/429）時三處 `continue` 都沒有 log，且 UI 標題仍寫「即時」。
 - `portfolio_view.py:108` 年化 CAGR / 日勝率把「尚未建倉」的 0 報酬日一起算（8 天 1.95% 報酬被年化成 +83.7%）。與被刪的舊實作逐值等價，是忠實沿用而非本次引入 —— 但疊加 P0-2 之後，這個 tab 的頭條數字整體不可信。
 - `tools/fetch_baihua_fb.py:377` 去重 key 只取正規化內文前 120 字，開頭相同的系列文可能被靜默合併。
