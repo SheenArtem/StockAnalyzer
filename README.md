@@ -133,14 +133,14 @@ Scanner started
 | `run_app_startup.bat` | 登入時自啟 | 背景起 Streamlit UI。工作名 `StockAnalyzer App Autostart`，實際執行的是 `wscript.exe run_app_startup.vbs`（無視窗包裝，避免登入時閃黑框），由它再叫這支 bat |
 | `run_macro_panels_dawn.bat` | **TUE-SAT 07:00** | ETF flows / CNN FGI / 市值 / systemic chip / FRED / 領頭羊 |
 | `run_macro_panels_evening.bat` | **TUE-SAT 17:30** | 法人合計 / 期貨法人 / AAII / TW LEI / 估值 / 當日 breadth |
-| `run_taifex_signals_afterclose.bat` | **TUE-SAT 16:30** | 期交所盤後訊號 |
+| `run_taifex_signals_afterclose.bat` | **TUE-SAT 16:30** | 期交所盤後訊號。⚠️ 只剩這**一個** trigger；原設計是 14:35 主 + 15:30 + 16:30 三重容錯，另兩個已不在排程器裡，失敗後要等當晚 00:00 的 scanner 當 backup |
 | `run_tdcc_weekly.bat` | **週六 08:00** | TDCC 集保 + 籌碼 margin/short_sale 補抓 |
 | `run_bulk_revenue_monthly.bat` | **每月 11 日 00:30** | 月營收下載（10 號公布，11 號抓才拿得到當月）|
 | `run_app.bat` | 手動 | 啟動 Streamlit UI（有視窗，開發用）|
 | `run_yt_sync.bat` / `run_yt_brokerage_sync.bat` | 手動 | YT 影片 / 投顧頻道同步 |
 | `run_news_intraday.bat` | 手動 | 盤中新聞監控（Intraday Disable，等需要再啟）|
 | `run_mops_probe.bat` | 手動 | MOPS 探測（`USE_MOPS` 預設 false）|
-| `run_c1_monthly.bat` | **未登記** | C1 regime tilt 拐點偵測 —— 檔案在，排程器沒有這個工作 |
+| `run_c1_monthly.bat` | **未登記＋內部停用** | C1 regime tilt 拐點偵測；2026-05-30 排程工作已 Unregister，bat 第 64 行也加了 `goto skip_c1`。手動仍可跑 `python tools\compute_c1_tilt.py` |
 | `run_scanner_weekly.bat` | **未登記＋內部停用** | 強勢股週報；第 62 行無條件 `goto skip_weekly_all`，即使觸發也是 no-op |
 
 > ⚠️ 所有 `.bat` 必須 **pure ASCII**（CP950/UTF-8 衝突會讓排程靜默失敗）。pre-commit hook 會擋 CJK 字元。
