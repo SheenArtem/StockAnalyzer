@@ -38,16 +38,87 @@
 | P3 LLM 表未列 `build_baihua_kb` | ✅ `c01eb92` | |
 | 第九節 5 支已追蹤檔非法 UTF-8（下方「新發現」） | ✅ `137eae3` | 全 repo 已追蹤 `.py` 編譯失敗 5 → 0；816 個文字檔非法 UTF-8 5 → 0 |
 | 防止再犯：pre-commit 加 UTF-8 + `py_compile` 檢查 | ✅ `cdab076` | 實測壞檔被擋（HEAD 未變）、好檔放行；AGENTS.md 同步記載 |
+| P2 官方 EOD overlay 以請求日期蓋章 | ✅ 未 commit | 兩端點 payload 自報日期入 `data_date` 欄 + `strict_date`；實打驗證：請求 06-16 時 TPEX 的 888 列被丟掉只留 TWSE 1090 列、週六回 EMPTY（原為 888 列蓋錯日期）；HEAD 對照確認測試踩得到原錯誤 |
+| P2 FinMind 額度封鎖鎖滿 3605 秒 | ✅ 未 commit | 改 300→600→900s 封頂退避 + 成功即歸零；回歸測試斷言「新 process 第一筆就撞」得 300s（HEAD 為 3605s） |
+| 第九節 `vfvc_backfill_monthly_rev` 全敗仍 exit 0 | ✅ 未 commit | 全敗改 `sys.exit(1)`、空清單仍 exit 0（兩者不可混為一談）；sync 補 `raise_on_error=True` 與 `--bulk-update` 路徑對齊 |
+| 第九節 `get_finmind_cached` 回空 frame 而非過期快取 | ✅ 未 commit | 只在「抓取丟例外」時退回過期快取（抓到空結果不退 —— 那可能是下市股的合法答案）|
+| 第九節 `rf1_cache_consistency_check` 吞讀取失敗 | ✅ 未 commit | 改回報「未涵蓋」清單並計入 exit code；實跑 9,202 檔全可讀、零誤報 |
+| 第五節 App 按鈕第 400 輪靜默截斷 | ✅ 未 commit | 補 `--max-rounds 700`；且截斷改回 exit 4（原與正常完成同回 0），App 顯示黃色「不完整」而非綠色完成 |
+| **新發現** regime log 補值把純上櫃橫斷面當今日 | ✅ 未 commit | 見下方「第二輪新發現」 |
+| **新發現** 回填歷史週報覆寫 App latest 快照 | ✅ 未 commit | `--out-dir` 不導 `weekly_chip_latest.parquet`，回填 6/18 會把 UI 週榜換成舊資料；改成只有最新一週才覆寫 |
+| 第四節 `_PROXY_ALIASES` 代理值無旗標 | ✅ 未 commit | 仍代入（不代入整個金融族群算不出 F-Score），但加 `<欄位>_is_proxy` 與輸出欄 `uses_proxy_inputs`；重建 parquet 逐列對照 **83,934 列零分數變動**，純新增資訊；標記 1,378 列 / 35 檔，其 `f_score` 中位數 3.0 vs 正常列 5.0 |
+| 第六節 投組年化 CAGR / 日勝率含未建倉日 | ✅ 未 commit | 樣本 < 60 交易日不年化（UI 顯示「—」+ 說明）；報酬類統計只算 prev_mv>0 的日子；總報酬/MDD 仍取完整序列 |
+| 第五節 SoT 靜默截短（`_load_existing` / `load_posts` / `load_state`）| ✅ 未 commit | 破壞性那個預設拒絕執行（exit 5，`--drop-corrupt-lines` 才捨棄且先備份）；只讀不寫那個改計數警告；壞 state 改 raise（否則 206 篇全部重跑 Sonnet 且舊檔被覆寫）|
+| 第五節 cookie 暫存檔刪除失敗被吞 | ✅ 未 commit | 改 log + UI 黃色警告並附路徑（「即用即刪」是對使用者的安全承諾，不可靜默變假）|
+| 第六節 `expected_stock_count` 用檔案數 | ✅ 未 commit | 改由面板歷史推導每日在市檔數；實證磁碟 2,064 檔含 99 支減資舊股別（`*O`，2026-04-08 起停止交易）仍被計入 |
+| 第六節 breadth stage 無 verifier marker | ✅ 未 commit | 加進 `REQUIRED_STAGES`（bat 早就印 `TW breadth panel done (exit=0)`，不需改 bat）；對真實 scanner.log 驗過 15 stages 全通過 |
+| 第六節 `test_scanner_fail_loud` 手抄 marker | ✅ 未 commit | 改由 `verifier.REQUIRED_STAGES` 推導，並新增「每個 required marker 必須真的出現在 bat 的 `call :log`」逐項測試（手抄擋不住的那個方向）|
+| 第六節 `notes_view.py:4` docstring 說 st.tabs | ✅ 未 commit | 改為 radio 並說明原因，與同檔 96-97 行一致 |
+| 第六節 舊 `compute_revenue_score` 仍是 look-ahead | ✅ 未 commit | 標 DEPRECATED 並改為呼叫即 `NotImplementedError`（保留 VF-VC 驗證脈絡，但不可能再被誤用）|
+| 第六節 `portfolio_pricing` Yahoo 被擋無 log | ✅ 未 commit | 補 `raise_for_status()`（401/429 原本被 `r.json()` 吞成 None）+ 兩處 `continue` 補 log |
+| 第六節 殘留 Whale 文字 | ✅ 未 commit | 活程式碼那處（`twse_api.py`「所有 4 條 picks line」）更正；3 處在有日期的歷史報告內，只在「提議未來動作」處加註，刻意不改寫當時結論 |
 
 **P0-1 的實際效果**：6,486 列（7.7%）分數變動；4,455 列 / 848 檔的 `z_score` 由「有限低值」回到 NaN，平均 quality_score **+15.1**；富邦金 2881 由 5 → 30。對 `value_screener.py:576` 大型股通道的影響：22 檔金融股的 955 個季列中，`quality_score >= 50` 的列數由 **0 → 275**。
 
 **P0-1 的意外收穫**：對照 HEAD 逐欄比對時發現 FinMind 主要拼法是 `NoncurrentLiabilities`（小寫 c），佔 76,367 / 83,934 列。HEAD 只找 `NonCurrentLiabilities`，導致 **F5 長期負債比與 ROIC 兩個分支對 93% 的股票從未生效**。這次的別名合併順帶修好了它 —— 這也是修正後與 HEAD 差異達 40% 的原因，方向正確。同時已把別名表拆成 `_SPELLING_ALIASES`（同義字，安全）與 `_PROXY_ALIASES`（代理值，仍待處理），拆分經驗證為行為中性。
 
 **仍未處理**：
-- 第四節剩下三項：官方 EOD overlay 以「請求日期」而非 payload 自報日期蓋章（需先讓 `twse_api.get_market_daily_all` 回傳資料自報日期）、FinMind 額度封鎖錨在本 process 第一筆請求（最長鎖 3605 秒）、`_PROXY_ALIASES` 的代理值無旗標。
-- 第五節白話投資各項（STATE checkpoint、400 輪截斷、登入牆靜默成功、seq 排序、SoT 靜默截短、cookie 刪除失敗吞例外）。
-- 第六節文件衛生剩餘項（`notes_view.py:4` docstring、`test_scanner_fail_loud` 手抄 marker、breadth stage 無 verifier marker、`expected_stock_count` 用檔案數、缺 newest-first 回歸測試、殘留 Whale 文字 4 處、持股表「名稱」欄）。
-- 第九節既有問題：`vfvc_backfill_monthly_rev.py:506` per-stock 全敗仍 exit 0、`get_finmind_cached` 額度失敗回空 frame 而非過期快取、`rf1_cache_consistency_check.py:74-77` 吞讀取失敗。（同節的 UTF-8 毀損與 TW breadth 混入美股已修，見上表。）
+- 第四節**全部已修**。第九節既有問題**全部已修**。
+- 第五節白話投資剩餘 3 項：build 的 STATE checkpoint（換機首次全量必逾時）、登入牆／DOM 改版靜默回報成功、增量抓取 seq 排序（**修法有陷阱見本節說明**）、去重 key 只取前 120 字。
+- 第六節剩餘 3 項：缺「FinMind 新→舊排序」回歸測試、`mis.twse` 每請求 ≤50 檔硬規則無測試背書、`portfolio_view.py` 持股表「名稱」欄消失（需先確認是否刻意 —— `mis.twse` 批次報價本來就不回股名）。
+- 第六節 `docs/agent/data-sources.md` 資料源優先序表已於 `61900ee` / `3503e56` 反映官方 EOD overlay，本輪另加「拿請求日期當資料日期是錯的」專節。
+- **產品決策待定**：`regime_log.jsonl` 有 692 筆的 regime 標籤與現行 panel 重算不同，但那 78.1% 屬 panel 版本差（垃圾價清零、V=0 凍結列、yfinance NaN 修復都改過歷史值），不是毀損。要不要宣告「現行 panel 為唯一權威」整檔重建，是產品決策，本次刻意沒做（`--repair-history --rebuild-all` 可執行）。
+
+---
+
+## 第二輪新發現（2026-08-02，接手後查出，不在原報告內）
+
+### 新-1　TPEX EOD 端點**完全無視** date 參數，而 regime log 的補值因此長期寫入垃圾
+
+原報告只寫「TPEX 端點實測會忽略 date 參數」且僅指出 overlay 一處曝險。實打後發現範圍更大、且**已經在污染線上決策輸入**：
+
+**端點行為（實打 2026-08-02）**：`stk_quote_result.php` 請求 `115/06/16`（6 週前）回的是 `115/07/31` 的橫斷面，價格一字不差；請求週六 `115/08/01` 亦同。TWSE `MI_INDEX` 相反 —— 正確分辨每一天，非交易日直接回 `stat="很抱歉，沒有符合條件的資料!"`。**兩個端點的 payload 都自報真實日期**（TWSE 頂層 `date` + 表格 title 民國日期；TPEX 頂層 `date` + `tables[0].date`），修法有現成錨點。
+
+**`market_regime_logger` 的毀損鏈**：`_twse_trading_days_between` 用 `bdate_range` 產候選日 → 排程每天 00:00 跑時「今天」尚未開盤 → TWSE 正確回空、**TPEX 回上一場的完整橫斷面** → `df` 變成純上櫃 → 過濾 top300 後只剩 51 檔上櫃成分股，而高價股正集中在上櫃（信驊 14,525、旺矽 5,280、印能 3,370）→ 等權均價 583.51 被抬成 1,070.82（**1.835 倍**）→ 該值以「今天」寫進序列。
+
+**證據（區辨測試，非讀碼推論）**：
+- 純 parquet 重算完全正常（n 恆 294、`ret_20d` 落在 −0.23~+0.01）；log 卻記到 `+0.7696`。**假設「parquet 成分變動」被推翻**。
+- 以「純上櫃子集均價」預測 logged 值，週一~週四 13 筆全部命中（|diff| 0.002~0.17），**只在三個週五失準**（0.68~0.76）—— 週六 00:00 跑時 `bdate_range` 不含週六，不補值，那筆等於純 parquet，所以正確。
+- 2026 年有 54 筆 `|ret_20d| > 30%`（等權 300 檔代理的物理不可能值）。
+- 週一~週四 `range_20d` 中位數 **0.934**、最小值 0.135，全在 volatile 門檻 0.08 之上 → **那四天被永久釘在 volatile**；週五中位數 0.189。
+
+**影響面**：這份 log 不是純 shadow，有 7 個消費端 —— `scanner_job.py:321` 的 `[REGIME FILTER]`（實際 gate 掃描）、`value_screener.py:793`、`market_banner.py:736`、`screener_view.py:1078`、`step_a_engine.py:63`、`paper_trade_engine.py:49`、`line2_vol_conditioned_validate.py`。目前標籤大多仍對，是因為真實市況本來就是 volatile、污染方向同邊；**實際誤標抓到 1 筆：2026-06-17（三）log 記 `volatile`，乾淨重算是 `trending`**。
+
+**注意**：`tools/line3_liquidity_regime.py:25` 早已記載「`regime_log.jsonl` 2026-04-28+ 受**凍結/尖刺價**污染（ret_20d 110-180% 不可能值），本檔不信任 jsonl 自算」。當時歸因給垃圾價（那批已修），但 log 至今仍壞 —— 真正機制是本節這條。那次只讓**一個**消費端繞道，根因沒動，其餘六個仍在讀毒資料。
+
+**修法**：`twse_api` 兩個 endpoint 把 payload 自報日期放進 `data_date` 欄，並加 `strict_date=True`（預設）—— 指定日期就只接受該日或回空，一處修好三個 caller（overlay／regime／週報）。`market_regime_logger` 另加「補值必須與 parquet 同一批成分股 + 覆蓋率 ≥90% 否則整天不補」，因為等權**均價**對成分極度敏感；並加重複日期 guard（重複 index 會讓 `pct_change(20)` 的 20 變成「位置」而非交易日）。
+
+**資料修復**：`--repair-history` 只修「物理不可能」那群（59 筆，5 筆改標籤），不動 78.1% 的版本差異。已套用，不可能值 **62 → 9**，且 9 筆完全可歸帳：6 筆是 panel 自身殘留尖刺（工具會明列 warning，不假裝重算完美）、3 筆是 panel 沒有的日期。`regime_log.jsonl` 為 gitignored 本機檔，此修復不入版控。
+
+### 新-2　週報回填會覆寫 App 的 latest 快照
+
+`weekly_chip_report.py --out-dir` 只導 markdown，`LATEST_PARQUET`（`data/weekly_chip_latest.parquet`，App「三大法人週榜」讀的那份）照舊被覆寫。實測 `--week-end 2026-06-18` 會把 UI 週榜整份換成 6 月資料，畫面上看不出任何異常。已改成只有「最新那一週」才覆寫，回填時把快照寫到 `out_dir` 供檢視。（本次即實際踩到並已還原。）
+
+### 新-3　面板覆蓋率 2026-04 掉一階，且含 99 支已停止交易的減資舊股別
+
+修 `expected_stock_count` 時實測 `ohlcv_tw.parquet` 的「每日有量檔數」中位數：
+
+| 月份 | 2025-08 | 2026-01 | 2026-03 | **2026-04** | 2026-05 | 2026-07 |
+|---|---|---|---|---|---|---|
+| 中位數 | 2,036 | 2,043 | 2,046 | **1,709** | 1,951 | 1,941 |
+
+兩件事混在一起：
+
+1. **永久少約 100 檔（已解釋，不是缺陷）**：99 支 `*O` 結尾代號在 2026-04-08 起沒有任何新
+   bar。查 `universe_tw_full` 確認它們是減資後的**舊股別**（`3105O 穩懋　　　　　舊`、
+   `market=終止上市櫃`、`status=減資/停止帳簿劃撥`、`is_common_stock=False`）。它們的
+   `*_price.csv` 仍留在磁碟且 `is_tw_ticker()` 照樣匹配 —— 這正是舊分母被墊高的機制實證。
+2. **2026-04 有約 6 週的覆蓋率下滑（未解釋，待查）**：中位數 1,709 比 3 月的 2,046 少 337，
+   遠超上述 100 檔，且 5 月只回到 1,951 而非 2,046。本輪未追查原因，列為待辦。
+
+### 新-4　`weekly_chip_report` 的 TPEX 曝險是潛在的、尚未成真
+
+同一個 TPEX 日期缺陷讓歷史週報的 TPEX 個股 `close_ref` 可能取到別天收盤（報告內文明寫「該股 {week_end} 收盤價」）。但**逐檔反推驗證後為零筆錯誤**：每次產出都在「下一個交易日收盤前」（`2026-07-09` 的下一個交易日是 07-13、07-10 休市；`06-18` 那份在 06-22 盤中產出），使 TPEX 的「最新橫斷面」恰好等於 week_end。屬潛在曝險而非既存錯誤，已隨 `strict_date` 一併封住。
 
 **修復過程中新發現（不在原報告內）**：全 `tools/` 做完整 `py_compile` 掃描後，**編譯失敗的不只 `dcf_ic_analyze.py` 一支，而是 5 支已追蹤檔**：`tools/ab_test_codex_vs_sonnet.py`、`tools/dcf_ic_analyze.py`、`tools/test_brokerage_yt.py`、`tools/vf_chip_dual_inst_regime_gate.py`、`tools/vf_chip_dual_inst_signal.py`（另有 16 支未追蹤的本機 UI 測試腳本同樣壞掉）。原報告只掃了「本次變更的檔案」所以只發現 1 支。逐版追查 git 歷史後確認：**這 5 支歷來沒有任何一個版本編譯得過**，是寫入當下就以有損編碼落盤（AGENTS.md 警告的「CJK 過 native pipe」事故）。損壞本質是**非法 UTF-8 位元組**（Python 直接拒絕解析）。
 

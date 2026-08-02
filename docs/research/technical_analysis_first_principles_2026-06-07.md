@@ -175,6 +175,9 @@ equal-weight 低波動籃子 LS spread 16/18 年為負，做成組合就被高�
 
 ## 附錄：兩條延伸的驗證結果（2026-06-07 當日驗畢，詳見 `reports/rvol_atr_factor_validation.md`）
 
+> ⚠️ 2026-08-02 註：下文提到的 Whale composite 已於 2026-07-15 端到端移除。
+> 這是 2026-06-07 當時的結論記錄，刻意保留原文不改寫。
+
 1. **log(RVOL) → MARGINAL（informational ranking-tilt only，不進 Whale composite）** —
    全表唯一 rank-IC 與 decile spread 同號、單調（mono ρ +0.99）、流動性過濾後存活、
    walk-forward 18/18 年正（liq_50m 13/18）的訊號；但 edge 太薄：20d 多空 LS spread gross 僅 +0.44~0.74%，

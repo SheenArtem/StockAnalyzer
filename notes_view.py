@@ -1,7 +1,8 @@
 """
 知識庫 view — 📚 知識庫 tab (2026-06-12 筆記 → 2026-07-16 升級知識庫)
 
-分頁結構（st.tabs）：
+來源切換用 **radio**（不是 st.tabs —— 見 `render_notes` 的說明，st.tabs 會同時渲染
+兩個面板，隱藏面板的按鈕會讓 CRUD 點擊失效，2026-07-16 UI 測試實證）：
 - 📒 我的筆記：零資料庫本地 CRUD，data/notes/*.md 一檔一筆記，檔名即標題，內容即 Markdown。
   列表排序用 mtime（新→舊），改標題 = 寫新檔 + 刪舊檔（rename）。無 API / 無 LLM。
 - 📚 白話投資：外部粉專文章知識庫（baihua_kb_view），內建增量抓取按鈕。

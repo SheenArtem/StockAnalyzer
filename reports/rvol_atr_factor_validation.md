@@ -204,6 +204,10 @@ Long-short = 兩條腿，每腿每次再平衡一次 round-trip → 每期成本
 **為何只給 MARGINAL 不給 PASS**：未過判準③（成本後 spread 在可交易池為負）。多空淨值歸零、絕對 edge < ATR_Stop 等
 已上線風控工具的價值密度，且 survivor panel 下真值可能更薄。
 
+> ⚠️ 2026-08-02 註：下方第 2 點的前提「Whale composite」已於 2026-07-15 端到端移除，
+> 那條增量測試路徑不再存在。若要重啟 RVOL，增量對象需改成現存的 QM / Value。
+> 本節其餘內容為 2026-06-07 當時的結論記錄，刻意不改寫。
+
 **Next step（僅在進一步驗證後才考慮，這輪不跑增量）**：
 1. **必要前置**：重新建置含下市股的 PIT panel（需 `market-data-rd` 重抓約 1,660 檔下市股歷史價）後重跑 RVOL h=10/20，確認 Top-20 相對差 +0.80% 不因 survivorship 消失。
 2. 若存活：以 **long-only 排序加分**形式測試對 Whale composite 的**增量** IC（mandate 規定 standalone PASS 後才測；RVOL 是 MARGINAL 非 PASS，故增量測試需與用戶確認是否值得）。RVOL 與 Whale 的籌碼/質量因子相關性預期低（不同資訊維度），理論上可補位，但 +0.013 IC 量級下增量可能不顯著。
