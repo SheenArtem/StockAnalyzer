@@ -13,25 +13,41 @@
 
 ---
 
-## 修復進度（2026-08-02 當日）
+## 修復進度（2026-08-02）
 
-已完成，未 commit。全套測試 **363 passed**（原 354，+9 為本次新增的回歸測試）。
+全套測試 **384 passed**（原 354，+30 為本次新增的回歸測試）。工作區已全部 commit
+（本 session 共 16 個 commit，`2d965b5`..`e2c4f85`，未 push）。
 
 | 項目 | 狀態 | 驗證方式 |
 |---|---|---|
-| P0-3 `.gitignore` 排除 `reports/yt_analyst_*` | ✅ | `git check-ignore` 兩檔皆命中；同目錄週報仍可加入；無已追蹤檔被誤蓋 |
-| P0-4 `portfolio_store.py:5` docstring | ✅ | 改為 local-only 敘述並移除誤導的 memory 引用 |
-| P0-1 `normalize_financial_wide` 缺值政策 | ✅ | 改為建欄留 NaN；`compute_zscore_row` 加必要欄位 guard；`quality_scores.parquet` 已重產 |
-| P1-4 測試把缺陷寫成規格 | ✅ | 3 條錯誤斷言改寫，新增 5 條涵蓋 NaN 保留 / Z 回 None / 中性計分 / guard 未誤殺 / F-Score 略過 |
-| P0-2 `build_nav_series` TWR 歸因 | ✅ | 當日淨增部位改以成交成本計價；新增 4 條回歸測試，經 HEAD 對照確認能抓到原錯誤 |
-| P1-6 `test_bulk_revenue_safety` 時間炸彈 | ✅ | patch `expected_revenue_period` + 斷言 merge 被呼叫恰 1 次；已證明舊寫法在 8/10 後 merge 呼叫 0 次 |
-| P1-1 `app.py` 版本號 | ✅ | 改為 `v2026.08.02.1`，pre-commit 版本檢查 PASS |
+| P0-3 `.gitignore` 排除 `reports/yt_analyst_*` | ✅ `2d965b5` | `git check-ignore` 兩檔皆命中；同目錄週報仍可加入；無已追蹤檔被誤蓋 |
+| P0-4 `portfolio_store.py:5` docstring | ✅ `3291d50` | 改為 local-only 敘述並移除誤導的 memory 引用 |
+| P0-1 `normalize_financial_wide` 缺值政策 | ✅ `3291d50` | 建欄留 NaN + `compute_zscore_row` 必要欄位 guard；`quality_scores.parquet` 已重產 |
+| P1-4 測試把缺陷寫成規格 | ✅ `3291d50` | 3 條錯誤斷言改寫，新增 5 條涵蓋 NaN 保留 / Z 回 None / 中性計分 / guard 未誤殺 / F-Score 略過 |
+| P0-2 `build_nav_series` TWR 歸因 | ✅ `3291d50` | 當日淨增部位改以成交成本計價；4 條回歸測試經 HEAD 對照確認能抓到原錯誤 |
+| P1-6 `test_bulk_revenue_safety` 時間炸彈 | ✅ `b2a6fbb` | patch `expected_revenue_period` + 斷言 merge 恰呼叫 1 次；已證明舊寫法在 8/10 後 merge 呼叫 0 次 |
+| P1-1 `app.py` 版本號 | ✅ `ff80466` | 改為 `v2026.08.02.1`，pre-commit 版本檢查 PASS |
+| P1-2 `AGENTS.md` 入版控 | ✅ `59f3633` | 與 `CLAUDE.md`/`README.md` 同 commit；另 `3876349` 把 22 處註解指標改指 AGENTS.md / docs/agent |
+| P1-3 三個新模組與 5 支新測試入版控 | ✅ `aee14b7` `b2a6fbb` | 與 `notes_view.py` 同 commit |
+| P2 TW breadth 混入美股 | ✅ `40a96dd` | 抽出 `tools/tw_universe` 共用判別；重建後移除 164 個日期（161 個非台股交易日），共同日期約 2,400 列數值修正 |
+| P2 4 天過期門檻春節假 FAIL | ✅ `e2c4f85` | 改用官方交易日判準；20.6 年真實日曆模擬：舊判準 132 個假 FAIL 夜、新判準 0 次 |
+| P2 盤中執行必 RuntimeError | ✅ `e2c4f85` | 剔除今日 bar 的順序移到健康度計算之前 |
+| P2 單檔 merge 失敗殺全批 | ✅ `e2c4f85` | 容忍 max(5, 1%)，覆蓋率檢查仍是安全網；`os.replace` 加 PermissionError 重試 |
+| P3 `.gitignore:21` 註解列已刪的 `ledger_append` | ✅ `ff80466` | |
+| P3 資料源表未反映官方 EOD overlay | ✅ `61900ee` `3503e56` | 另補美股個股報價列（v8 chart、禁 v7） |
+| P3 LLM 表未列 `build_baihua_kb` | ✅ `c01eb92` | |
 
 **P0-1 的實際效果**：6,486 列（7.7%）分數變動；4,455 列 / 848 檔的 `z_score` 由「有限低值」回到 NaN，平均 quality_score **+15.1**；富邦金 2881 由 5 → 30。對 `value_screener.py:576` 大型股通道的影響：22 檔金融股的 955 個季列中，`quality_score >= 50` 的列數由 **0 → 275**。
 
 **P0-1 的意外收穫**：對照 HEAD 逐欄比對時發現 FinMind 主要拼法是 `NoncurrentLiabilities`（小寫 c），佔 76,367 / 83,934 列。HEAD 只找 `NonCurrentLiabilities`，導致 **F5 長期負債比與 ROIC 兩個分支對 93% 的股票從未生效**。這次的別名合併順帶修好了它 —— 這也是修正後與 HEAD 差異達 40% 的原因，方向正確。同時已把別名表拆成 `_SPELLING_ALIASES`（同義字，安全）與 `_PROXY_ALIASES`（代理值，仍待處理），拆分經驗證為行為中性。
 
-**仍未處理**：第四節的 P2 全部（4 天過期門檻、盤中順序缺陷、`if fail: raise`、官方 overlay 日期驗證、FinMind 封鎖退避、代理別名旗標、TW breadth 混入美股）、第五節白話投資各項、第六節文件衛生、第九節既有問題。Commit 前置的 `git add AGENTS.md` 與三個新模組尚未執行（本次未 commit）。
+**仍未處理**：
+- 第四節剩下三項：官方 EOD overlay 以「請求日期」而非 payload 自報日期蓋章（需先讓 `twse_api.get_market_daily_all` 回傳資料自報日期）、FinMind 額度封鎖錨在本 process 第一筆請求（最長鎖 3605 秒）、`_PROXY_ALIASES` 的代理值無旗標。
+- 第五節白話投資各項（STATE checkpoint、400 輪截斷、登入牆靜默成功、seq 排序、SoT 靜默截短、cookie 刪除失敗吞例外）。
+- 第六節文件衛生剩餘項（`notes_view.py:4` docstring、`test_scanner_fail_loud` 手抄 marker、breadth stage 無 verifier marker、`expected_stock_count` 用檔案數、缺 newest-first 回歸測試、殘留 Whale 文字 4 處、持股表「名稱」欄）。
+- 第九節既有問題（見下方新增發現）。
+
+**修復過程中新發現（不在原報告內）**：全 `tools/` 做完整 `py_compile` 掃描後，**編譯失敗的不只 `dcf_ic_analyze.py` 一支，而是 5 支已追蹤檔**：`tools/ab_test_codex_vs_sonnet.py`、`tools/dcf_ic_analyze.py`、`tools/test_brokerage_yt.py`、`tools/vf_chip_dual_inst_regime_gate.py`、`tools/vf_chip_dual_inst_signal.py`（另有 16 支未追蹤的本機 UI 測試腳本同樣壞掉）。原報告只掃了「本次變更的檔案」所以只發現 1 支。逐版追查 git 歷史後確認：**這 5 支歷來沒有任何一個版本編譯得過**，是寫入當下就以有損編碼落盤（AGENTS.md 警告的「CJK 過 native pipe」事故）。損壞本質是**非法 UTF-8 位元組**（Python 直接拒絕解析），程式碼本身是 ASCII 未受影響，壞的只有註解與 docstring 文字（每檔 7~61 個字元被截斷）；`dcf_ic_analyze.py` 另有 1 處換行被吞掉（第 76 行把 `agg = ...` 併進註解）。修復方式是把檔案轉成合法 UTF-8（受損字元以 `?` 標記）並補回被吞的換行 —— 程式碼可完整還原，但原註解文字已永久遺失。這 5 支都不是 production 路徑、也從未被執行過，因此沒有任何功能因此退化。
 
 ---
 
