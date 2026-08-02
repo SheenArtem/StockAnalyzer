@@ -107,6 +107,7 @@ Scanner started
 → 量價情緒指標 (ATM PUT 權利金 / 小台多空比 / 選擇權法人)
 → RF-1 cache consistency check → Market regime 紀錄
 → Universe 價格更新 → TW breadth panel → Refresh backtest panels
+→ 價格離群掃描 (panel 毀損偵測)
 → 籌碼歷史 resume → 法說會行事曆 fetch
 → Scanner finished
 → verify_scan_stages 驗證
@@ -118,7 +119,7 @@ Scanner started
 
 > 「哪些 stage 必須真的跑完」的唯一權威是
 > [`tools/verify_scan_stages.py`](tools/verify_scan_stages.py) 的 `REQUIRED_STAGES`
-> （目前 15 個），它每晚比對 `scanner.log`。**改動排程鏈時要同步那份清單**，
+> （目前 16 個），它每晚比對 `scanner.log`。**改動排程鏈時要同步那份清單**，
 > 否則 stage 靜默失敗不會被任何後檢查發現。
 
 ### 其他排程 BAT
