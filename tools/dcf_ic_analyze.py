@@ -1,10 +1,10 @@
-"""dcf_ic_analyze.py -- DCF Base MOS IC / Decile / Filtered backtest 驗�?
+"""dcf_ic_analyze.py -- DCF Base MOS IC / Decile / Filtered backtest 驗證
 
-??reports/dcf_ic_historical_panel.parquet，輸??reports/dcf_ic_validation.md
+讀取reports/dcf_ic_historical_panel.parquet，輸出reports/dcf_ic_validation.md
 
 Phase 1: IC (Pearson + Spearman) cross-sectional by FY; IR = mean(IC) / std(IC)
 Phase 2: 10-decile spread forward 252d; monotonicity check
-Phase 3: ?��? A ?�濾?�測 (baseline = equal-weight ??panel; filter = MOS > threshold)
+Phase 3: 方案 A 過濾回測 (baseline = equal-weight 全panel; filter = MOS > threshold)
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ PANEL_PATH = REPO / "reports" / "dcf_ic_historical_panel.parquet"
 OUT_MD = REPO / "reports" / "dcf_ic_validation.md"
 
 N_DECILES = 10
-THRESHOLDS = [-0.20, 0.0, 0.20]  # ?��? A: Base MOS > threshold
+THRESHOLDS = [-0.20, 0.0, 0.20]  # 方案 A: Base MOS > threshold
 
 
 def ic_table(df: pd.DataFrame, factor_col: str, ret_col: str) -> pd.DataFrame:
@@ -57,11 +57,12 @@ def ic_table(df: pd.DataFrame, factor_col: str, ret_col: str) -> pd.DataFrame:
 
 
 def decile_spread(df: pd.DataFrame, factor_col: str, ret_col: str) -> pd.DataFrame:
-    """每年??10 deciles, ?��? decile 平�? forward return, ??cross-FY 平�?"""
+    """每年切10 deciles, 算各 decile 平均 forward return, 再cross-FY 平均"""
     out_rows = []
     for fy, g in df.groupby("fy_end"):
         g = g[[factor_col, ret_col]].replace([np.inf, -np.inf], np.nan).dropna().copy()
-        if len(g) < 50:  # 不�???10 �?            continue
+        if len(g) < 50:  # 不足 10 檔
+            continue
         g["decile"] = pd.qcut(g[factor_col].rank(method="first"), N_DECILES,
                               labels=False, duplicates="drop") + 1
         for d, gg in g.groupby("decile"):
@@ -73,7 +74,8 @@ def decile_spread(df: pd.DataFrame, factor_col: str, ret_col: str) -> pd.DataFra
     long = pd.DataFrame(out_rows)
     if long.empty:
         return long
-    # 跨年平�?（per decile�?    agg = long.groupby("decile").agg(
+    # 跨年平均（per decile）
+    agg = long.groupby("decile").agg(
         n_total=("n", "sum"),
         mean_ret_avg=("mean_ret", "mean"),
         mean_ret_std=("mean_ret", "std"),
@@ -82,7 +84,7 @@ def decile_spread(df: pd.DataFrame, factor_col: str, ret_col: str) -> pd.DataFra
 
 
 def monotonicity_spearman(decile_agg: pd.DataFrame) -> float:
-    """Spearman corr of (decile, mean_ret_avg) ??1.0 完�??�調"""
+    """Spearman corr of (decile, mean_ret_avg) →1.0 完全單調"""
     if len(decile_agg) < 3:
         return np.nan
     r, _ = spearmanr(decile_agg["decile"], decile_agg["mean_ret_avg"])
@@ -91,15 +93,15 @@ def monotonicity_spearman(decile_agg: pd.DataFrame) -> float:
 
 def filter_backtest(df: pd.DataFrame, factor_col: str, ret_col: str,
                     thresholds: list[float]) -> pd.DataFrame:
-    """?��? A：�? FY 建�? portfolio (baseline = all panel; filtered = MOS > threshold)
-    ??CAGR / Sharpe / MDD / n_stocks per threshold
+    """方案 A：每 FY 建倉 portfolio (baseline = all panel; filtered = MOS > threshold)
+    回傳CAGR / Sharpe / MDD / n_stocks per threshold
     """
     g = df[["fy_end", factor_col, ret_col]].replace([np.inf, -np.inf], np.nan).dropna()
     if g.empty:
         return pd.DataFrame()
 
     rows = []
-    # Baseline: equal-weight ??panel
+    # Baseline: equal-weight 全panel
     baseline_yearly = g.groupby("fy_end")[ret_col].agg(["mean", "count"]).reset_index()
     baseline_yearly.columns = ["fy_end", "mean_ret", "n"]
     rows.append({
@@ -167,7 +169,7 @@ def main():
     print()
 
     md = []
-    md.append("# DCF Base MOS ??IC / Decile / Filter Validation")
+    md.append("# DCF Base MOS 的IC / Decile / Filter Validation")
     md.append("")
     md.append(f"Panel: `{PANEL_PATH.relative_to(REPO)}` | Rows: {len(df)} | "
               f"FYs: {df['fy_end'].nunique()} | Stocks: {df['stock_id'].nunique()}")
@@ -189,7 +191,7 @@ def main():
     md.append("")
 
     # ============ Phase 1: IC ============
-    md.append("## Phase 1: IC (Pearson + Spearman) ??base_mos vs fwd_252d_ret")
+    md.append("## Phase 1: IC (Pearson + Spearman) —base_mos vs fwd_252d_ret")
     md.append("")
     ic_252 = ic_table(df, "base_mos", "fwd_252d_ret")
     print("IC 252d:")
@@ -223,12 +225,12 @@ def main():
     md.append("")
 
     grade_b = grade_ic(abs(overall_sp), abs(sp_ir))
-    md.append(f"**Grade for ?��? B (composite weight)**: **{grade_b}** "
+    md.append(f"**Grade for 方案 B (composite weight)**: **{grade_b}** "
               f"(based on |Spearman IC|={abs(overall_sp):.4f}, |IR|={abs(sp_ir):.2f})")
     md.append("")
 
     # ============ Phase 2: Decile spread ============
-    md.append("## Phase 2: Decile spread ??base_mos sorted into 10 deciles")
+    md.append("## Phase 2: Decile spread —base_mos sorted into 10 deciles")
     md.append("")
     md.append("Q1 = lowest MOS (most overvalued); Q10 = highest MOS (deepest discount)")
     md.append("")
@@ -249,21 +251,21 @@ def main():
         md.append(f"**Monotonicity (Spearman of decile vs avg ret)**: {mono:+.3f}")
         md.append("")
         if mono > 0.7:
-            mono_verdict = "STRONG monotonic (cheap ??high return)"
+            mono_verdict = "STRONG monotonic (cheap →high return)"
         elif mono > 0.3:
             mono_verdict = "PARTIAL monotonic"
         elif mono < -0.3:
-            mono_verdict = "INVERTED (cheap ??lower return, bias suspicion)"
+            mono_verdict = "INVERTED (cheap →lower return, bias suspicion)"
         else:
             mono_verdict = "NO monotonicity (likely noise or inverted-U shape)"
         md.append(f"**Verdict**: {mono_verdict}")
         md.append("")
 
-    # ============ Phase 3: ?��? A ?�濾?�測 ============
-    md.append("## Phase 3: ?��? A ??Filter baseline panel by Base MOS threshold")
+    # ============ Phase 3: 方案 A 過濾回測 ============
+    md.append("## Phase 3: 方案 A —Filter baseline panel by Base MOS threshold")
     md.append("")
     md.append("Baseline = equal-weight all top-200 (post fin/utility filter); ")
-    md.append("Filtered = subset where base_mos > threshold. Each FY ??252d forward ret, ")
+    md.append("Filtered = subset where base_mos > threshold. Each FY 取252d forward ret, ")
     md.append("compounded across 5 FYs for CAGR / Sharpe / MDD.")
     md.append("")
     filt = filter_backtest(df, "base_mos", "fwd_252d_ret", THRESHOLDS)
@@ -277,9 +279,9 @@ def main():
                   f"{r['sharpe']:+.2f} | {r['mdd']*100:+.1f}% | "
                   f"{', '.join(r['yearly_returns'])} |")
     md.append("")
-    # Verdict for ?��? A
+    # Verdict for 方案 A
     baseline_sharpe = filt[filt["scenario"] == "baseline_all"]["sharpe"].iloc[0] if not filt.empty else np.nan
-    md.append("### ?��? A verdict")
+    md.append("### 方案 A verdict")
     md.append("")
     md.append(f"Baseline Sharpe: {baseline_sharpe:+.2f}")
     grade_a_per_th = {}
@@ -298,10 +300,10 @@ def main():
             grade = "C"
         grade_a_per_th[r["scenario"]] = grade
         md.append(f"- **{r['scenario']}**: Sharpe={r['sharpe']:+.2f} (vs baseline "
-                  f"{baseline_sharpe:+.2f}, ?={improvement:+.2f}), n_avg={r['n_avg']}, **Grade {grade}**")
+                  f"{baseline_sharpe:+.2f}, Δ={improvement:+.2f}), n_avg={r['n_avg']}, **Grade {grade}**")
     md.append("")
     best_a_grade = max(grade_a_per_th.values(), key=lambda x: "ABCD".index(x)) if grade_a_per_th else "D"
-    md.append(f"**?��? A best grade**: **{best_a_grade}**")
+    md.append(f"**方案 A best grade**: **{best_a_grade}**")
     md.append("")
 
     # ============ Bear-year check ============
@@ -312,34 +314,34 @@ def main():
         ic_2022 = ic_table(bear, "base_mos", "fwd_252d_ret")
         if not ic_2022.empty:
             r22 = ic_2022.iloc[0]
-            md.append(f"2022 FY ??entry 2023-04 ??forward = 2023-04 to 2024-04 (post-recovery bull)")
+            md.append(f"2022 FY →entry 2023-04 →forward = 2023-04 to 2024-04 (post-recovery bull)")
             md.append(f"- Pearson IC: {r22['pearson_ic']:+.4f}, Spearman IC: {r22['spearman_ic']:+.4f}, "
                       f"mean ret: {r22['mean_ret']:+.1%}")
     md.append("")
 
-    # ============ Final verdict + ?�地建議 ============
-    md.append("## Final verdict & ?�地建議")
+    # ============ Final verdict + 落地建議 ============
+    md.append("## Final verdict & 落地建議")
     md.append("")
-    md.append(f"- **?��? A (硬�?�?**: Grade **{best_a_grade}**")
-    md.append(f"- **?��? B (composite ?��?)**: Grade **{grade_b}**")
+    md.append(f"- **方案 A (硬門檻）**: Grade **{best_a_grade}**")
+    md.append(f"- **方案 B (composite 加權)**: Grade **{grade_b}**")
     md.append("")
     md.append("### 建議")
     md.append("")
     if best_a_grade in ("A", "B"):
-        md.append(f"- ?��? A ?��?線�???`scanner_value` ?��? `base_mos > {THRESHOLDS[0]}` filter")
+        md.append(f"- 方案 A 可上線：在`scanner_value` 加上 `base_mos > {THRESHOLDS[0]}` filter")
     elif best_a_grade == "C":
-        md.append("- ?��? A ?��?：可作為 informational tier (UI 顯示?��?不�?selection)")
+        md.append("- 方案 A 邊緣：可作為 informational tier (UI 顯示用，不進selection)")
     else:
-        md.append("- ?��? A 不�?線�?filter �?Sharpe 沒�??��?�?��太�? ??歸�?")
+        md.append("- 方案 A 不上線：filter 後Sharpe 沒有提升，樣本太少 →歸檔")
     md.append("")
     if grade_b in ("A", "B"):
         weight_pct = 15 if grade_b == "A" else 8
-        md.append(f"- ?��? B ?��??��?composite_score ??{weight_pct} ?��???(rank-normalize base_mos)")
+        md.append(f"- 方案 B 可上線：composite_score 給{weight_pct} 的權重(rank-normalize base_mos)")
     elif grade_b == "C":
-        md.append("- ?��? B ?��?：IC 弱�?建議??F-Score ??ROIC 組�?�?combo IC ?�決�?)
+        md.append("- 方案 B 邊緣：IC 弱，建議與 F-Score 及 ROIC 組合看 combo IC 再決定")
     else:
-        md.append(f"- ?��? B 不�?線�?IC 微弱 (|Spearman|={abs(overall_sp):.4f})�?
-                  "符�??��? value factor ??D 級�?歷史結�?，歸檔�?上�?")
+        md.append(f"- 方案 B 不上線：IC 微弱 (|Spearman|={abs(overall_sp):.4f})，"
+                  "符合絕對 value factor 屬D 級的歷史結論，歸檔不上線")
     md.append("")
     md.append("---")
     md.append(f"_Generated by `tools/dcf_ic_analyze.py` from `{PANEL_PATH.name}`._")

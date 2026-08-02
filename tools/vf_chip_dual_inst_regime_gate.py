@@ -1,25 +1,25 @@
 """
 vf_chip_dual_inst_regime_gate.py
 ================================
-驗�??�「�?�??�信?��? + 5d ?��????��??��?上�???TWA 趨勢 regime gate
-?�否?��? A �?/ ?�否?��??��?OOS ?�否一?��?，�??��?後�? 2024??
-Gate A 規�?（PIT-safe，t-1 ?��??�判??t ?��??��?:
+驗證「外資與投信同向買超 + 5d 爆量」訊號上疊加TWA 趨勢 regime gate
+能否升到 A 級/ 能否讓三段OOS 是否一致，而非事後套在 2024？
+Gate A 規則（PIT-safe，t-1 收盤資料判斷t 當日進場）:
     - TWA(^TWII) Close_{t-1} >= MA200_{t-1}
     - MA60 slope: (MA60_{t-1} - MA60_{t-21}) / MA60_{t-21} > 0
 
-驗�? design:
-    Step 1: in-sample (full 2023-01 ~ 2026-04) ??gate �?IC/spread/Sharpe
+驗證 design:
+    Step 1: in-sample (full 2023-01 ~ 2026-04) —gate 的IC/spread/Sharpe
     Step 2: walk-forward year-by-year out-of-sample
-            -> ??gate ?�固定�??��? free param，�???split-by-year ?��??�年?��?
-    Step 3: 對�?�?no-gate vs Gate A
+            -> —gate 是固定規則、無 free param，故用split-by-year 檢查逐年穩定性
+    Step 3: 對照組：no-gate vs Gate A
 
 Inputs:
-    reports/vf_chip_dual_inst_results.csv     -- 1861 �?signal hits + fwd returns
+    reports/vf_chip_dual_inst_results.csv     -- 1861 筆signal hits + fwd returns
     data_cache/backtest/_twii_bench.parquet   -- TWII daily for gate
     data_cache/0050_price.csv                 -- 0050 daily for benchmark
-    data_cache/backtest/ohlcv_tw.parquet      -- (?��? background pool for IC, ?�用 panel)
-    data_cache/chip_history/institutional.parquet -- (?�用 inst features for full panel)
-    data_cache/backtest/universe_tw_full.parquet  -- (?�用 universe filter)
+    data_cache/backtest/ohlcv_tw.parquet      -- (作為 background pool for IC, 沿用 panel)
+    data_cache/chip_history/institutional.parquet -- (沿用 inst features for full panel)
+    data_cache/backtest/universe_tw_full.parquet  -- (沿用 universe filter)
 
 Output:
     reports/vf_chip_dual_inst_ic_v2_regime.md
@@ -104,7 +104,7 @@ def load_0050_returns(hold_days: int) -> pd.DataFrame:
 
 
 def apply_gate_to_signals(signals_csv: pd.DataFrame, twii: pd.DataFrame) -> pd.DataFrame:
-    """Tag each signal row with gate_a_pit. NOT filter ??caller filters."""
+    """Tag each signal row with gate_a_pit. NOT filter —caller filters."""
     signals = signals_csv.copy()
     signals['date'] = pd.to_datetime(signals['date'])
 
@@ -118,7 +118,7 @@ def apply_gate_to_signals(signals_csv: pd.DataFrame, twii: pd.DataFrame) -> pd.D
 
 
 def signal_summary(signals: pd.DataFrame, label: str, hold_days: int = 60) -> dict:
-    """Compute spread vs background-naive (using fwd_ret means among signals only ??not vs bg);
+    """Compute spread vs background-naive (using fwd_ret means among signals only —not vs bg);
     here we use single-arm stats since CSV only contains signal rows.
 
     Outputs:
@@ -321,7 +321,7 @@ def write_report(ic_results, gate_yr, n_total, n_passed,
                   summary_nogate, summary_gate,
                   yearly_nogate, yearly_gate):
     lines = []
-    lines.append("# VF v2 ??Dual-Inst + Volume Signal ? Regime Gate")
+    lines.append("# VF v2 —Dual-Inst + Volume Signal × Regime Gate")
     lines.append("")
 
     # Determine verdict
@@ -355,29 +355,29 @@ def write_report(ic_results, gate_yr, n_total, n_passed,
     else:
         verdict = "B"
 
-    lines.append(f"**Verdict: {verdict} �?*")
+    lines.append(f"**Verdict: {verdict} 級**")
     lines.append("")
     lines.append("## TL;DR")
     lines.append("")
-    lines.append(f"- Gate A ?�濾後�???{n_passed} / {n_total} ({n_passed/n_total:.1%} ?��?)")
+    lines.append(f"- Gate A 過濾後剩下{n_passed} / {n_total} ({n_passed/n_total:.1%} 通過)")
     lines.append(f"- 60d Gate A: IC {gate_ic60:+.4f} | spread {gate_spread60:+.2%} | "
                  f"Sharpe(trade-level) {summary_gate[60]['sharpe']:+.2f} | "
                  f"IR vs 0050 {gate_ir:+.2f}")
     lines.append(f"- Walk-forward OOS 60d Sharpe: " +
                  " / ".join([f"{y['year']}={y['sharpe']:+.2f}(n={y['n_sig']})" for y in yearly_gate if not np.isnan(y['sharpe'])]))
-    lines.append(f"- OOS 三段�?024/25/26）Sharpe ?�否一??> 0：{oos_all_positive}")
+    lines.append(f"- OOS 三段（2024/25/26）Sharpe 是否一致> 0：{oos_all_positive}")
     lines.append("")
 
     # Gate definition
-    lines.append("## Gate A 定義（PIT-safe�?)
+    lines.append("## Gate A 定義（PIT-safe）")
     lines.append("")
-    lines.append("- TWA(^TWII) Close >= MA200，�? MA60 �?20d ?��? > 0")
-    lines.append("- gate_a ??t-1 ?�盤資�??�斷 t ?��??��?pandas .shift(1)�?)
-    lines.append(f"- Gate A ?��??��??��?{n_passed/n_total:.1%}（gate=True ??TWII ??{(n_passed/n_total):.0%}�?)
+    lines.append("- TWA(^TWII) Close >= MA200，且 MA60 的20d 斜率 > 0")
+    lines.append("- gate_a 用t-1 收盤資料判斷 t 當日進場（pandas .shift(1)）")
+    lines.append(f"- Gate A 實際通過比例{n_passed/n_total:.1%}（gate=True ≈TWII 約{(n_passed/n_total):.0%}）")
     lines.append("")
 
     # IC table
-    lines.append("## Table 1: IC by horizon ??no gate vs Gate A")
+    lines.append("## Table 1: IC by horizon —no gate vs Gate A")
     lines.append("")
     lines.append("| Horizon | no-gate IC | no-gate t | Gate A IC | Gate A t | Gate A n_days |")
     lines.append("|---|---|---|---|---|---|")
@@ -388,7 +388,7 @@ def write_report(ic_results, gate_yr, n_total, n_passed,
     lines.append("")
 
     # Binary spread table
-    lines.append("## Table 2: Binary spread ??no gate vs Gate A")
+    lines.append("## Table 2: Binary spread —no gate vs Gate A")
     lines.append("")
     lines.append("| Horizon | no-gate n_sig | no-gate spread | t | Gate A n_sig | Gate A spread | t |")
     lines.append("|---|---|---|---|---|---|---|")
@@ -415,9 +415,9 @@ def write_report(ic_results, gate_yr, n_total, n_passed,
     # Walk-forward year-by-year
     lines.append("## Table 4: Walk-forward OOS (year-by-year, 60d hold)")
     lines.append("")
-    lines.append("Gate ?�固定�??�無?�由?�數 ??每年?��???OOS（�??�被?��?年�??�污?��?")
+    lines.append("Gate 是固定規則、無自由參數 —每年重算即為OOS（不會被未來年份污染）")
     lines.append("")
-    lines.append("| Year | no-gate n | no-gate mean | hit% | Sharpe | Gate A n | Gate A mean | hit% | Sharpe | ? Sharpe |")
+    lines.append("| Year | no-gate n | no-gate mean | hit% | Sharpe | Gate A n | Gate A mean | hit% | Sharpe | Δ Sharpe |")
     lines.append("|---|---|---|---|---|---|---|---|---|---|")
     years = sorted({y['year'] for y in yearly_nogate} | {y['year'] for y in yearly_gate})
     for y in years:
@@ -443,38 +443,38 @@ def write_report(ic_results, gate_yr, n_total, n_passed,
     lines.append("")
 
     # Diagnostic
-    lines.append("## Diagnostic ??gate ?��??�用?�是事�???2024")
+    lines.append("## Diagnostic —gate 是真有用還是事後諸葛2024")
     lines.append("")
-    # If 2024 cut is very high (>80%) and 2024 Sharpe was negative ??cherry-pick suspicion
+    # If 2024 cut is very high (>80%) and 2024 Sharpe was negative —cherry-pick suspicion
     y2024 = next((y for y, r in gate_yr.iterrows() if y == 2024), None)
     if y2024 is not None:
         cut_2024 = 1 - gate_yr.loc[2024, 'pct_passed']
-        lines.append(f"- 2024 被�? **{cut_2024:.0%}**（passed={gate_yr.loc[2024,'pct_passed']:.0%}�?)
+        lines.append(f"- 2024 被砍 **{cut_2024:.0%}**（passed={gate_yr.loc[2024,'pct_passed']:.0%}）")
         if cut_2024 > 0.8:
-            lines.append("  - ??>80% 屬於 retroactive cherry-pick 嫌�?，�?檢查 2025/2026 ?�否也�??�被?�而�?�?��??)
+            lines.append("  - 若>80% 屬於 retroactive cherry-pick 嫌疑，需檢查 2025/2026 是否也有同樣被砍而變好的現象")
     cuts = [(y, 1 - gate_yr.loc[y, 'pct_passed']) for y in gate_yr.index]
-    lines.append(f"- ?�年?�除?��?" + " | ".join([f"{y}={c:.0%}" for y, c in cuts]))
+    lines.append(f"- 逐年被砍比例：" + " | ".join([f"{y}={c:.0%}" for y, c in cuts]))
 
     # OOS consistency check
     lines.append("")
-    lines.append("## Walk-forward OOS 一?�性判讀")
+    lines.append("## Walk-forward OOS 一致性判讀")
     lines.append("")
     if oos_all_positive:
-        lines.append("- 三段年度 OOS Sharpe ??> 0 ??**gate 跨年度穩�?*，�?事�???2024")
+        lines.append("- 三段年度 OOS Sharpe 皆> 0 →**gate 跨年度穩健**，非事後諸葛2024")
     else:
         bad = [y for y in yearly_gate if not np.isnan(y['sharpe']) and y['sharpe'] <= 0]
-        lines.append(f"- ?��???{len(bad)} ?�年�?Sharpe ??0�? +
+        lines.append(f"- 但仍有{len(bad)} 個年度Sharpe ≤0，" +
                      " / ".join([f"{y['year']}={y['sharpe']:+.2f}" for y in bad]))
-        lines.append("  - gate 沒�?跨年度穩�???**B ??D �?*")
+        lines.append("  - gate 沒有跨年度穩健 →**B 或D 級**")
     lines.append("")
 
     # Verdict
-    lines.append("## Verdict ?��?")
+    lines.append("## Verdict 理由")
     lines.append("")
-    lines.append(f"- A 級�?件�?60d/120d IC > +0.05 ({max(abs(gate_ic60), abs(gate_ic120)):+.4f}), "
+    lines.append(f"- A 級條件：60d/120d IC > +0.05 ({max(abs(gate_ic60), abs(gate_ic120)):+.4f}), "
                  f"60d spread > +5% ({gate_spread60:+.2%}), "
                  f"IR > 0 ({gate_ir:+.2f}), 三段 OOS Sharpe > 0 ({oos_all_positive})")
-    lines.append(f"- 結�?�?*{verdict} �?*")
+    lines.append(f"- 結論：**{verdict} 級**")
     lines.append("")
 
     OUT_MD.write_text("\n".join(lines), encoding="utf-8")

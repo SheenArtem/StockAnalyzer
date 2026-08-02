@@ -57,11 +57,11 @@ def run_test():
         page.wait_for_load_state("networkidle", timeout=30000)
         time.sleep(3)
 
-        # --- Acceptance 1: sidebar has ?�顧追蹤 radio ---
+        # --- Acceptance 1: sidebar has 投顧追蹤 radio ---
         sidebar = page.locator('[data-testid="stSidebar"]')
         content = sidebar.inner_text()
-        a1 = "?�顧追蹤" in content
-        print(f"[{'PASS' if a1 else 'FAIL'}] A1 sidebar has ?�顧追蹤: {a1}")
+        a1 = "投顧追蹤" in content
+        print(f"[{'PASS' if a1 else 'FAIL'}] A1 sidebar has 投顧追蹤: {a1}")
 
         # --- Click the radio for brokerage_yt ---
         radio_options = page.locator('[data-testid="stSidebar"] label')
@@ -69,13 +69,13 @@ def run_test():
         for i in range(radio_options.count()):
             lbl = radio_options.nth(i)
             txt = lbl.inner_text()
-            if "?�顧" in txt:
+            if "投顧" in txt:
                 lbl.click()
                 clicked = True
                 print(f"[OK] Clicked radio: {txt.strip()}")
                 break
         if not clicked:
-            print("[FAIL] Could not find ?�顧追蹤 radio label")
+            print("[FAIL] Could not find 投顧追蹤 radio label")
 
         page.wait_for_load_state("networkidle", timeout=20000)
         time.sleep(3)
@@ -87,24 +87,24 @@ def run_test():
 
         # --- Acceptance 2: title + disclaimer ---
         body = page.inner_text("body")
-        a2_title = "?�顧追蹤" in body
-        a2_disc = any(kw in body for kw in ["?��?", "不代�?, "?�責", "disclaimer", "Disclaimer"])
-        print(f"[{'PASS' if a2_title else 'FAIL'}] A2 title ?�顧追蹤: {a2_title}")
+        a2_title = "投顧追蹤" in body
+        a2_disc = any(kw in body for kw in ["聲明", "不代表", "免責", "disclaimer", "Disclaimer"])
+        print(f"[{'PASS' if a2_title else 'FAIL'}] A2 title 投顧追蹤: {a2_title}")
         print(f"[{'PASS' if a2_disc else 'WARN'}] A2 disclaimer present: {a2_disc}")
 
-        # --- Acceptance 3: selectbox shows ?�爾證券 ---
-        a3 = "?�爾" in body
-        print(f"[{'PASS' if a3 else 'FAIL'}] A3 ?�爾證券 in page: {a3}")
+        # --- Acceptance 3: selectbox shows 摩爾證券 ---
+        a3 = "摩爾" in body
+        print(f"[{'PASS' if a3 else 'FAIL'}] A3 摩爾證券 in page: {a3}")
 
         # --- Find tabs ---
         tabs = page.locator('[data-testid="stTab"]')
         tab_count = tabs.count()
         print(f"[INFO] Found {tab_count} tabs")
 
-        # --- Tab 1: ?��??�板 ---
+        # --- Tab 1: 整體看板 ---
         for i in range(tab_count):
             t = tabs.nth(i)
-            if "?��?" in t.inner_text() or "?�板" in t.inner_text():
+            if "整體" in t.inner_text() or "看板" in t.inner_text():
                 t.click()
                 time.sleep(2)
                 break
@@ -115,14 +115,14 @@ def run_test():
         body1 = page.inner_text("body")
         tickers = [t for t in ["2330", "2454", "2408", "2327"] if t in body1]
         a4_ticker = len(tickers) >= 2
-        a4_chart = any(k in body1 for k in ["mention", "?�薦", "觀�?, "?�度", "建議"])
+        a4_chart = any(k in body1 for k in ["mention", "推薦", "觀點", "熱度", "建議"])
         print(f"[{'PASS' if a4_ticker else 'FAIL'}] A4 tickers in Tab1 {tickers}: {a4_ticker}")
         print(f"[{'PASS' if a4_chart else 'WARN'}] A4 chart content: {a4_chart}")
 
-        # --- Tab 2: ?��?師個別 ---
+        # --- Tab 2: 分析師個別 ---
         for i in range(tab_count):
             t = tabs.nth(i)
-            if "?��?�? in t.inner_text():
+            if "分析師" in t.inner_text():
                 t.click()
                 time.sleep(2)
                 break
@@ -131,14 +131,14 @@ def run_test():
         page.screenshot(path=shot2, full_page=True)
         print(f"[SHOT] {shot2}")
         body2 = page.inner_text("body")
-        analysts = [n for n in ["?�哲�?, "?��???, "?��?�?] if n in body2]
+        analysts = [n for n in ["郭哲榮", "葉俊敏", "陳昆仁"] if n in body2]
         a5 = len(analysts) >= 1
         print(f"[{'PASS' if a5 else 'FAIL'}] A5 analysts in Tab2 {analysts}: {a5}")
 
-        # --- Tab 3: ?�股?�查 ---
+        # --- Tab 3: 個股反查 ---
         for i in range(tab_count):
             t = tabs.nth(i)
-            if "?�查" in t.inner_text() or "?�股" in t.inner_text():
+            if "反查" in t.inner_text() or "個股" in t.inner_text():
                 t.click()
                 time.sleep(2)
                 break

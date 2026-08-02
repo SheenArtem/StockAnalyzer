@@ -1,22 +1,23 @@
 """
 vf_chip_dual_inst_signal.py
 ============================
-驗�??��?�?+ ?�信?��?買�? + 5d ?��??�出?��?籌碼?��?訊�??�否??alpha??
-Signal trigger（�?一檔股票�?一?�交?�日?�滿足�?:
-    - 外�? 5d 淨買�?> 0  (institutional.parquet foreign_net rolling 5d sum)
-    - ?�信 5d 淨買�?> 0  (trust_net rolling 5d sum)
+驗證「外資+ 投信同向買超 + 5d 量能突出」籌碼三邊同向訊號是否有alpha？
+Signal trigger（同一檔股票、同一個交易日同時滿足）:
+    - 外資 5d 淨買超> 0  (institutional.parquet foreign_net rolling 5d sum)
+    - 投信 5d 淨買超> 0  (trust_net rolling 5d sum)
     - rvol_5 = Volume_t / mean(Volume[t-20:t-1]) >= 2.0
-    - ?�去 60d 累�?簡單?�酬 ??+20%  (?�除追�?)
-    - 上�?櫃普?�股，�???ETF / ?�別??/ 權�? (universe_tw_full.parquet filter)
-    - 60d avg turnover (close * volume) >= 5e8 TWD  (??5 ??
+    - 過去 60d 累積簡單報酬 ≤+20%  (排除追高)
+    - 上市櫃普通股，排除ETF / 特別股/ 權證 (universe_tw_full.parquet filter)
+    - 60d avg turnover (close * volume) >= 5e8 TWD  (約5 億）
 
-Forward windows: 20d / 60d / 120d simple return（t+1 open -> t+1+H close�?
-Look-ahead bias ?��?:
-    - 訊�???t ?�「t ?�收?��??�可?��??��?人�??��?17:00 ?��?�?    - forward return �?t+1 ?�盤算到 t+1+H ?�盤
+Forward windows: 20d / 60d / 120d simple return（t+1 open -> t+1+H close）
+Look-ahead bias 防範:
+    - 訊號日t 用「t 日收盤後才可得的資訊」（法人買賣超17:00 才公布）
+    - forward return 從t+1 開盤算到 t+1+H 收盤
 
 Output:
-    reports/vf_chip_dual_inst_results.csv  ??每�? signal 觸發 + forward returns
-    reports/vf_chip_dual_inst_ic.md         ??verdict report
+    reports/vf_chip_dual_inst_results.csv  —每筆 signal 觸發 + forward returns
+    reports/vf_chip_dual_inst_ic.md         —verdict report
 """
 from __future__ import annotations
 
@@ -46,8 +47,9 @@ START_DATE = "2023-01-01"
 END_DATE = "2026-05-15"
 HORIZONS = [20, 60, 120]
 RVOL_THRESHOLD = 2.0
-PAST_60D_CAP = 0.20         # ?�除?�去 60d 已漲 >20% ?�股�?MIN_TURNOVER_60D = 5e8      # 5 ??TWD
-MIN_DAYS_HISTORY = 80       # ?��?要�? 60d past + 5d inst lookback + 5d rvol lookback
+PAST_60D_CAP = 0.20         # 排除過去 60d 已漲 >20% 的股票
+MIN_TURNOVER_60D = 5e8      # 5 億TWD
+MIN_DAYS_HISTORY = 80       # 至少要有 60d past + 5d inst lookback + 5d rvol lookback
 
 logging.basicConfig(
     level=logging.INFO,
@@ -68,7 +70,7 @@ def load_universe() -> set[str]:
         & (u['is_warrant'] == False)
     )
     common = set(u[mask]['stock_id'].unique())
-    # Also enforce: stock_id is exactly 4 digits (?�除 odd codes like 000218)
+    # Also enforce: stock_id is exactly 4 digits (排除 odd codes like 000218)
     common = {s for s in common if s.isdigit() and len(s) == 4}
     logger.info(f"  {len(common)} common 4-digit stocks")
     return common
@@ -141,7 +143,7 @@ def compute_signals(inst: pd.DataFrame, ohlcv: pd.DataFrame, universe: set[str])
         # exit close at index t+h (which is the close of the h-th day AFTER signal day; entry is next_open at t+1)
         ohlcv[f'exit_close_{h}d'] = gp['adj_close'].shift(-h)
         # Also need next_open_adj equivalent: use Open / Close ratio to approximate adj_open
-        # Simpler: use unadjusted open at t+1, unadjusted close at t+h ??for short horizons (<=120d) splits/divs are rare and noise-level for IC ranking
+        # Simpler: use unadjusted open at t+1, unadjusted close at t+h —for short horizons (<=120d) splits/divs are rare and noise-level for IC ranking
         # We use AdjClose for both entry and exit to be safe against dividends; entry proxied by adj_close at t (lag by 1 day = enter at t+1)
         # Cleaner approach: forward return = adj_close[t+h] / adj_close[t] - 1, where signal is observed at t close
         # But user spec says "forward return from t+1 open". Use that for the actual portfolio sim;
@@ -392,7 +394,7 @@ def grade_verdict(per_h: list[dict]) -> str:
     n_sig_60 = h60.get('n_signal_hits', 0)
     t_60 = abs(h60.get('t_spread', 0))
 
-    # Check negative IC / negative spread ??D
+    # Check negative IC / negative spread →D
     if any(r['mean_ic'] < 0 for r in per_h if not np.isnan(r['mean_ic'])):
         return "D"
     if h60.get('spread', 0) < 0:
@@ -415,26 +417,26 @@ def write_report(per_h: list[dict], port_results: list[dict], verdict: str,
     h120 = next((r for r in per_h if r['horizon_d'] == 120), {})
 
     lines = []
-    lines.append("# VF ??籌碼?��?人�??��??��?�?)
+    lines.append("# VF — 籌碼三邊同向（法人雙買＋爆量）訊號驗證")
     lines.append("")
-    lines.append(f"**Verdict: {verdict} �?* (informational tier, 不�?picks list)")
+    lines.append(f"**Verdict: {verdict} 級** (informational tier, 不進picks list)")
     lines.append("")
     lines.append("## TL;DR")
     lines.append("")
-    lines.append(f"- IC 20d/60d/120d = {h20.get('mean_ic',0):+.4f} / {h60.get('mean_ic',0):+.4f} / {h120.get('mean_ic',0):+.4f}  ??t > 3 顯�?�?magnitude 弱�?< A 級�?�?+0.05�?)
+    lines.append(f"- IC 20d/60d/120d = {h20.get('mean_ic',0):+.4f} / {h60.get('mean_ic',0):+.4f} / {h120.get('mean_ic',0):+.4f}  —t > 3 顯著，但magnitude 弱（< A 級門檻+0.05）")
     lines.append(f"- Binary spread 60d = {h60.get('spread',0):+.2%} (t={h60.get('t_spread',0):+.2f}), 120d = {h120.get('spread',0):+.2%} (t={h120.get('t_spread',0):+.2f})")
-    lines.append(f"- n_sig 60d = {h60.get('n_signal_hits',0):,} ?�足；hit rate 60d {h60.get('hit_rate_signal',0):.1%}（接近隨機�?")
-    lines.append(f"- Top-N portfolio 60d Sharpe {next((p for p in port_results if p['hold_days']==60), {}).get('sharpe',0):+.2f} vs 0050 Sharpe {next((p for p in port_results if p['hold_days']==60), {}).get('bench_sharpe',0):+.2f}；IR {next((p for p in port_results if p['hold_days']==60), {}).get('ir',0):+.2f} **不�? 0050**")
-    lines.append("- 2024 regime fail：sideways year hit 45%?�mean +1.94%?�median **�?*")
-    lines.append("- 結�?：�???*?�微弱正?��???+ bull-only**�?*不該?��???picks list**；放 banner ?�育?��?+ 6 ?��?察�?")
+    lines.append(f"- n_sig 60d = {h60.get('n_signal_hits',0):,} 充足；hit rate 60d {h60.get('hit_rate_signal',0):.1%}（接近隨機）")
+    lines.append(f"- Top-N portfolio 60d Sharpe {next((p for p in port_results if p['hold_days']==60), {}).get('sharpe',0):+.2f} vs 0050 Sharpe {next((p for p in port_results if p['hold_days']==60), {}).get('bench_sharpe',0):+.2f}；IR {next((p for p in port_results if p['hold_days']==60), {}).get('ir',0):+.2f} **不贏 0050**")
+    lines.append("- 2024 regime fail：sideways year hit 45%、mean +1.94%、median **負**")
+    lines.append("- 結論：這是*「微弱正向訊號」+ bull-only**，**不該進入picks list**；放 banner 教育用途+ 6 個月觀察期")
     lines.append("")
     lines.append("## Signal definition")
     lines.append("")
     lines.append("```")
-    lines.append("外�? 5d 淨買�?> 0  AND  ?�信 5d 淨買�?> 0")
+    lines.append("外資 5d 淨買超> 0  AND  投信 5d 淨買超> 0")
     lines.append(f"AND rvol_5 (vol_t / avg(vol[t-20:t-1])) >= {RVOL_THRESHOLD}")
     lines.append(f"AND past_60d_ret <= +{PAST_60D_CAP * 100:.0f}%")
-    lines.append(f"AND turnover_60d >= {MIN_TURNOVER_60D:.0e} TWD (>= 5 ??")
+    lines.append(f"AND turnover_60d >= {MIN_TURNOVER_60D:.0e} TWD (>= 5 億）")
     lines.append("AND TW common stock (exclude ETF / preferred / warrant)")
     lines.append("```")
     lines.append("")
@@ -476,7 +478,7 @@ def write_report(per_h: list[dict], port_results: list[dict], verdict: str,
                 f"{qm[3]:+.4f} | {qm[4]:+.4f} | {r['q5_minus_q1_spread']:+.4f} |"
             )
         else:
-            lines.append(f"| {r['horizon_d']}d | ??| ??| ??| ??| ??| ??|")
+            lines.append(f"| {r['horizon_d']}d | —| —| —| —| —| —|")
     lines.append("")
     lines.append("## Table 4: Top-N portfolio (signal-only basket, equal weight)")
     lines.append("")
@@ -501,20 +503,20 @@ def write_report(per_h: list[dict], port_results: list[dict], verdict: str,
                 f"{s['hit_60d']:.1%} | {s['median_60d']:+.2%} |"
             )
         lines.append("")
-        lines.append("?��? **2024 regime fail**: 60d mean +1.94% / hit 45.1% / median -2.22% ??sideways market�?)
-        lines.append("2023 / 2025 ?�強多頭，�??��?賺錢??*Regime-dependent，�?�?alpha**??)
+        lines.append("註記 **2024 regime fail**: 60d mean +1.94% / hit 45.1% / median -2.22% —sideways market）")
+        lines.append("2023 / 2025 是強多頭，訊號才賺錢 →**Regime-dependent，非真alpha**")
         lines.append("")
 
-    lines.append("## Caveat ??多頭?�差 (VF-G4)")
+    lines.append("## Caveat —多頭偏差 (VF-G4)")
     lines.append("")
-    lines.append("�?��??2023-01 ~ 2026-05 ?��?多頭年�?TAIEX ?��?）�?benchmark 0050 ?�酬?��???)
-    lines.append("?��?線�??��? informational tier 6+ ?��?察�?，�?空頭/?�整窗口?�現後�??��???)
+    lines.append("（樣本期2023-01 ~ 2026-05 幾乎全是多頭年（TAIEX 大盤上漲）：benchmark 0050 報酬同步偏高")
+    lines.append("建議上線前先掛 informational tier 6+ 個月觀察期，等空頭/盤整窗口出現後再回頭驗證")
     lines.append("")
     lines.append("## Verdict thresholds (user spec)")
     lines.append("")
-    lines.append("- **A**: ??2/3 horizon IC > +0.05 AND 60d binary spread > +5% AND n_sig ??300 AND |t| > 2")
+    lines.append("- **A**: ≥2/3 horizon IC > +0.05 AND 60d binary spread > +5% AND n_sig ≥300 AND |t| > 2")
     lines.append("- **B**: IC > +0.03 in some horizon OR spread > +2% (informational tier)")
-    lines.append("- **D**: IC ??0 OR spread ??0")
+    lines.append("- **D**: IC ≤0 OR spread ≤0")
     lines.append("")
     OUT_MD.write_text("\n".join(lines), encoding="utf-8")
     logger.info(f"Wrote {OUT_MD}")

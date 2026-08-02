@@ -1,14 +1,17 @@
 """
-A/B 比�? Claude Sonnet vs codex (GPT-5.5) extract ?�質
+A/B 比較 Claude Sonnet vs codex (GPT-5.5) extract 品質
 
-跑�?一??VTT ?�相??prompt 給兩??LLM (Sonnet 結�??�接?�既??JSON,codex 跑新??�?比�?�?1. mentions ?��?
-2. ticker ?�中??(vs sector_tags_manual.json)
-3. ticker 幻覺??4. entry/stop/target ?��???5. JSON schema compliance
-6. ?��?
+跑同一支VTT 用相同prompt 給兩個LLM (Sonnet 結果直接用既有JSON,codex 跑新的）比較：
+1. mentions 數量
+2. ticker 命中率(vs sector_tags_manual.json)
+3. ticker 幻覺率
+4. entry/stop/target 完整度
+5. JSON schema compliance
+6. 耗時
 
 CLI:
   python tools/ab_test_codex_vs_sonnet.py
-  python tools/ab_test_codex_vs_sonnet.py --vtt <path>  # ?��? VTT
+  python tools/ab_test_codex_vs_sonnet.py --vtt <path>  # 指定 VTT
 """
 from __future__ import annotations
 
@@ -26,13 +29,13 @@ from extract_yt_sector_tags import (
 )
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_VTT = REPO / "data_cache/yt_brokerage_transcripts/moore/moore_chen/20260520_Xda2falreC0_?�崩?�警?��?輝�?財報?�數，�??��?驚傳?��?.zh.vtt"
+DEFAULT_VTT = REPO / "data_cache/yt_brokerage_transcripts/moore/moore_chen/20260520_Xda2falreC0_【崩盤警告！輝達財報倒數，記憶體驚傳「熔.zh.vtt"
 
 
 def call_codex(prompt: str, vtt_text: str, timeout: int = 600,
                reasoning_effort: str = "medium") -> tuple[dict | None, dict]:
-    """?�叫 codex exec，�???(parsed_json, metadata)"""
-    combined = f"{prompt}\n\n--- 以�???VTT 字�? ---\n{vtt_text}"
+    """呼叫 codex exec，回傳(parsed_json, metadata)"""
+    combined = f"{prompt}\n\n--- 以下是VTT 字幕 ---\n{vtt_text}"
     last_msg_file = REPO / f"data_cache/codex_last_msg_{int(time.time())}.txt"
     last_msg_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -73,7 +76,7 @@ def call_codex(prompt: str, vtt_text: str, timeout: int = 600,
 
 
 def compare(sonnet_json: dict, codex_json: dict | None, known_tickers: dict) -> dict:
-    """比�???extract 結�?"""
+    """比較兩個extract 結果"""
     def stats(d: dict | None, label: str) -> dict:
         if d is None or "error" in (d or {}):
             return {"label": label, "valid": False}
@@ -204,7 +207,7 @@ def main():
     cmp = compare(sonnet_json, codex_json, known)
 
     print("\n" + "=" * 70)
-    print("A/B 比�?結�?")
+    print("A/B 比較結果")
     print("=" * 70)
     print(f"{'Metric':<25} {'Sonnet':>15} {'GPT-5.5':>15}")
     print("-" * 70)
