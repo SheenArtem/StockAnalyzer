@@ -42,6 +42,21 @@ Before any commit (feature / fix / refactor / docs), do AT LEAST ONE of:
 
 範圍：`run_*.bat` / `tools/*.bat` / `run_app.bat` 一律 ASCII + CRLF，pre-commit hook 自動擋（含 lone-LF 偵測）。
 
+## ⚠️ Python 檔：UTF-8 + 可編譯（pre-commit 自動擋）
+
+**批次改含中文的檔案，一律用 `read_bytes` / `write_bytes`，不要讓中文經過 cp950 邊界。**
+`pathlib.write_text` 在 Windows 還會把 LF 全轉 CRLF，造成整檔假 diff。
+
+2026-08-02 全 `tools/` 掃描發現 **5 支已追蹤 `.py` 從進版控起就是非法 UTF-8**
+（`ab_test_codex_vs_sonnet` / `dcf_ic_analyze` / `test_brokerage_yt` /
+`vf_chip_dual_inst_signal` / `_regime_gate`），Python 直接拒絕解析，逐版追查確認
+歷來沒有任何版本編譯得過 —— 寫入當下就以有損編碼落盤，一路 commit 進來無人攔截。
+程式碼是 ASCII 沒壞，壞的是中文註解、docstring 與**功能性字串**（頁面比對字串、
+DataFrame 中文欄位名都受損）。已於 `137eae3` 全數修復。
+
+pre-commit hook 現在會對 staged 的 `.py` 檢查「能以 UTF-8 解碼」且「能通過
+`py_compile`」，任一不過即擋下 commit。
+
 ---
 
 ## Development Rules
