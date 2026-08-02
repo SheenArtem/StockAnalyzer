@@ -69,11 +69,18 @@ def _yahoo_chart_result(symbol: str) -> dict:
 
     range=1d + interval=1m + includePrePost=true：回應同時帶常規盤與盤前/盤後的
     1 分 K 棒，meta 含 currentTradingPeriod（判斷盤別）與 previousClose（前一交易日收）。
+
+    被擋（401 / 429）時必須丟例外：舊版直接 `r.json()`，Yahoo 的錯誤 body 解出來沒有
+    `chart.result`，於是回 None，呼叫端的 `continue` 靜默跳過該檔 —— 畫面上仍寫「即時」
+    卻整批沒有報價，看不出是被擋還是真的沒資料（2026-08-02 code review）。
+    `raise_for_status()` 丟的 HTTPError 是 RequestException 子類，呼叫端既有的
+    except 分支會記錄它。
     """
     r = requests.get(_YF_CHART_URL.format(sym=symbol),
                      params={'range': '1d', 'interval': '1m',
                              'includePrePost': 'true'},
                      headers={'User-Agent': _YF_UA}, timeout=15)
+    r.raise_for_status()
     j = r.json()
     res = (j.get('chart', {}) or {}).get('result')
     return res[0] if res else None
@@ -173,9 +180,12 @@ def get_us_quotes(tickers: list) -> dict:
             logger.warning("yahoo v8 chart %s failed: %s", t, e)
             continue
         if not result or not result.get('meta'):
+            logger.warning("yahoo v8 chart %s: no chart.result/meta in response "
+                           "-- 該檔無報價（可能被擋或代號無效）", t)
             continue
         picked = _pick_us_price(result, now)
         if picked['price'] is None:
+            logger.warning("yahoo v8 chart %s: 回應有 meta 但取不到價格 -- 該檔無報價", t)
             continue
         out[t] = {
             'price': picked['price'],

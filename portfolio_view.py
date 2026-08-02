@@ -97,26 +97,62 @@ def _load_history(tickers):
     return {t: cache[t] for t in want if cache.get(t) is not None}
 
 
-def _portfolio_metrics(ret_series):
-    """由日報酬計算投資組合績效指標。"""
+# 年化前的最少交易日數。短樣本年化是「數學上算得出、意義上是假的」：
+# 8 個交易日 1.95% 報酬會被年化成 +83.7%（1.0195^(252/8)-1），而那是頭條數字。
+# 60 個交易日 ≈ 3 個月，是願意掛上「年化」兩字的下限。
+_MIN_ANNUALIZE_DAYS = 60
+
+
+def _portfolio_metrics(nav_df):
+    """由逐日 TWR 序列計算投資組合績效指標。
+
+    兩個刻意的取捨：
+
+    1. **樣本不足不年化**。低於 `_MIN_ANNUALIZE_DAYS` 時 `cagr` / `sharpe` / `annual_vol`
+       一律回 None，讓 UI 顯示「—」而不是一個看起來很厲害的假數字。
+    2. **報酬類統計只算「有部位」的日子**。`build_nav_series` 對 prev_mv=0（尚未建倉／
+       全數出場）的日子強制 ret=0；把這些 0 併進分母會壓低日勝率、壓低波動度、進而
+       虛增 Sharpe。`total_return` / `mdd` 不受影響（乘 1.0 不改變累積，空倉也不會製造
+       新的回撤），所以那兩個一律取自**完整**序列，只有波動度／Sharpe／日勝率用
+       過濾後的序列。
+    """
     try:
-        returns = pd.to_numeric(ret_series, errors='coerce').dropna()
+        if nav_df is None or nav_df.empty or 'ret' not in nav_df.columns:
+            return {}
+        returns = pd.to_numeric(nav_df['ret'], errors='coerce').dropna()
         if len(returns) < 6:
             return {}
+
+        # 有部位的日子＝前一日收盤市值 > 0（首日 shift 後為 NaN，自然排除）
+        if 'mv' in nav_df.columns:
+            prev_mv = pd.to_numeric(nav_df['mv'], errors='coerce').shift(1)
+            exposed = returns[prev_mv.reindex(returns.index) > 0]
+        else:
+            exposed = returns
+        if len(exposed) < 6:
+            exposed = returns
+
+        # 總報酬與最大回撤取自完整序列 —— 它們就該等於實際淨值走勢。
         equity = (1 + returns).cumprod()
-        n_periods = len(returns)
-        cagr = equity.iloc[-1] ** (252 / n_periods) - 1.0
-        annual_vol = returns.std() * np.sqrt(252)
-        sharpe = (returns.mean() * 252) / annual_vol if annual_vol > 0 else np.nan
+        elapsed_days = len(returns)          # 年化用「經過的交易日」，不是「有部位的天數」
+        can_annualize = elapsed_days >= _MIN_ANNUALIZE_DAYS
+
+        annual_vol = exposed.std() * np.sqrt(252) if can_annualize else None
+        sharpe = None
+        if can_annualize and annual_vol and annual_vol > 0:
+            sharpe = (exposed.mean() * 252) / annual_vol
         drawdown = equity / equity.expanding().max() - 1.0
         return {
-            'n_periods': n_periods,
+            'n_periods': elapsed_days,
+            'n_exposed': len(exposed),
             'total_return': equity.iloc[-1] - 1.0,
-            'cagr': cagr,
+            'cagr': (equity.iloc[-1] ** (252 / elapsed_days) - 1.0) if can_annualize else None,
             'annual_vol': annual_vol,
             'sharpe': sharpe,
             'mdd': drawdown.min(),
-            'win_rate': (returns > 0).mean(),
+            'win_rate': (exposed > 0).mean(),
+            'can_annualize': can_annualize,
+            'min_annualize_days': _MIN_ANNUALIZE_DAYS,
         }
     except Exception as e:  # 指標算不出不擋 NAV 曲線
         logger.warning("portfolio_metrics failed: %s", e)
@@ -341,15 +377,23 @@ def _render_performance(txns):
         st.markdown(f"##### {_MARKET_LABEL[mkt]}")
         base = ps.ytd_baseline(nav_df['nav'], year)
         ytd = (nav_df['nav'].iloc[-1] / base - 1.0) if base else None
-        m = _portfolio_metrics(nav_df['ret'])
+        m = _portfolio_metrics(nav_df)
         if m:
             cc = st.columns(6)
             cc[0].metric("總報酬", f"{m['total_return']:+.2%}")
             cc[1].metric("YTD", f"{ytd:+.2%}" if ytd is not None else "—")
-            cc[2].metric("年化 CAGR", f"{m['cagr']:+.2%}")
-            cc[3].metric("Sharpe", f"{m['sharpe']:.2f}")
+            cc[2].metric("年化 CAGR",
+                         f"{m['cagr']:+.2%}" if m.get('cagr') is not None else "—")
+            cc[3].metric("Sharpe",
+                         f"{m['sharpe']:.2f}" if m.get('sharpe') is not None else "—")
             cc[4].metric("最大回撤", f"{m['mdd']:.2%}")
             cc[5].metric("日勝率", f"{m['win_rate']:.1%}")
+            if not m.get('can_annualize'):
+                st.caption(
+                    f"年化 CAGR / Sharpe 未顯示：僅 {m['n_periods']} 個交易日，"
+                    f"不足 {m['min_annualize_days']} 日。短樣本年化會放大到失真"
+                    f"（例：8 日 +1.95% 會被年化成 +83.7%）。"
+                    f"日勝率只計有部位的 {m['n_exposed']} 日。")
         else:
             _ytd_txt = f" · YTD {ytd:+.2%}" if ytd is not None else ""
             st.caption(f"總報酬 {(nav_df['nav'].iloc[-1] - 1):+.2%}{_ytd_txt}"
