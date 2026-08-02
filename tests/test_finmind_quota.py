@@ -162,6 +162,77 @@ class TestQuotaFailFast:
         assert stats['remaining'] == cache_manager._FINMIND_RATE_LIMIT
 
 
+class TestQuotaBlockBackoff:
+    """server 端額度封鎖長度必須是固定上限的退避，不可綁自家 rolling window。
+
+    2026-08-02 code review 實測：`_reserve_request` 在打 API **之前** 就把 now 塞進
+    deque，所以剛啟動的 process 第一筆請求就撞到 server 端額度時，
+    `_seconds_until_window_reset()` 回 ≈3605 秒 → 直接鎖滿一小時，且沒有任何成功
+    後解除或提前重探的路徑。受害者是長時間多次呼叫者（chip_history_dl 的 per-stock
+    迴圈、backfill、scanner、常駐 Streamlit）。
+    """
+
+    def test_fresh_process_first_request_does_not_lock_a_full_hour(self):
+        dl = _QuotaDeadDL()
+        tr = FinMindTracker(dl, has_token=True)
+
+        # 不 stub _seconds_until_window_reset —— 就是要重現「第一筆請求即 oldest≈now」
+        t0 = time.time()
+        with pytest.raises(FinMindQuotaBlockedError):
+            tr.taiwan_stock_info()
+
+        # 舊版這裡會是 ~3605
+        assert tr._seconds_until_window_reset() > 3500, '前提：自家視窗確實回接近一小時'
+        blocked_for = tr._quota_blocked_until - t0
+        assert blocked_for == pytest.approx(cache_manager._FINMIND_QUOTA_BLOCK_START,
+                                            abs=5), \
+            f'第一階應為 {cache_manager._FINMIND_QUOTA_BLOCK_START}s，實得 {blocked_for:.0f}s'
+
+    def test_backoff_ladder_climbs_then_caps(self):
+        dl = _QuotaDeadDL()
+        tr = FinMindTracker(dl, has_token=True)
+        seen = []
+        for _ in range(5):
+            tr._clear_quota_block()          # 只清 block，讓下一次真的打到 API
+            tr._quota_block_level = len(seen)
+            t0 = time.time()
+            with pytest.raises(FinMindQuotaBlockedError):
+                tr.taiwan_stock_info()
+            seen.append(round(tr._quota_blocked_until - t0))
+
+        assert seen[0] == pytest.approx(300, abs=5)
+        assert seen[1] == pytest.approx(600, abs=5)
+        assert seen[2] == pytest.approx(900, abs=5)
+        assert all(s == pytest.approx(cache_manager._FINMIND_QUOTA_BLOCK_CAP, abs=5)
+                   for s in seen[2:]), f'應在 900s 封頂，實得 {seen}'
+
+    def test_success_resets_backoff_level_and_clears_block(self):
+        dl = _FlakyThenOKDL()
+        tr = FinMindTracker(dl, has_token=True)
+        tr._seconds_until_window_reset = lambda: 0.01
+
+        df = tr.taiwan_stock_info()          # 第 1 次爆、等待後第 2 次成功
+
+        assert not df.empty
+        assert tr._quota_block_level == 0, '成功一次就要歸零，否則背著上一輪長封鎖'
+        assert tr._quota_blocked_until == 0.0
+
+    def test_plain_success_clears_a_stale_block(self):
+        class _OK:
+            def taiwan_stock_info(self):
+                return pd.DataFrame({'stock_id': ['2330']})
+
+        tr = FinMindTracker(_OK(), has_token=True)
+        tr._quota_block_level = 3
+        # 過期的 block 不該讓後續成功呼叫仍背著退避階數
+        tr._quota_blocked_until = time.time() - 1
+
+        tr.taiwan_stock_info()
+
+        assert tr._quota_block_level == 0
+        assert tr._quota_blocked_until == 0.0
+
+
 class TestTwStockInfo3Tier:
     def setup_method(self):
         cache_manager._TW_STOCK_INFO_CACHE = None
@@ -213,3 +284,79 @@ class TestTwStockInfo3Tier:
                 raise KeyError('data')
         monkeypatch.setattr(cache_manager, 'get_finmind_loader', lambda: _Dead())
         assert cache_manager.get_tw_stock_info() is None
+
+
+class TestGetFinmindCachedStaleFallback:
+    """抓取失敗時必須用磁碟上的過期快取，不可回空 frame。
+
+    2026-08-02 code review：`FinMindQuotaBlockedError` 的訊息自稱
+    "callers fall back to stale cache"，但實際流程是「磁碟快取過期 → 去抓 → 失敗 →
+    回空 frame」，磁碟上那份過期資料從頭到尾沒被用到。
+    """
+
+    def _stale_cache(self, tmp_path, monkeypatch, rows, age_days=400):
+        monkeypatch.setattr(cache_manager, 'CACHE_DIR', str(tmp_path))
+        path = tmp_path / 'finmind_cache' / 'month_revenue_2330.parquet'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(rows).to_parquet(path, index=False)
+        old = time.time() - age_days * 86400
+        os.utime(path, (old, old))
+        return path
+
+    def test_fetch_exception_falls_back_to_stale_disk_cache(self, tmp_path, monkeypatch):
+        self._stale_cache(tmp_path, monkeypatch,
+                          {'stock_id': ['2330'], 'date': ['2025-01-01'], 'revenue': [100]})
+
+        class _Dead:
+            def taiwan_stock_month_revenue(self, stock_id=None, start_date=None):
+                raise FinMindQuotaBlockedError('quota exhausted')
+
+        out = cache_manager.get_finmind_cached(
+            _Dead(), 'month_revenue', '2330', 'taiwan_stock_month_revenue',
+            ttl_days=30)
+
+        assert not out.empty, '過期快取存在時不可回空 frame'
+        assert out['revenue'].iloc[0] == 100
+
+    def test_empty_fetch_result_does_not_resurrect_stale_rows(self, tmp_path, monkeypatch):
+        """抓到空結果是下市股的合法答案，拿舊資料頂替會把「已無資料」變成「還有」。"""
+        self._stale_cache(tmp_path, monkeypatch,
+                          {'stock_id': ['2330'], 'date': ['2025-01-01'], 'revenue': [100]})
+
+        class _EmptyOK:
+            def taiwan_stock_month_revenue(self, stock_id=None, start_date=None):
+                return pd.DataFrame()
+
+        out = cache_manager.get_finmind_cached(
+            _EmptyOK(), 'month_revenue', '2330', 'taiwan_stock_month_revenue',
+            ttl_days=30)
+
+        assert out.empty, '空結果不可被過期資料頂替'
+
+    def test_no_disk_cache_still_returns_empty_on_failure(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(cache_manager, 'CACHE_DIR', str(tmp_path))
+
+        class _Dead:
+            def taiwan_stock_month_revenue(self, stock_id=None, start_date=None):
+                raise FinMindQuotaBlockedError('quota exhausted')
+
+        out = cache_manager.get_finmind_cached(
+            _Dead(), 'month_revenue', '9999', 'taiwan_stock_month_revenue',
+            ttl_days=30)
+
+        assert out.empty
+
+    def test_fresh_cache_is_used_without_fetching(self, tmp_path, monkeypatch):
+        self._stale_cache(tmp_path, monkeypatch,
+                          {'stock_id': ['2330'], 'date': ['2026-07-01'], 'revenue': [7]},
+                          age_days=0)
+
+        class _MustNotCall:
+            def taiwan_stock_month_revenue(self, stock_id=None, start_date=None):
+                raise AssertionError('快取未過期時不應打 FinMind')
+
+        out = cache_manager.get_finmind_cached(
+            _MustNotCall(), 'month_revenue', '2330', 'taiwan_stock_month_revenue',
+            ttl_days=30)
+
+        assert out['revenue'].iloc[0] == 7

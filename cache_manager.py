@@ -93,11 +93,14 @@ def get_finmind_cached(dl, cache_key, stock_id, method_name, ttl_days,
     path.parent.mkdir(parents=True, exist_ok=True)
 
     df = None
+    stale_df = None          # 過期但仍可用的磁碟資料（抓取失敗時的退路）
+    stale_age = None
     today = date.today()
     # 1. 嘗試讀磁碟快取
     if path.exists():
         age_days = (time.time() - path.stat().st_mtime) / 86400
         is_stale = False
+        df_cached = None
         # Calendar-aware stale check first
         if freshness in ('monthly', 'quarterly'):
             try:
@@ -107,18 +110,29 @@ def get_finmind_cached(dl, cache_key, stock_id, method_name, ttl_days,
                 else:
                     is_stale = _is_cache_stale_quarterly(df_cached, today, age_days)
             except Exception:
+                df_cached = None
                 is_stale = age_days >= ttl_days
         else:
             is_stale = age_days >= ttl_days
 
         if not is_stale:
             try:
-                df = pd.read_parquet(path)
+                df = df_cached if df_cached is not None else pd.read_parquet(path)
                 logger.debug("finmind_cache HIT %s/%s (age %.1fd freshness=%s)",
                              cache_key, stock_id, age_days, freshness)
             except Exception as e:
                 logger.warning("finmind_cache read failed %s: %s", path, e)
                 df = None
+        else:
+            # 過期不等於沒用。先留著：抓取失敗時「過期的真實資料」遠勝空 frame，
+            # 而 FinMindQuotaBlockedError 的訊息本來就宣稱 caller 會退回過期快取
+            # （2026-08-02 code review 查出實際沒有這條路徑，此處補上）。
+            try:
+                stale_df = df_cached if df_cached is not None else pd.read_parquet(path)
+                stale_age = age_days
+            except Exception as e:
+                logger.warning("finmind_cache stale read failed %s: %s", path, e)
+                stale_df = None
 
     # 2. 快取 miss 或過期 → 抓 FinMind
     if df is None:
@@ -135,7 +149,15 @@ def get_finmind_cached(dl, cache_key, stock_id, method_name, ttl_days,
                         logger.warning("finmind_cache write failed %s: %s", path, e)
         except Exception as e:
             logger.warning("FinMind fetch failed %s/%s: %s", cache_key, stock_id, e)
-            return pd.DataFrame()
+            # 只有「抓取丟例外」才退回過期快取。抓到空結果不退 —— 那可能是下市股
+            # 本來就沒資料的合法結果，拿舊資料頂替會把「已無資料」變成「還有資料」。
+            if stale_df is not None and not stale_df.empty:
+                logger.warning("finmind_cache STALE FALLBACK %s/%s: 用磁碟上 %.1f 天前的"
+                               " %d 列頂替（抓取失敗，過期資料仍優於空 frame）",
+                               cache_key, stock_id, stale_age or -1, len(stale_df))
+                df = stale_df
+            else:
+                return pd.DataFrame()
 
     if df is None or df.empty:
         return pd.DataFrame() if df is None else df
@@ -478,6 +500,14 @@ _FINMIND_RATE_LIMIT = 600       # requests per hour (free tier with token)
 _FINMIND_RATE_WARN = 540        # warn threshold
 _FINMIND_RATE_PAUSE = 580       # auto-pause threshold
 
+# server 端說「額度爆了」時的退避階梯（秒）。**不可**拿 _seconds_until_window_reset()
+# 當封鎖長度：那算的是「本 process 自己視窗」的剩餘時間，而剛啟動的 process 第一筆
+# 請求就會被 _reserve_request 塞進 deque，於是 oldest≈now → 回 ≈3605 秒，等於一撞
+# 就鎖滿一小時（2026-08-02 code review 實測重現）。server 端視窗何時重置我們並不
+# 知道，所以改用固定上限的指數退避 + 成功即歸零。
+_FINMIND_QUOTA_BLOCK_START = 300.0
+_FINMIND_QUOTA_BLOCK_CAP = 900.0
+
 
 class FinMindQuotaBlockedError(RuntimeError):
     """FinMind server-side 額度已爆且離整點重置還久 — 本小時內 fail-fast 不再打 API。"""
@@ -495,6 +525,7 @@ class FinMindTracker:
         self._request_times = deque()
         self._lock = threading.Lock()
         self._quota_blocked_until = 0.0  # server-side 額度爆掉的 negative cache (epoch)
+        self._quota_block_level = 0      # 指數退避階數，成功一次即歸零
 
     def __getattr__(self, name):
         """Proxy all DataLoader method calls through the tracker."""
@@ -518,7 +549,7 @@ class FinMindTracker:
                 logger.warning("FinMind API: approaching rate limit (%d/%d)",
                                count, _FINMIND_RATE_LIMIT)
             try:
-                return attr(*args, **kwargs)
+                result = attr(*args, **kwargs)
             except KeyError as e:
                 if str(e) == "'data'":
                     # FinMind server-side quota (response 無 'data' key)。實測為
@@ -532,25 +563,29 @@ class FinMindTracker:
                         time.sleep(wait)
                         try:
                             self._reserve_request()
-                            return attr(*args, **kwargs)
+                            result = attr(*args, **kwargs)
                         except KeyError as retry_error:
                             if str(retry_error) != "'data'":
                                 raise
-                            retry_wait = max(
-                                self._seconds_until_window_reset(), 300.0
-                            )
-                            self._set_quota_block(retry_wait)
+                            retry_wait = self._next_quota_block()
                             raise FinMindQuotaBlockedError(
                                 "FinMind quota remained exhausted after retry; "
                                 f"blocked for {int(retry_wait)}s"
                             ) from retry_error
-                    self._set_quota_block(wait)
-                    logger.warning("FinMind quota hit, %.0fs to hour reset -- fail-fast, "
-                                   "blocking further FinMind calls until reset", wait)
+                        else:
+                            self._clear_quota_block()
+                            return result
+                    block = self._next_quota_block()
+                    logger.warning("FinMind quota hit (server-side) -- fail-fast, blocking "
+                                   "FinMind calls for %.0fs then re-probing (own window "
+                                   "would reset in %.0fs, but that says nothing about the "
+                                   "server's)", block, wait)
                     raise FinMindQuotaBlockedError(
-                        f"FinMind quota exhausted; blocked for {int(wait)}s"
+                        f"FinMind quota exhausted; blocked for {int(block)}s"
                     ) from e
                 raise
+            self._clear_quota_block()
+            return result
 
         return tracked_call
 
@@ -604,6 +639,28 @@ class FinMindTracker:
                 self._quota_blocked_until,
                 time.time() + max(float(wait_seconds), 1.0),
             )
+
+    def _next_quota_block(self):
+        """算下一階退避秒數並套用；回傳實際封鎖秒數。
+
+        300 → 600 → 900 → 900...（`_FINMIND_QUOTA_BLOCK_CAP` 封頂）。有上限才有
+        「解除後重探」：舊版把封鎖長度綁在自家視窗剩餘時間，剛啟動的 process 一撞
+        就鎖 3605 秒，長時間多次呼叫者（chip_history_dl 的 per-stock 迴圈、backfill、
+        scanner、常駐 Streamlit）整小時拿不到任何 FinMind 資料。
+        """
+        with self._lock:
+            block = min(_FINMIND_QUOTA_BLOCK_START * (2 ** self._quota_block_level),
+                        _FINMIND_QUOTA_BLOCK_CAP)
+            self._quota_block_level += 1
+            self._quota_blocked_until = max(self._quota_blocked_until,
+                                            time.time() + block)
+        return block
+
+    def _clear_quota_block(self):
+        """成功一次就把退避歸零 —— 否則服務恢復後仍背著上一輪的長封鎖。"""
+        with self._lock:
+            self._quota_block_level = 0
+            self._quota_blocked_until = 0.0
 
     def _seconds_until_window_reset(self):
         """Seconds until this tracker's rolling 60-minute window expires."""
