@@ -43,6 +43,11 @@ REQUIRED_STAGES = [
     # Discord daily summary removed 2026-07-06 (tool deleted; was disabled since 2026-05-04).
     # Substack sync stage removed 2026-05-21 (v2026.05.21.3 整套 rm, marker no longer fires).
     ('Universe price refresh done', r'\] Universe price refresh done \(exit=0\)'),
+    # 2026-08-02 補：這個 stage 失敗時 bat 只印 [WARN]（best-effort，不影響 scanner
+    # exit），而這裡原本沒有對應 marker —— 於是「持續失敗」不會被任何後檢查發現，
+    # macro_dashboard 的 Market Breadth 會靜靜地一直看舊資料（同一輪 diff 已替另外
+    # 兩個 stage 加了 (exit=0) marker，唯獨漏掉 breadth）。
+    ('TW breadth panel done', r'\] TW breadth panel done \(exit=0\)'),
     ('Refresh backtest panels done', r'\] Refresh backtest panels done \(exit=0\)'),
     ('Chip history resume done', r'\] Chip history resume done'),
     ('News flow anomaly done', r'\] News flow anomaly done'),

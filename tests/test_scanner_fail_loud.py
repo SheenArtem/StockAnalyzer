@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -8,24 +9,28 @@ from tools import verify_scan_stages as verifier
 ROOT = Path(__file__).resolve().parent.parent
 BATCH_PATH = ROOT / 'run_scanner.bat'
 
-SUCCESS_MARKERS = (
-    'Scanner started',
-    'YT sync done',
-    'RF-1 consistency check done',
-    'Market regime logger done',
-    'Universe price refresh done (exit=0)',
-    'Refresh backtest panels done (exit=0)',
-    'Chip history resume done',
-    'News flow anomaly done',
-    'Theme momentum done',
-    'ATM PUT premium archive done',
-    'Minifutures ratio archive done',
-    'Options institutional archive done',
-    'Earnings calendar fetch done',
-    'Scanner finished (exit=0)',
+# 從 verifier 直接推導，**不再手抄**。
+# 2026-08-02 code review：原本這裡是 REQUIRED_STAGES 的手抄副本，驗的其實是
+# 「verifier 對自己的清單一致」。手抄的失效方式是雙向的：verifier 新增 stage 而這裡
+# 沒跟上（此測試會失敗，還算安全），或 verifier 要求一個 bat 根本不會印的 marker
+# （production 天天報失敗，測試卻綠燈，因為 log 是用同一份清單合成的）。
+SUCCESS_MARKERS = tuple(
+    re.sub(r'\\(.)', r'\1', pattern.removeprefix(r'\]')).strip()
+    for _label, pattern in verifier.REQUIRED_STAGES
 )
 
-MARKET_PANEL_SUCCESS_MARKERS = SUCCESS_MARKERS[4:6]
+# 關鍵市場面板 stage（失敗會讓 goto skip_market_panels 跳掉整段）
+MARKET_PANEL_SUCCESS_MARKERS = tuple(
+    m for m in SUCCESS_MARKERS
+    if m.startswith(('Universe price refresh', 'Refresh backtest panels'))
+)
+
+
+def _bat_log_markers():
+    """bat 裡所有 `call :log "..."` 的字串，%VAR% 以 0 代入（成功路徑的樣子）。"""
+    raw = BATCH_PATH.read_text(encoding='ascii')
+    return [re.sub(r'%[A-Za-z0-9_]+%', '0', m)
+            for m in re.findall(r'call :log "([^"]*)"', raw)]
 
 
 def _run_verifier(monkeypatch, tmp_path, markers):
@@ -36,6 +41,13 @@ def _run_verifier(monkeypatch, tmp_path, markers):
     )
     monkeypatch.setattr(verifier, 'LOG_PATH', log_path)
     return verifier.main()
+
+
+def test_success_markers_were_derived_not_hand_copied():
+    assert len(SUCCESS_MARKERS) == len(verifier.REQUIRED_STAGES)
+    assert 'Scanner started' in SUCCESS_MARKERS
+    assert 'Scanner finished (exit=0)' in SUCCESS_MARKERS
+    assert len(MARKET_PANEL_SUCCESS_MARKERS) == 2
 
 
 def test_verifier_accepts_complete_scanner_pipeline(monkeypatch, tmp_path):
@@ -50,6 +62,38 @@ def test_verifier_rejects_each_missing_market_panel_stage(
 
     assert _run_verifier(monkeypatch, tmp_path, markers) == 1
     assert missing_marker.removesuffix(' (exit=0)') in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(('label', 'pattern'), verifier.REQUIRED_STAGES)
+def test_every_required_stage_is_actually_emitted_by_the_bat(label, pattern):
+    """verifier 不可要求 bat 根本不會印的 marker。
+
+    這是手抄清單擋不住的那個方向：若 marker 打錯字或 stage 從 bat 移除，production
+    會天天報缺 stage，而合成 log 的測試照樣綠燈。
+    """
+    candidates = [f'[2026-07-14T00:00:00] {m}' for m in _bat_log_markers()]
+    rx = re.compile(pattern)
+    assert any(rx.search(c) for c in candidates), (
+        f'REQUIRED_STAGES 的 {label!r} (pattern={pattern!r}) 在 run_scanner.bat 的 '
+        f'call :log 裡找不到對應字串')
+
+
+def test_breadth_stage_is_covered_by_the_verifier():
+    """TW breadth 失敗時 bat 只印 [WARN]，所以更需要後檢查盯著。
+
+    2026-08-02 之前 REQUIRED_STAGES 沒有這個 marker：breadth 持續失敗不會被任何人
+    發現，macro_dashboard 的 Market Breadth 會一直顯示舊資料。
+    """
+    assert any('TW breadth panel done' in label
+               for label, _ in verifier.REQUIRED_STAGES)
+    assert 'TW breadth panel done (exit=0)' in SUCCESS_MARKERS
+
+
+def test_verifier_rejects_missing_breadth_stage(monkeypatch, tmp_path, capsys):
+    markers = [m for m in SUCCESS_MARKERS if 'TW breadth' not in m]
+
+    assert _run_verifier(monkeypatch, tmp_path, markers) == 1
+    assert 'TW breadth panel done' in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
