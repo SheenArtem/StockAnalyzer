@@ -11,6 +11,8 @@ stat="很抱歉，沒有符合條件的資料!"。
   - `market_regime_logger`：TWSE 對未開盤的今天正確回空、TPEX 卻回上一場，於是
     橫斷面變成純上櫃，等權均價被高價上櫃股抬成 1.835 倍。
 """
+import json
+
 import pandas as pd
 import pytest
 
@@ -349,6 +351,60 @@ def test_repair_never_adds_or_drops_dates(tmp_path, monkeypatch):
     after = MRL._read_log()
     assert sorted(after) == ['2026-01-01', '2026-07-30']
     assert stats['skipped'] == 1, 'panel 沒有的 2026-01-01 要算進 skipped 並保留原值'
+
+
+def test_drop_non_panel_dates_removes_holiday_rows(tmp_path, monkeypatch):
+    """休市日的假列必須刪得掉 —— 那是舊補值 bug 的產物。
+
+    `_twse_trading_days_between` 用 `bdate_range`，會把平日的國定假日也當工作日；
+    那天 TWSE 正確回空、TPEX 卻回上一場，於是為「市場沒開」的日期寫進一筆 regime。
+    2026-08-02 實測留下 3 筆（2026-05-01 勞動節 / 06-19 / 07-10，皆為週五休市，
+    ret_20d 1.66 / 1.11 / 0.90）。
+    """
+    _log_with(tmp_path, monkeypatch, [
+        '{"date": "2026-04-30", "regime": "volatile", "ret_20d": 0.3667,'
+        ' "range_20d": 0.7, "sharpe_60d": 0.7, "proxy": "equal_weight_top300"}',
+        '{"date": "2026-05-01", "regime": "volatile", "ret_20d": 1.66,'
+        ' "range_20d": 1.8, "sharpe_60d": 0.9, "proxy": "equal_weight_top300"}',
+    ])
+    # panel 只有 04-30，沒有 05-01（休市）
+    monkeypatch.setattr(MRL, 'recompute_history_from_panel', lambda: {
+        '2026-04-30': {'date': '2026-04-30', 'regime': 'volatile', 'ret_20d': 0.3667,
+                       'range_20d': 0.7, 'sharpe_60d': 0.7,
+                       'proxy': 'equal_weight_top300'}})
+
+    stats = MRL.drop_non_panel_dates(dry_run=False)
+
+    assert stats['dropped'] == 1
+    assert stats['dates'] == ['2026-05-01']
+    assert sorted(MRL._read_log()) == ['2026-04-30']
+
+
+def test_drop_non_panel_dates_dry_run_writes_nothing(tmp_path, monkeypatch):
+    path = _log_with(tmp_path, monkeypatch, [
+        '{"date": "2026-05-01", "regime": "volatile", "ret_20d": 1.66,'
+        ' "range_20d": 1.8, "sharpe_60d": 0.9, "proxy": "equal_weight_top300"}',
+    ])
+    before = path.read_bytes()
+    monkeypatch.setattr(MRL, 'recompute_history_from_panel', lambda: {})
+
+    stats = MRL.drop_non_panel_dates(dry_run=True)
+
+    assert stats['dropped'] == 1
+    assert path.read_bytes() == before
+
+
+def test_drop_non_panel_dates_keeps_everything_the_panel_has(tmp_path, monkeypatch):
+    entry = ('{"date": "2026-07-31", "regime": "volatile", "ret_20d": -0.1825,'
+             ' "range_20d": 0.2831, "sharpe_60d": -0.533, "proxy": "equal_weight_top300"}')
+    _log_with(tmp_path, monkeypatch, [entry])
+    monkeypatch.setattr(MRL, 'recompute_history_from_panel', lambda: {
+        '2026-07-31': json.loads(entry)})
+
+    stats = MRL.drop_non_panel_dates(dry_run=False)
+
+    assert stats['dropped'] == 0
+    assert sorted(MRL._read_log()) == ['2026-07-31']
 
 
 def test_classify_regime_rules():

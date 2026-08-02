@@ -283,6 +283,42 @@ def append_log(entry: dict) -> bool:
 IMPLAUSIBLE_RET_20D = 0.30
 
 
+def drop_non_panel_dates(dry_run: bool = True) -> dict:
+    """刪掉 log 裡「panel 完全沒有的日期」—— 那些是台股休市日的假列。
+
+    舊版補值的 `_twse_trading_days_between` 用 `bdate_range` 產候選日，會把**平日的
+    國定假日**也當工作日；那天 TWSE 正確回空、TPEX 卻回上一場的完整橫斷面，於是為
+    一個「市場沒開」的日期寫進一筆 regime。2026-08-02 實測留下 3 筆：2026-05-01
+    （勞動節）、2026-06-19、2026-07-10，全是週五休市，`ret_20d` 分別 1.66 / 1.11 /
+    0.90（等權 300 檔代理的物理不可能值），且在 2330 的 5,043 個真實交易日與
+    `ohlcv_tw.parquet` 裡都不存在。
+
+    `repair_history` 刻意只修不刪（它無法分辨「panel 還沒補到這天」與「這天不存在」），
+    所以刪除獨立成這個明確動作。
+    """
+    clean = recompute_history_from_panel()
+    existing = _read_log()
+    orphans = sorted(d for d in existing if d not in clean)
+
+    logger.info("Non-panel dates in log: %d", len(orphans))
+    for d in orphans:
+        r = existing[d]
+        logger.info("  %s  regime=%s ret_20d=%s  <- 市場沒開，假列",
+                    d, r.get('regime'), r.get('ret_20d'))
+
+    if dry_run:
+        logger.info("--dry-run: nothing written")
+    elif orphans:
+        for d in orphans:
+            del existing[d]
+        _write_log(existing)
+        logger.info("Rewrote %s (dropped %d spurious date(s), %d entries left)",
+                    LOG_PATH, len(orphans), len(existing))
+    else:
+        logger.info("Nothing to drop")
+    return {'dropped': len(orphans), 'dates': orphans, 'left': len(existing)}
+
+
 def repair_history(dry_run: bool = True, rebuild_all: bool = False,
                    threshold: float = IMPLAUSIBLE_RET_20D) -> dict:
     """修補 log 內既有日期的毀損值。只改既有日期，不新增也不刪除。
@@ -361,8 +397,14 @@ def main():
     ap.add_argument('--rebuild-all', action='store_true',
                     help='連「僅版本差異」的日期一併重寫（宣告現行 panel 為唯一權威，'
                          '2026-08-02 實測會動到 3,712 筆／692 筆標籤，預設不做）')
+    ap.add_argument('--drop-non-panel-dates', action='store_true',
+                    help='刪掉 panel 完全沒有的日期（台股休市日的假列，舊補值 bug 產物）')
     args = ap.parse_args()
 
+    if args.drop_non_panel_dates:
+        drop_non_panel_dates(dry_run=args.dry_run)
+        if not args.repair_history:
+            return
     if args.repair_history:
         repair_history(dry_run=args.dry_run, rebuild_all=args.rebuild_all)
         return
