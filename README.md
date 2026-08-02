@@ -63,7 +63,9 @@ python -m streamlit run app.py
 | 新聞題材 | `tools/news_theme_extract.py` | UDN + cnyes RSS → Claude Sonnet 萃取 |
 | 籌碼面 | `chip_analysis.py` / `chip_history_dl.py` | 三大法人 / 融資融券 / 借券 / 當沖 / TDCC |
 
-詳細架構：見 [`CLAUDE.md`](CLAUDE.md)（核心規範 + 資料源優先順序 + LLM 規範）。
+詳細架構與開發規範：見 [`AGENTS.md`](AGENTS.md)（跨 agent 規則權威），細節路由到
+[`docs/agent/data-sources.md`](docs/agent/data-sources.md)（資料源優先順序）與
+[`docs/agent/llm-usage.md`](docs/agent/llm-usage.md)（LLM 規範）。
 
 ---
 
@@ -113,16 +115,12 @@ YT 影片同步 → News 題材萃取 → 量價情緒指標 (PUT/小台/期權)
 ## 開發約定
 
 - **Robustness First**：commit 前必須 end-to-end 跑過、grep caller 確認、fail loud（不要 try/except pass）
-- **資料源優先順序**：見 `CLAUDE.md` Data Source Priority 表（避免重複拉同一資料）
-- **LLM 規範（鎖定 2026-05-01）**：
-  - AI Report (個股 / 強勢股日週報) → Claude Opus 4.8 1M + `--effort max` + `--allowedTools "*"` + 7200s (2h, 2026-06-16)
-  - News / 短文 / metadata 抽取 → Claude Sonnet + 600s
-  - Calendar / 表格萃取 → Claude Haiku
-  - Gemini → `gemini-3.1-pro-preview` + 900s
-- **代碼註解**：繁中 + 英文混用（`.bat` 例外，必須 ASCII）
+- **資料源優先順序**：見 `docs/agent/data-sources.md` Data Source Priority 表（避免重複拉同一資料）
+- **LLM 規範**：每個模組的 model / effort / timeout 是規定值，見 `docs/agent/llm-usage.md`（唯一權威，勿在他處另抄一份）
+- **代碼註解**：繁中 + 英文混用（`.bat` 例外，必須 ASCII + CRLF）
 - **Commit 訊息**：英文 prefix（feat/fix/refactor）+ 繁中正文
 
-詳細：見 `CLAUDE.md`。
+詳細：見 `AGENTS.md`。
 
 ---
 

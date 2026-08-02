@@ -6,7 +6,7 @@
 
 > **2026-04-30 更新**：原列 9 項技術債逐項 pre-flight 評估後，5 項已動（✅）、
 > 4 項判定不動（❌，附理由）。狀態詳見每項標注；翻盤理由總結同步到
-> `CLAUDE.md` 的「已評估後不動」section。
+> `AGENTS.md` 的「已評估後不動」section。
 
 ### 1. 架構與結構問題 (巨石架構)
 
@@ -42,7 +42,7 @@
 ### 4. 程式碼品質與反模式 (Code Quality)
 
 * ✅ **異常處理過於寬鬆**：`except Exception: pass` / `except: pass` grep 結果
-  **0 個**（CLAUDE.md「靜默失敗視為嚴重 bug」規範實施後清乾淨）。
+  **0 個**（`AGENTS.md`「靜默失敗視為嚴重 bug」規範實施後清乾淨）。
 * ❌ **手動版本管理**：pre-commit hook 已驗證更新（半自動化）。手動填號
   force 開發者想「這次改有沒有 user-facing 變化」這個 friction 是有功能的，
   完全自動化邊際效益低。**現狀 sweet spot 不動**。
