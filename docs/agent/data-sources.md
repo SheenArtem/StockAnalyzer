@@ -37,6 +37,32 @@ All features MUST follow the same priority to avoid data drift。實作細節（
 
 > 緣由（2026-05-10 TWSE PE 11 endpoint 全 404 教訓）+ endpoint cheat sheet 見 Claude memory `reference_twse_endpoints`。
 
+## ⚠️ 拿「請求的日期」當資料日期是錯的（2026-08-02 實測）
+
+**TPEX `stk_quote_result.php` 完全無視 `d` 參數**：請求 `115/06/16`（6 週前）回的是
+`115/07/31` 的橫斷面，價格一字不差；請求週六 `115/08/01` 亦同。TWSE `MI_INDEX` 相反 ——
+正確分辨每一天，非交易日直接回 `stat="很抱歉，沒有符合條件的資料!"`。
+
+所以**日期一律以 payload 自報值為準**：
+- TWSE：頂層 `date`（西元 `20260731`）+ 表格 title（民國 `115年07月31日`）
+- TPEX：頂層 `date`（西元）+ `tables[0].date`（民國 `115/07/31`）
+
+`twse_api.get_market_daily_{twse,tpex,all}()` 已把它放進 **`data_date` 欄**，並有
+`strict_date=True`（預設）—— 指定日期就只接受該日或回空。**新寫的呼叫端不要自己
+拼日期，也不要關掉 strict_date。**
+
+踩過的坑（都躲得過數值健康度檢查，因為每一欄都是正數的合理價格）：
+- `refresh_universe_prices` 的官方 overlay 差點把「上一場」OHLCV 以錯誤日期寫進
+  1900+ 支 CSV。
+- `market_regime_logger` 每天 00:00 補「今天」時 TWSE 正確回空、TPEX 回上一場 →
+  橫斷面變成純上櫃 → 等權均價被高價上櫃股抬成 **1.835 倍** → `regime_log.jsonl`
+  的 `ret_20d` 飆到 +77%，週一~週四永久判成 volatile（有 7 個消費端，含
+  `scanner_job` 的 REGIME FILTER）。細節見 `docs/code_review_2026-08-02.md` 第二輪新發現。
+
+**另一個獨立教訓**：等權「均價」對成分極度敏感（上櫃有信驊 14,525、旺矽 5,280 這種
+高價股）。任何「用 API 補齊 panel 落後日期」的程式，補值必須用**與 panel 相同的成分股
+集合**並設覆蓋率下限，否則 `pct_change` 算出來的是成分變動而不是報酬。
+
 ## Cache Strategy
 
 - 盤中 (09:00-13:30) TTL 5min / 盤後 TTL full day

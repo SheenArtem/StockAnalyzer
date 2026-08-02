@@ -112,6 +112,12 @@ def _official_daily_overlay(sids, target_date, lookback_days=7):
     authoritative last-day overlay.  Yahoo remains useful for the overlapping
     history window, but a partial/rate-limited Yahoo batch must not decide the
     production market date.
+
+    日期以 **payload 自報的 `data_date`** 為準，不是我們請求的日期：TPEX 的
+    `stk_quote_result.php` 完全無視 `d` 參數（2026-08-02 實測請求 6 週前回的是最新
+    橫斷面），若拿請求日期蓋章，就會把「上一場」的 OHLCV 寫進 1900+ 支 CSV，而且每
+    一欄都是正數的合理價格，健康度檢查抓不到。`strict_date=True` 讓不符的橫斷面在
+    API 層就被丟掉，這裡再確認一次日期單一且等於請求日。
     """
     from twse_api import TWSEOpenData
 
@@ -121,13 +127,23 @@ def _official_daily_overlay(sids, target_date, lookback_days=7):
     for offset in range(lookback_days + 1):
         day = pd.Timestamp(target_date).normalize() - pd.Timedelta(days=offset)
         try:
-            frame = api.get_market_daily_all(date=day.to_pydatetime())
+            frame = api.get_market_daily_all(date=day.to_pydatetime(), strict_date=True)
         except Exception as exc:
             log.warning("Official EOD fetch failed for %s: %s", day.date(), repr(exc)[:120])
             continue
         if frame is None or frame.empty:
             continue
         frame = frame.copy()
+        if 'data_date' not in frame.columns:
+            log.warning("Official EOD %s: payload carries no data_date -- refusing to "
+                        "stamp with the requested date", day.date())
+            continue
+        stamped = sorted({pd.Timestamp(d).normalize()
+                          for d in frame['data_date'].dropna().unique()})
+        if len(stamped) != 1 or stamped[0] != day:
+            log.warning("Official EOD %s rejected: payload self-reports %s",
+                        day.date(), [str(d.date()) for d in stamped] or None)
+            continue
         frame['stock_id'] = frame['stock_id'].astype(str)
         frame = frame[frame['stock_id'].isin(expected)]
         for col in ['open', 'high', 'low', 'close', 'volume']:
@@ -137,8 +153,9 @@ def _official_daily_overlay(sids, target_date, lookback_days=7):
         if len(frame) < min_rows:
             log.warning("Official EOD %s incomplete: %d rows < %d", day.date(), len(frame), min_rows)
             continue
-        log.info("Official TWSE/TPEX EOD: %s, %d complete OHLCV rows", day.date(), len(frame))
-        return day, frame
+        log.info("Official TWSE/TPEX EOD: %s (payload-verified), %d complete OHLCV rows",
+                 stamped[0].date(), len(frame))
+        return stamped[0], frame
     return None, pd.DataFrame()
 
 

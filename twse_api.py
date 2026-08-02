@@ -11,6 +11,7 @@ TWSE/TPEX Open Data API Module (台灣證交所/櫃買中心 開放資料 API)
 """
 
 import logging
+import re
 import time
 import urllib3
 from datetime import datetime, timedelta
@@ -183,6 +184,74 @@ class TWSEOpenData:
         """Convert datetime to TPEX ROC format: YYY/MM/DD (e.g., 115/04/09)"""
         roc_year = dt.year - 1911
         return f"{roc_year}/{dt.strftime('%m/%d')}"
+
+    @staticmethod
+    def _parse_payload_date(raw):
+        """解析 payload 自報的資料日期，回 pd.Timestamp（失敗回 None）。
+
+        兩個 EOD endpoint 都會自報日期，格式不一：
+          - TWSE MI_INDEX 頂層 `date`: "20260731"（西元）
+          - TPEX stk_quote 頂層 `date`: "20260731"，`tables[0].date`: "115/07/31"（民國）
+          - 表格 title: "115年07月31日 每日收盤行情(...)"
+        """
+        if raw is None:
+            return None
+        s = str(raw).strip()
+        if not s:
+            return None
+        m = re.search(r'(\d{2,3})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日', s)
+        if m:
+            y, mo, d = int(m.group(1)) + 1911, int(m.group(2)), int(m.group(3))
+            try:
+                return pd.Timestamp(year=y, month=mo, day=d)
+            except ValueError:
+                return None
+        m = re.fullmatch(r'(\d{4})(\d{2})(\d{2})', s)
+        if m:
+            try:
+                return pd.Timestamp(year=int(m.group(1)), month=int(m.group(2)),
+                                    day=int(m.group(3)))
+            except ValueError:
+                return None
+        m = re.fullmatch(r'(\d{2,4})[/-](\d{1,2})[/-](\d{1,2})', s)
+        if m:
+            y = int(m.group(1))
+            y = y + 1911 if y < 1000 else y            # 民國年 → 西元年
+            try:
+                return pd.Timestamp(year=y, month=int(m.group(2)), day=int(m.group(3)))
+            except ValueError:
+                return None
+        return None
+
+    def _enforce_payload_date(self, df, requested, market, strict_date):
+        """確認 payload 自報日期 == 請求日期；不符時（strict）回空 frame。
+
+        存在的理由：TPEX `stk_quote_result.php` **完全無視** `d` 參數，2026-08-02
+        實測請求 115/06/16（6 週前）回的是 115/07/31 的橫斷面、價格一字不差；請求
+        週六 115/08/01 同樣回 07/31。TWSE MI_INDEX 則正確分辨（非交易日直接回
+        stat="很抱歉，沒有符合條件的資料!"）。
+
+        所以「請求日期」不可當資料日期用。指定日期的呼叫者（歷史回填、週報、官方
+        EOD overlay）若拿到別天的橫斷面，會把舊行情蓋上錯誤日期，且每一欄都是正數
+        的合理價格，任何數值健康度檢查都抓不到。寧可回空讓上游走 fallback。
+        """
+        if df is None or df.empty or requested is None:
+            return df
+        want = pd.Timestamp(requested).normalize()
+        got = df['data_date'].dropna()
+        got = pd.Timestamp(got.iloc[0]).normalize() if len(got) else None
+        if got == want:
+            return df
+        if not strict_date:
+            logger.warning("%s market daily: requested %s but payload self-reports %s "
+                           "(strict_date=False, rows kept as-is)",
+                           market, want.date(), got.date() if got is not None else None)
+            return df
+        logger.warning("%s market daily: requested %s but payload self-reports %s "
+                       "-- dropping %d rows (endpoint ignored the date param)",
+                       market, want.date(),
+                       got.date() if got is not None else None, len(df))
+        return df.iloc[0:0].copy()
 
     @staticmethod
     def _safe_int(val):
@@ -1113,21 +1182,26 @@ class TWSEOpenData:
     #  7. 全市場每日行情 (Screening 用)
     # ------------------------------------------------------------------ #
 
-    def get_market_daily_twse(self, date=None):
+    def get_market_daily_twse(self, date=None, strict_date=True):
         """
         Fetch daily trading summary for ALL TWSE-listed stocks.
 
         Args:
             date: datetime object or None (defaults to most recent trading day)
+            strict_date: 指定 date 時，payload 自報日期不符即回空 frame
+                （見 `_enforce_payload_date`）。date=None 不套用。
 
         Returns:
             DataFrame with columns:
             ['stock_id', 'stock_name', 'market', 'close', 'change',
-             'open', 'high', 'low', 'volume', 'trading_value', 'trades']
+             'open', 'high', 'low', 'volume', 'trading_value', 'trades',
+             'data_date']
+            `data_date` 是 payload 自報的資料日期，不是請求日期。
         """
         cols = ['stock_id', 'stock_name', 'market', 'close', 'change',
                 'open', 'high', 'low', 'volume', 'trading_value', 'trades']
-        cache_key = f"market_daily_twse_{(date or datetime.now()).strftime('%Y%m%d')}"
+        cache_key = (f"market_daily_twse_{(date or datetime.now()).strftime('%Y%m%d')}"
+                     f"_{int(bool(strict_date))}")
         cached = self._get_cache(cache_key)
         if cached is not None:
             return cached
@@ -1153,11 +1227,16 @@ class TWSEOpenData:
             fields = None
 
             # New format: tables array with title containing stock data
+            payload_date = self._parse_payload_date(data.get('date'))
             for table in tables:
                 title = table.get('title', '')
                 if '每日收盤行情' in title or '全部' in title:
                     fields = table.get('fields', [])
                     rows = table.get('data', [])
+                    # 表格 title 內嵌民國日期，比頂層 date 更貼近這批 rows
+                    payload_date = (self._parse_payload_date(title)
+                                    or self._parse_payload_date(table.get('date'))
+                                    or payload_date)
                     break
 
             # Legacy format: data9 / fields9
@@ -1220,26 +1299,38 @@ class TWSEOpenData:
                     lambda r: (r['change'] / (r['close'] - r['change']) * 100)
                     if (r['close'] - r['change']) != 0 else 0.0, axis=1
                 )
-                logger.info("TWSE market daily: %d stocks fetched (date=%s)", len(df), date_str)
+                df['data_date'] = payload_date
+                logger.info("TWSE market daily: %d stocks fetched (requested=%s, "
+                            "payload date=%s)", len(df), date_str,
+                            payload_date.date() if payload_date is not None else None)
+                df = self._enforce_payload_date(df, date, 'TWSE', strict_date)
+                if df.empty:
+                    continue
                 self._set_cache(cache_key, df)
                 return df
 
         logger.warning("Failed to fetch TWSE market daily data")
-        return pd.DataFrame(columns=cols)
+        return pd.DataFrame(columns=cols + ['change_pct', 'data_date'])
 
-    def get_market_daily_tpex(self, date=None):
+    def get_market_daily_tpex(self, date=None, strict_date=True):
         """
         Fetch daily trading summary for ALL TPEX (OTC) stocks.
 
         Args:
             date: datetime object or None (defaults to most recent trading day)
+            strict_date: 指定 date 時，payload 自報日期不符即回空 frame。
+
+        ⚠️ 這個 endpoint **完全無視 `d` 參數**（2026-08-02 實測：請求 115/06/16 回
+        115/07/31 的橫斷面，價格一字不差）。所以指定日期時務必讓 strict_date 生效，
+        否則會拿到「最新」橫斷面卻以為是請求日的資料。
 
         Returns:
-            DataFrame with same columns as get_market_daily_twse()
+            DataFrame with same columns as get_market_daily_twse()（含 `data_date`）
         """
         cols = ['stock_id', 'stock_name', 'market', 'close', 'change',
                 'open', 'high', 'low', 'volume', 'trading_value', 'trades']
-        cache_key = f"market_daily_tpex_{(date or datetime.now()).strftime('%Y%m%d')}"
+        cache_key = (f"market_daily_tpex_{(date or datetime.now()).strftime('%Y%m%d')}"
+                     f"_{int(bool(strict_date))}")
         cached = self._get_cache(cache_key)
         if cached is not None:
             return cached
@@ -1259,11 +1350,15 @@ class TWSEOpenData:
                 continue
 
             # TPEX format: tables[0]['data'] (newer) or aaData (legacy)
+            payload_date = (self._parse_payload_date(data.get('date'))
+                            or self._parse_payload_date(data.get('reportDate')))
             rows = data.get('aaData', [])
             if not rows:
                 tables = data.get('tables', [])
                 if tables:
                     rows = tables[0].get('data', [])
+                    payload_date = (self._parse_payload_date(tables[0].get('date'))
+                                    or payload_date)
             if not rows:
                 continue
 
@@ -1308,36 +1403,62 @@ class TWSEOpenData:
                     lambda r: (r['change'] / (r['close'] - r['change']) * 100)
                     if (r['close'] - r['change']) != 0 else 0.0, axis=1
                 )
-                logger.info("TPEX market daily: %d stocks fetched (date=%s)", len(df), date_str)
+                df['data_date'] = payload_date
+                logger.info("TPEX market daily: %d stocks fetched (requested=%s, "
+                            "payload date=%s)", len(df), date_str,
+                            payload_date.date() if payload_date is not None else None)
+                df = self._enforce_payload_date(df, date, 'TPEX', strict_date)
+                if df.empty:
+                    continue
                 self._set_cache(cache_key, df)
                 return df
 
         logger.warning("Failed to fetch TPEX market daily data")
-        return pd.DataFrame(columns=cols)
+        return pd.DataFrame(columns=cols + ['change_pct', 'data_date'])
 
-    def get_market_daily_all(self, date=None):
+    def get_market_daily_all(self, date=None, strict_date=True):
         """
         Fetch daily trading data for ALL listed stocks (TWSE + TPEX combined).
 
+        Args:
+            date: datetime object or None (defaults to most recent trading day)
+            strict_date: 指定 date 時，只接受 payload 自報日期 == 請求日期的橫斷面。
+                預設 True —— 問特定一天就該拿到那一天或空的，不該拿到「最近那天」。
+
         Returns:
             DataFrame with columns: stock_id, stock_name, market, close, change,
-            change_pct, open, high, low, volume, trading_value, trades
+            change_pct, open, high, low, volume, trading_value, trades, data_date
+
+        `data_date` 是 payload 自報日期，逐列可能不同（TWSE 與 TPEX 各自回報）。
+        兩邊日期不一致時會 log warning：混日期的橫斷面對「當日全市場」語意的下游
+        （overlay、廣度、週報金額換算）是錯的，呼叫者應自行按 `data_date` 過濾。
         """
-        cache_key = f"market_daily_all_{(date or datetime.now()).strftime('%Y%m%d')}"
+        cache_key = (f"market_daily_all_{(date or datetime.now()).strftime('%Y%m%d')}"
+                     f"_{int(bool(strict_date))}")
         cached = self._get_cache(cache_key)
         if cached is not None:
             return cached
 
-        df_twse = self.get_market_daily_twse(date)
-        df_tpex = self.get_market_daily_tpex(date)
+        df_twse = self.get_market_daily_twse(date, strict_date=strict_date)
+        df_tpex = self.get_market_daily_tpex(date, strict_date=strict_date)
 
         if df_twse.empty and df_tpex.empty:
             return pd.DataFrame()
 
-        df = pd.concat([df_twse, df_tpex], ignore_index=True)
+        # 只 concat 非空的：strict_date 會讓其中一邊變空，而空 frame 進 concat 會讓
+        # pandas 對結果 dtype 發 FutureWarning 並在未來版本改變行為。
+        parts = [p for p in (df_twse, df_tpex) if not p.empty]
+        df = pd.concat(parts, ignore_index=True) if len(parts) > 1 else parts[0].copy()
+        dates = sorted({pd.Timestamp(d).normalize()
+                        for d in df['data_date'].dropna().unique()})
+        if len(dates) > 1:
+            logger.warning("Market daily all: TWSE/TPEX report DIFFERENT data dates %s "
+                           "-- callers needing a single-day cross-section must filter "
+                           "on data_date", [str(d.date()) for d in dates])
         self._set_cache(cache_key, df)
-        logger.info("Market daily all: TWSE=%d + TPEX=%d = %d stocks",
-                     len(df_twse), len(df_tpex), len(df))
+        logger.info("Market daily all: TWSE=%d + TPEX=%d = %d stocks (data_date=%s)",
+                    len(df_twse), len(df_tpex), len(df),
+                    [str(d.date()) for d in dates] or None)
         return df
 
     # ------------------------------------------------------------------ #
@@ -1417,8 +1538,10 @@ class TWSEOpenData:
           - TPEX 處置股需從 https://www.tpex.org.tw/zh-tw/announce/notice/info.html
             HTML SPA 解析或走 Selenium / Playwright
 
-        Known gap：所有 4 條 picks line (Whale / Strong / QM / Value) 對 TPEX 處置股
-        全線漏排，可能讓被處置中的 TPEX 股票進 picks list。
+        Known gap：現存的 picks line（QM / Value）對 TPEX 處置股漏排，可能讓被處置中的
+        TPEX 股票進 picks list。
+        （原註解寫「所有 4 條 picks line (Whale / Strong / QM / Value)」—— Whale 已於
+        2026-07-15 端到端移除、強勢股於 2026-05-21 停用，2026-08-02 更正。）
         修法 TODO：考慮 Playwright 抓 HTML SPA 或 FinMind/MOPS 替代資料源。
 
         Returns:

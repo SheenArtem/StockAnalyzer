@@ -22,9 +22,17 @@ Part B — 完整 regime gate (SOP-10~14)
 ⚠️ 資料地雷 (披露於報告)：
   - ohlcv_tw.parquet 有 ~112,473 列 Volume<=0 凍結列 (停牌參考價填充)。Amihud/turnover 分母會爆掉，
     計算前一律剔除 Volume<=0，揭露筆數。
-  - regime_log.jsonl 2026-04-28+ 受同一批凍結/尖刺價污染 (ret_20d 110-180% 不可能值)。
-    本檔不信任 jsonl，**用 clean panel 自算 regime** (同 market_regime_logger 規則，top300 equal-weight，
+  - regime_log.jsonl 的 ret_20d 有物理不可能值 (110-180%)。本檔不信任 jsonl，
+    **用 clean panel 自算 regime** (同 market_regime_logger 規則，top300 equal-weight，
     但聚合前剔 Volume<=0)，可重現且不受 jsonl drift。
+    ⚠️ 2026-08-02 更正歸因：本註解原寫「受同一批凍結/尖刺價污染」，**那是錯的** ——
+    垃圾價那批修完後 jsonl 仍壞。真正機制是 market_regime_logger 的 API 補值：排程
+    每天 00:00 補「今天」時 TWSE 正確回空、TPEX 端點無視 date 回上一場，橫斷面變成
+    純上櫃，等權均價被高價上櫃股抬成 1.835 倍。已於 twse_api 加 strict_date + 補值
+    改用同一批成分股修掉，並以 --repair-history 修補既有 59 筆。
+    教訓：發現共用資料不可信時要追到根因；當時只讓本檔繞道，其餘 6 個消費端
+    （scanner_job 的 REGIME FILTER、value_screener、market_banner、screener_view、
+    step_a_engine、paper_trade_engine）照吃毒資料兩個月。
   - 無 AdjClose → 用 raw Close (除息 gap 會壓低高動能股 fwd return)。survivor caveat：panel 為
     現存 universe，下市股缺漏 → 報酬/spread 可能虛高。
   - 流通股數 (financials_balance OrdinaryShare/10) 只回溯到 2015-03 → turnover 受限 2015+；
