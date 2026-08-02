@@ -52,16 +52,28 @@ python -m streamlit run app.py
 
 ## 主要功能模組
 
-| 功能 | 入口 | 說明 |
-|---|---|---|
-| 個股分析 UI | `app.py` | 技術 / 基本面 / 籌碼 / 同業 / AI 報告 |
-| QM 品質選股 | `scanner_job.py --mode qm` | F-Score 50% + 體質 30% + 趨勢 20% |
-| Value 選股 | `scanner_job.py --mode value` | 5 因子組合 |
-| Momentum 選股 | `scanner_job.py --mode momentum` | 全市場掃描 trigger_score |
-| AI 報告 | `tools/auto_ai_reports.py` | Claude Opus 深度分析 |
-| 強勢股報告 PDF | `tools/strong_stocks_daily.py` (日) / `_weekly_screener.py` (週) + `_ai_analysis.py` + `_render.py` | 日報 12 欄含籌碼 + AI 五段論述；週報 13 欄含 5 日累計 + 週度 5-signal scoring (informational tier) |
-| 新聞題材 | `tools/news_theme_extract.py` | UDN + cnyes RSS → Claude Sonnet 萃取 |
-| 籌碼面 | `chip_analysis.py` / `chip_history_dl.py` | 三大法人 / 融資融券 / 借券 / 當沖 / TDCC |
+「狀態」欄是**現況**，不是設計意圖：`排程` = 有 Windows 工作排程實際在跑；
+`手動` = 程式碼在、只在人工觸發時跑；`停用` = 刻意關閉但程式碼保留（重啟方式寫在對應
+bat 或 `app.py` 的註解裡）。
+
+| 功能 | 入口 | 狀態 | 說明 |
+|---|---|---|---|
+| 個股分析 UI | `app.py` | 排程（開機自啟） | 技術 / 基本面 / 籌碼 / 同業 / AI 報告 |
+| 總經大盤風向 | `app.py` → 🧭 | 排程（面板日更） | 7 區塊；資料由 `run_macro_panels_*.bat` 產 |
+| 市場掃描 | `app.py` → 📡 | 排程 | 法人週榜 / 題材動能 / 新聞流量異常 |
+| AI 報告 | `tools/auto_ai_reports.py` | 手動 | Claude Opus 深度分析（daily 排程已停用）|
+| 投資組合 | `app.py` → 💼 | 手動 | 手輸交易紀錄 → 持股 / 損益 / TWR；純本地不入版控 |
+| 知識庫 | `app.py` → 📚 | 手動 | 本地筆記 + 白話投資 FB 粉專知識庫 |
+| 題材策展 | `app.py` → 🎨 | 手動 | TW + US 多市場題材 |
+| 新聞題材 | `tools/news_theme_extract.py` | 排程 | UDN + cnyes RSS → Claude Sonnet 萃取 |
+| 籌碼面 | `chip_analysis.py` / `chip_history_dl.py` | 排程 | 三大法人 / 融資融券 / 借券 / 當沖 / TDCC |
+| QM 品質選股 | `scanner_job.py --mode qm` | 停用 | F-Score 50% + 體質 30% + 趨勢 20%；2026-05-23 起 informational |
+| Value 選股 | `scanner_job.py --mode value` | 停用 | 5 因子組合 |
+| Momentum 選股 | `scanner_job.py --mode momentum` | 停用 | 全市場掃描 trigger_score |
+| 強勢股報告 PDF | `tools/strong_stocks_daily.py` (日) / `_weekly_screener.py` (週) | 停用 | 日報與週報**皆已停用**（2026-05-21，2026-06-16 billing 顧慮解除後仍確認維持停用）|
+| Step-A / Paper trade | `tools/step_a_engine.py` / `paper_trade_engine.py` | 停用 | 2026-05-23 起 `goto skip_mode_d` |
+| 投顧 YT 抓取 | `tools/fetch_yt_brokerage.py` 等 3 支 | 手動 | 2026-05-22 起退出主排程鏈（`goto skip_brokerage_yt`），改跑 `run_yt_brokerage_sync.bat` |
+| 投顧追蹤 tab | `app.py` → 📺 | 停用 | 已從 `_mode_options` 移除（handler 保留為死代碼）；合規考量不接 AI 報告 |
 
 詳細架構與開發規範：見 [`AGENTS.md`](AGENTS.md)（跨 agent 規則權威），細節路由到
 [`docs/agent/data-sources.md`](docs/agent/data-sources.md)（資料源優先順序）與
@@ -86,27 +98,50 @@ python -m streamlit run app.py
 
 ### 主排程鏈內容
 
+實際會跑的 stage（依 `run_scanner.bat` 執行順序）：
+
 ```
-YT 影片同步 → News 題材萃取 → 量價情緒指標 (PUT/小台/期權)
-→ Cache consistency check → Market regime 紀錄
-→ QM 選股 → Value 選股
-→ Step-A engine → Paper trade engine
-→ 強勢股日報 (enrich + AI Opus + 5d 本地新聞 + HTML+PDF)
-→ Substack 同步 → 籌碼歷史 resume
-→ 法說會行事曆 fetch
+Scanner started
+→ YT 影片同步 (fetch → extract → panel)
+→ News 題材萃取 → News 流量異常 → 題材動能
+→ 量價情緒指標 (ATM PUT 權利金 / 小台多空比 / 選擇權法人)
+→ RF-1 cache consistency check → Market regime 紀錄
+→ Universe 價格更新 → TW breadth panel → Refresh backtest panels
+→ 籌碼歷史 resume → 法說會行事曆 fetch
+→ Scanner finished
 → verify_scan_stages 驗證
 ```
 
+同一支 bat 裡有 **6 個以 `goto skip_*` 停用的區塊**，程式碼保留但不會執行：
+投顧 YT 同步、QM + Value 選股、Step-A + Paper trade、強勢股 Stage 1 enrich、
+強勢股 Stage 2/3 AI + render、Auto AI reports。重啟方式寫在各區塊上方的 `REM`。
+
+> 「哪些 stage 必須真的跑完」的唯一權威是
+> [`tools/verify_scan_stages.py`](tools/verify_scan_stages.py) 的 `REQUIRED_STAGES`
+> （目前 15 個），它每晚比對 `scanner.log`。**改動排程鏈時要同步那份清單**，
+> 否則 stage 靜默失敗不會被任何後檢查發現。
+
 ### 其他排程 BAT
+
+下表的排程欄位以 **Windows 工作排程器實際登記狀態**為準
+（`Get-ScheduledTask | ? { $_.Actions.Execute -like "*StockAnalyzer*" }`），
+不是以 bat 存在為準 —— 兩者曾經長期不一致。
 
 | BAT | 排程 | 用途 |
 |---|---|---|
-| `run_app.bat` | 手動 | 啟動 Streamlit UI |
-| `run_scanner_weekly.bat` | **週日 12:00** | 強勢股週報 (週度 scoring + Opus + 14d 新聞 + PDF) |
-| `run_bulk_revenue_monthly.bat` | 月初 | 月營收下載 |
-| `run_c1_monthly.bat` | 月初 | C1 regime tilt 拐點偵測 |
-| `run_tdcc_weekly.bat` | 週六 08:00 | TDCC 集保 + 籌碼 margin/short_sale 補抓 |
-| `run_taifex_signals_afterclose.bat` | TUE-SAT 14:30 | 期交所盤後訊號 |
+| `run_scanner.bat` | **每天 00:00** | 主排程鏈（見上）|
+| `run_app_startup.bat` | 登入時自啟 | 背景起 Streamlit UI。工作名 `StockAnalyzer App Autostart`，實際執行的是 `wscript.exe run_app_startup.vbs`（無視窗包裝，避免登入時閃黑框），由它再叫這支 bat |
+| `run_macro_panels_dawn.bat` | **TUE-SAT 07:00** | ETF flows / CNN FGI / 市值 / systemic chip / FRED / 領頭羊 |
+| `run_macro_panels_evening.bat` | **TUE-SAT 17:30** | 法人合計 / 期貨法人 / AAII / TW LEI / 估值 / 當日 breadth |
+| `run_taifex_signals_afterclose.bat` | **TUE-SAT 16:30** | 期交所盤後訊號 |
+| `run_tdcc_weekly.bat` | **週六 08:00** | TDCC 集保 + 籌碼 margin/short_sale 補抓 |
+| `run_bulk_revenue_monthly.bat` | **每月 11 日 00:30** | 月營收下載（10 號公布，11 號抓才拿得到當月）|
+| `run_app.bat` | 手動 | 啟動 Streamlit UI（有視窗，開發用）|
+| `run_yt_sync.bat` / `run_yt_brokerage_sync.bat` | 手動 | YT 影片 / 投顧頻道同步 |
+| `run_news_intraday.bat` | 手動 | 盤中新聞監控（Intraday Disable，等需要再啟）|
+| `run_mops_probe.bat` | 手動 | MOPS 探測（`USE_MOPS` 預設 false）|
+| `run_c1_monthly.bat` | **未登記** | C1 regime tilt 拐點偵測 —— 檔案在，排程器沒有這個工作 |
+| `run_scanner_weekly.bat` | **未登記＋內部停用** | 強勢股週報；第 62 行無條件 `goto skip_weekly_all`，即使觸發也是 no-op |
 
 > ⚠️ 所有 `.bat` 必須 **pure ASCII**（CP950/UTF-8 衝突會讓排程靜默失敗）。pre-commit hook 會擋 CJK 字元。
 
