@@ -11,9 +11,12 @@ COVID 2020-02 / Trump tariff 2025-03 are pure shocks ma_dist_60 cannot anticipat
 ^MOVE catches Treasury vol regime shifts that often lead equity selloffs.
 
 Behavior:
-  - Read data_cache/fred/move.parquet (yfinance ^MOVE, 22 yr hist; kept fresh by
-    fred_fetcher --refresh -- "move" added to SYMBOLS 2026-07-06 after a 2-month
-    silent freeze at 2026-05-08; stale input now exits 1 loudly)
+  - Read data_cache/fred/move.parquet (22 yr hist; kept fresh by fred_fetcher
+    --refresh -- "move" added to SYMBOLS 2026-07-06 after a 2-month silent freeze
+    at 2026-05-08; stale input now exits 1 loudly). Source is yfinance ^MOVE for
+    deep history + Barchart $MOVE EOD for recent bars (2026-08-01, after Yahoo's
+    daily bars went null from 7/20); NaN rows are dropped on read so staleness is
+    judged on the last *valid* bar, not the last row.
   - Compute 5d delta z-score against 252d rolling mean/std of 5d deltas
   - 4 levels: green <1.5 / yellow 1.5-2.5 / orange 2.5-3.0 / red >=3.0
   - Print alert on FIRST cross into yellow / orange / red within 60-day cooldown
