@@ -32,6 +32,72 @@ def _panel(per_day_counts, start='2025-01-01'):
     return pd.DataFrame(rows, columns=['stock_id', 'date', 'Volume'])
 
 
+def test_coverage_report_finds_a_sustained_gap():
+    """歷史抓取斷層在只看近 45 天的檢查下完全隱形，必須有全歷史稽核。
+
+    實例（2026-08-02 查出）：2026-04-13~04-29 共 13 個交易日 panel 只有約 1,700 檔
+    而非 1,965，04-30 一次全部回來 —— 292 檔離開者中 193 檔在 5 月回歸，是抓取斷層
+    不是市場事件。
+    """
+    frame = _panel([1000] * 300 + [700] * 8 + [1000] * 30)
+
+    out = RBP.report_coverage_gaps(frame)
+
+    assert len(out['gaps']) == 1
+    assert len(out['gaps'][0]) == 8
+
+
+def test_coverage_report_flags_severe_single_days():
+    """單日只剩三成的部分橫斷面構不成連續區間，但嚴重度更高，要單獨回報。"""
+    frame = _panel([1000] * 300 + [340] + [1000] * 30)
+
+    out = RBP.report_coverage_gaps(frame)
+
+    assert out['gaps'] == [], '單一天不該算成持續斷層'
+    assert len(out['severe_days']) == 1
+
+
+def test_coverage_report_uses_a_local_baseline_for_single_days():
+    """成長期不可用長期中位數判單日 —— 那會把基準壓低而漏抓。
+
+    2026-08-02 實測：2016-01-30 只有 560 檔（當時水準 1,624），但 252 日中位數只有
+    1,013（panel 覆蓋從 2006 約 200 檔長到 2016 約 1,620 檔），比率被算成 0.55 而逃過
+    50% 門檻。改用 21 日中位數後 11 個已知部分橫斷面日全中。
+    """
+    # 覆蓋率線性成長 200 -> 1000，最後插入一個只剩三成的日子
+    growing = [200 + i * 3 for i in range(280)]
+    frame = _panel(growing + [int(growing[-1] * 0.34)] + [growing[-1]] * 20)
+
+    out = RBP.report_coverage_gaps(frame)
+
+    assert len(out['severe_days']) == 1, '成長期的單日重度不足也要抓到'
+
+
+def test_coverage_report_quiet_on_healthy_panel():
+    frame = _panel([1000] * 300)
+
+    out = RBP.report_coverage_gaps(frame)
+
+    assert out == {'gaps': [], 'severe_days': []}
+
+
+def test_coverage_report_tolerates_a_permanent_step_down():
+    """永久性減少（例如 99 支減資舊股別停止交易）不該一直被當成斷層。"""
+    frame = _panel([1000] * 300 + [950] * 300)
+
+    out = RBP.report_coverage_gaps(frame)
+
+    # 剛掉下去那幾天可能被標，但不可整段 300 天都算斷層
+    flagged = sum(len(g) for g in out['gaps'])
+    assert flagged < 60, f'永久性水位下移不該長期誤報，實際標了 {flagged} 天'
+
+
+def test_coverage_report_handles_empty_and_missing_columns():
+    assert RBP.report_coverage_gaps(pd.DataFrame()) == {'gaps': [], 'severe_days': []}
+    assert RBP.report_coverage_gaps(
+        pd.DataFrame({'date': ['2026-01-01']})) == {'gaps': [], 'severe_days': []}
+
+
 def test_in_market_baseline_ignores_stocks_that_stopped_trading():
     """絕對門檻的分母必須自我修正。
 

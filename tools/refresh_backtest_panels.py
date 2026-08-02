@@ -89,6 +89,80 @@ def _in_market_baseline(dates: pd.Series, frame: pd.DataFrame,
     return int(per_day.median())
 
 
+def report_coverage_gaps(frame: pd.DataFrame, min_ratio: float = 0.90,
+                         min_run: int = 3, severe_ratio: float = 0.50) -> dict:
+    """掃**全歷史**，找出「連續多日在市檔數明顯低於長期水準」的區間，log 出來。
+
+    這是純資訊性的（不刪任何列），存在的理由是這類缺口在現行檢查下**完全隱形**：
+    `drop_unhealthy_recent_market_dates` 只看最近 45 天，而歷史上的抓取斷層就這樣
+    留在 panel 裡沒人知道。
+
+    實例（2026-08-02 查出）：2026-04-13~04-29 共 13 個交易日，panel 只有約 1,700 檔
+    而非 1,965（少約 260 檔），2026-04-30 一次全部回來 —— 是抓取斷層不是市場事件
+    （292 檔離開者中 193 檔在 5 月回歸）。跨這個窗的橫斷面研究（breadth / 等權 /
+    排序 / IC）都是在縮小的 universe 上算的。
+
+    註：同期另有 99 支減資舊股別（`*O`）自 2026-04-08 永久停止交易，那是合理變動，
+    會被 252 日中位數基準吸收掉，不算缺口。
+
+    另外單獨回報「單日重度不足」（低於 `severe_ratio`）：那類只有一天所以構不成
+    `min_run`，但嚴重度更高 —— panel 有 11 個真實交易日只存了 33~38% 的橫斷面，
+    連 2330 都沒有（yfinance 端缺資料，官方 MI_INDEX 證實那些日子有 1,100~1,300 檔
+    成交）。
+
+    回傳 {'gaps': [[Timestamp, ...], ...], 'severe_days': [Timestamp, ...]}。
+    """
+    empty = {'gaps': [], 'severe_days': []}
+    if frame.empty or not {'date', 'stock_id'} <= set(frame.columns):
+        return empty
+    counts = frame.groupby(pd.to_datetime(frame['date']).dt.normalize())[
+        'stock_id'].nunique().sort_index()
+
+    # 兩種檢查需要兩種基準（2026-08-02 實測比較後定案）：
+    #  - 持續斷層：用長期（252 日）中位數，缺口再長也拉不動它 -> 2026-04 那 13 天全中。
+    #    但它在覆蓋率成長期偏低（2006 約 200 檔 -> 2016 約 1,620 檔），單日檢查會失靈。
+    #  - 單日重度不足：用短期（21 日）中位數貼近當下水準，單一天拉不動中位數。
+    #    改用它之後 11 個已知部分橫斷面日全中（長期基準只中 9 個）。
+    long_base = counts.shift(1).rolling(252, min_periods=60).median()
+    short_base = counts.shift(1).rolling(21, min_periods=10).median()
+    ratio = (counts / long_base).dropna()
+    baseline = long_base
+    thin = ratio < min_ratio
+
+    gaps, run = [], []
+    for d, is_thin in thin.items():
+        if is_thin:
+            run.append(d)
+        elif run:
+            if len(run) >= min_run:
+                gaps.append(run)
+            run = []
+    if len(run) >= min_run:
+        gaps.append(run)
+
+    for g in gaps:
+        lo, hi = g[0], g[-1]
+        obs = counts.loc[lo:hi]
+        log.warning("Panel coverage gap: %s..%s (%d sessions), stocks %d~%d vs "
+                    "trailing-252d median %.0f (%.0f%%)",
+                    lo.date(), hi.date(), len(g), obs.min(), obs.max(),
+                    baseline.loc[hi], ratio.loc[hi] * 100)
+    if not gaps:
+        log.info("Panel coverage: no sustained gap (>=%d sessions below %.0f%% of the "
+                 "trailing-252d median)", min_run, min_ratio * 100)
+
+    short_ratio = (counts / short_base).dropna()
+    severe = sorted(short_ratio.index[short_ratio < severe_ratio])
+    if severe:
+        log.warning("Panel coverage: %d single session(s) below %.0f%% of the "
+                    "trailing-21d median -- partial cross-sections, cross-sectional "
+                    "stats on these dates are not comparable: %s",
+                    len(severe), severe_ratio * 100,
+                    ', '.join(f"{d.date()}({counts[d]}/{short_base[d]:.0f})"
+                              for d in severe[:14]))
+    return {'gaps': gaps, 'severe_days': severe}
+
+
 def drop_unhealthy_recent_market_dates(
         frame: pd.DataFrame, lookback_days: int = 45,
         expected_stock_count: int | None = None) -> tuple[pd.DataFrame, list[pd.Timestamp]]:
@@ -196,6 +270,8 @@ def aggregate_csv_to_parquet() -> pd.DataFrame:
         log.warning("Dropped %d bad-Close rows (NaN/<=0) during aggregation", dropped_badclose)
 
     out = pd.concat(frames, ignore_index=True)
+    # 全歷史覆蓋率稽核（純 log，不刪列）—— 歷史抓取斷層在只看近 45 天的檢查下隱形。
+    report_coverage_gaps(out)
     # 不再傳 len(tw_csv)：磁碟含永久保留的下市股 CSV，分母只會單向變大。
     # 交給 _in_market_baseline 由面板歷史推導每日在市檔數。
     out, _bad_market_dates = drop_unhealthy_recent_market_dates(out)
