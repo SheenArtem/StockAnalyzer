@@ -179,6 +179,15 @@ def _drop_thin_proxy_dates(proxy: pd.DataFrame,
 
     門檻用「前後 21 個交易日的成分數中位數」而非固定值，才不會誤殺早期歷史
     （2006-2009 全市場本來就只有數百檔）。
+
+    ✅ **2026-08-02 更新：上述 11 天已由 `tools/backfill_panel_gaps.py` 回填**
+    （官方 EOD 逐日補進 per-stock CSV，共 13,004 列）。其中 **10 天覆蓋率回到
+    84~91%、超過本門檻不再被剔除**，放行後 top300 成分數回到 297~300 檔、
+    `ret_20d` 全落在 −1.4%~+11.1%（2016-06-04 由 >30% 的假值變成合理的 +9.2%）。
+    只剩 `2016-09-10` 仍是 64.2% 會被擋（它的鄰日 2016-09-12 價格本身不可信，
+    詳 `docs/agent/data-sources.md`）。
+    → **本函式從「症狀處理」退回成安全網**：根因（panel 缺資料）已除，但門檻保留，
+    因為下一批缺資料不會有人先通知我們。
     """
     counts = proxy.groupby('date')['stock_id'].nunique().sort_index()
     baseline = counts.rolling(21, center=True, min_periods=5).median()

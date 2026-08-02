@@ -106,9 +106,11 @@ def report_coverage_gaps(frame: pd.DataFrame, min_ratio: float = 0.90,
     會被 252 日中位數基準吸收掉，不算缺口。
 
     另外單獨回報「單日重度不足」（低於 `severe_ratio`）：那類只有一天所以構不成
-    `min_run`，但嚴重度更高 —— panel 有 11 個真實交易日只存了 33~38% 的橫斷面，
+    `min_run`，但嚴重度更高 —— panel 原本有 11 個真實交易日只存了 33~38% 的橫斷面，
     連 2330 都沒有（yfinance 端缺資料，官方 MI_INDEX 證實那些日子有 1,100~1,300 檔
-    成交）。
+    成交）。**那 11 天與 2026-04 的 13 天斷層已於 2026-08-02 由
+    `tools/backfill_panel_gaps.py` 回填**（只剩 2016-09-10 仍偏低），但本檢查保留 ——
+    它是偵測面，下一批缺資料仍要靠它先叫出來。
 
     回傳 {'gaps': [[Timestamp, ...], ...], 'severe_days': [Timestamp, ...]}。
     """
