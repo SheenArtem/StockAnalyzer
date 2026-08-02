@@ -43,8 +43,9 @@ _SPELLING_ALIASES = {
 # ⚠️ 代理值：不是同義字，是「沒有該科目時拿另一個科目頂替」。
 #   NetInterestIncome 是淨額（已扣利息支出），Revenue 是總額；
 #   稅前淨利含業外損益，營業利益不含。兩者定義與量級都不同。
-# 目前影響 569 + 1,406 列（幾乎全是金控銀行），落盤後無法從輸出分辨哪些是代理值。
-# 2026-08-02 code review 建議改為「不代入或加 *_is_proxy 旗標」，尚未處理。
+# 影響 569 + 1,406 列（幾乎全是金控銀行）。2026-08-02 起：仍然代入（不代入會讓整個
+# 金融族群算不出 F-Score），但每一列都標上 `<欄位>_is_proxy`，並在輸出加總成
+# `uses_proxy_inputs`，讓下游能把「用代理值算出來的分數」與正常列區分開。
 _PROXY_ALIASES = {
     'Revenue': ('NetInterestIncome',),
     'OperatingIncome': (
@@ -54,6 +55,14 @@ _PROXY_ALIASES = {
 }
 
 _CANONICAL_ALIASES = {**_SPELLING_ALIASES, **_PROXY_ALIASES}
+
+
+def _proxy_flag(canonical: str) -> str:
+    """代理值旗標的欄名。"""
+    return f'{canonical}_is_proxy'
+
+
+PROXY_FLAG_COLUMNS = tuple(_proxy_flag(c) for c in _PROXY_ALIASES)
 
 _SCORER_NUMERIC_FIELDS = {
     'Revenue', 'GrossProfit', 'OperatingIncome', 'IncomeAfterTaxes',
@@ -84,7 +93,8 @@ def normalize_financial_wide(frame):
     22 分（2026-08-02 code review P0-1，實測 104 檔 / 1,820 列）。
     """
     out = frame.copy()
-    for canonical, aliases in _CANONICAL_ALIASES.items():
+
+    def _coalesce(canonical, aliases):
         if canonical in out.columns:
             values = pd.to_numeric(out[canonical], errors='coerce')
         else:
@@ -94,7 +104,29 @@ def normalize_financial_wide(frame):
                 values = values.combine_first(
                     pd.to_numeric(out[alias], errors='coerce')
                 )
-        out[canonical] = values
+        return values
+
+    # 1) 同義字：純資料修正，合併後不需留痕跡。
+    for canonical, aliases in _SPELLING_ALIASES.items():
+        out[canonical] = _coalesce(canonical, aliases)
+
+    # 2) 代理值：頂替前先記下哪些列真的缺，頂替後標 `<欄位>_is_proxy`。
+    #    不加旗標的話，落盤後完全分不出哪些 f_score / z_score 是拿「淨利息收入當營收」、
+    #    「稅前淨利當營業利益」算出來的（幾乎全是金控銀行，569 + 1,406 列）。
+    for canonical, aliases in _PROXY_ALIASES.items():
+        before = (pd.to_numeric(out[canonical], errors='coerce')
+                  if canonical in out.columns
+                  else pd.Series(np.nan, index=out.index, dtype=float))
+        after = _coalesce(canonical, aliases)
+        out[canonical] = after
+        out[_proxy_flag(canonical)] = before.isna() & after.notna()
+
+    # 旗標欄一律存在，schema 才穩定（沒有任何代理值時全 False）。
+    for canonical in _PROXY_ALIASES:
+        flag = _proxy_flag(canonical)
+        if flag not in out.columns:
+            out[flag] = False
+
     for column in _SCORER_NUMERIC_FIELDS:
         if column not in out.columns:
             # 建欄但留 NaN：讓 curr.get(col) 回 NaN 而不是 dict 預設值 0。
@@ -388,7 +420,17 @@ def compute_quality_score(fscore, zscore, curr, prev):
 
 
 def compute_revenue_score(stock_id, curr_date, revenue_raw):
-    """
+    """⛔ DEPRECATED（2026-08-02）—— 已無呼叫點，且是 **look-ahead 版本**，呼叫即 raise。
+
+    這版把月營收的可用日訂在「次月 1 日」，比法定公布截止日（次月 10 日）**早了 9 天**，
+    回測會看到實盤當時拿不到的資料。live 路徑已改走
+    `build_revenue_score_lookup` + `revenue_score_asof`（見 :107 起）。
+
+    保留本函式只為留住下面的 VF-VC 驗證結論；不可再使用。直接刪掉的風險是有人日後
+    憑「舊版有這個函式」重新寫回來，所以改成明確 raise。
+
+    ---- 以下為原始驗證記錄 ----
+
     營收分 0-100 (baseline 50, ±): 1m 單月 YoY 分數
 
     VF-VC 驗證（2026-04-20）:
@@ -399,7 +441,12 @@ def compute_revenue_score(stock_id, curr_date, revenue_raw):
     注：舊版為何方向錯 — value pool 中「月營收 YoY 已轉正」的股票通常已反彈完，
     後續動能有限；真正的左側機會是營收衰退但正在收斂的股票。
     """
-    score = 50
+    raise NotImplementedError(
+        "compute_revenue_score 是 look-ahead 版本（可用日訂在次月 1 日，比法定截止日"
+        "早 9 天），已於 2026-08-02 停用。請用 build_revenue_score_lookup() + "
+        "revenue_score_asof()。")
+
+    score = 50                                          # noqa: F841  (dead, 保留驗證脈絡)
     try:
         sub = revenue_raw[
             (revenue_raw['stock_id'] == stock_id) &
@@ -506,6 +553,11 @@ def process():
             r_score = revenue_score_asof(sid, date, revenue_lookup)
             combined = round(q_score * 0.6 + r_score * 0.4)
 
+            # f_score 同時用到 curr 與 prev，兩期任一用了代理值就要標記。
+            uses_proxy = any(bool(row.get(flag))
+                             for row in (curr, prev)
+                             for flag in PROXY_FLAG_COLUMNS)
+
             results.append({
                 'stock_id': sid,
                 'date': date,
@@ -514,6 +566,9 @@ def process():
                 'quality_score': q_score,
                 'revenue_score': r_score,
                 'combined_score': combined,
+                # True = 這列的會計輸入含代理值（淨利息收入頂替營收／稅前淨利頂替
+                # 營業利益），幾乎全是金控銀行。分數仍可用，但與正常列不同質。
+                'uses_proxy_inputs': uses_proxy,
             })
 
     out = pd.DataFrame(results)
