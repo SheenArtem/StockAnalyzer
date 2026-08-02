@@ -22,6 +22,75 @@ def test_panel_aggregation_drops_holiday_and_partial_dates():
     assert len(cleaned) == 1000
 
 
+def _panel(per_day_counts, start='2025-01-01'):
+    """組一段面板：{天數偏移: 當日有量檔數} → DataFrame[stock_id, date, Volume]。"""
+    rows = []
+    for offset, n in enumerate(per_day_counts):
+        day = (pd.Timestamp(start) + pd.Timedelta(days=offset)).strftime('%Y-%m-%d')
+        for sid in range(n):
+            rows.append((str(sid), day, 1_000_000))
+    return pd.DataFrame(rows, columns=['stock_id', 'date', 'Volume'])
+
+
+def test_in_market_baseline_ignores_stocks_that_stopped_trading():
+    """絕對門檻的分母必須自我修正。
+
+    2026-08-02 實測：磁碟上 2,064 支 *_price.csv 含 99 檔減資後的舊股別（`*O`，
+    2026-04-08 起停止交易、`is_common_stock=False`），CSV 永久保留且 `is_tw_ticker()`
+    照樣匹配，所以舊分母 `len(tw_csv)` 只會單向變大。改由面板歷史推導後，停更的股票
+    會隨時間滑出視窗。
+    """
+    # 前 100 天有 200 檔，之後 60 天只剩 150 檔（50 檔停止交易）
+    frame = _panel([200] * 100 + [150] * 60)
+
+    dates = pd.to_datetime(frame['date']).dt.normalize()
+    cutoff = dates.max() - pd.Timedelta(days=45)
+    baseline = RBP._in_market_baseline(dates, frame, cutoff, history_days=180)
+
+    # 基準取近期視窗「之前」的歷史；此例含停更前後兩段，中位數落在 200
+    assert baseline is not None
+    assert 150 <= baseline <= 200
+
+    # 視窗完全落在停更之後時，基準要收斂到 150
+    later = _panel([150] * 200)
+    ldates = pd.to_datetime(later['date']).dt.normalize()
+    lcut = ldates.max() - pd.Timedelta(days=45)
+    assert RBP._in_market_baseline(ldates, later, lcut, history_days=180) == 150
+
+
+def test_in_market_baseline_returns_none_when_history_too_short():
+    frame = _panel([200] * 5)
+    dates = pd.to_datetime(frame['date']).dt.normalize()
+    cutoff = dates.max() - pd.Timedelta(days=45)
+
+    assert RBP._in_market_baseline(dates, frame, cutoff) is None
+
+
+def test_in_market_baseline_ignores_zero_volume_rows():
+    """有 row 但無量（冷門股無成交日）不算在市檔數。"""
+    rows = []
+    for offset in range(120):
+        day = (pd.Timestamp('2025-01-01') + pd.Timedelta(days=offset)).strftime('%Y-%m-%d')
+        for sid in range(100):
+            rows.append((str(sid), day, 1_000_000))
+        for sid in range(100, 180):          # 80 檔全程零成交
+            rows.append((str(sid), day, 0))
+    frame = pd.DataFrame(rows, columns=['stock_id', 'date', 'Volume'])
+    dates = pd.to_datetime(frame['date']).dt.normalize()
+    cutoff = dates.max() - pd.Timedelta(days=10)
+
+    assert RBP._in_market_baseline(dates, frame, cutoff, history_days=180) == 100
+
+
+def test_aggregation_derives_its_own_denominator_when_not_given():
+    """不傳 expected_stock_count 時要自行推導，且仍抓得到整批縮水。"""
+    # 150 天 200 檔健康歷史，最後 3 天只剩 60 檔（uniform shrink）
+    frame = _panel([200] * 150 + [60] * 3)
+
+    with pytest.raises(RuntimeError, match='no healthy recent market date'):
+        RBP.drop_unhealthy_recent_market_dates(frame, lookback_days=5)
+
+
 def test_panel_health_rejects_uniformly_shrunken_universe():
     frame = pd.DataFrame({
         'stock_id': [str(i) for i in range(600)],

@@ -63,6 +63,32 @@ def _atomic_to_parquet(frame: pd.DataFrame, path: Path) -> None:
         tmp_path.unlink(missing_ok=True)
 
 
+def _in_market_baseline(dates: pd.Series, frame: pd.DataFrame,
+                        cutoff: pd.Timestamp, history_days: int = 180):
+    """近期視窗**之前**的「每日在市檔數」中位數；不足資料回 None。
+
+    這是絕對門檻的基準。**不可用磁碟上的 CSV 檔數**：下市股的 `*_price.csv` 永久保留，
+    所以那個分母只會單向變大 —— 2026-08-02 實測磁碟 2,064 檔 vs 實際每日有量
+    1,920~1,944，門檻算成 ceil(2064×0.80)=1,652，餘裕只剩 15% 且逐年縮小，是會自己
+    走向硬失敗的設計（2026-08-02 code review）。
+
+    改用面板自身歷史則自我維護：下市股停止長出新 bar，於是「近期有量的檔數」自然就是
+    在市檔數。基準取近期視窗之前的歷史，才抓得到「整個近期視窗一起縮水」。
+    """
+    window = (dates < cutoff) & (dates >= cutoff - pd.Timedelta(days=history_days))
+    if not window.any():
+        return None
+    hist = frame.loc[window, ['stock_id', 'Volume']].copy()
+    hist['date'] = dates[window]
+    hist = hist[pd.to_numeric(hist['Volume'], errors='coerce').fillna(0).gt(0)]
+    if hist.empty:
+        return None
+    per_day = hist.groupby('date')['stock_id'].nunique()
+    if len(per_day) < 20:            # 歷史太短，中位數不可靠
+        return None
+    return int(per_day.median())
+
+
 def drop_unhealthy_recent_market_dates(
         frame: pd.DataFrame, lookback_days: int = 45,
         expected_stock_count: int | None = None) -> tuple[pd.DataFrame, list[pd.Timestamp]]:
@@ -71,6 +97,9 @@ def drop_unhealthy_recent_market_dates(
     This is a second boundary behind ``refresh_universe_prices`` because old
     per-stock CSVs may already contain a Yahoo holiday placeholder or a
     rate-limited partial day.
+
+    `expected_stock_count` 為絕對門檻的分母。**不傳則由面板歷史自行推導**
+    （見 `_in_market_baseline`）—— production 走這條；明確傳值只用於測試或特殊情況。
     """
     if frame.empty or not {'date', 'stock_id', 'Volume'} <= set(frame.columns):
         return frame, []
@@ -85,6 +114,11 @@ def drop_unhealthy_recent_market_dates(
     if stats.empty:
         return frame, []
     reference = int(stats['positive_volume'].max())
+    if expected_stock_count is None:
+        expected_stock_count = _in_market_baseline(dates, frame, cutoff)
+        if expected_stock_count:
+            log.info("In-market baseline from panel history: %d stocks/day (median)",
+                     expected_stock_count)
     expected_floor = (
         math.ceil(expected_stock_count * MIN_MARKET_COVERAGE_RATIO)
         if expected_stock_count else 0)
@@ -162,8 +196,9 @@ def aggregate_csv_to_parquet() -> pd.DataFrame:
         log.warning("Dropped %d bad-Close rows (NaN/<=0) during aggregation", dropped_badclose)
 
     out = pd.concat(frames, ignore_index=True)
-    out, _bad_market_dates = drop_unhealthy_recent_market_dates(
-        out, expected_stock_count=len(tw_csv))
+    # 不再傳 len(tw_csv)：磁碟含永久保留的下市股 CSV，分母只會單向變大。
+    # 交給 _in_market_baseline 由面板歷史推導每日在市檔數。
+    out, _bad_market_dates = drop_unhealthy_recent_market_dates(out)
     log.info("Aggregated: %d rows, %d stocks, date range %s -> %s, took %.1fs",
              len(out), out['stock_id'].nunique(),
              out['date'].min().date(), out['date'].max().date(),
