@@ -360,7 +360,7 @@ def drop_non_panel_dates(dry_run: bool = True) -> dict:
 
 
 def repair_history(dry_run: bool = True, rebuild_all: bool = False,
-                   threshold: float = IMPLAUSIBLE_RET_20D) -> dict:
+                   threshold: float = SUSPICIOUS_RET_20D) -> dict:
     """修補 log 內既有日期的毀損值。只改既有日期，不新增也不刪除。
 
     **預設只修「物理不可能」的那些**，不是所有與今天 panel 不同的日期。理由是
