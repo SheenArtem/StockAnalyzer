@@ -63,10 +63,14 @@
 **P0-1 的意外收穫**：對照 HEAD 逐欄比對時發現 FinMind 主要拼法是 `NoncurrentLiabilities`（小寫 c），佔 76,367 / 83,934 列。HEAD 只找 `NonCurrentLiabilities`，導致 **F5 長期負債比與 ROIC 兩個分支對 93% 的股票從未生效**。這次的別名合併順帶修好了它 —— 這也是修正後與 HEAD 差異達 40% 的原因，方向正確。同時已把別名表拆成 `_SPELLING_ALIASES`（同義字，安全）與 `_PROXY_ALIASES`（代理值，仍待處理），拆分經驗證為行為中性。
 
 **仍未處理**：
-- 第四節**全部已修**。第九節既有問題**全部已修**。
-- 第五節白話投資剩餘 3 項：build 的 STATE checkpoint（換機首次全量必逾時）、登入牆／DOM 改版靜默回報成功、增量抓取 seq 排序（**修法有陷阱見本節說明**）、去重 key 只取前 120 字。
-- 第六節剩餘 3 項：缺「FinMind 新→舊排序」回歸測試、`mis.twse` 每請求 ≤50 檔硬規則無測試背書、`portfolio_view.py` 持股表「名稱」欄消失（需先確認是否刻意 —— `mis.twse` 批次報價本來就不回股名）。
-- 第六節 `docs/agent/data-sources.md` 資料源優先序表已於 `61900ee` / `3503e56` 反映官方 EOD overlay，本輪另加「拿請求日期當資料日期是錯的」專節。
+- **第四、五、六、九節全部已修。** 全套測試 384 → **530**。
+- 唯一剩下的原報告項目：`portfolio_view.py` 持股表「名稱」欄消失 —— 需先確認是否刻意
+  （`mis.twse` 批次報價本來就不回股名），屬產品決策不是缺陷。
+- 新增的待辦（本輪查出，非原報告）：
+  - `ohlcv_tw.parquet` 的 11 個部分橫斷面日回填（TWSE 可行、TPEX 不可行）。
+  - 2026-04-13~04-29 那 13 個交易日的抓取斷層（已可被 `report_coverage_gaps` 偵測，
+    但缺的資料還在缺）。
+- 第六節 `docs/agent/data-sources.md` 資料源優先序表已於 `61900ee` / `3503e56` 反映官方 EOD overlay，本輪另加「拿請求日期當資料日期是錯的」與「交易日曆要問官方」兩節。
 - **產品決策待定**：`regime_log.jsonl` 有 692 筆的 regime 標籤與現行 panel 重算不同，但那 78.1% 屬 panel 版本差（垃圾價清零、V=0 凍結列、yfinance NaN 修復都改過歷史值），不是毀損。要不要宣告「現行 panel 為唯一權威」整檔重建，是產品決策，本次刻意沒做（`--repair-history --rebuild-all` 可執行）。
 
 ---
