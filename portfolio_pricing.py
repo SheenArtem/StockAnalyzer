@@ -5,7 +5,9 @@
   現價 get_current_prices(tickers, live):
     - 預設 (live=False)：load_and_resample disk cache 的最後收盤 + 前收（TW/US 通吃，秒級、零外呼）
     - live=True 台股盤中：mis.twse ex_ch 批次（≤50/請求，一個投組 1~2 請求；真即時 tick）
-    - live=True 美股：Yahoo v7 quote 批次（crumb+cookie，≤50/請求，~15min 延遲；港自 market-pulse worker.js）
+    - live=True 美股：Yahoo v8 chart 逐檔（range=1d + interval=1m + includePrePost）。
+        常規盤實測延遲數秒（近即時，非早年那句「15 分鐘延遲」）；盤前/盤後最新價取
+        1 分 K 棒最後一根非空收盤（Yahoo meta 不給 pre/postMarketPrice 標量）。
   歷史價 get_price_history(tickers)：load_and_resample 的 df_day Close（供 Phase 3 NAV）。
 
 回傳 quote schema（每檔一個 dict）：
@@ -13,6 +15,7 @@
      'source'('mis.twse'|'yahoo'|'eod'|'none'), 'market_state', 'name', 'asof'}
 """
 import logging
+import time
 
 import requests
 
@@ -26,10 +29,23 @@ _YF_UA = (
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 )
-# 美股用 v8 chart endpoint：單檔一 URL，回 meta.regularMarketPrice(~15min 延遲) +
-# chartPreviousClose。實測本機 v7 /quote 被擋(401 Unauthorized，market-pulse 靠
-# Cloudflare Worker IP 才行)，v8 chart 則回 200。無 mis 的硬節流，投組數檔迴圈即可。
+# 美股用 v8 chart endpoint（單檔一 URL），參數 range=1d + interval=1m +
+# includePrePost=true：
+#   - meta.regularMarketPrice = 常規盤最後成交，實測延遲數秒（近即時，非早年那句
+#     「15 分鐘延遲」——2026-07-10 量測 AAPL/NVDA/TSLA/SPY lag 0~4 秒）。
+#   - 盤前/盤後最新價「不在 meta」（Yahoo 這個 endpoint 不給 pre/postMarketPrice
+#     標量，marketState 也回 None），而在 1 分 K 棒 indicators.quote.close 裡，取最後
+#     一根非空收盤。盤別改用 meta.currentTradingPeriod 的 pre/regular/post 時間窗判斷。
+#   - range=1d 時 meta.chartPreviousClose/previousClose 即為前一交易日常規盤收盤
+#     （range=5d 時 chartPreviousClose 會是視窗基準日、非昨收，故不可用 5d）。
+# 實測本機 v7 /quote 被擋(401 Unauthorized，market-pulse 靠 Cloudflare Worker IP 才行)，
+# v8 chart 則回 200。無 mis 的硬節流，投組數檔迴圈即可。
 _YF_CHART_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/{sym}'
+
+
+def _now_epoch() -> float:
+    """現在時間 (epoch 秒)。抽成函式方便測試注入盤別。"""
+    return time.time()
 
 
 def _empty_quote(ticker: str, source: str = 'none') -> dict:
@@ -45,63 +61,110 @@ def _pct(price, prev):
 
 
 # ====================================================================
-#  美股：Yahoo Finance v8 chart（單檔迴圈；~15min 延遲的近即時價）
+#  美股：Yahoo Finance v8 chart（單檔迴圈；常規盤近即時 + 盤前盤後）
 # ====================================================================
 
 def _yahoo_chart_result(symbol: str) -> dict:
-    """Return the first Yahoo v8 chart result for a symbol, or None."""
+    """Return the first Yahoo v8 chart result for a symbol, or None.
+
+    range=1d + interval=1m + includePrePost=true：回應同時帶常規盤與盤前/盤後的
+    1 分 K 棒，meta 含 currentTradingPeriod（判斷盤別）與 previousClose（前一交易日收）。
+    """
     r = requests.get(_YF_CHART_URL.format(sym=symbol),
-                     params={'range': '5d', 'interval': '1d'},
+                     params={'range': '1d', 'interval': '1m',
+                             'includePrePost': 'true'},
                      headers={'User-Agent': _YF_UA}, timeout=15)
     j = r.json()
     res = (j.get('chart', {}) or {}).get('result')
     return res[0] if res else None
 
 
-def _yahoo_chart_meta(symbol: str) -> dict:
-    result = _yahoo_chart_result(symbol)
-    return (result.get('meta') if result else None)
+def _prev_close(meta: dict) -> float | None:
+    """前收（前一交易日常規盤收盤）。range=1d 時 chartPreviousClose 即為正解。"""
+    for key in ('previousClose', 'chartPreviousClose', 'regularMarketPreviousClose'):
+        v = meta.get(key)
+        if v is not None:
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                continue
+    return None
 
 
-def _prev_close_from_chart(result: dict, price) -> float | None:
-    """Derive previous close from Yahoo daily bars.
+def _classify_period(now_epoch: float, ctp: dict) -> str | None:
+    """用 meta.currentTradingPeriod 的 pre/regular/post 時間窗判斷現在盤別。
 
-    Yahoo's chartPreviousClose is the close before the requested chart window
-    when range=5d, not necessarily yesterday's close.
-    Do not compare with the Taiwan calendar date; a US trading session crosses
-    two Taiwan calendar days.
+    回 'PRE' | 'REGULAR' | 'POST' | 'CLOSED'；無 currentTradingPeriod 回 None。
+    """
+    if not ctp:
+        return None
+    for state, key in (('PRE', 'pre'), ('REGULAR', 'regular'), ('POST', 'post')):
+        w = ctp.get(key) or {}
+        start, end = w.get('start'), w.get('end')
+        if start is not None and end is not None and start <= now_epoch < end:
+            return state
+    return 'CLOSED'
+
+
+def _last_extended_bar(result: dict, now_epoch: float):
+    """回 (price, epoch) = 最後一根「時間 <= now」的非空 1 分 K 棒收盤；無則 (None, None)。
+
+    盤前/盤後用：Yahoo meta 不給 pre/postMarketPrice 標量，最新成交只在 K 棒裡。
+    以 now 上界過濾，避免抓到尚未成交（未來）或跨盤別的 K 棒。
     """
     try:
-        quotes = ((result.get('indicators', {}) or {}).get('quote') or [])
+        ts = result.get('timestamp') or []
+        quotes = (result.get('indicators', {}) or {}).get('quote') or [{}]
         closes = quotes[0].get('close') or []
-    except (AttributeError, IndexError):
-        return None
-
-    vals = []
-    for close in closes:
+    except (AttributeError, IndexError, TypeError):
+        return None, None
+    for i in range(len(closes) - 1, -1, -1):
+        close = closes[i]
         if close is None:
             continue
+        epoch = ts[i] if i < len(ts) else None
+        if epoch is not None and epoch > now_epoch:
+            continue
         try:
-            vals.append(float(close))
+            return float(close), epoch
         except (TypeError, ValueError):
             continue
-    if not vals:
-        return None
+    return None, None
 
-    try:
-        px = float(price) if price is not None else None
-    except (TypeError, ValueError):
-        px = None
 
-    if px is not None and len(vals) >= 2:
-        tolerance = max(0.01, abs(px) * 0.0005)
-        if abs(vals[-1] - px) <= tolerance:
-            return vals[-2]
-    return vals[-1]
+def _pick_us_price(result: dict, now_epoch: float) -> dict:
+    """從一個 chart result 挑現價 + 盤別 + asof。
+
+    常規盤 / 收盤 / 未知盤別 -> meta.regularMarketPrice（近即時 / 最後收盤，秒級新鮮）
+    盤前 / 盤後             -> 最後一根非空 1 分 K 棒收盤（meta 此時的常規盤價已凍結）
+    前收一律用前一交易日常規盤收盤，故 change_pct 反映「自昨收以來的當日漲跌」。
+    """
+    meta = result.get('meta') or {}
+    state = _classify_period(now_epoch, meta.get('currentTradingPeriod'))
+    reg = meta.get('regularMarketPrice')
+    reg = float(reg) if reg is not None else None
+    reg_time = meta.get('regularMarketTime')
+
+    if state in ('PRE', 'POST'):
+        price, epoch = _last_extended_bar(result, now_epoch)
+        if price is None:                 # 盤前盤後尚無成交 -> 退回常規盤價
+            price, epoch = reg, reg_time
+    else:                                  # REGULAR / CLOSED / 未知 -> 常規盤價
+        price, epoch = reg, reg_time
+
+    return {
+        'price': price,
+        'prev_close': _prev_close(meta),
+        'market_state': state,
+        'asof': epoch,
+        'currency': meta.get('currency') or 'USD',
+        'name': meta.get('shortName') or meta.get('longName'),
+    }
 
 
 def get_us_quotes(tickers: list) -> dict:
-    """美股現價（v8 chart，逐檔）。回 {ticker: quote_dict}（抓不到者不放入）。"""
+    """美股現價（v8 chart，逐檔，含盤前/盤後）。回 {ticker: quote_dict}（抓不到者不放入）。"""
+    now = _now_epoch()
     out = {}
     for t in [t for t in tickers if t]:
         try:
@@ -109,28 +172,20 @@ def get_us_quotes(tickers: list) -> dict:
         except (requests.RequestException, ValueError) as e:
             logger.warning("yahoo v8 chart %s failed: %s", t, e)
             continue
-        meta = (result.get('meta') if result else None)
-        if not meta:
+        if not result or not result.get('meta'):
             continue
-        price = meta.get('regularMarketPrice')
-        prev = _prev_close_from_chart(result, price)
-        if prev is None:
-            prev = meta.get('regularMarketPreviousClose')
-        if prev is None:
-            prev = meta.get('previousClose')
-        if prev is None:
-            prev = meta.get('chartPreviousClose')
-        price = float(price) if price is not None else None
-        prev = float(prev) if prev is not None else None
+        picked = _pick_us_price(result, now)
+        if picked['price'] is None:
+            continue
         out[t] = {
-            'price': price,
-            'prev_close': prev,
-            'change_pct': _pct(price, prev),
-            'currency': meta.get('currency') or 'USD',
+            'price': picked['price'],
+            'prev_close': picked['prev_close'],
+            'change_pct': _pct(picked['price'], picked['prev_close']),
+            'currency': picked['currency'],
             'source': 'yahoo',
-            'market_state': meta.get('marketState'),
-            'name': meta.get('shortName') or meta.get('longName'),
-            'asof': meta.get('regularMarketTime'),
+            'market_state': picked['market_state'],
+            'name': picked['name'],
+            'asof': picked['asof'],
         }
     return out
 
@@ -203,7 +258,7 @@ def get_current_prices(tickers, live: bool = False) -> dict:
     """投組現價。回 {ticker: quote_dict}。
 
     live=False（預設）：全部走 EOD（秒級、零外呼、TW/US 通吃）。
-    live=True：台股盤中走 mis.twse 批次、美股走 Yahoo v7 批次；
+    live=True：台股盤中走 mis.twse 批次、美股走 Yahoo v8 chart 逐檔（含盤前/盤後）；
                live 抓不到的個別代號自動 fallback 到該檔 EOD。
     """
     tickers = [normalize_ticker(t) for t in tickers if str(t or '').strip()]
