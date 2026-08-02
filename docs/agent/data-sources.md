@@ -39,9 +39,18 @@ All features MUST follow the same priority to avoid data drift。實作細節（
 
 ## ⚠️ 拿「請求的日期」當資料日期是錯的（2026-08-02 實測）
 
-**TPEX `stk_quote_result.php` 完全無視 `d` 參數**：請求 `115/06/16`（6 週前）回的是
-`115/07/31` 的橫斷面，價格一字不差；請求週六 `115/08/01` 亦同。TWSE `MI_INDEX` 相反 ——
-正確分辨每一天，非交易日直接回 `stat="很抱歉，沒有符合條件的資料!"`。
+**TPEX 舊端點 `stk_quote_result.php` 完全無視 `d` 參數**：請求 `115/06/16`（6 週前）
+回的是 `115/07/31` 的橫斷面，價格一字不差；請求週六 `115/08/01` 亦同。TWSE `MI_INDEX`
+相反 —— 正確分辨每一天，非交易日直接回 `stat="很抱歉，沒有符合條件的資料!"`。
+
+> ✅ **已治本（2026-08-02 第二輪）**：`get_market_daily_tpex` 已改打
+> `www/zh-tw/afterTrading/dailyQuotes`（吃西元 `date=YYYY/MM/DD`），**正確認日期**，
+> 且是同一份資料集（title 同為「上櫃股票行情」、19 欄含 `均價`、成交量同為含定價
+> 口徑），所以欄位索引與舊版共用。**別再改回 `stk_quote_result.php`。**
+> ⚠️ 也**不要**改用 `www/zh-tw/afterTrading/otc?type=EW` —— 它同樣認日期，但那是
+> 「不含定價」口徑，成交量與現有 panel 不同調（876 檔上櫃股只有 31 檔相符，
+> dailyQuotes 有 871 檔相符），混用會讓 panel 出現兩種量值定義。
+> 回歸測試：`tests/test_tpex_daily_date_aware.py`。
 
 所以**日期一律以 payload 自報值為準**：
 - TWSE：頂層 `date`（西元 `20260731`）+ 表格 title（民國 `115年07月31日`）
@@ -80,9 +89,15 @@ All features MUST follow the same priority to avoid data drift。實作細節（
 80%」為門檻把這類日期剔除（用滾動中位數而非固定值，才不會誤殺 2006-2009 全市場本來
 就只有數百檔的早期歷史）。
 
-**未修**：panel 本身仍留著那些部分橫斷面的列（per-stock 時間序列來說它們是真資料）。
-要補齊得走官方 MI_INDEX 逐日回填 —— TWSE 可行（它尊重歷史日期），TPEX 不可行
-（無視 date 參數）。
+**未修（但已可行）**：panel 本身仍留著那些部分橫斷面的列（per-stock 時間序列來說
+它們是真資料）。要補齊得走官方端點逐日回填。
+
+> **更正（2026-08-02 第二輪）**：先前這裡寫「TPEX 不可行，上櫃股補不回來」是**錯的**
+> —— 那個結論建立在舊端點上。改用 `dailyQuotes` 後 **TWSE + TPEX 兩市都補得回來**。
+> 實測 `get_market_daily_all(date=2021-04-06)` 回 1,747 檔（TWSE 962 + TPEX 785），
+> 與 panel 重疊的 624 檔**收盤價與成交量全部相同**，另有 1,123 檔是 panel 缺的。
+> 該日 panel 只有 663 檔，回填後可達約 1,786 檔（鄰近中位數 1,860，覆蓋率
+> 35.6% → 約 96%）。
 
 ## Cache Strategy
 

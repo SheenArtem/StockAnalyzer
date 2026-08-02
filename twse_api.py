@@ -1320,9 +1320,20 @@ class TWSEOpenData:
             date: datetime object or None (defaults to most recent trading day)
             strict_date: 指定 date 時，payload 自報日期不符即回空 frame。
 
-        ⚠️ 這個 endpoint **完全無視 `d` 參數**（2026-08-02 實測：請求 115/06/16 回
-        115/07/31 的橫斷面，價格一字不差）。所以指定日期時務必讓 strict_date 生效，
-        否則會拿到「最新」橫斷面卻以為是請求日的資料。
+        端點沿革（2026-08-02 兩輪實測）：
+          - 舊版 `web/stock/aftertrading/daily_close_quotes/stk_quote_result.php`
+            **完全無視 `d` 參數**（請求 115/06/16 回 115/07/31 的橫斷面，價格一字
+            不差），只能拿到「最新」那天。
+          - 現用 `www/zh-tw/afterTrading/dailyQuotes` **正確認日期**，且是同一份資料
+            集（title 同為「上櫃股票行情」、19 個欄位含 `均價`、成交量同為含定價口徑）
+            —— 所以下方的欄位索引與舊版共用，不必分支。
+
+        ⚠️ **不要改用 `www/zh-tw/afterTrading/otc?type=EW`**：它也認日期，但那是
+        「上櫃股票每日收盤行情(不含定價)」，成交量口徑不同（實測 876 檔上櫃股中只有
+        31 檔與現有 panel 相符，dailyQuotes 則有 871 檔相符）。混用會讓 panel 裡出現
+        兩種成交量定義。
+
+        `strict_date` 仍保留為安全網 —— 端點換了不代表可以不驗自報日期。
 
         Returns:
             DataFrame with same columns as get_market_daily_twse()（含 `data_date`）
@@ -1341,9 +1352,10 @@ class TWSEOpenData:
             dates_to_try = self._get_recent_trading_dates(days=5)
 
         for dt in dates_to_try:
-            date_str = self._to_tpex_date(dt)
-            url = "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php"
-            params = {'l': 'zh-tw', 'd': date_str, 'o': 'json'}
+            # 這個端點吃西元 YYYY/MM/DD（不是民國）；_to_tpex_date 仍留給其他呼叫點用
+            date_str = dt.strftime('%Y/%m/%d')
+            url = "https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes"
+            params = {'date': date_str, 'type': 'EW', 'id': '', 'response': 'json'}
 
             data = self._fetch_json(url, params=params)
             if data is None:
