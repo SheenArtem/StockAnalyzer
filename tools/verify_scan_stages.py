@@ -49,6 +49,12 @@ REQUIRED_STAGES = [
     # 兩個 stage 加了 (exit=0) marker，唯獨漏掉 breadth）。
     ('TW breadth panel done', r'\] TW breadth panel done \(exit=0\)'),
     ('Refresh backtest panels done', r'\] Refresh backtest panels done \(exit=0\)'),
+    # 2026-08-02 加：價格離群掃描。跟 breadth 同樣是 best-effort（找到問題只印 [WARN]，
+    # 不擋 scanner），所以更需要 marker —— 沒有的話「掃描本身沒跑」與「掃描跑了沒發現」
+    # 在 log 上長得一模一樣。
+    # ⚠️ 這裡刻意**不要求 `(exit=0)`**：exit=1 代表「掃到毀損」，那是它正常工作而不是
+    # stage 失敗，bat 也在兩條路徑都印同一行 done marker。
+    ('Panel outlier scan done', r'\] Panel outlier scan done'),
     ('Chip history resume done', r'\] Chip history resume done'),
     ('News flow anomaly done', r'\] News flow anomaly done'),
     ('Theme momentum done', r'\] Theme momentum done'),

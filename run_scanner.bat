@@ -349,6 +349,25 @@ if not "%BACKTEST_PANELS_EXIT%"=="0" (
 )
 call :log "Refresh backtest panels done (exit=0)"
 
+REM ------------------------------------------------------------
+REM Panel price-outlier scan (added 2026-08-02).
+REM Catches data corruption that every existing health check passes: 3666 had
+REM its whole 2015-2022 history multiplied by 10000 (bogus Yahoo reverse split)
+REM and sat there for 3+ years because every column was a positive, plausible
+REM number. Zero API calls, panel-internal only. Must run AFTER the rebuild.
+REM --fail-on A,B leaves out check C on purpose: C flags real crashes/spikes
+REM too, so it is for human review, not a gate.
+REM ------------------------------------------------------------
+REM The done-marker is printed on BOTH paths on purpose. exit=1 means the scan
+REM found corruption -- that is the scan working, not the stage failing. If the
+REM marker were only on the exit=0 path, "found something" would look exactly
+REM like "never ran" to verify_scan_stages.
+call :log "Panel outlier scan starting"
+python tools\scan_panel_price_outliers.py --fail-on A,B >> scanner.log 2>&1
+set OUTLIER_EXIT=%ERRORLEVEL%
+if not "%OUTLIER_EXIT%"=="0" call :log "[WARN] Panel outlier scan FOUND ISSUES - see scanner.log"
+call :log "Panel outlier scan done (exit=%OUTLIER_EXIT%)"
+
 :skip_market_panels
 
 REM ------------------------------------------------------------
