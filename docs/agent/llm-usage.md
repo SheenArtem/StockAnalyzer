@@ -12,6 +12,7 @@
 | **Multi-agent debate / exploratory** + **AI Report 研究階段** (`report_web_research.py`) | Claude | `--model sonnet` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | 600s |
 | **Macro Compass 第二視角** (`tools/macro_compass_report.py`) | Claude | `--model sonnet`/`opus` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | 7200s (2h) |
 | **Theme curation** (`tools/curate_themes_pipeline.py`) | Claude | `--model sonnet` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch" --output-format json` | 420s/單題材 |
+| **知識庫文章清洗** (`tools/build_baihua_kb.py`) | Claude | `--model sonnet` | `--effort xhigh` | `--output-format json` | 600s/單篇 |
 
 **⚠️ `--effort` 強制**：`claude -p` **不繼承** `~/.claude/settings.json` 的 `effortLevel`（即使設 max 也 0 reasoning tokens）— 必須 CLI 顯式帶 `--effort`。Haiku 例外（不開 thinking）。
 
