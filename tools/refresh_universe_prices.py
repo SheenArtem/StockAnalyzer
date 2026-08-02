@@ -113,11 +113,14 @@ def _official_daily_overlay(sids, target_date, lookback_days=7):
     history window, but a partial/rate-limited Yahoo batch must not decide the
     production market date.
 
-    日期以 **payload 自報的 `data_date`** 為準，不是我們請求的日期：TPEX 的
+    日期以 **payload 自報的 `data_date`** 為準，不是我們請求的日期：TPEX 的**舊**
     `stk_quote_result.php` 完全無視 `d` 參數（2026-08-02 實測請求 6 週前回的是最新
     橫斷面），若拿請求日期蓋章，就會把「上一場」的 OHLCV 寫進 1900+ 支 CSV，而且每
     一欄都是正數的合理價格，健康度檢查抓不到。`strict_date=True` 讓不符的橫斷面在
     API 層就被丟掉，這裡再確認一次日期單一且等於請求日。
+
+    ✅ 該端點已改為認日期的 `dailyQuotes`，所以這個 overlay **現在也能用在歷史日期**
+    （原本只能拿「最新」那天）—— panel 回填就是靠這條路。防線照留。
     """
     from twse_api import TWSEOpenData
 

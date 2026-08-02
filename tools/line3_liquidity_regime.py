@@ -27,7 +27,8 @@ Part B — 完整 regime gate (SOP-10~14)
     但聚合前剔 Volume<=0)，可重現且不受 jsonl drift。
     ⚠️ 2026-08-02 更正歸因：本註解原寫「受同一批凍結/尖刺價污染」，**那是錯的** ——
     垃圾價那批修完後 jsonl 仍壞。真正機制是 market_regime_logger 的 API 補值：排程
-    每天 00:00 補「今天」時 TWSE 正確回空、TPEX 端點無視 date 回上一場，橫斷面變成
+    每天 00:00 補「今天」時 TWSE 正確回空、TPEX **舊**端點無視 date 回上一場
+    （現已改打認日期的 dailyQuotes），橫斷面變成
     純上櫃，等權均價被高價上櫃股抬成 1.835 倍。已於 twse_api 加 strict_date + 補值
     改用同一批成分股修掉，並以 --repair-history 修補既有 59 筆。
     教訓：發現共用資料不可信時要追到根因；當時只讓本檔繞道，其餘 6 個消費端

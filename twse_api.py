@@ -226,10 +226,13 @@ class TWSEOpenData:
     def _enforce_payload_date(self, df, requested, market, strict_date):
         """確認 payload 自報日期 == 請求日期；不符時（strict）回空 frame。
 
-        存在的理由：TPEX `stk_quote_result.php` **完全無視** `d` 參數，2026-08-02
-        實測請求 115/06/16（6 週前）回的是 115/07/31 的橫斷面、價格一字不差；請求
-        週六 115/08/01 同樣回 07/31。TWSE MI_INDEX 則正確分辨（非交易日直接回
-        stat="很抱歉，沒有符合條件的資料!"）。
+        存在的理由：TPEX **舊**端點 `stk_quote_result.php` **完全無視** `d` 參數，
+        2026-08-02 實測請求 115/06/16（6 週前）回的是 115/07/31 的橫斷面、價格一字
+        不差；請求週六 115/08/01 同樣回 07/31。TWSE MI_INDEX 則正確分辨（非交易日
+        直接回 stat="很抱歉，沒有符合條件的資料!"）。
+
+        ✅ 該端點已於同日改為認日期的 `dailyQuotes`（見 `get_market_daily_tpex`），
+        但**這道防線不因此拆除** —— 端點會變，自報日期的驗證是不變的守則。
 
         所以「請求日期」不可當資料日期用。指定日期的呼叫者（歷史回填、週報、官方
         EOD overlay）若拿到別天的橫斷面，會把舊行情蓋上錯誤日期，且每一欄都是正數

@@ -69,8 +69,9 @@ def _fetch_close_supplement(members: set, dates: list,
 
     兩個條件缺一不可，否則補出來的點不是行情而是雜訊：
 
-    1. **日期以 payload 自報為準**（`strict_date=True`）。TPEX 的 stk_quote 端點
-       無視 date 參數，對尚未開盤的今天／假日會回「上一場」的完整橫斷面。舊版拿它
+    1. **日期以 payload 自報為準**（`strict_date=True`）。TPEX 的**舊** stk_quote
+       端點無視 date 參數（現已改打認日期的 `dailyQuotes`，但驗證照做），
+       對尚未開盤的今天／假日會回「上一場」的完整橫斷面。舊版拿它
        當今天用，而 TWSE 該日正確地回空，於是 `df` 變成純上櫃 —— 過濾 top300 後只
        剩 51 檔上櫃成分股，而高價股正集中在上櫃（信驊 14525、旺矽 5280），等權均價
        被抬成 1.835 倍，`ret_20d` 直接飆到 +70%，`range_20d` 中位數 0.934（門檻
