@@ -204,3 +204,51 @@ def test_bulk_cli_returns_nonzero_on_safety_failure(monkeypatch):
         bulk.main()
 
     assert exc.value.code == 1
+
+
+class _AlwaysFailLoader:
+    """每檔都爆（FinMind 額度爆／token 失效／網路全斷都長這樣）。"""
+
+    has_token = True
+
+    def taiwan_stock_month_revenue(self, **_kwargs):
+        raise RuntimeError('FinMind quota exhausted')
+
+
+def _per_stock_cli(monkeypatch, tmp_path, stocks):
+    universe = tmp_path / 'universe.txt'
+    universe.write_text('\n'.join(stocks) + ('\n' if stocks else ''), encoding='utf-8')
+    monkeypatch.setattr(bulk, 'LIVE_CACHE_DIR', tmp_path / 'fundamental_cache')
+    monkeypatch.setattr(bulk.sys, 'argv', [
+        'vfvc_backfill_monthly_rev.py', '--universe', str(universe), '--skip-aggregate'])
+
+
+def test_per_stock_all_fail_exits_nonzero(monkeypatch, tmp_path):
+    """per-stock 路徑全數失敗必須非 0 結束。
+
+    2026-08-02 code review：舊版在 `if not ok_stocks:` 直接 `return` → exit 0，
+    排程只會看到成功，而實際上一檔都沒抓到。
+    """
+    import cache_manager
+    monkeypatch.setattr(cache_manager, 'get_finmind_loader', lambda: _AlwaysFailLoader())
+    monkeypatch.setattr(
+        bulk, 'sync_fundamental_to_finmind_cache',
+        lambda **_kwargs: pytest.fail('全數失敗時不該進 sync'))
+    _per_stock_cli(monkeypatch, tmp_path, ['2330', '2317', '1101'])
+
+    with pytest.raises(SystemExit) as exc:
+        bulk.main()
+
+    assert exc.value.code == 1
+
+
+def test_per_stock_empty_universe_still_exits_zero(monkeypatch, tmp_path):
+    """沒有工作清單不是失敗 —— 不可與「全數失敗」混為一談。"""
+    import cache_manager
+    monkeypatch.setattr(cache_manager, 'get_finmind_loader', lambda: _AlwaysFailLoader())
+    monkeypatch.setattr(
+        bulk, 'sync_fundamental_to_finmind_cache',
+        lambda **_kwargs: pytest.fail('空清單時不該進 sync'))
+    _per_stock_cli(monkeypatch, tmp_path, [])
+
+    bulk.main()          # 正常返回即 exit 0

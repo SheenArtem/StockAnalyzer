@@ -504,15 +504,24 @@ def main():
     # 確保 backfill 不會再造成 live 與 backtest 資料不一致
     # ================================================================
     if not ok_stocks:
-        logger.warning("No stocks backfilled, skip sync/aggregate")
+        if fail_stocks:
+            # 有工作清單卻一檔都沒成功 = 硬失敗（FinMind 額度爆、token 失效、
+            # 網路全斷都長這樣）。舊版在此 `return` → exit 0，排程只會看到成功
+            # （2026-08-02 code review）。
+            logger.error("Backfill FAILED: 0 ok / %d fail -- 全數失敗，不做 sync/aggregate",
+                         len(fail_stocks))
+            sys.exit(1)
+        logger.warning("No stocks to backfill (work list empty), skip sync/aggregate")
         return
 
     # 同步 fundamental_cache -> finmind_cache (get_monthly_revenue 實際讀取路徑)。
     # per-stock backfill 只寫 fundamental_cache，不同步則 AI 報告 / value_screener /
     # position_monitor (走 get_monthly_revenue 讀 finmind_cache) 看不到新資料
     # (2026-06-17 路徑分裂修)。不受 --skip-aggregate 影響 (那只跳過 backtest/ 聚合)。
+    # raise_on_error=True 與 --bulk-update 那條路徑（:366）一致：sync 失敗代表
+    # fundamental_cache 與 finmind_cache 分歧，而那正是 RF-1 鐵則要防的事，不可靜默。
     logger.info("Syncing fundamental_cache -> finmind_cache ...")
-    sync_fundamental_to_finmind_cache()
+    sync_fundamental_to_finmind_cache(raise_on_error=True)
 
     if args.skip_aggregate:
         logger.warning("--skip-aggregate 啟用，未聚合 backtest/financials_revenue.parquet")

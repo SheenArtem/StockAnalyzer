@@ -46,25 +46,34 @@ MAPPINGS = {
 }
 
 
-def check_category(category: str, threshold_days: int) -> list[dict]:
-    """Return list of {stock_id, live_date, bt_date, gap_days} for drift rows."""
+def check_category(category: str, threshold_days: int) -> tuple[list[dict], list[dict]]:
+    """Return (drift_rows, uncovered_rows).
+
+    `uncovered_rows` 是「這次檢查沒能涵蓋的股票」—— 讀不開或 schema 不對的 live
+    parquet。舊版對這些檔 `except Exception: continue`，於是被丟掉的股票連 drift
+    都報不出來，**破洞會自我隱藏**：這支工具的職責正是偵測 drift，而讀不開的快取
+    檔本身就是最強的 drift 訊號。
+    """
     cache_key, bt_name = MAPPINGS[category]
     bt_path = BT_DIR / bt_name
 
     if not bt_path.exists():
         print(f"[WARN] {bt_path} 不存在，skip")
-        return []
+        return [], [{'category': category, 'stock_id': '*',
+                     'reason': f'backtest parquet 不存在: {bt_path.name}'}]
 
     # Load backtest aggregated
     bt = pd.read_parquet(bt_path)
     if 'date' not in bt.columns or 'stock_id' not in bt.columns:
         print(f"[WARN] {bt_name} schema 異常（無 date/stock_id），skip")
-        return []
+        return [], [{'category': category, 'stock_id': '*',
+                     'reason': f'backtest schema 異常（無 date/stock_id）: {bt_name}'}]
     bt['date'] = pd.to_datetime(bt['date'], errors='coerce')
     bt_latest = bt.dropna(subset=['date']).groupby('stock_id')['date'].max().to_dict()
 
     # Scan live per-stock
     drifts = []
+    uncovered = []
     live_pattern = f"{cache_key}_*.parquet"
     files = sorted(LIVE_DIR.glob(live_pattern))
     print(f"[{category}] Scanning {len(files)} live files vs backtest ({len(bt_latest)} stocks)...")
@@ -73,13 +82,24 @@ def check_category(category: str, threshold_days: int) -> list[dict]:
         sid = f.stem.replace(f"{cache_key}_", "")
         try:
             df_live = pd.read_parquet(f)
-        except Exception:
+        except Exception as e:
+            uncovered.append({'category': category, 'stock_id': sid,
+                              'reason': f'讀取失敗: {type(e).__name__} {str(e)[:80]}'})
             continue
-        if df_live.empty or 'date' not in df_live.columns:
+        if df_live.empty:
+            uncovered.append({'category': category, 'stock_id': sid,
+                              'reason': 'live parquet 為空'})
+            continue
+        if 'date' not in df_live.columns:
+            uncovered.append({'category': category, 'stock_id': sid,
+                              'reason': f'live parquet 無 date 欄（欄位: '
+                                        f'{list(df_live.columns)[:6]}）'})
             continue
         df_live['date'] = pd.to_datetime(df_live['date'], errors='coerce')
         live_latest = df_live['date'].max()
         if pd.isna(live_latest):
+            uncovered.append({'category': category, 'stock_id': sid,
+                              'reason': 'live parquet 的 date 全部無法解析'})
             continue
 
         bt_latest_for_sid = bt_latest.get(sid)
@@ -100,7 +120,7 @@ def check_category(category: str, threshold_days: int) -> list[dict]:
                 'bt_date': bt_latest_for_sid.strftime('%Y-%m-%d'),
                 'gap_days': gap,
             })
-    return drifts
+    return drifts, uncovered
 
 
 def main():
@@ -114,8 +134,11 @@ def main():
 
     cats = list(MAPPINGS) if args.category == "all" else [args.category]
     all_drifts = []
+    all_uncovered = []
     for c in cats:
-        all_drifts.extend(check_category(c, args.threshold_days))
+        drifts, uncovered = check_category(c, args.threshold_days)
+        all_drifts.extend(drifts)
+        all_uncovered.extend(uncovered)
 
     print()
     print("=" * 70)
@@ -128,6 +151,16 @@ def main():
     for c in cats:
         print(f"  {c:10s} drift count: {by_cat.get(c, 0)}")
     print(f"  TOTAL drift stocks: {len(all_drifts)}")
+
+    if all_uncovered:
+        # 這些股票「沒被檢查到」，不是「檢查通過」。舊版靜默 continue 會讓破洞
+        # 自我隱藏 —— 在只印 [OK] 的情況下實際有一批股票根本沒比對過。
+        print(f"\n[WARN] {len(all_uncovered)} 檔 live parquet 無法檢查（不是通過，是"
+              f"沒涵蓋到）：")
+        for u in all_uncovered[:20]:
+            print(f"  {u['category']:10s} {u['stock_id']:10s} {u['reason']}")
+        if len(all_uncovered) > 20:
+            print(f"  ... 另有 {len(all_uncovered) - 20} 檔")
 
     if all_drifts:
         # Sort by gap_days desc
@@ -153,10 +186,12 @@ def main():
             subprocess.run([sys.executable, str(ROOT / "tools" / "aggregate_fundamental_cache.py")],
                            cwd=str(ROOT), check=True)
             print("Aggregate done. 建議重跑 consistency check 驗證。")
+    elif all_uncovered:
+        print("\n[WARN] 已檢查的類別無 drift，但上列檔案未能涵蓋 —— 不宣稱一致。")
     else:
         print("\n[OK] All categories consistent!")
 
-    return 0 if not all_drifts else 1
+    return 0 if not (all_drifts or all_uncovered) else 1
 
 
 if __name__ == "__main__":
