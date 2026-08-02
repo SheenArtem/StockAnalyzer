@@ -66,11 +66,12 @@
 **仍未處理**：
 - **第四、五、六、九節全部已修，原報告項目已全數結案。** 全套測試 384 → **538**。
 - 新增的待辦（本輪查出，非原報告）：
-  - `ohlcv_tw.parquet` 的 11 個部分橫斷面日回填。**更正：原寫「TPEX 不可行」是錯的**
-    —— 那是舊端點的限制，改打 `dailyQuotes` 後兩市都補得回來（見
-    `tests/test_tpex_daily_date_aware.py`）。
-  - 2026-04-13~04-29 那 13 個交易日的抓取斷層（已可被 `report_coverage_gaps` 偵測，
-    但缺的資料還在缺）。
+  - ~~`ohlcv_tw.parquet` 的 11 個部分橫斷面日回填~~ **✅ 已完成**。原寫「TPEX 不可行」
+    是舊端點的限制，改打 `dailyQuotes` 後兩市都補得回來。
+    `tools/backfill_panel_gaps.py` 已補 13,004 列（含 2026-04 斷層），詳
+    `docs/agent/data-sources.md`。剩 `2016-09-10` 一天沒補滿（鄰日 09-12 本身不可信）。
+  - ~~2026-04-13~04-29 那 13 個交易日的抓取斷層~~ **✅ 已補齊**（同一支工具，
+    補後 13 天全部落在 99.9~100% 覆蓋率）。偵測面的 `report_coverage_gaps` 保留。
 - 第六節 `docs/agent/data-sources.md` 資料源優先序表已於 `61900ee` / `3503e56` 反映官方 EOD overlay，本輪另加「拿請求日期當資料日期是錯的」與「交易日曆要問官方」兩節。
 - **產品決策待定**：`regime_log.jsonl` 有 692 筆的 regime 標籤與現行 panel 重算不同，但那 78.1% 屬 panel 版本差（垃圾價清零、V=0 凍結列、yfinance NaN 修復都改過歷史值），不是毀損。要不要宣告「現行 panel 為唯一權威」整檔重建，是產品決策，本次刻意沒做（`--repair-history --rebuild-all` 可執行）。
 
