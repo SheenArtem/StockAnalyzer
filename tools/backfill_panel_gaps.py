@@ -279,10 +279,12 @@ def backfill_day(day, panel_dates, src, apply_changes, exclude):
 
         row = {"Open": o * pf, "High": h * pf, "Low": l * pf,
                "Close": c * pf, "Volume": v * vf}
-        # Adj Close 沿用鄰列慣例：早期為空、近期等於 Close
+        # Adj Close 沿用鄰列慣例：早期為空、近期等於 Close。
+        # 用 float('nan') 而不是 pd.NA —— 後者是 object dtype，塞進整欄皆空的
+        # `Adj Close` 會觸發 pandas 的 all-NA concat dtype 推斷 FutureWarning。
         if "Adj Close" in df.columns:
             nb = _num(df.loc[pd.Timestamp(prev_day)].get("Adj Close"))
-            row["Adj Close"] = row["Close"] if nb is not None else pd.NA
+            row["Adj Close"] = row["Close"] if nb is not None else float("nan")
 
         if len(samples) < 3:
             samples.append(f"{sid} 原始 close={c:.2f} ×{pf:.4f} -> {row['Close']:.2f}")
