@@ -353,6 +353,54 @@ def test_repair_never_adds_or_drops_dates(tmp_path, monkeypatch):
     assert stats['skipped'] == 1, 'panel 沒有的 2026-01-01 要算進 skipped 並保留原值'
 
 
+def _proxy_frame(per_day):
+    """{日期偏移: 成分股數} -> proxy DataFrame[stock_id, date, Close]。"""
+    rows = []
+    for offset, n in enumerate(per_day):
+        day = pd.Timestamp('2026-01-01') + pd.Timedelta(days=offset)
+        for sid in range(n):
+            rows.append((str(2000 + sid), day, 100.0 + sid))
+    return pd.DataFrame(rows, columns=['stock_id', 'date', 'Close'])
+
+
+def test_thin_proxy_dates_are_dropped():
+    """成分不足的日期必須剔除 —— 等權「均價」對成分極度敏感。
+
+    `ohlcv_tw.parquet` 有 11 個**真實交易日**只存了 33~38% 的橫斷面（官方 MI_INDEX
+    證實那些日子有 1,100~1,300 檔成交，是 yfinance 端缺資料，連 2330 都沒有），
+    top300 代理在那些天只剩約 100~132 檔而非 294，2016-06-04 因此產生
+    |ret_20d| > 30% 的假值。
+    """
+    # 第 30 天只有 100 檔（其餘 294 檔）
+    counts = [294] * 30 + [100] + [294] * 30
+    frame = _proxy_frame(counts)
+
+    out = MRL._drop_thin_proxy_dates(frame)
+
+    thin_day = pd.Timestamp('2026-01-01') + pd.Timedelta(days=30)
+    assert thin_day not in set(out['date']), '成分只剩 34% 的日期要被剔除'
+    assert out['date'].nunique() == 60
+
+
+def test_thin_filter_does_not_kill_early_history():
+    """早期歷史全市場本來就小 —— 門檻用滾動中位數而非固定值，不可誤殺。"""
+    frame = _proxy_frame([120] * 60)          # 全程只有 120 檔，但一致
+
+    out = MRL._drop_thin_proxy_dates(frame)
+
+    assert out['date'].nunique() == 60, '成分數一致就不該被剔除，即使絕對值偏低'
+
+
+def test_thin_filter_tolerates_mild_dips():
+    """單日少幾檔（冷門股無成交）不該被剔除。"""
+    counts = [294] * 30 + [280] + [294] * 30   # 95%
+    frame = _proxy_frame(counts)
+
+    out = MRL._drop_thin_proxy_dates(frame)
+
+    assert out['date'].nunique() == 61
+
+
 def test_drop_non_panel_dates_removes_holiday_rows(tmp_path, monkeypatch):
     """休市日的假列必須刪得掉 —— 那是舊補值 bug 的產物。
 

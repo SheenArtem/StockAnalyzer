@@ -162,6 +162,36 @@ def _entry(date, r20, rng20, s60) -> dict:
     }
 
 
+MIN_PROXY_COVERAGE = 0.80
+
+
+def _drop_thin_proxy_dates(proxy: pd.DataFrame,
+                           min_coverage: float = MIN_PROXY_COVERAGE) -> pd.DataFrame:
+    """剔除代理成分數明顯不足的日期。
+
+    等權「均價」對成分極度敏感，序列混用不同成分時 `pct_change` 算出來的是成分變動
+    而不是報酬。`ohlcv_tw.parquet` 有 11 個**真實交易日**只存了 33~38% 的橫斷面
+    （多為台股補行交易的週六，另有 2019-09-09 / 2021-04-06 / 2025-08-01；官方
+    MI_INDEX 證實這些日子有 1,100~1,300 檔成交，是 yfinance 端缺資料，連 2330 /
+    2317 / 2454 / 1101 都沒有）。那些日子 top300 代理只剩約 100~132 檔而非 294，
+    2016-06-04 因此產生 |ret_20d| > 30% 的假值（2026-08-02 查證）。
+
+    門檻用「前後 21 個交易日的成分數中位數」而非固定值，才不會誤殺早期歷史
+    （2006-2009 全市場本來就只有數百檔）。
+    """
+    counts = proxy.groupby('date')['stock_id'].nunique().sort_index()
+    baseline = counts.rolling(21, center=True, min_periods=5).median()
+    ratio = counts / baseline
+    thin = ratio[ratio < min_coverage]
+    if len(thin):
+        logger.warning("Dropping %d date(s) with thin proxy coverage (< %.0f%% of the "
+                       "21-session median member count): %s",
+                       len(thin), min_coverage * 100,
+                       ', '.join(f"{d.date()}({counts[d]}/{baseline[d]:.0f})"
+                                 for d in thin.index[:12]))
+    return proxy[~proxy['date'].isin(thin.index)]
+
+
 def _load_proxy() -> tuple:
     """回 (proxy DataFrame, 等權均價 Series)。純 parquet，不打 API。"""
     logger.info("Loading OHLCV: %s", OHLCV_PATH)
@@ -174,6 +204,7 @@ def _load_proxy() -> tuple:
     logger.info("Universe: %d stocks", len(universe))
 
     proxy = ohlcv[ohlcv['stock_id'].isin(universe)].copy()
+    proxy = _drop_thin_proxy_dates(proxy)
     daily_avg = proxy.groupby('date')['Close'].mean().sort_index()
     if len(daily_avg) < 60:
         raise RuntimeError(f"Insufficient history: {len(daily_avg)} days")
@@ -280,7 +311,14 @@ def append_log(entry: dict) -> bool:
     return replaced
 
 
-IMPLAUSIBLE_RET_20D = 0.30
+# ⚠️ 這是「值得人工複核」的篩選門檻，**不是物理上限**。
+# 2026-08-02 更正：起初把 |ret_20d| > 30% 寫成「等權 300 檔代理不可能出現的值」，
+# 那是錯的 —— 20.5 年 5,034 個觀測裡有 6 次超過 30%（0.12%）、從未超過 40%，而那 6 次
+# 多數是真實極端行情：2020-03-19 是 COVID 崩盤（-0.307）、2026-04-30~05-06 是急漲
+# （2330 自己同期 ret_20d 也有 +0.21~+0.24）。唯一的假值是 2016-06-04，成因是成分不足
+# （見 _drop_thin_proxy_dates），已在產生端處理掉。
+SUSPICIOUS_RET_20D = 0.30
+IMPLAUSIBLE_RET_20D = SUSPICIOUS_RET_20D   # 舊名保留，避免外部引用斷掉
 
 
 def drop_non_panel_dates(dry_run: bool = True) -> dict:
@@ -289,9 +327,11 @@ def drop_non_panel_dates(dry_run: bool = True) -> dict:
     舊版補值的 `_twse_trading_days_between` 用 `bdate_range` 產候選日，會把**平日的
     國定假日**也當工作日；那天 TWSE 正確回空、TPEX 卻回上一場的完整橫斷面，於是為
     一個「市場沒開」的日期寫進一筆 regime。2026-08-02 實測留下 3 筆：2026-05-01
-    （勞動節）、2026-06-19、2026-07-10，全是週五休市，`ret_20d` 分別 1.66 / 1.11 /
-    0.90（等權 300 檔代理的物理不可能值），且在 2330 的 5,043 個真實交易日與
-    `ohlcv_tw.parquet` 裡都不存在。
+    （勞動節）、2026-06-19、2026-07-10，全是週五休市，`ret_20d` 分別 1.66 / 1.11 / 0.90。
+
+    休市與否以**官方 MI_INDEX 為準**（三筆皆回 stat="很抱歉，沒有符合條件的資料!"）。
+    不要拿 `2330_price.csv` 當交易日曆 —— 它漏了 11 個真實交易日（見
+    `_drop_thin_proxy_dates`）。
 
     `repair_history` 刻意只修不刪（它無法分辨「panel 還沒補到這天」與「這天不存在」），
     所以刪除獨立成這個明確動作。
