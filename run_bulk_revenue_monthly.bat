@@ -10,6 +10,7 @@ REM   1. Fetch SII + OTC bulk monthly revenue (2 HTTP requests, ~1954 stocks)
 REM   2. Merge into data_cache/fundamental_cache/month_revenue_*.parquet
 REM      (only append missing periods, never overwrite existing)
 REM   3. Aggregate into data_cache/backtest/financials_revenue.parquet
+REM   4. Rebuild data_cache/backtest/revenue_scores_monthly.parquet
 REM
 REM Replaces: per-stock FinMind backfill loop (was ~39 min, now ~13 sec)
 REM Saves: 1954 FinMind requests / month (75% of monthly quota burn)
@@ -24,9 +25,23 @@ set LOG=bulk_revenue_monthly.log
 for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
 echo [%TS%] === Bulk revenue monthly start === >> %LOG%
 
+set STEP=raw revenue aggregate
 python tools\vfvc_backfill_monthly_rev.py --bulk-update >> %LOG% 2>&1
 set EC=%ERRORLEVEL%
+if not "%EC%"=="0" goto failed
 
+set STEP=revenue score rebuild
+python tools\compute_revenue_scores_monthly.py >> %LOG% 2>&1
+set EC=%ERRORLEVEL%
+if not "%EC%"=="0" goto failed
+
+goto done
+
+:failed
+for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
+echo [%TS%] ERROR: %STEP% failed (exit=%EC%). >> %LOG%
+
+:done
 for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
 echo [%TS%] === Bulk revenue monthly done (exit=%EC%) === >> %LOG%
 

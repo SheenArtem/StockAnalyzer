@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -107,12 +109,18 @@ def aggregate_category(cache_key: str, out_file: str, dry_run: bool = False) -> 
         logger.info("  [dry-run] would write %s (%d rows)", out_path, len(combined))
     else:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        # Backup existing file before overwrite
-        if out_path.exists():
-            backup = out_path.with_suffix(".parquet.bak")
-            out_path.replace(backup)
-            logger.info("  backed up existing -> %s", backup.name)
-        combined.to_parquet(out_path)
+        temp = out_path.with_name(f".{out_path.name}.{os.getpid()}.tmp")
+        try:
+            combined.to_parquet(temp, index=False)
+            # Keep the last-known-good target in place until the replacement is
+            # fully serialized.  The .bak is diagnostic/recovery insurance.
+            if out_path.exists():
+                backup = out_path.with_suffix(".parquet.bak")
+                shutil.copy2(out_path, backup)
+                logger.info("  backed up existing -> %s", backup.name)
+            os.replace(temp, out_path)
+        finally:
+            temp.unlink(missing_ok=True)
         size_mb = out_path.stat().st_size / (1024 * 1024)
         logger.info("  written: %s (%.1f MB)", out_path, size_mb)
 

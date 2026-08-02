@@ -1,6 +1,6 @@
 """Refresh ohlcv_tw.parquet + value_sim_indicators.parquet + value_sim_fwd_returns.parquet.
 
-These 3 files are the core data feed for whale_picks_screener + IC validation tools.
+These 3 files feed the market scan, valuation, and IC validation tools.
 Without a daily refresh job they go stale (last manual refresh on 2026-04-19 left
 value_sim_indicators at 2026-04-13 while daily {sid}_price.csv was current to 5/21).
 
@@ -14,12 +14,14 @@ Usage:
   python tools/refresh_backtest_panels.py            # full refresh
   python tools/refresh_backtest_panels.py --no-fwd   # skip fwd_returns (faster, OK for live screening)
 
-Schedule via run_scanner.bat (weekly Sun) or run_scanner_weekly.bat. Each whale_picks_screener
-run after this completes will pick up fresh data automatically.
+Schedule via run_scanner.bat or run_scanner_weekly.bat. Downstream consumers
+pick up the refreshed panels automatically.
 """
 from __future__ import annotations
 import argparse
 import logging
+import math
+import os
 import re
 import sys
 import time
@@ -45,6 +47,64 @@ log = logging.getLogger("refresh_backtest_panels")
 
 
 _TW_TICKER_RE = re.compile(r'^\d{4,6}[A-Z]?$')
+MIN_MARKET_ROWS = 500
+MIN_MARKET_COVERAGE_RATIO = 0.80
+
+
+def _atomic_to_parquet(frame: pd.DataFrame, path: Path) -> None:
+    """Write a complete parquet beside the target, then atomically promote it."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        frame.to_parquet(tmp_path, index=False)
+        os.replace(tmp_path, path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+def drop_unhealthy_recent_market_dates(
+        frame: pd.DataFrame, lookback_days: int = 45,
+        expected_stock_count: int | None = None) -> tuple[pd.DataFrame, list[pd.Timestamp]]:
+    """Drop market-wide zero-volume and incomplete recent dates.
+
+    This is a second boundary behind ``refresh_universe_prices`` because old
+    per-stock CSVs may already contain a Yahoo holiday placeholder or a
+    rate-limited partial day.
+    """
+    if frame.empty or not {'date', 'stock_id', 'Volume'} <= set(frame.columns):
+        return frame, []
+    dates = pd.to_datetime(frame['date']).dt.normalize()
+    cutoff = dates.max() - pd.Timedelta(days=lookback_days)
+    recent = frame.loc[dates >= cutoff, ['stock_id', 'Volume']].copy()
+    recent['date'] = dates[dates >= cutoff]
+    recent['positive'] = pd.to_numeric(
+        recent['Volume'], errors='coerce').fillna(0).gt(0)
+    stats = recent.groupby('date').agg(
+        rows=('stock_id', 'size'), positive_volume=('positive', 'sum')).sort_index()
+    if stats.empty:
+        return frame, []
+    reference = int(stats['positive_volume'].max())
+    expected_floor = (
+        math.ceil(expected_stock_count * MIN_MARKET_COVERAGE_RATIO)
+        if expected_stock_count else 0)
+    threshold = max(MIN_MARKET_ROWS, expected_floor,
+                    math.ceil(reference * MIN_MARKET_COVERAGE_RATIO))
+    if not stats['positive_volume'].ge(threshold).any():
+        raise RuntimeError(
+            "no healthy recent market date during panel aggregation "
+            f"(threshold={threshold}, max_positive={reference}, "
+            f"expected_stocks={expected_stock_count})")
+    bad_dates = list(stats.index[stats['positive_volume'] < threshold])
+    if not bad_dates:
+        return frame, []
+    keep = ~dates.isin(bad_dates)
+    dropped = int((~keep).sum())
+    log.warning(
+        "Dropped %d rows across %d unhealthy recent market dates "
+        "(positive-volume threshold=%d): %s",
+        dropped, len(bad_dates), threshold,
+        ', '.join(str(d.date()) for d in bad_dates))
+    return frame.loc[keep].copy(), bad_dates
 
 
 def aggregate_csv_to_parquet() -> pd.DataFrame:
@@ -101,13 +161,14 @@ def aggregate_csv_to_parquet() -> pd.DataFrame:
         log.warning("Dropped %d bad-Close rows (NaN/<=0) during aggregation", dropped_badclose)
 
     out = pd.concat(frames, ignore_index=True)
+    out, _bad_market_dates = drop_unhealthy_recent_market_dates(
+        out, expected_stock_count=len(tw_csv))
     log.info("Aggregated: %d rows, %d stocks, date range %s -> %s, took %.1fs",
              len(out), out['stock_id'].nunique(),
              out['date'].min().date(), out['date'].max().date(),
              time.time() - t0)
 
-    OHLCV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    out.to_parquet(OHLCV_PATH, index=False)
+    _atomic_to_parquet(out, OHLCV_PATH)
     log.info("Saved: %s", OHLCV_PATH)
     return out
 
@@ -120,14 +181,14 @@ def refresh_indicators(ohlcv: pd.DataFrame, fwd: bool = True) -> None:
     log.info("Precomputing indicators (RSI / RVOL / 52w-low / avg_tv) for %d stocks...",
              ohlcv['stock_id'].nunique())
     ind = precompute_indicators(ohlcv)
-    ind.to_parquet(IND_PATH, index=False)
+    _atomic_to_parquet(ind, IND_PATH)
     log.info("Saved %s: %d rows, took %.1fs", IND_PATH, len(ind), time.time() - t0)
 
     if fwd:
         t1 = time.time()
         log.info("Precomputing forward returns (fwd_5d / fwd_20d / fwd_60d / fwd_120d / max-min)...")
         f = precompute_forward_returns(ohlcv)
-        f.to_parquet(FWD_PATH, index=False)
+        _atomic_to_parquet(f, FWD_PATH)
         log.info("Saved %s: %d rows, took %.1fs", FWD_PATH, len(f), time.time() - t1)
     else:
         log.info("Skipping fwd_returns refresh (--no-fwd)")

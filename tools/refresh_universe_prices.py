@@ -17,7 +17,7 @@ scanner_job.py 的 stage-2 candidate 迭代裡，不是獨立 job）。本工具
 
 下游受益（這些原本都因 CSV 凍結而吃舊價）：
   - tools/build_tw_breadth.py        -> 市場廣度 macro panel
-  - tools/refresh_backtest_panels.py -> ohlcv_tw.parquet -> Whale Picks production
+  - tools/refresh_backtest_panels.py -> ohlcv_tw.parquet -> scans and research tools
   - 個股技術分析 / 估值 panel
 
 CSV 格式沿用 cache_manager：DatetimeIndex(無名) + [Open,High,Low,Close,Volume,Adj Close]。
@@ -29,8 +29,11 @@ import time
 import logging
 import argparse
 import warnings
+import math
+import os
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
@@ -39,6 +42,8 @@ sys.path.insert(0, str(REPO))
 CACHE = REPO / "data_cache"
 # cache_manager 的 price CSV 欄位順序（Volume 在 Adj Close 之前）
 COLS = ["Open", "High", "Low", "Close", "Volume", "Adj Close"]
+MIN_MARKET_ROWS = 500
+MIN_MARKET_COVERAGE_RATIO = 0.80
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
@@ -95,6 +100,137 @@ def _yf_batch(sids, suffix, start_date, chunk):
     return out
 
 
+def _official_daily_overlay(sids, target_date, lookback_days=7):
+    """Fetch one complete TWSE+TPEX EOD cross-section from official APIs.
+
+    The daily official endpoints are two market-wide calls and are used as the
+    authoritative last-day overlay.  Yahoo remains useful for the overlapping
+    history window, but a partial/rate-limited Yahoo batch must not decide the
+    production market date.
+    """
+    from twse_api import TWSEOpenData
+
+    expected = set(map(str, sids))
+    min_rows = max(1, math.ceil(len(expected) * MIN_MARKET_COVERAGE_RATIO))
+    api = TWSEOpenData()
+    for offset in range(lookback_days + 1):
+        day = pd.Timestamp(target_date).normalize() - pd.Timedelta(days=offset)
+        try:
+            frame = api.get_market_daily_all(date=day.to_pydatetime())
+        except Exception as exc:
+            log.warning("Official EOD fetch failed for %s: %s", day.date(), repr(exc)[:120])
+            continue
+        if frame is None or frame.empty:
+            continue
+        frame = frame.copy()
+        frame['stock_id'] = frame['stock_id'].astype(str)
+        frame = frame[frame['stock_id'].isin(expected)]
+        for col in ['open', 'high', 'low', 'close', 'volume']:
+            frame[col] = pd.to_numeric(frame[col], errors='coerce')
+        healthy = frame[['open', 'high', 'low', 'close', 'volume']].gt(0).all(axis=1)
+        frame = frame[healthy].copy()
+        if len(frame) < min_rows:
+            log.warning("Official EOD %s incomplete: %d rows < %d", day.date(), len(frame), min_rows)
+            continue
+        log.info("Official TWSE/TPEX EOD: %s, %d complete OHLCV rows", day.date(), len(frame))
+        return day, frame
+    return None, pd.DataFrame()
+
+
+def _merge_official_overlay(data, official_date, official):
+    """Overlay official one-day rows into the per-sid Yahoo result mapping."""
+    if official_date is None or official is None or official.empty:
+        return data
+    for row in official.itertuples(index=False):
+        sid = str(row.stock_id)
+        one = pd.DataFrame({
+            'Open': [float(row.open)],
+            'High': [float(row.high)],
+            'Low': [float(row.low)],
+            'Close': [float(row.close)],
+            'Volume': [float(row.volume)],
+            # Filled from the cached adjustment ratio before CSV merge.
+            'Adj Close': [np.nan],
+        }, index=pd.DatetimeIndex([official_date]))
+        prior = data.get(sid)
+        if prior is not None and not prior.empty:
+            one = pd.concat([prior, one])
+            one = one[~one.index.duplicated(keep='last')].sort_index()
+        data[sid] = one
+    return data
+
+
+def _market_date_health(data, expected_count):
+    """Return (healthy latest date, unhealthy dates, coverage stats)."""
+    rows = []
+    for sid, frame in data.items():
+        if frame is None or frame.empty or 'Volume' not in frame.columns:
+            continue
+        dates = pd.to_datetime(frame.index).normalize()
+        volumes = pd.to_numeric(frame['Volume'], errors='coerce').fillna(0).to_numpy()
+        rows.extend(zip(dates, volumes > 0))
+    if not rows:
+        raise RuntimeError("price refresh returned no dated volume rows")
+
+    stats = pd.DataFrame(rows, columns=['date', 'positive']).groupby('date').agg(
+        rows=('positive', 'size'), positive_volume=('positive', 'sum')).sort_index()
+    reference = int(stats['positive_volume'].max())
+    absolute_floor = min(MIN_MARKET_ROWS, max(1, int(expected_count * 0.50)))
+    threshold = max(absolute_floor, int(np.ceil(reference * MIN_MARKET_COVERAGE_RATIO)))
+    healthy = stats[stats['positive_volume'] >= threshold]
+    if healthy.empty:
+        raise RuntimeError(
+            f"no healthy batch market date (threshold={threshold}, stats={stats.tail(5).to_dict('index')})")
+    latest = healthy.index.max()
+    unhealthy = set(stats.index[stats['positive_volume'] < threshold])
+    log.info("Batch market health: latest=%s positive=%d threshold=%d; dropping %d incomplete dates",
+             latest.date(), int(stats.loc[latest, 'positive_volume']), threshold, len(unhealthy))
+    return latest, unhealthy, stats
+
+
+def _latest_adjustment_ratio(cached):
+    """Return the last finite Adj Close / Close ratio, defaulting to 1."""
+    if not {'Adj Close', 'Close'} <= set(cached.columns):
+        return 1.0
+    ratio = (pd.to_numeric(cached['Adj Close'], errors='coerce') /
+             pd.to_numeric(cached['Close'], errors='coerce').replace(0, np.nan))
+    ratio = ratio.replace([np.inf, -np.inf], np.nan).dropna()
+    return float(ratio.iloc[-1]) if len(ratio) else 1.0
+
+
+def _merge_cached_price_frame(cached, new, unhealthy_incoming_dates):
+    """Merge an incoming batch without deleting valid history from disk.
+
+    Market health is computed from the current network batch.  A date can be
+    partial in that batch even when the existing cross-section on disk is
+    complete, so only incoming rows may be discarded here.
+    """
+    new = new.reindex(columns=COLS)
+    new = new[~new.index.normalize().isin(unhealthy_incoming_dates)]
+    if new.empty:
+        return None
+    if new['Adj Close'].isna().any():
+        adj_ratio = _latest_adjustment_ratio(cached)
+        mask = new['Adj Close'].isna() & new['Close'].notna()
+        new.loc[mask, 'Adj Close'] = new.loc[mask, 'Close'] * adj_ratio
+    merged = pd.concat([cached, new])
+    return merged[~merged.index.duplicated(keep='last')].sort_index()
+
+
+def _validate_refresh_summary(healthy_written, expected_count, fail):
+    """Fail the process when the promoted healthy-date batch is incomplete."""
+    required = max(
+        min(MIN_MARKET_ROWS, expected_count),
+        math.ceil(expected_count * MIN_MARKET_COVERAGE_RATIO),
+    )
+    if fail:
+        raise RuntimeError(f"{fail} price CSV merge(s) failed")
+    if healthy_written < required:
+        raise RuntimeError(
+            f"healthy market date written for only {healthy_written}/{expected_count} "
+            f"stocks; required at least {required}")
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -126,9 +262,24 @@ def main():
         data.update(data2)
         log.info("  .TWO retry: +%d/%d (%.0fs)", len(data2), len(missing), time.time() - t0)
 
+    # 2a. Overlay the latest complete official EOD cross-section.  Before
+    # 13:35, today's bar is incomplete, so target the previous calendar day
+    # and walk backward across weekends/market holidays.
+    now = pd.Timestamp.now()
+    target_date = now.normalize()
+    if now < now.normalize() + pd.Timedelta(hours=13, minutes=35):
+        target_date -= pd.Timedelta(days=1)
+    official_date, official = _official_daily_overlay(sids, target_date)
+    data = _merge_official_overlay(data, official_date, official)
+
+    healthy_date, unhealthy_dates, _coverage = _market_date_health(data, len(sids))
+    if (target_date - healthy_date).days > 4:
+        raise RuntimeError(
+            f"latest healthy batch date {healthy_date.date()} is too stale for target "
+            f"{target_date.date()}")
+
     # 2b. 防呆：盤中 (TW 收盤 13:30) 手動/早班執行時 yfinance 會回當日「未完成」盤中 bar，
     #     臨時收盤價會被寫進 CSV 污染當日資料。排程都在收盤後跑不受影響；此處只擋手動早跑。
-    now = pd.Timestamp.now()
     if now < now.normalize() + pd.Timedelta(hours=13, minutes=35):
         today = now.normalize()
         n_trim = 0
@@ -143,7 +294,7 @@ def main():
                      now.strftime("%H:%M"), n_trim, today.date())
 
     # 3. 合併進每檔 CSV（沿用 cache_manager 格式）
-    ok = fail = skipped = 0
+    ok = fail = skipped = healthy_written = 0
     newest_seen = ""
     for sid in sids:
         new = data.get(sid)
@@ -153,11 +304,23 @@ def main():
         try:
             path = CACHE / f"{sid}_price.csv"
             cached = pd.read_csv(path, index_col=0, parse_dates=True)
-            new = new.reindex(columns=COLS)          # 對齊欄位順序
-            merged = pd.concat([cached, new])
-            merged = merged[~merged.index.duplicated(keep="last")].sort_index()
-            merged.to_csv(path)                       # 同 cm.save_cache (df.to_csv)
+            merged = _merge_cached_price_frame(cached, new, unhealthy_dates)
+            if merged is None:
+                skipped += 1
+                continue
+            tmp_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+            try:
+                merged.to_csv(tmp_path)
+                os.replace(tmp_path, path)
+            finally:
+                tmp_path.unlink(missing_ok=True)
             ok += 1
+            on_healthy = merged.index.normalize() == healthy_date
+            if on_healthy.any():
+                healthy_volume = pd.to_numeric(
+                    merged.loc[on_healthy, 'Volume'], errors='coerce').fillna(0)
+                if healthy_volume.gt(0).any():
+                    healthy_written += 1
             last = str(merged.index.max())[:10]
             if last > newest_seen:
                 newest_seen = last
@@ -168,6 +331,9 @@ def main():
     log.info("Done: %d merged / %d skipped(no yf data) / %d fail in %.0fs",
              ok, skipped, fail, time.time() - t0)
     log.info("Newest date reached: %s", newest_seen)
+    log.info("Healthy date %s written for %d/%d stocks",
+             healthy_date.date(), healthy_written, len(sids))
+    _validate_refresh_summary(healthy_written, len(sids), fail)
 
 
 if __name__ == "__main__":

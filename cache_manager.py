@@ -3,6 +3,7 @@ import os
 import re
 import logging
 import threading
+from collections import deque
 import pandas as pd
 import datetime
 import time
@@ -491,6 +492,7 @@ class FinMindTracker:
         self.has_token = has_token
         self.request_count = 0
         self._hour_start = time.time()
+        self._request_times = deque()
         self._lock = threading.Lock()
         self._quota_blocked_until = 0.0  # server-side 額度爆掉的 negative cache (epoch)
 
@@ -505,13 +507,10 @@ class FinMindTracker:
             if _now < self._quota_blocked_until:
                 raise FinMindQuotaBlockedError(
                     f"FinMind quota exhausted, fail-fast for {int(self._quota_blocked_until - _now)}s "
-                    "until wall-hour reset (callers fall back to stale cache)")
-            self._check_rate_limit()
-            with self._lock:
-                self.request_count += 1
-                count = self.request_count
+                    "until rolling-window cooldown (callers fall back to stale cache)")
+            count, stamp, oldest = self._reserve_request()
             if count % 50 == 0:
-                elapsed = time.time() - self._hour_start
+                elapsed = max(stamp - oldest, 0.001)
                 rate = count / (elapsed / 3600) if elapsed > 0 else 0
                 logger.info("FinMind API: %d requests (%.0f/hr rate), %.0fs elapsed",
                             count, rate, elapsed)
@@ -522,63 +521,109 @@ class FinMindTracker:
                 return attr(*args, **kwargs)
             except KeyError as e:
                 if str(e) == "'data'":
-                    # FinMind server-side quota (response 無 'data' key)。額度整點重置：
-                    # 只有貼近整點時等待才有意義；其餘 fail-fast + 整小時 negative cache。
+                    # FinMind server-side quota (response 無 'data' key)。實測為
+                    # rolling 60-minute window，不是鐘點整點重置。只有接近本
+                    # tracker 視窗尾端才等待；其餘 fail-fast + negative cache。
                     # (舊版盲睡 65s 再 retry — 離重置遠時必然又失敗，互動路徑每個
                     #  builder 白卡 65s, 2026-06-10 實測 prompt 組裝因此拖到 170s)
-                    wait = self._seconds_until_next_wall_hour()
+                    wait = self._seconds_until_window_reset()
                     if wait <= 90:
                         logger.warning("FinMind quota hit, %.0fs to hour reset, waiting...", wait)
                         time.sleep(wait)
                         try:
+                            self._reserve_request()
                             return attr(*args, **kwargs)
-                        except KeyError:
-                            raise  # second failure: give up
-                    self._quota_blocked_until = time.time() + wait
+                        except KeyError as retry_error:
+                            if str(retry_error) != "'data'":
+                                raise
+                            retry_wait = max(
+                                self._seconds_until_window_reset(), 300.0
+                            )
+                            self._set_quota_block(retry_wait)
+                            raise FinMindQuotaBlockedError(
+                                "FinMind quota remained exhausted after retry; "
+                                f"blocked for {int(retry_wait)}s"
+                            ) from retry_error
+                    self._set_quota_block(wait)
                     logger.warning("FinMind quota hit, %.0fs to hour reset -- fail-fast, "
                                    "blocking further FinMind calls until reset", wait)
+                    raise FinMindQuotaBlockedError(
+                        f"FinMind quota exhausted; blocked for {int(wait)}s"
+                    ) from e
                 raise
 
         return tracked_call
 
-    @staticmethod
-    def _seconds_until_next_wall_hour():
-        """Calculate seconds until the next wall-clock hour boundary + 5s buffer."""
-        import datetime as _dt
-        now = _dt.datetime.now()
-        next_hour = now.replace(minute=0, second=0, microsecond=0) + _dt.timedelta(hours=1)
-        return (next_hour - now).total_seconds() + 5
+    def _prune_window_locked(self, now):
+        cutoff = now - 3600.0
+        while self._request_times and self._request_times[0] <= cutoff:
+            self._request_times.popleft()
+        if self._request_times:
+            self._hour_start = self._request_times[0]
 
-    def _check_rate_limit(self):
-        """Auto-pause if approaching rate limit, reset counter each hour."""
-        elapsed = time.time() - self._hour_start
-
-        # Reset counter every hour
-        if elapsed >= 3600:
+    def _reserve_request(self):
+        """Atomically wait for and reserve one rolling-window request slot."""
+        while True:
+            now = time.time()
             with self._lock:
                 old_count = self.request_count
-                self.request_count = 0
-                self._hour_start = time.time()
-            if old_count > 0:
-                logger.info("FinMind API: hour reset (was %d requests)", old_count)
-            return
+                self._prune_window_locked(now)
+                current_count = len(self._request_times)
+                self.request_count = current_count
+                if current_count < _FINMIND_RATE_PAUSE:
+                    self._request_times.append(now)
+                    self.request_count = len(self._request_times)
+                    reserved = (
+                        self.request_count,
+                        now,
+                        self._request_times[0],
+                    )
+                else:
+                    reserved = None
+            if old_count and current_count < old_count:
+                logger.info(
+                    "FinMind API: rolling window released %d request(s)",
+                    old_count - current_count,
+                )
+            if reserved is not None:
+                return reserved
 
-        if self.request_count >= _FINMIND_RATE_PAUSE:
-            # Wait until next wall-clock hour (more likely to align with server reset)
-            wait_seconds = self._seconds_until_next_wall_hour()
+            wait_seconds = self._seconds_until_window_reset()
             logger.warning(
-                "FinMind API: rate limit reached (%d/%d), pausing %.0fs until next hour",
-                self.request_count, _FINMIND_RATE_LIMIT, wait_seconds,
+                "FinMind API: rate limit reached (%d/%d), pausing %.0fs until "
+                "the rolling window releases a slot",
+                current_count,
+                _FINMIND_RATE_LIMIT,
+                wait_seconds,
             )
-            # (duplicate message removed; already logged via logger.warning above)
             time.sleep(wait_seconds)
-            with self._lock:
-                self.request_count = 0
-                self._hour_start = time.time()
+
+    def _set_quota_block(self, wait_seconds):
+        with self._lock:
+            self._quota_blocked_until = max(
+                self._quota_blocked_until,
+                time.time() + max(float(wait_seconds), 1.0),
+            )
+
+    def _seconds_until_window_reset(self):
+        """Seconds until this tracker's rolling 60-minute window expires."""
+        now = time.time()
+        with self._lock:
+            self._prune_window_locked(now)
+            oldest = self._request_times[0] if self._request_times else self._hour_start
+        return max(0.0, oldest + 3600.0 - now + 5.0)
 
     def get_stats(self):
         """Return current API usage stats."""
-        elapsed = time.time() - self._hour_start
+        now = time.time()
+        with self._lock:
+            self._prune_window_locked(now)
+            if self._request_times:
+                self.request_count = len(self._request_times)
+            else:
+                self.request_count = 0
+                self._hour_start = now
+            elapsed = now - self._hour_start
         return {
             'request_count': self.request_count,
             'elapsed_seconds': round(elapsed, 1),

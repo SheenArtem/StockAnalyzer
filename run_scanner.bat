@@ -6,20 +6,9 @@ REM  Schedule: DAILY 00:00 -- every day, including Sun/Mon (registered as a
 REM            Daily trigger since 2026-04-11; the "TUE-SAT" label this comment
 REM            used to claim never matched the actual trigger).
 REM
-REM  Why DAILY and not TUE-SAT (load-bearing -- do NOT narrow to weekdays):
-REM    The Whale Picks production strategy rebalances on M15 = the last weekday
-REM    on or before the 15th of the month (whale_picks_screener.py
-REM    _is_mid_month_rebal_day). When the 15th falls on a MONDAY, M15 IS that
-REM    Monday. A TUE-SAT schedule skips Monday, so in those months the
-REM    whale_picks_screener M15 marker AND whale_picks_ledger_append.py --rebal
-REM    (both self-gate on today==M15) would NEVER fire -- the entire monthly
-REM    rebalance marker + ledger reconcile is silently lost (~1-2 months/year,
-REM    whenever the 15th is a Monday).
-REM    Running every day guarantees the M15 day is always hit. (M15 is never
-REM    Sat/Sun by definition, so Monday is the only at-risk weekday.)
-REM
-REM    Everything else is safe to re-run on non-trading days: TAIFEX/chip
-REM    archivers dedup by data_date; YT/news stages are best-effort.
+REM  Why DAILY: market, breadth, sentiment, news, and archival panels use their
+REM  own date/dedup guards. Non-trading-day reruns are safe, and a daily trigger
+REM  avoids gaps after holidays or scheduler downtime.
 REM
 REM  History: MON-FRI 22:00 -> 00:00 on 2026-04-25 when YT sync was folded in.
 REM
@@ -217,10 +206,10 @@ REM --regime-filter: VF-G4 DRY-RUN logs today's regime vs volatile filter
 REM (audit only, does not drop picks).
 REM --notify flag + Discord code removed entirely 2026-07-06 (Discord retired).
 REM
-REM DISABLED 2026-05-23 per user request: 100%% Whale Picks is production strategy
-REM (backtest gross CAGR 28%% / Sharpe 1.67; realistic net ~23-27%% / Sharpe 1.46 per 2026-06-09 cost audit), QM + Value scanner downgraded to informational only.
+REM DISABLED 2026-05-23 per user request: QM + Value scanner downgraded to
+REM informational only.
 REM qm_result.json and value picks no longer refresh daily, UI may show stale data
-REM but does not affect Whale Picks pipeline.
+REM but no active scheduled trading path consumes them.
 REM To re-enable: remove the "goto skip_qm_value_scan" line below.
 set PY_EXIT_QM=SKIP
 set PY_EXIT_VAL=SKIP
@@ -247,8 +236,8 @@ REM   1. Step-A engine -> daily_alerts.json (forced/suggested/info)
 REM   2. Paper trade engine -> open_trades.json + trade_log.jsonl
 REM Best-effort: failures do not affect scanner exit code.
 REM
-REM DISABLED 2026-05-23 per user request: 100%% Whale Picks is production strategy,
-REM Mode D + paper trade engine downgraded to informational only.
+REM DISABLED 2026-05-23 per user request: Mode D + paper trade engine downgraded
+REM to informational only.
 REM open_trades.json + trade_log.jsonl no longer refresh daily, Mode D UI may show
 REM stale data.
 REM To re-enable: remove the "goto skip_mode_d" line below.
@@ -275,7 +264,6 @@ REM ------------------------------------------------------------
 REM DISABLED 2026-05-23 per user request: Stage 2 + 3 already disabled 2026-05-21
 REM (Opus 6/15 billing cut), Stage 1 (data enrich only) is orphaned with no
 REM downstream consumer, so stopped together.
-REM 100%% Whale Picks production strategy does not depend on strong_stocks_*.
 REM To re-enable: remove the "goto skip_strong_stocks_all" line below.
 set SS_EC1=SKIP
 goto skip_strong_stocks_all
@@ -310,44 +298,32 @@ REM Discord daily summary REMOVED 2026-07-06 (Discord retired; tool file deleted
 REM Was disabled since 2026-05-04. See git history for the stage block.
 
 REM ------------------------------------------------------------
-REM Whale Picks selector (daily silent compute; M15 marker logged).
-REM Added 2026-05-16: composite_score 7-feature K=10 default (Sharpe 1.52, MDD -9%)
-REM + composite_parsi 8-factor still computed (Sharpe 1.01 K=20, secondary)
-REM (per docs/whale_picks_spec.md v0.10 -- M15 rebal locked 2026-05-22).
-REM Daily compute keeps UI fresh (4/8 factors update daily: price/volume).
-REM Discord push removed 2026-07-06; M15 rebal day logs a marker line instead.
-REM Best-effort: failures do not affect scanner exit.
-REM ------------------------------------------------------------
-REM RE-ENABLED 2026-05-22 per user request: whale_picks pure Python, no LLM quota.
-REM 2026-05-22 switched to M15 rebal: composite_parsi Sharpe 0.60 -> 1.18 (+96%),
-REM walk-forward 0.20 -> 0.63 (+0.43). Sell-the-news hypothesis falsified by MIXED arm.
-REM See reports/whale_picks_rebal_timing/REPORT.md for full controlled experiment.
-REM Manual trigger:
-REM   python tools\refresh_backtest_panels.py
-REM   python tools\whale_picks_screener.py --silent
-REM   python tools\whale_picks_alerts.py
-
-REM 2026-05-22 added refresh_backtest_panels to fix pipeline staleness bug.
+REM Shared market-data refresh for scans, dashboards, and research tools.
+REM refresh_backtest_panels was added 2026-05-22 to fix pipeline staleness.
 REM value_sim_indicators.parquet + ohlcv_tw.parquet + fwd_returns had no daily refresh job
 REM (last manual refresh was 5 weeks ago, left indicators at 4/13 while {sid}_price.csv was 5/21).
 REM Each run aggregates ~1000 csv -> parquet (~10s) + precompute indicators (~5 min)
-REM + fwd_returns (~2 min). Total ~7 min. Best-effort: failures do not affect scanner exit.
+REM + fwd_returns (~2 min). Total ~7 min.
 REM ------------------------------------------------------------
 REM Universe price refresh (RESTORED 2026-05-30).
 REM Per-stock data_cache/{sid}_price.csv daily incremental update. This rode
 REM INSIDE scanner_job.py --mode qm/value before 2026-05-23: commit 56dcc6c
 REM disabled the QM/Value scan to save CPU/LLM, which silently froze the price
-REM cache too (1740 CSVs stuck at 5/23) -- breadth + Whale Picks + valuation
+REM cache too (1740 CSVs stuck at 5/23) -- breadth and valuation
 REM all went stale on old prices. Pure price fetch, no QM/Value scoring, no LLM.
-REM Uses yfinance batch (.TW then .TWO retry), NOT per-stock FinMind: FinMind
-REM free tier 600/hr hard-pauses ~35min at 580/600, so 1964 stocks would take
-REM ~4.5h; yfinance batch has no quota and finishes in ~2 min. MUST run BEFORE
-REM refresh_backtest_panels (which only AGGREGATES these CSVs
-REM into ohlcv_tw.parquet) so Whale Picks screens on fresh prices. Best-effort.
+REM Uses a batch market refresh with official EOD validation. It MUST run BEFORE
+REM refresh_backtest_panels (which only AGGREGATES these CSVs into
+REM ohlcv_tw.parquet) so downstream consumers see fresh, healthy prices.
 REM ------------------------------------------------------------
 call :log "Universe price refresh starting"
 python tools\refresh_universe_prices.py >> scanner.log 2>&1
-call :log "Universe price refresh done"
+set PRICE_REFRESH_EXIT=%ERRORLEVEL%
+if not "%PRICE_REFRESH_EXIT%"=="0" (
+    call :log "[FAIL] Universe price refresh FAILED exit=%PRICE_REFRESH_EXIT%"
+    if "%PY_EXIT%"=="0" set PY_EXIT=%PRICE_REFRESH_EXIT%
+    goto skip_market_panels
+)
+call :log "Universe price refresh done (exit=0)"
 
 REM Market breadth panel rebuild (RESTORED 2026-05-30). Reads the fresh
 REM data_cache/*_price.csv above; feeds macro_dashboard "Market Breadth"
@@ -356,38 +332,24 @@ REM wired into any scheduler before, so it sat frozen at 2026-05-08. ~10s
 REM local aggregate. Best-effort: failure does not affect scanner exit.
 call :log "TW breadth panel starting"
 python tools\build_tw_breadth.py >> scanner.log 2>&1
-call :log "TW breadth panel done"
+set BREADTH_EXIT=%ERRORLEVEL%
+if not "%BREADTH_EXIT%"=="0" (
+    call :log "[WARN] TW breadth panel FAILED exit=%BREADTH_EXIT%"
+) else (
+    call :log "TW breadth panel done (exit=0)"
+)
 
 call :log "Refresh backtest panels starting"
 python tools\refresh_backtest_panels.py >> scanner.log 2>&1
-call :log "Refresh backtest panels done"
+set BACKTEST_PANELS_EXIT=%ERRORLEVEL%
+if not "%BACKTEST_PANELS_EXIT%"=="0" (
+    call :log "[FAIL] Refresh backtest panels FAILED exit=%BACKTEST_PANELS_EXIT%"
+    if "%PY_EXIT%"=="0" set PY_EXIT=%BACKTEST_PANELS_EXIT%
+    goto skip_market_panels
+)
+call :log "Refresh backtest panels done (exit=0)"
 
-call :log "Whale picks selector starting"
-python tools\whale_picks_screener.py --silent >> scanner.log 2>&1
-call :log "Whale picks done"
-
-REM Whale picks daily alerts (early-entry + trailing-stop).
-REM Detects rapid rank rises (outside top-100 -> top-30 in 7d) + active
-REM holdings drop >= 15%% from M15 rebalance close. Best-effort.
-call :log "Whale picks alerts starting"
-python tools\whale_picks_alerts.py >> scanner.log 2>&1
-call :log "Whale picks alerts done"
-
-REM 2026-05-26: Whale picks ledger incremental append (M15 self-gated).
-REM Runs daily but only reconciles when today == M15 rebal day AND holdings
-REM was just refreshed (rebalance_date == today). Otherwise no-op.
-REM Reconciles alert_adds (mid-month manual adds): upgrade->'system' if entered
-REM new top-10, else force-exit. Closes still_holding 'upgraded' rows if they
-REM fell out of top-10. Best-effort.
-call :log "Whale picks ledger append starting"
-python tools\whale_picks_ledger_append.py --rebal >> scanner.log 2>&1
-call :log "Whale picks ledger append done"
-
-REM Portfolio-level backtest vs TWII (refresh NAV / annual stats for UI).
-REM Reads trade_ledger.parquet + ohlcv_tw.parquet. ~2-3 sec. Best-effort.
-call :log "Whale picks portfolio backtest starting"
-python tools\whale_picks_portfolio_backtest.py --start 2016-01-15 >> scanner.log 2>&1
-call :log "Whale picks portfolio backtest done"
+:skip_market_panels
 
 REM ------------------------------------------------------------
 REM Chip history institutional resume (daily).

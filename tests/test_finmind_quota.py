@@ -1,11 +1,12 @@
 """FinMind quota fail-fast (FinMindTracker) + tw_stock_info 3 層快取 (cache_manager)。
 
-2026-06-10: 額度爆時舊版盲睡 65s 再 retry（離整點重置遠時必敗），AI 報告 prompt
-組裝實測拖到 170s。改：貼近整點 (<=90s) 才等待，否則 fail-fast + 整小時
-negative cache；對照表落盤 data_cache/tw_stock_info.csv，FinMind 失敗回 stale。
+2026-07-14: FinMind 實測為 rolling 60-minute window，不能在鐘點整點清零。
+貼近 tracker 視窗尾端 (<=90s) 才等待，否則 fail-fast + negative cache；
+對照表落盤 data_cache/tw_stock_info.csv，FinMind 失敗回 stale。
 """
 import os
 import time
+from collections import deque
 
 import pandas as pd
 import pytest
@@ -41,9 +42,9 @@ class TestQuotaFailFast:
     def test_far_from_reset_no_sleep_and_negative_cache(self):
         dl = _QuotaDeadDL()
         tr = FinMindTracker(dl, has_token=False)
-        tr._seconds_until_next_wall_hour = lambda: 1800  # 離整點還 30 分
+        tr._seconds_until_window_reset = lambda: 1800
         t0 = time.perf_counter()
-        with pytest.raises(KeyError):
+        with pytest.raises(FinMindQuotaBlockedError):
             tr.taiwan_stock_info()
         assert time.perf_counter() - t0 < 5  # 不再盲睡 65s
         assert dl.calls == 1                 # 不做無望 retry
@@ -55,7 +56,7 @@ class TestQuotaFailFast:
     def test_near_reset_waits_and_retries(self):
         dl = _FlakyThenOKDL()
         tr = FinMindTracker(dl, has_token=False)
-        tr._seconds_until_next_wall_hour = lambda: 0.05  # 貼近整點 -> 等待重試有意義
+        tr._seconds_until_window_reset = lambda: 0.05
         df = tr.taiwan_stock_info()
         assert dl.calls == 2
         assert not df.empty
@@ -68,6 +69,97 @@ class TestQuotaFailFast:
         with pytest.raises(KeyError):
             tr.taiwan_stock_info()
         assert tr._quota_blocked_until == 0.0  # 非額度錯誤不觸發 block
+
+    def test_local_pause_uses_rolling_window_not_wall_hour(self, monkeypatch):
+        class _OK:
+            def taiwan_stock_info(self):
+                return pd.DataFrame({'stock_id': ['2330']})
+
+        tr = FinMindTracker(_OK(), has_token=True)
+        tr._request_times = deque(
+            [time.time()] * cache_manager._FINMIND_RATE_PAUSE
+        )
+        tr.request_count = len(tr._request_times)
+        tr._seconds_until_window_reset = lambda: 42.0
+        sleeps = []
+
+        def release_window(seconds):
+            sleeps.append(seconds)
+            tr._request_times.clear()
+
+        monkeypatch.setattr(cache_manager.time, 'sleep', release_window)
+
+        out = tr.taiwan_stock_info()
+
+        assert not out.empty
+        assert sleeps == [42.0]
+        assert tr.request_count == 1
+
+    def test_second_quota_failure_sets_negative_cache_and_stops_batch(self, monkeypatch):
+        dl = _QuotaDeadDL()
+        tr = FinMindTracker(dl, has_token=True)
+        waits = iter([0.01, 1800.0])
+        tr._seconds_until_window_reset = lambda: next(waits)
+        monkeypatch.setattr(cache_manager.time, 'sleep', lambda _seconds: None)
+
+        with pytest.raises(FinMindQuotaBlockedError, match='remained exhausted'):
+            tr.taiwan_stock_info()
+
+        assert dl.calls == 2
+        assert tr._quota_blocked_until > time.time()
+        with pytest.raises(FinMindQuotaBlockedError):
+            tr.taiwan_stock_info()
+        assert dl.calls == 2
+
+    def test_window_reset_is_based_on_oldest_request_not_tracker_start(self):
+        tr = FinMindTracker(_QuotaDeadDL(), has_token=True)
+        now = time.time()
+        tr._hour_start = now - 3500
+        tr._request_times = deque([now - 500] * cache_manager._FINMIND_RATE_PAUSE)
+        tr.request_count = len(tr._request_times)
+
+        wait = tr._seconds_until_window_reset()
+
+        assert 3090 <= wait <= 3110
+
+    def test_real_rolling_window_wait_releases_oldest_requests(self, monkeypatch):
+        class _OK:
+            def taiwan_stock_info(self):
+                return pd.DataFrame({'stock_id': ['2330']})
+
+        clock = {'now': 4_000.0}
+        sleeps = []
+
+        def advance(seconds):
+            sleeps.append(seconds)
+            clock['now'] += seconds
+
+        monkeypatch.setattr(cache_manager.time, 'time', lambda: clock['now'])
+        monkeypatch.setattr(cache_manager.time, 'sleep', advance)
+        tr = FinMindTracker(_OK(), has_token=True)
+        tr._request_times = deque(
+            [clock['now'] - 500.0] * cache_manager._FINMIND_RATE_PAUSE
+        )
+        tr.request_count = len(tr._request_times)
+
+        out = tr.taiwan_stock_info()
+
+        assert not out.empty
+        assert sleeps == [3105.0]
+        assert tr.request_count == 1
+        assert list(tr._request_times) == [clock['now']]
+
+    def test_stats_prunes_expired_rolling_requests(self, monkeypatch):
+        tr = FinMindTracker(_QuotaDeadDL(), has_token=True)
+        now = 10_000.0
+        tr._request_times = deque([now - 3_601.0])
+        tr.request_count = 1
+        monkeypatch.setattr(cache_manager.time, 'time', lambda: now)
+
+        stats = tr.get_stats()
+
+        assert stats['request_count'] == 0
+        assert stats['remaining'] == cache_manager._FINMIND_RATE_LIMIT
 
 
 class TestTwStockInfo3Tier:

@@ -39,10 +39,11 @@ REQUIRED_STAGES = [
     ('RF-1 consistency done',  r'\] RF-1 consistency check done'),
     ('Market regime done',     r'\] Market regime logger done'),
     # Step-A engine + Paper trade engine markers disabled 2026-05-23 (goto skip_mode_d).
-    # 100% Whale Picks production 不依賴 Mode D pipeline。
     # Re-add ('Step-A engine done', ...) + ('Paper trade engine done', ...) when reactivating.
     # Discord daily summary removed 2026-07-06 (tool deleted; was disabled since 2026-05-04).
     # Substack sync stage removed 2026-05-21 (v2026.05.21.3 整套 rm, marker no longer fires).
+    ('Universe price refresh done', r'\] Universe price refresh done \(exit=0\)'),
+    ('Refresh backtest panels done', r'\] Refresh backtest panels done \(exit=0\)'),
     ('Chip history resume done', r'\] Chip history resume done'),
     ('News flow anomaly done', r'\] News flow anomaly done'),
     ('Theme momentum done', r'\] Theme momentum done'),
@@ -50,9 +51,6 @@ REQUIRED_STAGES = [
     ('Minifutures ratio archive done', r'\] Minifutures ratio archive done'),
     ('Options institutional archive done', r'\] Options institutional archive done'),
     ('Earnings calendar fetch done', r'\] Earnings calendar fetch done'),
-    # Whale picks disabled 2026-05-21 (run_scanner.bat goto skip_whale_picks).
-    # Re-add ('Whale picks done', ...) + ('Whale picks alerts done', ...) here
-    # when re-enabling the stage.
     ('Scanner finished (exit=0)', r'\] Scanner finished \(exit=0\)'),
 ]
 

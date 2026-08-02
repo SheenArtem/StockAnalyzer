@@ -25,9 +25,13 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
+import os
 import subprocess
 import sys
 import time
+import uuid
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -42,6 +46,12 @@ logger = logging.getLogger("vfvc_bf")
 
 LIVE_CACHE_DIR = ROOT / "data_cache" / "fundamental_cache"
 FINMIND_CACHE_DIR = ROOT / "data_cache" / "finmind_cache"
+AGGREGATE_REVENUE_PATH = ROOT / "data_cache" / "backtest" / "financials_revenue.parquet"
+
+REQUIRED_BULK_MARKETS = frozenset({"SII", "OTC"})
+MIN_BULK_LATEST_STOCKS = 1000
+MIN_BULK_COVERAGE_RATIO = 0.80
+MIN_BULK_MARKET_STOCKS = {"SII": 500, "OTC": 300}
 
 # get_monthly_revenue (USE_MOPS=false, 預設) 走 cache_manager.get_finmind_cached 讀
 # finmind_cache/，與 bulk-update 寫的 fundamental_cache/ 是兩條路。bulk-update 後必須
@@ -51,7 +61,227 @@ _FINMIND_SCHEMA = ['date', 'stock_id', 'country', 'revenue',
                    'revenue_month', 'revenue_year']
 
 
-def sync_fundamental_to_finmind_cache() -> int:
+class BulkRevenueSafetyError(RuntimeError):
+    """Raised when a bulk update is incomplete or unsafe to publish."""
+
+
+def _atomic_write_parquet(frame: pd.DataFrame, path: Path) -> None:
+    """Serialize beside ``path`` and replace only after a complete write."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.parent / f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp.parquet"
+    try:
+        frame.to_parquet(temp, index=False)
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def _period_summary(frame: pd.DataFrame, label: str) -> tuple[int, int]:
+    """Return (latest YYYYMM, unique-stock count) for an existing panel."""
+    required = {'stock_id', 'revenue_year', 'revenue_month'}
+    missing = required - set(frame.columns)
+    if missing:
+        raise BulkRevenueSafetyError(
+            f"{label} missing period columns: {sorted(missing)}")
+    year = pd.to_numeric(frame['revenue_year'], errors='coerce')
+    month = pd.to_numeric(frame['revenue_month'], errors='coerce')
+    stock_id = frame['stock_id'].astype(str).str.strip()
+    valid = year.notna() & month.between(1, 12) & stock_id.ne('')
+    if not valid.any():
+        raise BulkRevenueSafetyError(f"{label} has no valid stock/period rows")
+    periods = year * 100 + month
+    latest = int(periods[valid].max())
+    latest_count = int(stock_id[valid & periods.eq(latest)].nunique())
+    return latest, latest_count
+
+
+def expected_revenue_period(asof: date | None = None) -> int:
+    """Latest revenue month whose statutory 10th-day deadline has arrived."""
+    asof = asof or date.today()
+    current = pd.Period(asof, freq='M')
+    expected = current - (1 if asof.day >= 10 else 2)
+    return int(expected.year * 100 + expected.month)
+
+
+def validate_bulk_cross_section(
+    bulk_df: pd.DataFrame,
+    existing_df: pd.DataFrame | None,
+    min_ratio: float = MIN_BULK_COVERAGE_RATIO,
+    min_absolute: int = MIN_BULK_LATEST_STOCKS,
+) -> dict[str, int]:
+    """Validate both markets and latest-period coverage before any writes."""
+    if not 0 < min_ratio <= 1:
+        raise ValueError("bulk coverage ratio must be in (0, 1]")
+    if min_absolute <= 0:
+        raise ValueError("bulk absolute coverage minimum must be positive")
+    required = {
+        'date', 'stock_id', 'revenue', 'revenue_year', 'revenue_month',
+        '_source_market',
+    }
+    missing = required - set(bulk_df.columns)
+    if bulk_df.empty or missing:
+        raise BulkRevenueSafetyError(
+            f"bulk payload empty or missing columns: {sorted(missing)}")
+
+    frame = bulk_df.copy()
+    raw_stock_id = frame['stock_id']
+    frame['stock_id'] = raw_stock_id.astype(str).str.strip()
+    frame['_source_market'] = frame['_source_market'].astype(str).str.upper().str.strip()
+    dates = pd.to_datetime(frame['date'], errors='coerce')
+    year = pd.to_numeric(frame['revenue_year'], errors='coerce')
+    month = pd.to_numeric(frame['revenue_month'], errors='coerce')
+    revenue = pd.to_numeric(frame['revenue'], errors='coerce')
+    invalid = (
+        raw_stock_id.isna() | frame['stock_id'].eq('') | dates.isna()
+        | ~year.between(1900, 2100) | year.mod(1).ne(0)
+        | ~month.between(1, 12) | month.mod(1).ne(0) | revenue.isna()
+    )
+    if invalid.any():
+        raise BulkRevenueSafetyError(
+            f"bulk payload contains {int(invalid.sum())} invalid stock/period/revenue rows")
+    frame['_period'] = year.astype(int) * 100 + month.astype(int)
+    canonical_dates = pd.Series(
+        (pd.PeriodIndex.from_fields(
+            year=year.astype(int), month=month.astype(int), freq='M'
+        ) + 1).to_timestamp(),
+        index=frame.index,
+    )
+    if dates.dt.normalize().ne(canonical_dates).any():
+        raise BulkRevenueSafetyError(
+            "bulk raw date must be the first day after its revenue month")
+    if frame.duplicated(['stock_id', '_period']).any():
+        raise BulkRevenueSafetyError("bulk payload contains duplicate stock/period rows")
+
+    markets = set(frame['_source_market'].unique())
+    missing_markets = REQUIRED_BULK_MARKETS - markets
+    if missing_markets:
+        raise BulkRevenueSafetyError(
+            f"bulk payload missing required markets: {sorted(missing_markets)}")
+    unknown_markets = markets - REQUIRED_BULK_MARKETS
+    if unknown_markets:
+        raise BulkRevenueSafetyError(
+            f"bulk payload contains unknown markets: {sorted(unknown_markets)}")
+
+    latest_period = int(frame['_period'].max())
+    latest = frame[frame['_period'].eq(latest_period)]
+    for market in sorted(REQUIRED_BULK_MARKETS):
+        market_frame = frame[frame['_source_market'].eq(market)]
+        market_latest = int(market_frame['_period'].max())
+        if market_latest != latest_period:
+            raise BulkRevenueSafetyError(
+                f"{market} latest period {market_latest} does not match {latest_period}")
+        market_count = int(
+            latest.loc[latest['_source_market'].eq(market), 'stock_id'].nunique())
+        market_minimum = MIN_BULK_MARKET_STOCKS[market]
+        if market_count < market_minimum:
+            raise BulkRevenueSafetyError(
+                f"{market} latest-period coverage collapsed: {market_count} stocks, "
+                f"required at least {market_minimum}")
+
+    latest_count = int(latest['stock_id'].nunique())
+    existing_period = 0
+    existing_count = 0
+    if existing_df is not None:
+        existing_period, existing_count = _period_summary(
+            existing_df, "existing revenue aggregate")
+        if latest_period < existing_period:
+            raise BulkRevenueSafetyError(
+                f"bulk latest period {latest_period} is older than existing {existing_period}")
+    required_count = max(
+        min_absolute,
+        math.ceil(existing_count * min_ratio) if existing_count else 0,
+    )
+    if latest_count < required_count:
+        raise BulkRevenueSafetyError(
+            f"bulk latest-period coverage collapsed for {latest_period}: "
+            f"{latest_count} stocks, required at least {required_count} "
+            f"from existing reference {existing_count}")
+    return {
+        'latest_period': latest_period,
+        'latest_count': latest_count,
+        'existing_period': existing_period,
+        'existing_count': existing_count,
+        'required_count': required_count,
+    }
+
+
+def _load_existing_revenue_aggregate() -> pd.DataFrame | None:
+    if not AGGREGATE_REVENUE_PATH.exists():
+        return None
+    try:
+        return pd.read_parquet(
+            AGGREGATE_REVENUE_PATH,
+            columns=['stock_id', 'revenue_year', 'revenue_month'],
+        )
+    except Exception as exc:
+        raise BulkRevenueSafetyError(
+            f"cannot validate existing revenue aggregate: {exc}") from exc
+
+
+def merge_bulk_into_existing_cache(
+    bulk_df: pd.DataFrame,
+    cache_dir: str | Path | None = None,
+    dry_run: bool = False,
+) -> dict[str, int]:
+    """Merge a validated bulk payload with atomic per-stock replacements."""
+    cache_path = Path(cache_dir) if cache_dir is not None else LIVE_CACHE_DIR
+    cache_path.mkdir(parents=True, exist_ok=True)
+    stats = {
+        'written': 0,
+        'skipped_already_exists': 0,
+        'new_files': 0,
+        'append_to_existing': 0,
+        'errors': 0,
+    }
+    bulk_clean = bulk_df.drop(columns=['_source_market'], errors='ignore').copy()
+    bulk_clean['stock_id'] = bulk_clean['stock_id'].astype(str)
+
+    for sid, group in bulk_clean.groupby('stock_id'):
+        sid = str(sid)
+        target = cache_path / f'month_revenue_{sid}.parquet'
+        try:
+            if target.exists():
+                existing = pd.read_parquet(target)
+                required = {'revenue_year', 'revenue_month'}
+                missing = required - set(existing.columns)
+                if missing:
+                    raise BulkRevenueSafetyError(
+                        f"existing cache missing period columns: {sorted(missing)}")
+                existing_periods = set(zip(
+                    pd.to_numeric(existing['revenue_year'], errors='raise').astype(int),
+                    pd.to_numeric(existing['revenue_month'], errors='raise').astype(int),
+                ))
+                new_rows = group[~group.apply(
+                    lambda row: (
+                        int(row['revenue_year']), int(row['revenue_month'])
+                    ) in existing_periods,
+                    axis=1,
+                )]
+                if new_rows.empty:
+                    stats['skipped_already_exists'] += 1
+                    continue
+                stats['append_to_existing'] += 1
+                if dry_run:
+                    continue
+                merged = pd.concat([existing, new_rows], ignore_index=True)
+                if 'date' in merged.columns:
+                    merged['date'] = pd.to_datetime(merged['date'], errors='coerce')
+                    merged = merged.sort_values('date').reset_index(drop=True)
+                _atomic_write_parquet(merged, target)
+            else:
+                stats['new_files'] += 1
+                if dry_run:
+                    continue
+                new_frame = group.sort_values('date').reset_index(drop=True)
+                _atomic_write_parquet(new_frame, target)
+            stats['written'] += 1
+        except Exception as exc:
+            stats['errors'] += 1
+            logger.warning("merge %s failed: %s", sid, exc)
+    return stats
+
+
+def sync_fundamental_to_finmind_cache(raise_on_error: bool = False) -> int:
     """把 fundamental_cache/month_revenue_*.parquet 同步到 finmind_cache/。
 
     用「營收月」union (concat 後 drop_duplicates by revenue_year+month)，既補上新月、
@@ -81,45 +311,75 @@ def sync_fundamental_to_finmind_cache() -> int:
             # 造成 object dtype pyarrow 寫入失敗 (2881/2882 金控股案例)
             if 'date' in sub.columns:
                 sub['date'] = pd.to_datetime(sub['date'], errors='coerce').dt.strftime('%Y-%m-%d')
-            sub.to_parquet(target)
+            _atomic_write_parquet(sub, target)
             synced += 1
         except Exception as e:
             failed += 1
             logger.warning("sync finmind_cache failed %s: %s", fp.name, e)
     logger.info("Synced fundamental_cache -> finmind_cache: %d ok / %d fail", synced, failed)
+    if failed and raise_on_error:
+        raise BulkRevenueSafetyError(
+            f"fundamental -> FinMind cache sync failed for {failed} files")
     return synced
 
 
-def run_bulk_update():
+def run_bulk_update() -> bool:
     """Cache 三層 Layer 2: 用 mopsfin bulk CSV 一次更新全市場最新月營收。
 
     特性:
     - 2 個 HTTP request (上市 + 上櫃, ~1954 stocks)
     - 僅補最新月 (公告月後 10-15 日更新可用), 歷史 backfill 仍走 FinMind
     - 不消耗 FinMind 600 req/hr, 不打 MOPS 個股 API (避 WAF)
-    - merge_into_existing_cache 按期數比對, 已有不覆寫
+    - atomic per-stock merge 按期數比對, 已有不覆寫
     """
-    from mops_bulk_fetcher import fetch_bulk_monthly_revenue, merge_into_existing_cache
+    from mops_bulk_fetcher import fetch_bulk_monthly_revenue
 
     logger.info("=== BULK UPDATE mode (Cache Layer 2) ===")
-    df = fetch_bulk_monthly_revenue(include_otc=True)
-    if df.empty:
-        logger.error("Bulk fetch returned empty, abort.")
+    try:
+        df = fetch_bulk_monthly_revenue(include_otc=True)
+        existing = _load_existing_revenue_aggregate()
+        coverage = validate_bulk_cross_section(df, existing)
+        required_period = expected_revenue_period()
+        if coverage['latest_period'] < required_period:
+            raise BulkRevenueSafetyError(
+                f"bulk latest period {coverage['latest_period']} is stale; "
+                f"expected at least {required_period}")
+    except Exception as exc:
+        logger.error("Bulk validation failed, abort: %s", exc)
         return False
     logger.info("Bulk fetched: %d rows / %d unique stocks", len(df), df['stock_id'].nunique())
     logger.info("Date range: %s ~ %s", df['date'].min(), df['date'].max())
+    logger.info("Latest-period coverage: %s", coverage)
 
-    stats = merge_into_existing_cache(df, dry_run=False)
+    stats = merge_bulk_into_existing_cache(df, dry_run=False)
     logger.info("Merge stats: %s", stats)
+    if stats['errors']:
+        logger.error(
+            "Bulk merge failed for %d stocks; aggregate and derived outputs remain unchanged",
+            stats['errors'],
+        )
+        return False
+
+    # Sync first so a cache-path split cannot be published into aggregate/derived.
+    logger.info("Syncing fundamental_cache -> finmind_cache ...")
+    try:
+        sync_fundamental_to_finmind_cache(raise_on_error=True)
+    except Exception as exc:
+        logger.error("Cache sync failed; aggregate and derived outputs remain unchanged: %s", exc)
+        return False
 
     # 跑 aggregate 同步 backtest/financials_revenue.parquet
     logger.info("Running aggregate_fundamental_cache.py --category revenue ...")
-    result = subprocess.run(
-        [sys.executable, str(ROOT / "tools" / "aggregate_fundamental_cache.py"),
-         "--category", "revenue"],
-        cwd=str(ROOT),
-        capture_output=True, text=True,
-    )
+    try:
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "aggregate_fundamental_cache.py"),
+             "--category", "revenue"],
+            cwd=str(ROOT),
+            capture_output=True, text=True,
+        )
+    except Exception as exc:
+        logger.error("Aggregate launch FAILED: %s", exc)
+        return False
     if result.returncode != 0:
         logger.error("Aggregate FAILED (rc=%d):\n%s", result.returncode, result.stderr)
         return False
@@ -127,9 +387,6 @@ def run_bulk_update():
     for line in result.stdout.splitlines()[-6:]:
         logger.info("  %s", line)
 
-    # 修「路徑分裂」: 同步到 finmind_cache (get_monthly_revenue 實際讀取路徑)
-    logger.info("Syncing fundamental_cache -> finmind_cache ...")
-    sync_fundamental_to_finmind_cache()
     return True
 
 
@@ -224,7 +481,7 @@ def main():
                 out_df = (out_df.sort_values(['revenue_year', 'revenue_month'])
                           .drop_duplicates(subset=['revenue_year', 'revenue_month'], keep='last')
                           .reset_index(drop=True))
-            out_df.to_parquet(live_path)
+            _atomic_write_parquet(out_df, live_path)
             ok_stocks.append(sid)
 
         except Exception as e:
