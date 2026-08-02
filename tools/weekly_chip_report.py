@@ -294,6 +294,8 @@ def compute_weekly_rankings(week_end_str: str | None = None) -> tuple[dict, dict
         'window_end': window[-1],
         'window_days': len(window),
         'close_ref_date': close_target,
+        # 這次算的是不是「最新那一週」——決定能否覆寫 UI 的 latest 快照。
+        'is_latest_week': bool(week_end == available[-1]),
     }
     return metadata, dim_results
 
@@ -359,7 +361,15 @@ def main():
         return f"{sid} {n}".strip()
 
     # 寫 long-format parquet 給 UI 載入
-    save_long_format_parquet(metadata, dim_results, name_map)
+    # 只有算「最新那一週」才准覆寫 UI 讀的 latest 快照。回填歷史週報（例如補
+    # --week-end 2026-06-18）若照寫，App 的「三大法人週榜」會被換成舊資料，而畫面
+    # 上看不出任何異常。回填時把快照寫到 out_dir 供檢視，線上那份不動。
+    if metadata['is_latest_week']:
+        save_long_format_parquet(metadata, dim_results, name_map)
+    else:
+        side = out_dir / LATEST_PARQUET.name
+        save_long_format_parquet(metadata, dim_results, name_map, out_path=side)
+        print(f"  (week_end={week_end.date()} 不是最新一週，未覆寫 {LATEST_PARQUET})")
 
     # 從 metadata 還原 window list (markdown 用實際窗口而非連續 date_range)
     inst_dates = pd.read_parquet(INST_PARQUET, columns=['date'])
