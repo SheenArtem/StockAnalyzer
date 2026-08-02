@@ -199,6 +199,11 @@ def _norm_title(title: str) -> str:
     return t.strip() or "未命名"
 
 
+def _md_name(seq: int, meta: dict) -> str:
+    """產出檔名。抽成共用函式讓 --dry-run 能回報檔名而不必真的寫檔。"""
+    return f"{seq:04d}_{_safe_filename(_norm_title(meta.get('title')))}.md"
+
+
 def write_md(seq: int, rec: dict, meta: dict) -> Path:
     title = _norm_title(meta.get("title"))
     # 先清同 seq 舊檔（LLM 標題可能變動 → 防孤兒重複檔）
@@ -207,8 +212,7 @@ def write_md(seq: int, rec: dict, meta: dict) -> Path:
             old.unlink()
         except Exception:
             pass
-    fname = f"{seq:04d}_{_safe_filename(title)}.md"
-    path = KB_DIR / fname
+    path = KB_DIR / _md_name(seq, meta)
     themes = meta.get("themes") or []
     tickers = meta.get("tickers") or []
     takeaways = meta.get("takeaways") or []
@@ -279,6 +283,17 @@ def process_one(seq: int, rec: dict, dry_run: bool) -> tuple[Optional[dict], Opt
             (FAIL_DIR / f"{seq:04d}_{rec.get('id','x')[:20]}.txt").write_text(out or "", encoding="utf-8")
             return None, "parse fail"
         meta.setdefault("cleaned_body", pre)
+
+    if dry_run:
+        # --dry-run 一律不落地。舊版照樣寫 stub 的 md 與 _meta 到磁碟，那些假內容會
+        # 直接出現在知識庫頁面上，而 --render-only 也會把它們當真資料重繪
+        # （2026-08-02 code review 第五節）。
+        return {"seq": seq, "id": rec.get("id"), "file": _md_name(seq, meta),
+                "title": meta.get("title"), "date_iso": meta.get("date_iso"),
+                "date_label": rec.get("date_label"), "themes": meta.get("themes") or [],
+                "one_liner": meta.get("one_liner", ""), "permalink": rec.get("permalink"),
+                "text_len": len(raw)}, None
+
     # 快取 meta（供 --render-only 免 LLM 重繪）
     META_DIR.mkdir(parents=True, exist_ok=True)
     _meta_path(rec).write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -343,6 +358,26 @@ def load_posts() -> list[dict]:
         log.warning("%s 有 %d 行無法解析 → 這幾篇文章不會進知識庫（不是「已整理完」）："
                     "\n  %s", RAW_JSONL, len(bad), "\n  ".join(bad[:10]))
     return rows
+
+
+def save_state(records: list[dict]) -> None:
+    """把 checkpoint 原子寫入 STATE。**每清洗完一篇就呼叫一次。**
+
+    舊版只在主流程最末尾寫一次，於是整輪被 timeout 殺掉時，磁碟上的 md 都在、STATE
+    卻沒記錄 —— 下次執行把全部貼文當未處理重跑，整輪 LLM 成本歸零。實測換機首次全量
+    需約 4,357s（206 篇 / concurrency 4），而 App 的 build timeout 是 3,600s，
+    **必然踩到**（2026-08-02 code review 第五節）。
+
+    tmp + replace 是必要的：寫到一半被殺會留下截斷的 JSON，而 `load_state` 現在對壞檔
+    會 raise（那是刻意的，見它的 docstring），等於下次直接卡死。
+    """
+    dedup = {r["id"]: r for r in records}
+    payload = {r["id"]: r["file"] for r in dedup.values()}
+    payload["__records__"] = list(dedup.values())
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = STATE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+    tmp.replace(STATE)
 
 
 def load_state() -> dict:
@@ -416,7 +451,6 @@ def main() -> int:
     # 保留既有已處理 record（重建索引需要全集）
     prior = state.get("__records__", []) if isinstance(state, dict) else []
     if not args.rebuild:
-        done_ids = {r.get("id") for _, p in [(i, p) for i, p in enumerate(posts)] for r in prior}
         records.extend(prior)
 
     ok = fail = 0
@@ -425,6 +459,8 @@ def main() -> int:
             r, err = process_one(seq, rec, args.dry_run)
             if r:
                 records.append(r); ok += 1
+                if not args.dry_run:
+                    save_state(records)
             else:
                 fail += 1
                 log.warning("seq=%d FAIL: %s", seq, err)
@@ -436,6 +472,8 @@ def main() -> int:
                 if r:
                     records.append(r); ok += 1
                     log.info("[OK] %s", r["file"])
+                    # 逐篇 checkpoint：as_completed 在主執行緒收結果，寫檔不需再上鎖
+                    save_state(records)
                 else:
                     fail += 1
                     log.warning("seq=%d FAIL: %s", futs[fut], err)
@@ -443,11 +481,16 @@ def main() -> int:
     # 去重（同 id 保留最新）後建索引
     dedup = {r["id"]: r for r in records}
     records = list(dedup.values())
-    build_index(records)
 
-    new_state = {r["id"]: r["file"] for r in records}
-    new_state["__records__"] = records
-    STATE.write_text(json.dumps(new_state, ensure_ascii=False, indent=1), encoding="utf-8")
+    if args.dry_run:
+        # --dry-run 一律不落地：搭 --rebuild 時 records 全是 stub，寫索引會把假標題
+        # 與假摘要蓋進 INDEX.md / THEMES.md。
+        log.info("[DRY-RUN] 未寫任何檔案（md / _meta / INDEX / THEMES / STATE 皆未動），"
+                 "會處理 %d 篇", len(todo))
+        return 0 if fail == 0 else 3
+
+    build_index(records)
+    save_state(records)
     log.info("[DONE] ok=%d fail=%d 總索引=%d → %s", ok, fail, len(records), KB_DIR / "INDEX.md")
     return 0 if fail == 0 else 3
 

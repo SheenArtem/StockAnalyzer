@@ -164,11 +164,26 @@ def _do_scrape_and_build() -> None:
             "抓取**不完整**：撞到捲動輪數上限，最舊的文章可能沒抓到。"
             "已抓到的部分已存檔，再按一次「抓取新文章」可繼續往下捲（增量，不會重抓）。")
         return
+    if rc == 6:
+        # 一篇都沒抽到＝抓取本身壞了，不是「沒有新文章」。
+        st.session_state['baihua_msg'] = ('error',
+            "抓取失敗：**一篇貼文都沒抽到**。可能是 Facebook 版面改版讓選擇器失效，"
+            "或登入已失效。既有文章未被改動。\n\n" + out[-1500:])
+        return
     if rc != 0:
         st.session_state['baihua_msg'] = ('error', f"抓取失敗（rc={rc}）：\n{out[-1500:]}")
         return
     with st.spinner("整理知識庫中…（清洗新文章，跳過已整理的）"):
         rc2, out2 = _run([str(BUILD), '--concurrency', '4'], _BUILD_TIMEOUT)
+    if rc2 == -1:
+        # 逾時不等於白做工：build 現在逐篇原子寫 checkpoint，已清洗的不會重跑。
+        # 實測換機首次全量約需 4,357s（206 篇 / conc 4）> _BUILD_TIMEOUT 3,600s，
+        # 所以首次全量「按兩三次」是預期流程，不是故障。
+        st.session_state['baihua_msg'] = ('warn',
+            f"整理逾時（{_BUILD_TIMEOUT}s）—— **已清洗的文章都已存檔**，"
+            f"再按一次「抓取新文章」會從中斷處繼續（首次全量約需按 2 次）。"
+            f"目前知識庫共 {_kb_count()} 篇。")
+        return
     if rc2 not in (0, 3):   # 3 = 部分失敗但有產出
         st.session_state['baihua_msg'] = ('error', f"整理失敗（rc={rc2}）：\n{out2[-1500:]}")
         return

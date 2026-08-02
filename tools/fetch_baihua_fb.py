@@ -40,6 +40,8 @@ Exit code:
        提高 --max-rounds 重跑即可（增量 merge，不會重抓）
     5  posts.jsonl 有無法解析的行 —— 未抓取、未寫檔。抓取會整檔重寫，照舊執行等於
        永久刪掉那些行。修好那幾行，或明示 --drop-corrupt-lines（會先備份原檔）
+    6  **一篇貼文都沒抽到** —— 選擇器全落空（FB DOM 改版）或整輪都撞登入牆。
+       既有 posts.jsonl 未被改動。這不是「沒有新文章」
 """
 from __future__ import annotations
 
@@ -429,6 +431,11 @@ def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int,
         stall = 0
         prev_sh = 0
         truncated = False
+        # 診斷用累計：`wall` 舊版只進 log 字串，迴圈一開始就只剩固定回 0 的路徑，
+        # 於是 FB DOM 改版（選擇器全部落空）會顯示綠色「完成：新整理 0 篇」。
+        wall_rounds = 0
+        rounds_with_rows = 0
+        rounds_done = 0
         for i in range(max_rounds):
             _dismiss_dialog(page)
             clicked = _click_see_more(page)
@@ -455,6 +462,9 @@ def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int,
                         prev["date_label"] = r["dateLabel"]
             wall = bool(page.query_selector('input[name="email"]')) or (
                 not logged_out and not _logged_in(ctx))
+            rounds_done += 1
+            wall_rounds += 1 if wall else 0
+            rounds_with_rows += 1 if rows else 0
             log.info("round %2d: dom_rows=%d new=%d total=%d%s",
                      i, len(rows), new, len(collected), "  [WALL?]" if wall else "")
             # ⚠️ FB 虛擬化（DOM 只留數篇滑動視窗）+ 長文 see-more 展開後單篇極高。策略：
@@ -497,6 +507,19 @@ def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int,
                         "後重跑（增量 merge，不會重抓已有的）",
                         max_rounds, stall, max_stall, len(collected))
         ctx.close()
+
+    # 沒抽到任何貼文 = 選擇器全落空。這不是「沒有新文章」，而是抓取本身壞了：
+    # FB DOM 改版、或整輪都撞在登入牆上。舊版這兩種情況都回 0，UI 顯示綠色「完成」。
+    if rounds_done and rounds_with_rows == 0:
+        reason = ("整輪都偵測到登入牆" if wall_rounds == rounds_done
+                  else "DOM 選擇器全部落空（FB 版面可能改版）")
+        log.error("抓取失敗：%d 輪內一篇貼文都沒抽到 —— %s。既有 %d 篇未被改動。",
+                  rounds_done, reason, len(existing))
+        return 6
+
+    if wall_rounds:
+        log.warning("有 %d/%d 輪偵測到登入牆跡象（仍抽到 %d 篇）—— 若篇數明顯偏少，"
+                    "請重新登入後再抓一次", wall_rounds, rounds_done, len(collected))
 
     _save(collected)
     return 4 if truncated else 0
