@@ -50,11 +50,13 @@ _CACHE_KEY = '_banner_cache_v2'
 # 台股日盤後資料發布時間
 _TW_14_CUTOFF = dtime(14, 0)      # 加權指數/漲跌家數/PCR (基差 2026-06-11 移到 15min 組)
 # TAIFEX 三大法人 + 期權盤後 (atm_put / mtx_ratio / opt_inst)。
-# ⚠️ 2026-08-02 實查：archiver 實際 16:30 才寫 parquet —— 原本的 14:35 trigger
-# 已不在 Windows 排程器裡（只剩 TUE-SAT 16:30 一個，另有每天 00:00 的 scanner）。
-# 這裡刻意維持 14:35 這個「偏早」的 cutoff：mismatch 只讓 banner 每 30 分鐘重讀一次
-# 本地 parquet（零 network、不會顯示假過期），而萬一 14:35 trigger 被復原就能立刻
-# 吃到。代價是 14:35~16:30 之間約 4 次沒意義的 disk read，值得換取這個前向相容。
+# archiver 實際 16:30 才寫 parquet：使用者 2026-08-02 拍板只留 TUE-SAT 16:30 這一個
+# trigger（原設計 14:35 主 + 15:30 + 16:30 三重容錯），另有每天 00:00 的 scanner。
+# 這裡刻意維持 14:35 這個「偏早」的 cutoff，不跟著改 16:30：偏早只讓 banner 在
+# 14:35~16:30 之間每 30 分鐘重讀一次本地 parquet（零 network、也不會顯示假過期
+# —— stale 旗標是指數 fetch 失敗的另一條路徑），約 4 次沒意義的 disk read；
+# 換到的是「TAIFEX 若哪天提早發布也能立刻吃到」。改成 16:30 會讓 cutoff 剛好卡在
+# 寫入時刻，反而失去這個緩衝。
 _TW_1435_CUTOFF = dtime(14, 35)
 _TW_20_CUTOFF = dtime(20, 0)      # 融資餘額
 _TW_14_RETRY = 300                 # 5 分鐘

@@ -10,10 +10,10 @@
 > 1. **Discord 已於 2026-07-06 全數移除**（工具刪除、webhook 不存在）。本檔下文約 9 處
 >    「Discord push」都只是當時的設計，**不要照著接 webhook**；現行做法是把警報印進
 >    排程 log。所以「Integration: Banner v4 + Discord」那節與各觸發訊息範例都不可直接執行。
-> 2. **`run_taifex_signals_afterclose.bat` 只剩 TUE-SAT 16:30 一個 trigger**（2026-08-02
->    實查 Windows 排程器）。第 31 行寫的「TUE-SAT 14:35/15:30/16:30」三重容錯，另兩個
->    已不在排程器裡，System 2/3 的 daily check 失敗當天不會重試，只能靠當晚 00:00 的
->    scanner 當隔日 backup。
+> 2. **`run_taifex_signals_afterclose.bat` 只剩 TUE-SAT 16:30 一個 trigger** —— 2026-08-02
+>    拍板刻意簡化，下文寫的「TUE-SAT 14:35/15:30/16:30」三重容錯已不適用。已知並接受
+>    的代價：System 2/3 的 daily check 失敗當天不會重試，只能靠當晚 00:00 的 scanner
+>    當隔日 backup。**不要提議把那兩個 trigger 補回去。**
 >
 > 兩個系統的 verdict（System 2 PARTIAL / System 3 recall 59%）與 informational tier
 > 定位不受影響，**刻意不改寫當時的結論與數字**。

@@ -133,7 +133,7 @@ Scanner started
 | `run_app_startup.bat` | 登入時自啟 | 背景起 Streamlit UI。工作名 `StockAnalyzer App Autostart`，實際執行的是 `wscript.exe run_app_startup.vbs`（無視窗包裝，避免登入時閃黑框），由它再叫這支 bat |
 | `run_macro_panels_dawn.bat` | **TUE-SAT 07:00** | ETF flows / CNN FGI / 市值 / systemic chip / FRED / 領頭羊 |
 | `run_macro_panels_evening.bat` | **TUE-SAT 17:30** | 法人合計 / 期貨法人 / AAII / TW LEI / 估值 / 當日 breadth |
-| `run_taifex_signals_afterclose.bat` | **TUE-SAT 16:30** | 期交所盤後訊號。⚠️ 只剩這**一個** trigger；原設計是 14:35 主 + 15:30 + 16:30 三重容錯，另兩個已不在排程器裡，失敗後要等當晚 00:00 的 scanner 當 backup |
+| `run_taifex_signals_afterclose.bat` | **TUE-SAT 16:30** | 期交所盤後訊號。**刻意只有這一個 trigger**（2026-08-02 拍板，原 14:35 + 15:30 + 16:30 三重容錯已簡化掉）。已知代價：archiver 失敗當天不重試，靠當晚 00:00 的 scanner 當隔日 backup |
 | `run_tdcc_weekly.bat` | **週六 08:00** | TDCC 集保 + 籌碼 margin/short_sale 補抓 |
 | `run_bulk_revenue_monthly.bat` | **每月 11 日 00:30** | 月營收下載（10 號公布，11 號抓才拿得到當月）|
 | `run_app.bat` | 手動 | 啟動 Streamlit UI（有視窗，開發用）|
