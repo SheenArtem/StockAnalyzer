@@ -22,7 +22,6 @@ tools/*_smoke_test.py
 tools/test_macro_ai_report_section.py
 tools/test_report_library_scroll_fix.py
 tools/test_report_library_ui.py
-tools/test_whale_picks_tab.py
 
 # 一次性 audit 腳本（驗證後丟，結論寫進 memory）
 tools/audit_*.py
@@ -65,11 +64,15 @@ Desktop.ini
 # AI 報告輸出（使用者生成，不納入版控）
 data/ai_reports/
 data/macro_reports/
+
+# 白話投資 FB 知識庫（第三方粉專原文 + 產出，版權/個人用途，不推入公開 repo）
+# 工具程式碼 tools/fetch_baihua_fb.py / tools/build_baihua_kb.py 仍版控追蹤
+data/baihua/
 # 總經報告 JSON：正式輸出在 data/macro_reports/，reports/ 下為非正式位置產物
 reports/macro_report_*.json
 
 # Daily-refresh pipeline outputs (每晚重生，untrack 防止 git restore data/ 退回舊版)
-# 保留 tracked: strong_stocks_reports/ (per-day archive)、whale_picks/trade_ledger* (累積 state)、
+# 保留 tracked: strong_stocks_reports/ (per-day archive)、
 #               paper_trades/open_trades.json (open state)、sentiment/*history* (累積)
 data/sector_tags_dynamic.parquet
 data/yt_videos_panel.parquet
@@ -98,6 +101,10 @@ reports/tdcc_poc_samples/
 # AI CLI 評測產物（Gemini/Claude 對照樣本）
 reports/claude_[0-9]*
 reports/gemini_[0-9]*
+
+# 具名真人分析報告（對可辨識個人的評價性內容；本 repo 會 push 公開 GitHub，
+# 名譽權/合規風險，比照投顧 YT pipeline 不接 AI 報告的合規立場，一律不入版控）
+reports/yt_analyst_*
 
 # 日 IC parquet（可重產，較大）
 reports/*.parquet
