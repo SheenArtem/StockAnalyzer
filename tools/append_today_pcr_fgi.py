@@ -1,8 +1,9 @@
 """
 append_today_pcr_fgi.py -- 每日 archiver stage (BL-5 Part 2)
 
-由 run_taifex_signals_afterclose.bat 每日 14:35 / 15:30 / 16:30 觸發，
-incremental update:
+由 run_taifex_signals_afterclose.bat 觸發（**TUE-SAT 16:30，只剩這一個 trigger**
+—— 2026-08-02 實查 Windows 排程器，原設計的 14:35 主 + 15:30 backup 已不存在；
+另有 run_scanner.bat 每天 00:00 當隔日 backup），incremental update:
   - data/sentiment/pcr_history.parquet (PCR 從 TAIFEX 抓今月 + dedupe append)
   - data/sentiment/fgi_history.parquet (重算全部 6 component scores 覆寫)
 

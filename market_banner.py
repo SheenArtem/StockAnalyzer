@@ -49,7 +49,13 @@ _CACHE_KEY = '_banner_cache_v2'
 
 # 台股日盤後資料發布時間
 _TW_14_CUTOFF = dtime(14, 0)      # 加權指數/漲跌家數/PCR (基差 2026-06-11 移到 15min 組)
-_TW_1435_CUTOFF = dtime(14, 35)   # TAIFEX 三大法人 + 期權盤後 (atm_put / mtx_ratio / opt_inst)
+# TAIFEX 三大法人 + 期權盤後 (atm_put / mtx_ratio / opt_inst)。
+# ⚠️ 2026-08-02 實查：archiver 實際 16:30 才寫 parquet —— 原本的 14:35 trigger
+# 已不在 Windows 排程器裡（只剩 TUE-SAT 16:30 一個，另有每天 00:00 的 scanner）。
+# 這裡刻意維持 14:35 這個「偏早」的 cutoff：mismatch 只讓 banner 每 30 分鐘重讀一次
+# 本地 parquet（零 network、不會顯示假過期），而萬一 14:35 trigger 被復原就能立刻
+# 吃到。代價是 14:35~16:30 之間約 4 次沒意義的 disk read，值得換取這個前向相容。
+_TW_1435_CUTOFF = dtime(14, 35)
 _TW_20_CUTOFF = dtime(20, 0)      # 融資餘額
 _TW_14_RETRY = 300                 # 5 分鐘
 _TW_1435_RETRY = 1800              # 30 分鐘 (parquet 是 archiver 寫的, 不必狂 retry)
@@ -450,8 +456,9 @@ def _compute_expiry(indicator, data_date, now):
             return _next_tw_refresh_at(_TW_14_CUTOFF, now).timestamp()
         return time.time() + _TW_14_RETRY
 
-    # 14:35 TAIFEX 盤後類 (atm_put / mtx_ratio / opt_inst / fut_inst)
-    # archiver 寫 parquet, banner 純 disk read; 命中 today -> 隔日 14:35
+    # TAIFEX 盤後類 (atm_put / mtx_ratio / opt_inst / fut_inst)
+    # archiver 寫 parquet（實際 16:30，見 _TW_1435_CUTOFF 註解），banner 純 disk read;
+    # 命中 today -> 隔日 14:35
     # fut_inst = 三大法人台指期未平倉 (futures_institutional.parquet, evening 排程更新)
     if indicator in ('atm_put', 'mtx_ratio', 'opt_inst', 'fut_inst'):
         expected = _expected_tw_date(_TW_1435_CUTOFF, now)
@@ -494,7 +501,7 @@ def _compute_expiry(indicator, data_date, now):
 def _read_sentiment_parquet(name: str) -> dict | None:
     """讀 data/sentiment/<name>.parquet 最後一筆轉 dict.
 
-    archiver (run_taifex_signals_afterclose.bat 14:35 / scanner 00:00) 寫，
+    archiver (run_taifex_signals_afterclose.bat TUE-SAT 16:30 / scanner 每天 00:00) 寫，
     banner 純讀，零 network。data_date 字串 'YYYY-MM-DD' 還原為 date 物件
     供 _compute_expiry 比對。檔案不存在 / 為空 -> None.
     """
@@ -708,7 +715,7 @@ def _pure_fetch(cache_key):
             # 讀 archive parquet。M1B 央行月底發布 + FMTQIK 收盤後固定，
             # 盤中重算意義為 0；archiver 跑 1 次省 3.1s cold load。
             return _read_m1b_ratio_parquet()
-        # 期權避險訊號改讀 archive parquet (archiver TUE-SAT 14:35 + scanner 00:00 寫)
+        # 期權避險訊號改讀 archive parquet (archiver TUE-SAT 16:30 + scanner 00:00 寫)
         # 避免 banner intraday 反覆打 TAIFEX 浪費請求
         if cache_key == 'atm_put':
             return _read_sentiment_parquet('atm_put_premium')

@@ -161,7 +161,16 @@ Scanner started
 
 ## 強勢股報告範例 (日報 + 週報)
 
-### 日報 (每天 00:00 自動產出)
+> ⛔ **本節整套已停用，以下是報告格式與 scoring 設計的參考，不是現行行為。**
+> 2026-05-21 日報與週報一併停用（2026-06-16 billing 顧慮解除後仍確認維持停用）：
+> - `run_scanner.bat` 有 `goto skip_strong_stocks_all` 與 `goto skip_strong_stocks_ai`
+> - `run_scanner_weekly.bat` 未登記進排程器，且第 62 行無條件 `goto skip_weekly_all`
+> - `app.py` 的 `_mode_options` 已移除 `'strong_stocks'`，UI 沒有這個 tab
+>
+> **只有下方「手動產出」那幾道命令仍可跑。** 底下的「每天 00:00 自動產出」／
+> 「週日 12:00 自動產出」／「Streamlit UI 切 🌟 強勢股報告 mode」都已不成立。
+
+### 日報 (原每天 00:00 自動產出，現已停用)
 
 ```
 data/strong_stocks_reports/YYYY-MM-DD.html   # YYYY-MM-DD = 資料日 (ref_date), 不是 scan run 日
@@ -174,7 +183,7 @@ data/strong_stocks_reports/YYYY-MM-DD.pdf
 
 族群 3 層 fallback：manual themes → YT dynamic tags → TradingView industry。
 
-### 週報 (週日 12:00 自動產出, 2026-05-14 新增)
+### 週報 (原週日 12:00 自動產出, 2026-05-14 新增，現已停用)
 
 ```
 data/strong_stocks_reports/YYYY-Www.html     # ISO 週次, 例 2026-W20
@@ -185,9 +194,10 @@ data/strong_stocks_reports/YYYY-Www.pdf
 
 ⚠️ **週度 scoring informational tier**: 未經 IC 驗證，僅供盤勢回顧，**不接 paper_trade / 出場邏輯**。Universe scoring 公式：週漲幅 30% + 5週量比 20% + 13週累積 20% + 52週新高 15% + 站MA20W 15%。
 
-### 網頁查看
+### 網頁查看（已無此入口）
 
-Streamlit UI sidebar → 切「🌟 強勢股報告」mode → 上方 **📅 日報 / 📊 週報** radio 切換 → 日期/週次下拉選歷史報告 + 直接 inline 渲染 + 一鍵下載 PDF。
+原本：Streamlit UI sidebar → 切「🌟 強勢股報告」mode → 上方 **📅 日報 / 📊 週報** radio 切換 → 日期/週次下拉選歷史報告 + 直接 inline 渲染 + 一鍵下載 PDF。
+現在 `_mode_options` 沒有 `'strong_stocks'`，render handler 保留為死代碼；恢復方式見 `app.py` 該處註解。既有 HTML/PDF 仍在 `data/strong_stocks_reports/`，可直接開檔。
 
 ### 手動產出
 
