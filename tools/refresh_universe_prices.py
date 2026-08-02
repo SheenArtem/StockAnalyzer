@@ -44,6 +44,11 @@ CACHE = REPO / "data_cache"
 COLS = ["Open", "High", "Low", "Close", "Volume", "Adj Close"]
 MIN_MARKET_ROWS = 500
 MIN_MARKET_COVERAGE_RATIO = 0.80
+# 單檔 merge 失敗容忍比例（下限 5 檔）；覆蓋率檢查才是真正的安全網
+MAX_MERGE_FAIL_RATIO = 0.01
+# 官方 EOD 在 lookback 內完全取不到時，允許落後的最大日曆天數
+# （台股最長連假＝春節，2026 年 2/11 -> 2/23 相隔 12 天）
+MAX_NO_OFFICIAL_GAP_DAYS = 14
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
@@ -217,18 +222,80 @@ def _merge_cached_price_frame(cached, new, unhealthy_incoming_dates):
     return merged[~merged.index.duplicated(keep='last')].sort_index()
 
 
+def _replace_with_retry(tmp_path, path, attempts=3, delay=0.2):
+    """os.replace + 短暫重試，容忍 Windows 的暫時性檔案佔用。
+
+    常駐的 Streamlit（App Autostart）會讀同一批 {sid}_price.csv；Windows 上
+    MoveFileEx 覆蓋目標時若目標仍有未帶 FILE_SHARE_DELETE 的開啟 handle
+    （Python 內建 open 讀檔就是），會丟 PermissionError（實測 WinError 5）。
+    這是秒級的暫時狀態，重試即可，不必讓整支非 0 結束。
+    """
+    for i in range(attempts):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError:
+            if i == attempts - 1:
+                raise
+            time.sleep(delay)
+
+
+def _merge_fail_budget(expected_count):
+    """單檔 merge 失敗的容忍上限（至少 5 檔或 1%）。
+
+    merge 迴圈刻意讓單檔失敗不中斷整批（CSV 毀損、磁碟暫時錯誤、Windows 上
+    App Autostart 正在讀同一支 CSV 造成 os.replace 拒絕存取）。原本收尾卻是
+    `if fail: raise`，1964 檔裡壞 1 檔就讓整條行情面板鏈被 run_scanner.bat 的
+    goto skip_market_panels 跳過 —— 價格 CSV 其實已是今天的，parquet 卻沒重建，
+    形成 CSV 新 / parquet 舊的不一致（2026-08-02 code review）。
+    真正的安全網是下面的覆蓋率檢查：失敗檔不會計入 healthy_written，失敗一多
+    自然掉到門檻以下照樣 raise。
+    """
+    return max(5, math.ceil(expected_count * MAX_MERGE_FAIL_RATIO))
+
+
 def _validate_refresh_summary(healthy_written, expected_count, fail):
     """Fail the process when the promoted healthy-date batch is incomplete."""
     required = max(
         min(MIN_MARKET_ROWS, expected_count),
         math.ceil(expected_count * MIN_MARKET_COVERAGE_RATIO),
     )
-    if fail:
-        raise RuntimeError(f"{fail} price CSV merge(s) failed")
+    budget = _merge_fail_budget(expected_count)
+    if fail > budget:
+        raise RuntimeError(
+            f"{fail} price CSV merge(s) failed, over the tolerance of {budget}")
     if healthy_written < required:
         raise RuntimeError(
             f"healthy market date written for only {healthy_written}/{expected_count} "
             f"stocks; required at least {required}")
+
+
+def _validate_market_freshness(healthy_date, official_date, target_date):
+    """批次是否跟上最新的實際交易日。
+
+    官方 EOD 是唯一可靠的「哪天有開市」判準，不能用日曆天硬編門檻：原本的
+    `(target_date - healthy_date).days > 4` 在台股長假必然成立 —— 以真實交易日曆
+    模擬 2006-2026，休市間隔 >= 6 個日曆天的事件 24 次共造成 132 個假 FAIL 夜，
+    2026 春節（2/11 -> 2/23）連續 7 夜（2026-08-02 code review）。每次 FAIL 都讓
+    run_scanner.bat 跳過整段行情面板。
+    """
+    if official_date is not None:
+        if healthy_date < official_date:
+            raise RuntimeError(
+                f"batch latest healthy date {healthy_date.date()} is behind the official "
+                f"trading day {official_date.date()}")
+        return
+    # 官方 lookback 內找不到任何交易日：市場休市（長假）或官方端點掛掉。
+    # 兩者都不該誤報，但也不能無上限放行 —— 台股最長連假（春節）約 12 個日曆天。
+    gap = (target_date - healthy_date).days
+    if gap > MAX_NO_OFFICIAL_GAP_DAYS:
+        raise RuntimeError(
+            f"no official trading day in lookback and latest healthy batch date "
+            f"{healthy_date.date()} is {gap} calendar days behind {target_date.date()}")
+    log.warning(
+        "Official EOD unavailable within lookback; latest healthy batch date %s is %d "
+        "calendar days behind %s (long holiday or official outage) -- continuing",
+        healthy_date.date(), gap, target_date.date())
 
 
 def main():
@@ -272,14 +339,13 @@ def main():
     official_date, official = _official_daily_overlay(sids, target_date)
     data = _merge_official_overlay(data, official_date, official)
 
-    healthy_date, unhealthy_dates, _coverage = _market_date_health(data, len(sids))
-    if (target_date - healthy_date).days > 4:
-        raise RuntimeError(
-            f"latest healthy batch date {healthy_date.date()} is too stale for target "
-            f"{target_date.date()}")
-
     # 2b. 防呆：盤中 (TW 收盤 13:30) 手動/早班執行時 yfinance 會回當日「未完成」盤中 bar，
     #     臨時收盤價會被寫進 CSV 污染當日資料。排程都在收盤後跑不受影響；此處只擋手動早跑。
+    #     ⚠️ 必須在 _market_date_health 之前剔除：盤中今日已成交檔數（實測中後盤約
+    #     1900/1964）會跨過健康度門檻，讓 healthy_date 被判成「今天」；剔除今日後
+    #     merged 與磁碟 CSV 都沒有今日列，healthy_written 停在 0，收尾必然丟
+    #     「healthy market date written for only 0/1964 stocks」這個完全誤導的錯誤，
+    #     而且 run_scanner.bat 會因非 0 exit 跳過整段行情面板（2026-08-02 code review）。
     if now < now.normalize() + pd.Timedelta(hours=13, minutes=35):
         today = now.normalize()
         n_trim = 0
@@ -292,6 +358,9 @@ def main():
         if n_trim:
             log.info("盤中執行 (%s)：剔除 %d 檔今日(%s)未完成 bar，待收盤後排程補",
                      now.strftime("%H:%M"), n_trim, today.date())
+
+    healthy_date, unhealthy_dates, _coverage = _market_date_health(data, len(sids))
+    _validate_market_freshness(healthy_date, official_date, target_date)
 
     # 3. 合併進每檔 CSV（沿用 cache_manager 格式）
     ok = fail = skipped = healthy_written = 0
@@ -311,7 +380,7 @@ def main():
             tmp_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
             try:
                 merged.to_csv(tmp_path)
-                os.replace(tmp_path, path)
+                _replace_with_retry(tmp_path, path)
             finally:
                 tmp_path.unlink(missing_ok=True)
             ok += 1

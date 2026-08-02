@@ -72,11 +72,87 @@ def test_official_overlay_replaces_same_day_yahoo_row():
     assert pd.isna(row['Adj Close'])
 
 
-def test_refresh_summary_fails_on_partial_or_merge_error():
+def test_refresh_summary_fails_on_partial_coverage():
     with pytest.raises(RuntimeError, match='only 799/1000'):
         RUP._validate_refresh_summary(799, 1000, fail=0)
-    with pytest.raises(RuntimeError, match='price CSV merge'):
-        RUP._validate_refresh_summary(1000, 1000, fail=1)
+
+
+def test_single_csv_merge_failure_does_not_kill_the_batch():
+    """1964 檔壞 1 檔不該讓整條行情面板鏈被跳過（2026-08-02 code review）。"""
+    budget = RUP._merge_fail_budget(1000)
+
+    assert budget >= 5
+    RUP._validate_refresh_summary(1000, 1000, fail=1)          # 不 raise
+    RUP._validate_refresh_summary(1000, 1000, fail=budget)     # 剛好在容忍內
+
+    with pytest.raises(RuntimeError, match='over the tolerance'):
+        RUP._validate_refresh_summary(1000, 1000, fail=budget + 1)
+
+
+def test_mass_merge_failure_still_caught_by_coverage_check():
+    """失敗檔不計入 healthy_written，所以大量失敗仍會被覆蓋率門檻擋下。"""
+    with pytest.raises(RuntimeError, match='only 100/1000'):
+        RUP._validate_refresh_summary(100, 1000, fail=RUP._merge_fail_budget(1000))
+
+
+def test_freshness_uses_official_trading_day_not_calendar_days():
+    """長假不得誤報：判準是「有沒有落後官方交易日」，不是日曆天數。"""
+    target = pd.Timestamp('2026-02-16')      # 春節期間，最後交易日 2/11
+    official = pd.Timestamp('2026-02-11')
+
+    # 跟上官方最新交易日 -> 通過（舊碼會因 5 個日曆天 > 4 而 raise）
+    RUP._validate_market_freshness(official, official, target)
+
+    # 落後官方交易日 -> 必須 raise
+    with pytest.raises(RuntimeError, match='behind the official trading day'):
+        RUP._validate_market_freshness(pd.Timestamp('2026-02-10'), official, target)
+
+
+def test_freshness_tolerates_long_holiday_when_official_unavailable():
+    """官方 lookback 內找不到交易日（長假/端點掛掉）只警告，超過上限才 raise。"""
+    healthy = pd.Timestamp('2026-02-11')
+
+    # 春節 2/11 -> 2/23 相隔 12 天，仍在容忍內
+    RUP._validate_market_freshness(healthy, None, pd.Timestamp('2026-02-22'))
+
+    with pytest.raises(RuntimeError, match='no official trading day in lookback'):
+        RUP._validate_market_freshness(
+            healthy, None, healthy + pd.Timedelta(days=RUP.MAX_NO_OFFICIAL_GAP_DAYS + 1))
+
+
+def test_replace_retries_transient_windows_lock(tmp_path, monkeypatch):
+    """常駐 Streamlit 讀同一支 CSV 造成的暫時性 PermissionError 應重試而非放棄。"""
+    src, dst = tmp_path / 'a.tmp', tmp_path / 'b.csv'
+    src.write_text('new', encoding='utf-8')
+    dst.write_text('old', encoding='utf-8')
+    calls = []
+    real_replace = RUP.os.replace
+
+    def flaky(a, b):
+        calls.append(1)
+        if len(calls) < 3:
+            raise PermissionError(5, 'Access is denied')
+        real_replace(a, b)
+
+    monkeypatch.setattr(RUP.os, 'replace', flaky)
+    monkeypatch.setattr(RUP.time, 'sleep', lambda _s: None)
+
+    RUP._replace_with_retry(src, dst)
+
+    assert len(calls) == 3
+    assert dst.read_text(encoding='utf-8') == 'new'
+
+
+def test_replace_gives_up_after_attempts(tmp_path, monkeypatch):
+    src, dst = tmp_path / 'a.tmp', tmp_path / 'b.csv'
+    src.write_text('new', encoding='utf-8')
+    monkeypatch.setattr(
+        RUP.os, 'replace',
+        lambda *_a: (_ for _ in ()).throw(PermissionError(5, 'Access is denied')))
+    monkeypatch.setattr(RUP.time, 'sleep', lambda _s: None)
+
+    with pytest.raises(PermissionError):
+        RUP._replace_with_retry(src, dst)
 
 
 def test_adjustment_ratio_handles_legacy_cache_without_adjusted_close():
