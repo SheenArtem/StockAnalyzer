@@ -2,8 +2,10 @@
 交易紀錄 / 投資組合資料模型 — 💼 投資組合 tab (2026-07-01)
 
 逐筆交易 (buy/sell) -> 推導當前持倉 (移動平均成本法) + 已實現損益。
-儲存：data/manual_trades/transactions.json（git 追蹤，累積型 state，
-同 whale_picks/trade_ledger 政策；見 memory project_daily_outputs_untracked）。
+儲存：data/manual_trades/transactions.json（**本機 local-only，永不入版控**）。
+真實持股與損益屬敏感財務資料，本 repo 會 push 公開 GitHub，故由 data/.gitignore
+的 `manual_trades/` 排除，比照 positions.json 政策。要備份請自行處理，
+不要 `git add -f`。
 
 純 Python，無 streamlit 依賴，可單元測試（見 tests/test_portfolio_store.py）。
 
@@ -431,8 +433,11 @@ def build_nav_series(transactions: list, price_history: dict, market: str):
     回傳 DataFrame(index=交易日)，欄：
       mv   當日收盤持股市值
       flow 當日淨現金流（買入 +現金投入、賣出 -現金取回，含 fee/tax）
-      ret  當日 TWR 報酬 = (mv - flow - prev_mv) / prev_mv（現金流視為當日末發生，不賺當日報酬）
+      ret  當日 TWR 報酬 = (mv* - flow - prev_mv) / prev_mv（現金流視為當日末發生，
+           不賺當日報酬）。mv* 是「當日淨增部位改以成交成本計價」的市值，確保新錢的
+           當日帳面損益不會被算到舊部位頭上；mv 欄位本身仍是真實收盤市值。
       nav  淨值指數（起始 1.0）；prev_mv=0（尚未建倉/全數出場）當日 ret=0
+           —— 已知限制：首日或空倉日的當沖已實現損益無分母可歸屬，不進 nav。
     無足夠資料 -> 空 DataFrame。
 
     以 TWR 中和加減碼時點，讓 nav / Sharpe 反映「策略」表現而非資金進出時機。
@@ -467,6 +472,9 @@ def build_nav_series(transactions: list, price_history: dict, market: str):
 
     shares = pd.DataFrame(0.0, index=idx, columns=list(ph.keys()))
     flow = pd.Series(0.0, index=idx)
+    # 當日買進的股數與現金成本（含手續費），用來把新部位以成交成本入帳，見下方說明
+    buy_qty = pd.DataFrame(0.0, index=idx, columns=list(ph.keys()))
+    buy_cost = pd.DataFrame(0.0, index=idx, columns=list(ph.keys()))
     for t in txns:
         tk = t['ticker']
         if tk not in shares.columns:
@@ -481,22 +489,41 @@ def build_nav_series(transactions: list, price_history: dict, market: str):
         if t['action'] == 'buy':
             shares.loc[shares.index >= ed, tk] += s_qty
             flow.loc[ed] += s_qty * px + fee
+            buy_qty.loc[ed, tk] += s_qty
+            buy_cost.loc[ed, tk] += s_qty * px + fee
         else:
             shares.loc[shares.index >= ed, tk] -= s_qty
             flow.loc[ed] -= (s_qty * px - fee - tax)
 
     mv = (shares * price_df).fillna(0.0).sum(axis=1)
 
+    # ---- TWR 分子用的市值：當日淨增部位以「成交成本」計價 ----
+    # 期末現金流慣例要求「當天投入的新錢不賺當天報酬」。但 shares 從成交當日就生效，
+    # 若新部位直接用當日收盤計價，(收盤 - 成交價) x 股數 這筆帳面損益會被除在
+    # 「昨日舊部位」這個小分母上 —— 單日加碼可把 nav 灌到荒謬值（2026-08-02
+    # code review P0-2：加碼 100 萬、當日收漲 1%，舊部位僅 2 萬時算出單日 +50%）。
+    # 因此分子改用：當日淨增股數以成交均價入帳，其餘（含淨減倉）維持收盤計價。
+    # 分母 prev_mv 仍用未調整的真實收盤市值。
+    prev_shares = shares.shift(1).fillna(0.0)
+    delta = shares - prev_shares
+    added = delta.clip(lower=0.0)
+    avg_buy_px = (buy_cost / buy_qty.where(buy_qty > 0)).fillna(0.0)
+    at_close = (shares * price_df).fillna(0.0)
+    prev_at_close = (prev_shares * price_df).fillna(0.0)
+    mv_for_ret = at_close.where(delta <= 0,
+                                prev_at_close + added * avg_buy_px).sum(axis=1)
+
     ret = pd.Series(0.0, index=idx)
     nav = pd.Series(1.0, index=idx)
     prev_mv, cur_nav = 0.0, 1.0
     for d in idx:
-        mv_d = float(mv.loc[d])
-        r = (mv_d - float(flow.loc[d]) - prev_mv) / prev_mv if prev_mv > _EPS else 0.0
+        # 分子用成本計價後的市值，分母/下一輪 prev_mv 用真實收盤市值。
+        r = ((float(mv_for_ret.loc[d]) - float(flow.loc[d]) - prev_mv) / prev_mv
+             if prev_mv > _EPS else 0.0)
         ret.loc[d] = r
         cur_nav *= (1.0 + r)
         nav.loc[d] = cur_nav
-        prev_mv = mv_d
+        prev_mv = float(mv.loc[d])
 
     return pd.DataFrame({'mv': mv, 'flow': flow, 'ret': ret, 'nav': nav})
 

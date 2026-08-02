@@ -5,6 +5,7 @@
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -29,6 +30,80 @@ def _pivot_by_type(df, types_to_keep):
     return pivot
 
 
+# 同義字：FinMind 對同一個會計科目的不同拼法／表達，合併是純粹的資料修正。
+# 其中 NoncurrentLiabilities（小寫 c）是 FinMind 的主要拼法，佔 76,367 / 83,934 列；
+# 只找 NonCurrentLiabilities 會讓 F5 長期負債比與 ROIC 兩個分支對 93% 的股票失效。
+_SPELLING_ALIASES = {
+    'IncomeAfterTaxes': ('IncomeAfterTax', 'IncomeFromContinuingOperations'),
+    'Equity': ('EquityAttributableToOwnersOfParent',),
+    'NonCurrentLiabilities': ('NoncurrentLiabilities',),
+    'CashFlowsFromOperatingActivities': ('NetCashInflowFromOperatingActivities',),
+}
+
+# ⚠️ 代理值：不是同義字，是「沒有該科目時拿另一個科目頂替」。
+#   NetInterestIncome 是淨額（已扣利息支出），Revenue 是總額；
+#   稅前淨利含業外損益，營業利益不含。兩者定義與量級都不同。
+# 目前影響 569 + 1,406 列（幾乎全是金控銀行），落盤後無法從輸出分辨哪些是代理值。
+# 2026-08-02 code review 建議改為「不代入或加 *_is_proxy 旗標」，尚未處理。
+_PROXY_ALIASES = {
+    'Revenue': ('NetInterestIncome',),
+    'OperatingIncome': (
+        'IncomeBeforeTaxFromContinuingOperations',
+        'PreTaxIncome',
+    ),
+}
+
+_CANONICAL_ALIASES = {**_SPELLING_ALIASES, **_PROXY_ALIASES}
+
+_SCORER_NUMERIC_FIELDS = {
+    'Revenue', 'GrossProfit', 'OperatingIncome', 'IncomeAfterTaxes',
+    'TotalAssets', 'Liabilities', 'Equity', 'CashAndCashEquivalents',
+    'CurrentAssets', 'CurrentLiabilities', 'NonCurrentLiabilities',
+    'CashFlowsFromOperatingActivities', 'CashProvidedByInvestingActivities',
+    'Depreciation', 'AmortizationExpense', 'PropertyAndPlantAndEquipment',
+}
+
+# compute_zscore_row 的五個 X 項全部需要這些欄位；任一缺值代表「這檔算不出 Z」，
+# 必須與「Z 很差」區分。金控/銀行/保險的資產負債表不分流動與非流動，FinMind
+# 沒有 CurrentAssets / CurrentLiabilities 這兩個 type，屬結構性缺值。
+_ZSCORE_REQUIRED_FIELDS = (
+    'TotalAssets', 'CurrentAssets', 'CurrentLiabilities',
+    'Equity', 'Liabilities', 'OperatingIncome', 'Revenue',
+)
+
+
+def normalize_financial_wide(frame):
+    """Coalesce FinMind aliases; keep missing values as NaN (never 0).
+
+    缺值一律保持 NaN。所有 scorer 的分支都用 `> 0` 之類的條件包住，NaN 比較恆為
+    False，效果是「這一項無法評估就不給分也不扣分」—— 這才是 missing 的正確語意。
+
+    ⚠️ 不要在這裡 fillna(0)：對金融股而言 CurrentAssets/CurrentLiabilities 是
+    結構性缺值，補 0 會讓 Altman Z 從「算不出來」變成「有限但極低」，必然觸發
+    compute_quality_score 的 `zscore < 1.81 → -20`，整個金融族群被系統性誤扣約
+    22 分（2026-08-02 code review P0-1，實測 104 檔 / 1,820 列）。
+    """
+    out = frame.copy()
+    for canonical, aliases in _CANONICAL_ALIASES.items():
+        if canonical in out.columns:
+            values = pd.to_numeric(out[canonical], errors='coerce')
+        else:
+            values = pd.Series(np.nan, index=out.index, dtype=float)
+        for alias in aliases:
+            if alias in out.columns:
+                values = values.combine_first(
+                    pd.to_numeric(out[alias], errors='coerce')
+                )
+        out[canonical] = values
+    for column in _SCORER_NUMERIC_FIELDS:
+        if column not in out.columns:
+            # 建欄但留 NaN：讓 curr.get(col) 回 NaN 而不是 dict 預設值 0。
+            out[column] = np.nan
+        else:
+            out[column] = pd.to_numeric(out[column], errors='coerce')
+    return out
+
+
 def build_financial_wide():
     """Load parquet and pivot to wide format per quarter."""
     logger.info("Loading financial parquets...")
@@ -45,15 +120,19 @@ def build_financial_wide():
 
     income = _pivot_by_type(income_long, [
         'Revenue', 'GrossProfit', 'OperatingIncome',
-        'IncomeAfterTaxes', 'IncomeFromContinuingOperations', 'EPS',
+        'IncomeAfterTaxes', 'IncomeAfterTax', 'IncomeFromContinuingOperations',
+        'NetInterestIncome', 'IncomeBeforeTaxFromContinuingOperations',
+        'PreTaxIncome', 'EPS',
     ])
     balance = _pivot_by_type(balance_long, [
         'TotalAssets', 'Liabilities', 'Equity', 'CashAndCashEquivalents',
         'CurrentAssets', 'CurrentLiabilities', 'NonCurrentLiabilities',
+        'NoncurrentLiabilities', 'EquityAttributableToOwnersOfParent',
     ])
     cashflow = _pivot_by_type(cashflow_long, [
         'CashFlowsFromOperatingActivities', 'CashProvidedByInvestingActivities',
         'Depreciation', 'AmortizationExpense', 'PropertyAndPlantAndEquipment',
+        'NetCashInflowFromOperatingActivities',
     ])
 
     logger.info(f"  income: {len(income)} quarter-stocks")
@@ -63,6 +142,7 @@ def build_financial_wide():
     # Merge on (stock_id, date)
     wide = income.merge(balance, on=['stock_id', 'date'], how='outer')
     wide = wide.merge(cashflow, on=['stock_id', 'date'], how='outer')
+    wide = normalize_financial_wide(wide)
     wide = wide.sort_values(['stock_id', 'date'])
 
     return wide, revenue_raw
@@ -181,6 +261,13 @@ def compute_zscore_row(curr):
     X5 = Sales / total assets
     """
     try:
+        # 必要欄位缺值 → 這檔算不出 Z，回 None 讓 compute_quality_score 略過該分支。
+        # 不可退化成 0（見 normalize_financial_wide 的警告）。
+        for field in _ZSCORE_REQUIRED_FIELDS:
+            value = curr.get(field)
+            if value is None or pd.isna(value):
+                return None
+
         ta = curr.get('TotalAssets', 0)
         if ta <= 0:
             return None
@@ -359,8 +446,42 @@ def compute_revenue_score(stock_id, curr_date, revenue_raw):
     return max(0, min(100, score))
 
 
+def build_revenue_score_lookup(revenue_raw):
+    """Build PIT-safe monthly score arrays once instead of rescanning per quarter."""
+    from tools.compute_revenue_scores_monthly import (
+        _prepare_revenue_input,
+        _score_revenue_rows,
+    )
+
+    prepared = _prepare_revenue_input(revenue_raw)
+    scored = _score_revenue_rows(prepared)
+    lookup = {}
+    for stock_id, group in scored.groupby('stock_id', sort=False):
+        ordered = group.sort_values('date')
+        lookup[str(stock_id)] = (
+            pd.to_datetime(ordered['date']).to_numpy(dtype='datetime64[ns]'),
+            pd.to_numeric(ordered['revenue_score'], errors='coerce').to_numpy(),
+        )
+    return lookup
+
+
+def revenue_score_asof(stock_id, curr_date, lookup):
+    """Return the last score legally available on ``curr_date`` (baseline 50)."""
+    item = lookup.get(str(stock_id))
+    if item is None:
+        return 50.0
+    dates, scores = item
+    position = int(
+        np.searchsorted(dates, np.datetime64(pd.Timestamp(curr_date)), side='right')
+    ) - 1
+    if position < 0 or not np.isfinite(scores[position]):
+        return 50.0
+    return float(scores[position])
+
+
 def process():
     wide, revenue_raw = build_financial_wide()
+    revenue_lookup = build_revenue_score_lookup(revenue_raw)
 
     logger.info(f"Computing quality scores for {wide['stock_id'].nunique()} stocks...")
 
@@ -382,7 +503,7 @@ def process():
             fscore = compute_fscore_row(curr, prev)
             zscore = compute_zscore_row(curr)
             q_score = compute_quality_score(fscore, zscore, curr, prev)
-            r_score = compute_revenue_score(sid, date, revenue_raw)
+            r_score = revenue_score_asof(sid, date, revenue_lookup)
             combined = round(q_score * 0.6 + r_score * 0.4)
 
             results.append({
@@ -396,8 +517,15 @@ def process():
             })
 
     out = pd.DataFrame(results)
+    if out.empty:
+        raise RuntimeError("quality score rebuild produced no rows")
     out_path = DATA_DIR / "quality_scores.parquet"
-    out.to_parquet(out_path, index=False)
+    temp = out_path.with_name(f".{out_path.name}.{os.getpid()}.tmp")
+    try:
+        out.to_parquet(temp, index=False)
+        os.replace(temp, out_path)
+    finally:
+        temp.unlink(missing_ok=True)
     logger.info(f"Saved {out_path}: {len(out)} rows, {out['stock_id'].nunique()} stocks")
     logger.info(f"  F-Score range: {out['f_score'].min()} to {out['f_score'].max()}, mean={out['f_score'].mean():.1f}")
     logger.info(f"  Z-Score p25/50/75: {out['z_score'].quantile([.25,.5,.75]).values}")

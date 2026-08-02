@@ -336,6 +336,81 @@ def test_nav_full_exit_then_flat():
     assert nav['mv'].tolist() == [1000, 0, 0]
 
 
+def test_nav_new_position_paper_pnl_not_charged_to_old_base():
+    """加碼當日的帳面損益不得算到舊部位頭上（2026-08-02 code review P0-2）。
+
+    day2 買 BBB 1000@1000、當日收 1010，而舊部位 AAA 只有 2 萬且當日沒動。
+    修正前：(1030000 - 1000000 - 20000)/20000 = +50%（單日 nav 1.0 -> 1.5）。
+    正解：AAA 沒動 -> 當日 0%。
+    """
+    txns = [
+        dict(id='a', ticker='AAA', market='us', action='buy', date='2026-06-01',
+             shares=1000, price=20, fee=0, tax=0, created_at='t1'),
+        dict(id='b', ticker='BBB', market='us', action='buy', date='2026-06-02',
+             shares=1000, price=1000, fee=0, tax=0, created_at='t2'),
+    ]
+    ph = {
+        'AAA': _price(['2026-06-01', '2026-06-02'], [20, 20]),
+        'BBB': _price(['2026-06-01', '2026-06-02'], [1000, 1010]),
+    }
+    nav = ps.build_nav_series(txns, ph, 'us')
+
+    assert nav['ret'].tolist()[1] == pytest.approx(0.0)
+    assert nav['nav'].tolist()[1] == pytest.approx(1.0)
+    assert nav['mv'].tolist() == [20000, 1030000]   # mv 欄位仍是真實收盤市值
+
+
+def test_nav_add_at_price_below_close_reports_true_price_move():
+    """同檔加碼且成交價 != 當日收盤：當日報酬應等於純價格漲幅。
+
+    既有部位 100@10（前收 10），day2 以 10.5 加碼 100 股、當日收 11。
+    真實價格只從 10 漲到 11 = +10%；修正前會多算 (11-10.5)x100/1000 = +5%。
+    """
+    txns = [
+        dict(id='a', ticker='AAA', market='us', action='buy', date='2026-06-01',
+             shares=100, price=10, fee=0, tax=0, created_at='t1'),
+        dict(id='b', ticker='AAA', market='us', action='buy', date='2026-06-02',
+             shares=100, price=10.5, fee=0, tax=0, created_at='t2'),
+    ]
+    ph = {'AAA': _price(['2026-06-01', '2026-06-02'], [10, 11])}
+    nav = ps.build_nav_series(txns, ph, 'us')
+
+    assert nav['ret'].tolist()[1] == pytest.approx(0.10)
+    assert nav['mv'].tolist() == [1000, 2200]
+
+
+def test_nav_add_cost_includes_fee():
+    """成交成本入帳要含手續費，否則手續費會被當成當日虧損打進報酬。"""
+    txns = [
+        dict(id='a', ticker='AAA', market='us', action='buy', date='2026-06-01',
+             shares=100, price=10, fee=0, tax=0, created_at='t1'),
+        dict(id='b', ticker='AAA', market='us', action='buy', date='2026-06-02',
+             shares=100, price=11, fee=50, tax=0, created_at='t2'),
+    ]
+    ph = {'AAA': _price(['2026-06-01', '2026-06-02'], [10, 11])}
+    nav = ps.build_nav_series(txns, ph, 'us')
+
+    # 新股成本 1100+50 = 1150 與 flow 1150 相抵，當日只剩舊部位 10->11 = +10%
+    assert nav['flow'].tolist()[1] == pytest.approx(1150)
+    assert nav['ret'].tolist()[1] == pytest.approx(0.10)
+
+
+def test_nav_partial_sell_still_uses_close_price():
+    """淨減倉日不套用成本計價：賣出當日仍要認到真實價格漲幅。"""
+    txns = [
+        dict(id='a', ticker='AAA', market='us', action='buy', date='2026-06-01',
+             shares=100, price=10, fee=0, tax=0, created_at='t1'),
+        dict(id='b', ticker='AAA', market='us', action='sell', date='2026-06-02',
+             shares=40, price=11, fee=0, tax=0, created_at='t2'),
+    ]
+    ph = {'AAA': _price(['2026-06-01', '2026-06-02'], [10, 11])}
+    nav = ps.build_nav_series(txns, ph, 'us')
+
+    # mv = 60x11 = 660，flow = -440，(660+440-1000)/1000 = +10%
+    assert nav['ret'].tolist()[1] == pytest.approx(0.10)
+    assert nav['mv'].tolist() == [1000, 660]
+
+
 def test_ytd_baseline_spans_prev_year():
     s = _price(['2025-12-30', '2025-12-31', '2026-01-02', '2026-06-30'],
                [100, 110, 120, 140])
