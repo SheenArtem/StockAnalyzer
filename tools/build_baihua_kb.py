@@ -324,26 +324,43 @@ def build_index(records: list[dict]) -> None:
 
 # ---------------------------------------------------------------- 主流程
 def load_posts() -> list[dict]:
+    """讀 raw SoT。壞行不會讓本工具毀資料（只讀不寫），但會**靜默漏掉一篇文章** ——
+    知識庫少一篇而畫面上看不出來，所以要計數並警告（2026-08-02 code review）。
+    """
     if not RAW_JSONL.exists():
         log.error("找不到 %s。請先跑 tools/fetch_baihua_fb.py --scrape", RAW_JSONL)
         return []
     rows = []
-    for line in RAW_JSONL.read_text(encoding="utf-8").splitlines():
-        if line.strip():
-            try:
-                rows.append(json.loads(line))
-            except Exception:
-                pass
+    bad = []
+    for lineno, line in enumerate(RAW_JSONL.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            rows.append(json.loads(line))
+        except Exception as e:
+            bad.append(f"line {lineno}: {type(e).__name__} {str(e)[:60]}")
+    if bad:
+        log.warning("%s 有 %d 行無法解析 → 這幾篇文章不會進知識庫（不是「已整理完」）："
+                    "\n  %s", RAW_JSONL, len(bad), "\n  ".join(bad[:10]))
     return rows
 
 
 def load_state() -> dict:
-    if STATE.exists():
-        try:
-            return json.loads(STATE.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-    return {}
+    """讀增量 checkpoint。壞掉時 raise —— 不可回 {} 假裝「什麼都沒處理過」。
+
+    舊版 `except Exception: return {}` 有兩個後果：206 篇全部重跑 Sonnet（真金白銀
+    的 LLM 成本），以及 :433 的 `STATE.write_text` 會用新 state 覆寫掉舊檔，使原本
+    可能還救得回來的對照關係永久消失（2026-08-02 code review）。
+    """
+    if not STATE.exists():
+        return {}
+    try:
+        return json.loads(STATE.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise RuntimeError(
+            f"{STATE} 無法解析（{type(e).__name__}: {str(e)[:80]}）。照舊執行會把 "
+            f"{RAW_JSONL.name} 內所有文章當成未整理全部重跑 LLM，並用新 state 覆寫此檔。"
+            f"請先修好或明確刪除它（刪除＝接受全量重跑）。") from e
 
 
 def main() -> int:

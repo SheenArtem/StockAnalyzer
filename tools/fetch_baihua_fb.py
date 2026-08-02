@@ -31,6 +31,15 @@ CLI:
 輸出:
     data/baihua/raw/posts.jsonl        # 每行一貼文，增量 merge，永久 SoT
     data/baihua/raw/manifest.json      # 統計 (count / 日期範圍 / last_run)
+
+Exit code:
+    0  正常完成（已捲到底且停止增長）
+    1  一般失敗
+    2  未登入 / 登入未完成
+    4  **抓取不完整** —— 撞到 --max-rounds 上限就被截斷，資料已落地但少了最舊的部分；
+       提高 --max-rounds 重跑即可（增量 merge，不會重抓）
+    5  posts.jsonl 有無法解析的行 —— 未抓取、未寫檔。抓取會整檔重寫，照舊執行等於
+       永久刪掉那些行。修好那幾行，或明示 --drop-corrupt-lines（會先備份原檔）
 """
 from __future__ import annotations
 
@@ -379,11 +388,13 @@ def _key_of(rec: dict) -> str:
     return "tx:" + hashlib.sha1(body.encode("utf-8", "replace")).hexdigest()[:16]
 
 
-def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int) -> int:
+def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int,
+              drop_corrupt: bool = False) -> int:
     from playwright.sync_api import sync_playwright
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    existing = _load_existing()
+    # 先讀既有資料再開瀏覽器：SoT 有壞行時要在花任何抓取成本之前就擋下來。
+    existing = _load_existing(drop_corrupt=drop_corrupt)
     log.info("既有 posts=%d", len(existing))
 
     with sync_playwright() as p:
@@ -417,6 +428,7 @@ def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int) 
         collected: dict[str, dict] = dict(existing)
         stall = 0
         prev_sh = 0
+        truncated = False
         for i in range(max_rounds):
             _dismiss_dialog(page)
             clicked = _click_see_more(page)
@@ -474,25 +486,65 @@ def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int) 
             if stall >= max_stall:
                 log.info("已到頁面底部且停止增長 %d 輪 → 結束", max_stall)
                 break
+        else:
+            # 迴圈跑完 max_rounds 卻沒觸發 stall 收尾 = 還沒捲到底就被上限截斷。
+            # 舊版在這裡無聲落地並 return 0，與正常收工完全無法區分：實測全量需
+            # 473 輪，而 App 按鈕吃預設 400，第 400 輪時只有 177/208 篇，畫面卻顯示
+            # 綠色「完成」。截斷必須可辨識，故回 4 而非 0。
+            truncated = True
+            log.warning("達 --max-rounds 上限 %d 但頁面尚未捲到底（stall=%d < %d）"
+                        " → 本輪為 **不完整** 抓取，已收 %d 篇；請提高 --max-rounds "
+                        "後重跑（增量 merge，不會重抓已有的）",
+                        max_rounds, stall, max_stall, len(collected))
         ctx.close()
 
     _save(collected)
-    return 0
+    return 4 if truncated else 0
 
 
 # ---------------------------------------------------------------- 落地
-def _load_existing() -> dict[str, dict]:
+class CorruptSoTError(RuntimeError):
+    """posts.jsonl 有無法解析的行，且接下來會整檔重寫。"""
+
+
+def _load_existing(drop_corrupt: bool = False) -> dict[str, dict]:
+    """讀既有 posts.jsonl。解析失敗**預設拒絕繼續**。
+
+    這個檔案是「永久 SoT」而且被 gitignore（沒有 git 備份）。舊版對壞行
+    `except Exception: pass`，不計數也不記錄，接著 `_save` 以 tmp+replace 把**整個**
+    檔案重寫 —— 壞掉那行就此永久消失，原檔已被覆寫、事後無從還原
+    （2026-08-02 code review）。
+
+    `drop_corrupt=True`（CLI `--drop-corrupt-lines`）才是明示同意丟掉，且會先備份原檔。
+    """
     out: dict[str, dict] = {}
-    if POSTS_JSONL.exists():
-        for line in POSTS_JSONL.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-                out[rec["id"]] = rec
-            except Exception:
-                pass
+    if not POSTS_JSONL.exists():
+        return out
+    bad = []
+    for lineno, line in enumerate(POSTS_JSONL.read_text(encoding="utf-8").splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+            out[rec["id"]] = rec
+        except Exception as e:
+            bad.append((lineno, f"{type(e).__name__}: {str(e)[:80]}"))
+    if not bad:
+        return out
+
+    if not drop_corrupt:
+        detail = "\n  ".join(f"line {n}: {msg}" for n, msg in bad[:10])
+        raise CorruptSoTError(
+            f"{POSTS_JSONL} 有 {len(bad)} 行無法解析。抓取會把整個檔案重寫，"
+            f"照舊執行等於永久刪掉這些行（此檔為永久 SoT 且未入版控）。\n  "
+            f"{detail}\n"
+            f"請先人工修好那幾行；確定要捨棄請加 --drop-corrupt-lines（會先備份原檔）。")
+
+    backup = POSTS_JSONL.with_suffix(".jsonl.bak")
+    backup.write_bytes(POSTS_JSONL.read_bytes())
+    log.warning("--drop-corrupt-lines：捨棄 %d 行無法解析的資料，原檔已備份到 %s",
+                len(bad), backup)
     return out
 
 
@@ -527,6 +579,9 @@ def main() -> int:
     ap.add_argument("--logged-out", action="store_true", help="不登入試抓（只拿牆前 ~19 篇）")
     ap.add_argument("--max-stall", type=int, default=6, help="連續幾輪無新貼文即停（預設 6）")
     ap.add_argument("--max-rounds", type=int, default=400, help="最多捲幾輪（安全上限）")
+    ap.add_argument("--drop-corrupt-lines", action="store_true",
+                    help="posts.jsonl 有無法解析的行時，明示同意捨棄（會先備份原檔）；"
+                         "預設是拒絕執行，因為抓取會整檔重寫")
     args = ap.parse_args()
 
     if args.check_login:
@@ -536,8 +591,13 @@ def main() -> int:
     if args.login:
         return do_login(headful=True)
     if args.scrape:
-        return do_scrape(headful=args.headful, logged_out=args.logged_out,
-                         max_stall=args.max_stall, max_rounds=args.max_rounds)
+        try:
+            return do_scrape(headful=args.headful, logged_out=args.logged_out,
+                             max_stall=args.max_stall, max_rounds=args.max_rounds,
+                             drop_corrupt=args.drop_corrupt_lines)
+        except CorruptSoTError as e:
+            log.error("%s", e)
+            return 5
     ap.print_help()
     return 0
 

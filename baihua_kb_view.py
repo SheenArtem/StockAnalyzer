@@ -10,12 +10,15 @@
 以 st.spinner 阻塞等待。純本地檔案讀取，無 API / 不碰 cache_manager / 不觸發大盤 banner。
 """
 import json
+import logging
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 REPO = Path(__file__).resolve().parent
 KB_DIR = REPO / 'data' / 'baihua' / 'kb'
@@ -146,10 +149,20 @@ def _list_articles() -> list:
 def _do_scrape_and_build() -> None:
     """抓取 + 建庫（增量）。結果寫入 session_state 供 rerun 後顯示。"""
     with st.spinner("抓取文章中…（首次或大量更新可能數分鐘，請勿關閉）"):
-        rc, out = _run([str(FETCH), '--scrape', '--max-stall', '8'], _SCRAPE_TIMEOUT)
+        # --max-rounds 必須明給：CLI 預設 400，但實測首次全量需 473 輪（第 400 輪
+        # 時只有 177/208 篇），照預設會靜默少抓最舊的約 30 篇。實測每輪中位數 1.70s
+        # ／最壞 3.57s，700 輪約 1300s，仍在 _SCRAPE_TIMEOUT=1800s 內。
+        rc, out = _run([str(FETCH), '--scrape', '--max-stall', '8',
+                        '--max-rounds', '700'], _SCRAPE_TIMEOUT)
     if rc == 2:
         st.session_state['baihua_msg'] = ('warn',
             "尚未登入 Facebook。請先點下方「登入 Facebook」完成一次性登入，再抓取。")
+        return
+    if rc == 4:
+        # 撞到輪數上限：資料有落地但不完整，不可顯示綠色「完成」。
+        st.session_state['baihua_msg'] = ('warn',
+            "抓取**不完整**：撞到捲動輪數上限，最舊的文章可能沒抓到。"
+            "已抓到的部分已存檔，再按一次「抓取新文章」可繼續往下捲（增量，不會重抓）。")
         return
     if rc != 0:
         st.session_state['baihua_msg'] = ('error', f"抓取失敗（rc={rc}）：\n{out[-1500:]}")
@@ -185,15 +198,25 @@ def _do_import_cookies(text: str) -> None:
         return
     tmp = REPO / 'local' / '_fb_cookie_import.tmp'
     tmp.parent.mkdir(parents=True, exist_ok=True)
+    unlink_error = None
     try:
         tmp.write_text(text, encoding='utf-8')
         with st.spinner("匯入 cookie 中…"):
             rc, out = _run([str(FETCH), '--import-cookies', str(tmp)], 180)
     finally:
+        # 「即用即刪」是對使用者的安全承諾（docstring 與 UI caption 都這樣寫）。
+        # 舊版 `except Exception: pass` 會讓它靜默變成假承諾 —— cookie 檔留在磁碟上
+        # 而畫面照樣說已刪除。`local/` 有被 gitignore 所以不會外洩到 repo，但仍要講。
         try:
-            tmp.unlink()
-        except Exception:
-            pass
+            tmp.unlink(missing_ok=True)
+        except Exception as e:
+            unlink_error = f"{type(e).__name__}: {e}"
+            logger.warning("cookie 暫存檔刪除失敗 %s: %s", tmp, e)
+    if unlink_error:
+        st.session_state['baihua_msg'] = ('warn',
+            f"cookie 已匯入，但**暫存檔刪不掉**：`{tmp}`（{unlink_error}）。"
+            "該檔含登入 token，請自行手動刪除。")
+        return
     if rc == 0:
         st.session_state['baihua_msg'] = ('success', "cookie 匯入成功，已登入。現在可以抓取文章了。")
     else:
