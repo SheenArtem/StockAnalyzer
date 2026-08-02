@@ -20,9 +20,8 @@ REM  is_ai_era, c1_tilt_on, and the 1-month / 3-month revenue YoY numbers.
 REM
 REM  Who consumes it: the QM stock screener gives flagged stocks a small
 REM  1.2x score boost, and the app lists them in the "C1 turnaround" tab.
-REM  NOTE: since 100% Whale Picks became the production strategy
-REM  (2026-05-23), the QM screener is informational-only, so this flag now
-REM  mainly keeps that UI tab current rather than driving live trades.
+REM  The QM screener is informational-only, so this flag mainly keeps that
+REM  UI tab current rather than driving live trades.
 REM
 REM ============================================================
 REM  Schedule: the 11th of each month, 01:00.
@@ -43,8 +42,8 @@ REM ============================================================
 REM DISABLED 2026-05-30 per user request: C1 tilt is only consumed by the
 REM informational QM screener (daily QM scan already disabled 2026-05-23)
 REM and the Mode D UI tab (which already reads a frozen qm_result.json).
-REM The production strategy (Whale Picks) does NOT use C1 at all, so
-REM stopping this refresh affects nothing live. data/c1_tilt_flags.parquet
+REM Stopping this refresh affects no active scheduled trading path.
+REM data/c1_tilt_flags.parquet
 REM is LEFT IN PLACE (frozen at its last monthly snapshot, ~2026-05-11),
 REM NOT deleted -- it is git-tracked and only feeds informational consumers
 REM (the QM screener boost + Mode D UI tab, both already non-production).

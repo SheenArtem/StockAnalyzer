@@ -326,7 +326,7 @@ def main():
     md.append("### å»ºè­°")
     md.append("")
     if best_a_grade in ("A", "B"):
-        md.append(f"- ?¹æ? A ?¯ä?ç·šï???`scanner_value` / `whale_picks_screener` ?§å? `base_mos > {THRESHOLDS[0]}` filter")
+        md.append(f"- ?¹æ? A ?¯ä?ç·šï???`scanner_value` ?§å? `base_mos > {THRESHOLDS[0]}` filter")
     elif best_a_grade == "C":
         md.append("- ?¹æ? A ?Šé?ï¼šå¯ä½œç‚º informational tier (UI é¡¯ç¤º?¨ï?ä¸é€?selection)")
     else:

@@ -18,7 +18,7 @@ test_screenshots/
 tools/ui_test_*.py
 tools/ui_smoke_*.py
 tools/*_smoke_test.py
-# Playwright UI 驗證腳本（啟 streamlit 截圖到 test_screenshots/；正式單元測試在 tests/ 與 tools/test_{brokerage_yt,ledger_append,notes_view}.py 仍追蹤）
+# Playwright UI 驗證腳本（啟 streamlit 截圖到 test_screenshots/；正式單元測試在 tests/ 與 tools/test_{brokerage_yt,notes_view}.py 仍追蹤）
 tools/test_macro_ai_report_section.py
 tools/test_report_library_scroll_fix.py
 tools/test_report_library_ui.py

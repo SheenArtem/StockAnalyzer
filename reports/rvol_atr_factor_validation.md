@@ -173,12 +173,12 @@ Long-short = 兩條腿，每腿每次再平衡一次 round-trip → 每期成本
 
 **當前 `data_cache/backtest/ohlcv_tw.parquet` 是 survivor-only panel。** 量化證據：
 - panel 2,064 檔，其中 **1,890 檔（91.6%）最後一根 bar 正好落在 panel 末日**；**0 檔**在末日前 90 天以上下市。一個含下市股的真 PIT panel 不可能有「零 90 天前死亡」。
-- 對照 `data_cache/backtest/universe_tw_pit.parquet`：PIT universe 認得 **3,621** 檔（status 含 正常 2,438 / 下市櫃・暫停・終止買賣 約 1,183），**價格 panel 只覆蓋 2,064 檔 → 1,660 檔（46%）PIT 已知 ticker 在價格 panel 中完全沒有資料**，絕大多數是下市/終止名單。panel 由 `refresh_universe_prices.py` 只抓現役 ticker 建成。
+- 歷史 PIT universe 稽核當時認得 **3,621** 檔（status 含正常 2,438 / 下市櫃・暫停・終止買賣約 1,183），**價格 panel 只覆蓋 2,064 檔 → 1,660 檔（46%）PIT 已知 ticker 在價格 panel 中完全沒有資料**，絕大多數是下市/終止名單。該次稽核的專屬衍生檔現已移除；目前 panel 仍由 `refresh_universe_prices.py` 只抓現役 ticker 建成。
 
 **方向性影響（量化推估）**：
 - **對 ATR% 反向因子（高估方向，但結論不變）**：下市股多為低波動殭屍（停牌前成交枯竭→ATR% 假低→歸 D1）最終下市清算（報酬 ≈ −100%）。survivor panel 把它們剔除 → **低波動 D1 報酬被系統性高估**。但即便在這個對「低波動有利」**最有利**的偏差下，乾淨 h=20 的低波動 LS spread 仍 16/18 年為負。**真值只會更負** → FAIL 結論在 survivor-corrected panel 下**只會更強**，不會翻盤。
 - **對 RVOL（影響小）**：RVOL 是橫斷面當下相對量，與「最終是否下市」關聯弱；下市前夕常伴隨異常爆量（恐慌/處置），若納入可能小幅**降低**高量端報酬。方向性影響有限，但 RVOL 的薄 edge 本就脆弱，survivor-corrected 後可能再縮。
-- 結論：survivorship 讓**兩個因子的呈現都偏樂觀**；對 ATR% 是「致命方向更致命」，對 RVOL 是「薄 edge 可能更薄」。**建議若要把 RVOL 正式上 production，必須在 PIT panel（含下市，`universe_tw_pit` + 重抓下市股價）重跑確認 edge 不消失。**
+- 結論：survivorship 讓**兩個因子的呈現都偏樂觀**；對 ATR% 是「致命方向更致命」，對 RVOL 是「薄 edge 可能更薄」。**建議若要把 RVOL 正式上 production，必須重新建置含下市股的獨立 PIT panel，並重抓下市股價後重跑，確認 edge 不消失。**
 
 ---
 
@@ -205,7 +205,7 @@ Long-short = 兩條腿，每腿每次再平衡一次 round-trip → 每期成本
 已上線風控工具的價值密度，且 survivor panel 下真值可能更薄。
 
 **Next step（僅在進一步驗證後才考慮，這輪不跑增量）**：
-1. **必要前置**：在 PIT panel（`universe_tw_pit` 含下市股，需 `market-data-rd` 重抓 1,660 檔下市股歷史價）重跑 RVOL h=10/20，確認 Top-20 相對差 +0.80% 不因 survivorship 消失。
+1. **必要前置**：重新建置含下市股的 PIT panel（需 `market-data-rd` 重抓約 1,660 檔下市股歷史價）後重跑 RVOL h=10/20，確認 Top-20 相對差 +0.80% 不因 survivorship 消失。
 2. 若存活：以 **long-only 排序加分**形式測試對 Whale composite 的**增量** IC（mandate 規定 standalone PASS 後才測；RVOL 是 MARGINAL 非 PASS，故增量測試需與用戶確認是否值得）。RVOL 與 Whale 的籌碼/質量因子相關性預期低（不同資訊維度），理論上可補位，但 +0.013 IC 量級下增量可能不顯著。
 3. 不建議作 standalone timing / 多空 book。
 

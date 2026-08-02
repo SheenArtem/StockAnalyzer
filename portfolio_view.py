@@ -12,6 +12,7 @@ Yahoo v8 / load_and_resample）。本檔只負責 Streamlit UI 與 session_state
 import logging
 from datetime import date, datetime
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -97,15 +98,26 @@ def _load_history(tickers):
 
 
 def _portfolio_metrics(ret_series):
-    """複用 whale_picks_phase2.portfolio_metrics（tools/，日頻 freq=252）。"""
-    import sys
-    from pathlib import Path
-    tools = str(Path(__file__).resolve().parent / 'tools')
-    if tools not in sys.path:
-        sys.path.insert(0, tools)
+    """由日報酬計算投資組合績效指標。"""
     try:
-        from whale_picks_phase2 import portfolio_metrics
-        return portfolio_metrics(ret_series, freq=252)
+        returns = pd.to_numeric(ret_series, errors='coerce').dropna()
+        if len(returns) < 6:
+            return {}
+        equity = (1 + returns).cumprod()
+        n_periods = len(returns)
+        cagr = equity.iloc[-1] ** (252 / n_periods) - 1.0
+        annual_vol = returns.std() * np.sqrt(252)
+        sharpe = (returns.mean() * 252) / annual_vol if annual_vol > 0 else np.nan
+        drawdown = equity / equity.expanding().max() - 1.0
+        return {
+            'n_periods': n_periods,
+            'total_return': equity.iloc[-1] - 1.0,
+            'cagr': cagr,
+            'annual_vol': annual_vol,
+            'sharpe': sharpe,
+            'mdd': drawdown.min(),
+            'win_rate': (returns > 0).mean(),
+        }
     except Exception as e:  # 指標算不出不擋 NAV 曲線
         logger.warning("portfolio_metrics failed: %s", e)
         return {}
@@ -202,8 +214,19 @@ def _render_summary(by_market, day_pnl_by_market):
                 st.caption("⚠️ 部分持股缺現價，市值/損益未計入該檔")
 
 
+def _holding_days(entry_date, as_of):
+    """建倉日 -> 距 as_of 的持有天數（無法解析回 None）。與已清倉表同一 parser。"""
+    if not entry_date:
+        return None
+    try:
+        return (as_of - ps._parse_date(entry_date)).days
+    except Exception:
+        return None
+
+
 def _holdings_table(valued, quotes, market, ytd_map):
     rows = []
+    today = date.today()
     total_mv = sum(r['market_value'] for r in valued
                    if r['market'] == market and r['market_value'] is not None) or 0.0
     for r in valued:
@@ -213,22 +236,22 @@ def _holdings_table(valued, quotes, market, ytd_map):
         mv = r['market_value']
         rows.append({
             '代號': r['ticker'],
-            '名稱': q.get('name') or '',
-            '股數': r['shares'],
-            '均價': r['avg_cost'],
-            '現價': r['current_price'],
-            '當日%': q.get('change_pct'),
-            '市值': mv,
-            '未實現損益': r['unrealized_pnl'],
+            '權重%': (mv / total_mv) if (mv is not None and total_mv > 0) else None,
             'YTD%': ytd_map.get(r['ticker']),         # 今年以來（基準=去年末收盤）
             '總報酬率%': r['return_pct'],               # 相對持有均價的累積報酬
-            '權重%': (mv / total_mv) if (mv is not None and total_mv > 0) else None,
+            '當日%': q.get('change_pct'),
+            '現價': r['current_price'],
+            '均價': r['avg_cost'],
+            '持倉天數': _holding_days(r.get('entry_date'), today),
+            '市值': mv,
+            '未實現損益': r['unrealized_pnl'],
+            '股數': r['shares'],
         })
     if not rows:
         return
     df = pd.DataFrame(rows)
     sty = (df.style
-           .format({'股數': _fmt_shares, '均價': '{:,.2f}', '現價': '{:,.2f}',
+           .format({'持倉天數': '{:.0f}', '股數': _fmt_shares, '均價': '{:,.2f}', '現價': '{:,.2f}',
                     '當日%': '{:+.2%}', '市值': _fmt_money, '未實現損益': _fmt_money_signed,
                     'YTD%': '{:+.2%}', '總報酬率%': '{:+.2%}', '權重%': '{:.1%}'}, na_rep='—')
            .map(_color_signed, subset=['當日%', '未實現損益', 'YTD%', '總報酬率%']))
@@ -241,11 +264,11 @@ def _closed_table(closed_rows):
         '建倉日': c['entry_date'],
         '出場日': c['exit_date'],
         '持有天數': c['holding_days'],
-        '股數': c['shares'],
+        '報酬率%': c['return_pct'],
         '買均價': c['avg_buy'],
         '賣均價': c['avg_sell'],
         '已實現損益': c['realized_pnl'],
-        '報酬率%': c['return_pct'],
+        '股數': c['shares'],
     } for c in sorted(closed_rows, key=lambda x: x['exit_date'], reverse=True)])
     sty = (df.style
            .format({'股數': _fmt_shares, '買均價': '{:,.2f}', '賣均價': '{:,.2f}',
@@ -366,7 +389,7 @@ def render_portfolio():
         _add_txn_dialog()
     tw_hours = mis_twse_client.is_tw_trading_hours()
     if c2.button("🔄 更新即時價", use_container_width=True,
-                 help="台股盤中抓 mis.twse 即時、美股抓 Yahoo（~15min 延遲）；"
+                 help="台股盤中抓 mis.twse 即時、美股抓 Yahoo v8（近即時，含盤前/盤後）；"
                       "非交易時段台股用最近收盤"):
         st.session_state['_pf_live'] = True
         st.session_state['_pf_force_price'] = True
@@ -404,7 +427,7 @@ def render_portfolio():
 
     # 報價來源說明
     srcs = {q.get('source') for q in quotes.values()}
-    mode_txt = ("即時（台股 mis.twse / 美股 Yahoo 延遲）" if live else "最近收盤（EOD）")
+    mode_txt = ("即時（台股 mis.twse / 美股 Yahoo v8 近即時）" if live else "最近收盤（EOD）")
     live_note = "" if tw_hours or not live else "（台股非交易時段，顯示最近收盤）"
     st.caption(f"報價：{mode_txt}{live_note} · 來源 {', '.join(sorted(s for s in srcs if s))} "
                f"· 更新 {price_ts.strftime('%H:%M:%S')}")

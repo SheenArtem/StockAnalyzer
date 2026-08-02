@@ -77,35 +77,6 @@ def _safe_val(v, fmt=".2f"):
         return str(v)
 
 
-_WHALE_LATEST_CACHE = (None, None)  # (mtime, df) — latest.parquet 日更，靠 mtime 失效
-
-
-def _get_whale_rank(ticker):
-    """主力選股 composite 在當期 pool 內排名 (informational)。回 (rank, total, score) 或 None。"""
-    global _WHALE_LATEST_CACHE
-    try:
-        stock_id = str(ticker).replace('.TW', '').replace('.TWO', '').strip()
-        if not stock_id.isdigit():
-            return None  # whale pool 僅台股
-        p = os.path.join('data', 'whale_picks', 'latest.parquet')
-        if not os.path.exists(p):
-            return None
-        mt = os.path.getmtime(p)
-        if _WHALE_LATEST_CACHE[0] != mt:
-            _WHALE_LATEST_CACHE = (mt, pd.read_parquet(p, columns=['stock_id', 'composite_score']))
-        df = _WHALE_LATEST_CACHE[1]
-        row = df[df['stock_id'].astype(str) == stock_id]
-        if row.empty or pd.isna(row['composite_score'].iloc[0]):
-            return None
-        score = float(row['composite_score'].iloc[0])
-        scores = df['composite_score'].dropna()
-        rank = int((scores > score).sum()) + 1
-        return rank, len(scores), score
-    except Exception as e:
-        logger.debug("whale rank lookup failed for %s: %s", ticker, e)
-        return None
-
-
 def _build_stock_info(ticker, report, fund_data, df_day):
     """[STOCK_INFO] 基本資訊"""
     lines = []
@@ -135,14 +106,6 @@ def _build_stock_info(ticker, report, fund_data, df_day):
                 pass
         if 'Volume' in df_day.columns:
             lines.append(f"最新成交量: {_safe_val(last.get('Volume', 0), '.0f')}")
-
-    # 主力選股 production 策略視角 (informational, 不構成買賣訊號)
-    wr = _get_whale_rank(ticker)
-    if wr:
-        rank, total, _score = wr
-        pct = rank / total * 100
-        lines.append(f"主力選股 (Whale) composite 排名: {rank}/{total} "
-                     f"(前 {pct:.0f}%, 當期流動性過濾池內, informational)")
 
     return "\n".join(lines)
 

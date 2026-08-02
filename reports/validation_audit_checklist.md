@@ -1,7 +1,7 @@
 # 因子驗證 Bug 稽核清單 — line1/line2/line3 三支驗證腳本
 
 > **用途**：逐項勾選稽核 `tools/line1_lambda_validate.py`（格1 量價彈性 λ）/ `tools/line2_vol_conditioned_validate.py`（格2 量條件化動量）/ `tools/line3_liquidity_regime.py`（格3 流動性 regime gate）。
-> **來源**：SOP 1-14（`memory/project_validation_bias_warning.md`）+ RVOL/ATR% 驗屍（`reports/rvol_atr_factor_validation.md`）+ 4-blocker audit（Sharpe 1.70→1.01）+ eps_yoy sign-flip + V=0 凍結列 + whale_picks spec。
+> **來源**：SOP 1-14（`memory/project_validation_bias_warning.md`）+ RVOL/ATR% 驗屍（`reports/rvol_atr_factor_validation.md`）+ 4-blocker audit（Sharpe 1.70→1.01）+ eps_yoy sign-flip + V=0 凍結列。
 > **正面範本**：`tools/rvol_atr_validate.py`（三支都 import / mirror 它的 harness）、`tools/indicator_ic_analysis.py`。
 > **稽核方法**：每項 = ❓檢查問句 + 📍在哪看（code 段 / 輸出 CSV 欄）+ 🚩紅旗門檻（命中即 FAIL / 降 informational / 退回重跑）。
 > **驗證執行紀律**：每項都要「對著 code grep + 對著輸出數字看」，不接受「設計上應該對」的口頭保證（4-blocker 教訓：v13 backtest 跑 13 輪 iter 沒人發現 look-ahead，因為數字「看起來合理」）。
@@ -40,7 +40,7 @@
 ## G4. Survivor bias — universe 含下市股 / PIT 完整性
 
 ❓ panel 是否 survivor-only？缺價 backlog 比例多少？報告**有沒有量化披露**方向性影響？
-📍 三支都讀 `data_cache/backtest/ohlcv_tw.parquet`（已知 survivor-only，~2064 檔；對照 `universe_tw_pit.parquet` 3621 檔 → 1660 檔（46%）PIT 已知 ticker 完全沒價格）。看報告有沒有「最後一根 bar 落在 panel 末日的檔數佔比」「0 檔在末日前 90 天以上下市」這類量化證據（rvol_atr 範本作法）。格1/格3 docstring 已聲明 survivor caveat — 驗證它在報告 verdict 旁**真的出現**且**標明方向**。
+📍 三支都讀 `data_cache/backtest/ohlcv_tw.parquet`（已知 survivor-only，~2064 檔；歷史 PIT 稽核為 3621 檔 → 1660 檔（46%）PIT 已知 ticker 完全沒價格；該次專屬衍生檔現已移除）。看報告有沒有「最後一根 bar 落在 panel 末日的檔數佔比」「0 檔在末日前 90 天以上下市」這類量化證據（rvol_atr 範本作法）。格1/格3 docstring 已聲明 survivor caveat — 驗證它在報告 verdict 旁**真的出現**且**標明方向**。
 🚩 報告沒有 survivor 段 / 有段但沒量化（只寫「可能有偏差」）/ 沒講清楚偏差對該因子是利多還是利空方向（rvol_atr 範本：ATR% 是「致命方向更致命」、RVOL 是「薄 edge 更薄」）/ 對 survivor-favorable 因子在 survivor panel 達 PASS 卻沒掛「PIT 回補重驗為上 production 硬前置」trigger。
 
 ## G5. 資料污染 — Close<=0 剔除
@@ -175,7 +175,7 @@
 
 ❓ 「交互分數」（連續 score）是 pre-registered 的函數（如 sign(prior)×RVOL_rank），還是事後從 5x5 表挑出最賺的對角線拼出來的？
 📍 看交互分數定義 vs 5x5 表的關係。Lee & Swaminathan 假設是 pre-registered（帶量續勢 / 量縮反轉），方向應預先 sign。
-🚩 交互分數 = 從 double-sort 結果反推最佳組合（in-sample fitting，whale_picks v4 教訓：IS composite Sharpe 1.98 → WF 0.49）/ 方向事後決定。
+🚩 交互分數 = 從 double-sort 結果反推最佳組合（in-sample fitting 的歷史教訓：IS composite Sharpe 1.98 → WF 0.49）/ 方向事後決定。
 
 ---
 

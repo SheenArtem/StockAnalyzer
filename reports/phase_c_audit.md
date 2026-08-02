@@ -116,7 +116,7 @@ IC 複現歸零（+0.0003，t=0.48）。舊 +0.71 是 survivor 假象。
 **但這不構成偽陰性、不推翻 D**，三個獨立理由：
 1. **SOP-13 已證 illiq 是 coincident（lag −1d）非 leading**。gate 打敗隨機是因 illiq 與 drawdown **同期相關**（市場已在跌、流動性已乾才出場 = 跟跌 risk-off），不是**預測**。隨機對照只能排除「純運氣」，無法把 coincident 升級成 predictive。
 2. **SOP-12 FAIL 是更硬的獨立否決**：composite 0.423 << best-single 1.119。專案 SOP 規定 composite 必須 > best-single 否則 reject，與 cash-drag 無關。
-3. **Sharpe 提升全來自分母（波動/MDD 降），CAGR 反而較低**（22.7% < 24.3%）。對 100% Whale production 而言，「降報酬靠同期風險指標減回撤」屬 risk-off informational tier。
+3. **Sharpe 提升全來自分母（波動/MDD 降），CAGR 反而較低**（22.7% < 24.3%）。對任何全倉 production 策略而言，「降報酬靠同期風險指標減回撤」都只屬 risk-off informational tier。
 
 → 最終 verdict `informational_only / reject as gate` **精準正確**。
 

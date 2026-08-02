@@ -67,31 +67,32 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.caption("Version: v2026.07.06.1")
+    st.caption("Version: v2026.08.02.1")
 
     # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:
         st.session_state['ticker_input'] = '2330'
 
-    # Mode toggle: 個股分析 / 市場掃描 / AI 報告 / 主力選股 / 總經大盤風向
-    # 2026-05-22: whale_picks 重啟上 UI; brokerage_yt 從 UI 移除 (節省 LLM quota)
+    # Mode toggle: 個股分析 / 市場掃描 / AI 報告 / 總經大盤風向
+    # brokerage_yt 從 UI 移除（節省 LLM quota）
     # 強勢股報告仍停用 (Opus 6/15 後改 SDK Credit pool)
     # 2026-05-23: 'screener' (自動選股 QM/Value/Mode D) 從 UI 移除 — daily scheduler 已停
-    # (commit 56dcc6c)，UI 顯示會 stale 且 100% Whale Picks 拍板後不再需要。
+    # (commit 56dcc6c)，UI 顯示會 stale。
     # 復原方式：把對應 mode 名加回 _mode_options + idx_map (render handler/label 保留為死代碼)
-    _mode_options = ['individual', 'whale_picks', 'market_scan', 'ai_reports', 'macro', 'notes', 'curation', 'portfolio']
+    _mode_options = ['individual', 'market_scan', 'ai_reports', 'macro', 'notes', 'curation', 'portfolio']
     _mode_labels = {'individual': '📈 個股分析', 'screener': '🔍 自動選股',
                     'market_scan': '📡 市場掃描', 'ai_reports': '📝 AI 報告',
-                    'strong_stocks': '🌟 強勢股報告', 'whale_picks': '🐋 主力選股',
+                    'strong_stocks': '🌟 強勢股報告',
                     'macro': '🧭 總經大盤風向',
                     'brokerage_yt': '📺 投顧追蹤',
-                    'notes': '📒 筆記',
+                    'notes': '📚 知識庫',
                     'curation': '🎨 題材策展',
                     'portfolio': '💼 投資組合'}
     _current_mode = st.session_state.get('app_mode', 'analysis')
-    _mode_idx_map = {'whale_picks': 1, 'market_scan': 2,
-                     'ai_reports': 3, 'macro': 4, 'notes': 5, 'curation': 6,
-                     'portfolio': 7}
+    _mode_idx_map = {'market_scan': 1, 'ai_reports': 2, 'macro': 3,
+                     'notes': 4, 'curation': 5, 'portfolio': 6}
+    if st.session_state.get('mode_radio') not in (None, *_mode_options):
+        st.session_state.pop('mode_radio', None)
     # 預設 (analysis / individual) 對應 individual 在順序中的位置 = 0
     _mode_idx = _mode_idx_map.get(_current_mode, 0)
     app_mode = st.radio(
@@ -110,8 +111,6 @@ with st.sidebar:
         st.session_state['app_mode'] = 'ai_reports'
     elif app_mode == 'strong_stocks':
         st.session_state['app_mode'] = 'strong_stocks'
-    elif app_mode == 'whale_picks':
-        st.session_state['app_mode'] = 'whale_picks'
     elif app_mode == 'macro':
         st.session_state['app_mode'] = 'macro'
     elif app_mode == 'brokerage_yt':
@@ -271,8 +270,8 @@ with st.sidebar:
 # ====================================================================
 _banner_slot = st.empty()
 
-# 自動選股 2026-05-23 從 UI 移除 (commit 56dcc6c 100% Whale Picks 拍板，daily
-# scheduler 已停 QM/Value/Mode D，UI 顯示會 stale)
+# 自動選股 2026-05-23 從 UI 移除（daily scheduler 已停 QM/Value/Mode D，
+# UI 顯示會 stale）
 # 復原：把以下三行 elif 取消註解 + app_mode 'screener' 加回 _mode_options + idx_map
 # if st.session_state.get('app_mode') == 'screener':
 #     from screener_view import render_screener
@@ -292,16 +291,12 @@ elif st.session_state.get('app_mode') == 'market_scan':
 #     from strong_stocks_view import render_strong_stocks
 #     render_strong_stocks()
 
-# 主力選股 2026-05-22 重啟（scanner whale_picks stage 同步啟用）
-elif st.session_state.get('app_mode') == 'whale_picks':
-    from whale_picks_view import render_whale_picks
-    render_whale_picks()
-
 elif st.session_state.get('app_mode') == 'macro':
     from macro_dashboard import render_macro_dashboard
     render_macro_dashboard()
 
-# 筆記 (2026-06-12)：本地 data/notes/*.md CRUD，無 API/LLM，不觸發大盤 banner
+# 知識庫 (2026-06-12 筆記→2026-07-16 升級)：我的筆記(本地 md CRUD) + 白話投資(粉專文章增量抓取)
+# 純本地檔案，無大盤 banner；白話投資抓取為子行程 (Playwright/claude CLI)
 elif st.session_state.get('app_mode') == 'notes':
     from notes_view import render_notes
     render_notes()
@@ -335,7 +330,7 @@ else:
 #  分流規則 (2026-05-09)：
 #    - macro tab: 不渲染（總經大盤風向 內部已 call 完整 banner）
 #    - individual analysis: 完整 banner（個股分析需要大盤背景）
-#    - 其他 (screener / scan / ai_reports / strong_stocks / whale_picks): 不渲染，避免卡 fetch
+#    - 其他 (screener / scan / ai_reports / strong_stocks): 不渲染，避免卡 fetch
 # ====================================================================
 _mode_now = st.session_state.get('app_mode')
 _should_render_banner = (

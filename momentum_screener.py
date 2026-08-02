@@ -29,8 +29,8 @@ DEFAULT_CONFIG = {
     'twse_value_pct': 0.0002,   # (legacy fallback) 上市成交值佔比
     'tpex_value_pct': 0.0005,   # (legacy fallback) 上櫃成交值佔比
     'market_cap_top_n': 300,     # 市值前 N 大
-    # 流動性門檻 5 億 — by design 各 picks 線差距：Momentum/QM 5e8 (快進快出需高流動性)
-    # / Value 3e8 (中型價值股) / Whale Picks 1e8 (2026-06-15 從 1e7 上調, 排除低流動性小型股保容量) — 詳見 [[project_audit_4_blocker_fix]]
+    # 流動性門檻 5 億：Momentum/QM 快進快出需要較高流動性；
+    # Value 使用 3 億門檻以涵蓋中型價值股。
     'min_avg_tv_60d': 5e8,       # 60 日均成交值門檻（5 億）— 對齊 QM 20-60d 持有期間
     'min_price': 0,              # 最低股價門檻（預設關閉）
     'momentum_change_min': -1.0, # 當日漲跌幅下限 %（允許微跌）
