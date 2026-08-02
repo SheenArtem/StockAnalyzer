@@ -46,7 +46,8 @@ logging.basicConfig(
 log = logging.getLogger("refresh_backtest_panels")
 
 
-_TW_TICKER_RE = re.compile(r'^\d{4,6}[A-Z]?$')
+# 台股代號判別統一在 tools/tw_universe（原本這裡與 build_tw_breadth 各有一份，已漂移）
+from tools.tw_universe import TW_TICKER_RE as _TW_TICKER_RE
 MIN_MARKET_ROWS = 500
 MIN_MARKET_COVERAGE_RATIO = 0.80
 

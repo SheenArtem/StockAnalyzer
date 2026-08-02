@@ -22,6 +22,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools.tw_universe import ticker_from_price_csv, tw_price_csvs
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -32,9 +36,14 @@ OUT.parent.mkdir(parents=True, exist_ok=True)
 
 
 def load_all_prices(min_rows: int = 200) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """讀取 cache 內所有 *_price.csv，回傳 close pivot + volume pivot。"""
-    files = sorted(CACHE.glob("*_price.csv"))
-    logger.info("Loading %d price files...", len(files))
+    """讀取 cache 內所有台股 *_price.csv，回傳 close pivot + volume pivot。
+
+    ⚠️ 必須用 tw_price_csvs 過濾：data_cache 同時放台股與美股 CSV，不濾會讓約
+    500 檔美股進 advances/declines/ADL/McClellan/新高低/%above MA，並且「台股休市
+    但美股開盤」的日期會變成整列純美股的假台股廣度列（2026-08-02 code review）。
+    """
+    files = tw_price_csvs(CACHE)
+    logger.info("Loading %d TW price files (US CSVs filtered out)...", len(files))
 
     closes = {}
     volumes = {}
@@ -42,7 +51,7 @@ def load_all_prices(min_rows: int = 200) -> tuple[pd.DataFrame, pd.DataFrame]:
     for i, f in enumerate(files):
         if i % 200 == 0 and i > 0:
             logger.info("  ...loaded %d/%d (skipped %d)", i, len(files), skipped)
-        ticker = f.stem.replace('_price', '')
+        ticker = ticker_from_price_csv(f)
         try:
             df = pd.read_csv(f, index_col=0)
             df.index = pd.to_datetime(df.index, errors='coerce')
