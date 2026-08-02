@@ -1,9 +1,10 @@
 """
-筆記功能 view — 📒 筆記 tab (2026-06-12)
+知識庫 view — 📚 知識庫 tab (2026-06-12 筆記 → 2026-07-16 升級知識庫)
 
-零資料庫設計：data/notes/*.md 一檔一筆記，檔名即標題，內容即 Markdown 本文。
-列表排序用檔案 mtime（新→舊），改標題 = 寫新檔 + 刪舊檔（rename）。
-純本地檔案 CRUD：無 API / 無 LLM / 不碰 cache_manager。
+分頁結構（st.tabs）：
+- 📒 我的筆記：零資料庫本地 CRUD，data/notes/*.md 一檔一筆記，檔名即標題，內容即 Markdown。
+  列表排序用 mtime（新→舊），改標題 = 寫新檔 + 刪舊檔（rename）。無 API / 無 LLM。
+- 📚 白話投資：外部粉專文章知識庫（baihua_kb_view），內建增量抓取按鈕。
 """
 import re
 from datetime import datetime
@@ -85,9 +86,31 @@ def _open_editor(target: str) -> None:
     st.session_state['notes_delete_confirm'] = False
 
 
-def render_notes():
-    st.subheader("📒 筆記")
+_SRC_NOTES = "📒 我的筆記"
+_SRC_BAIHUA = "📚 白話投資"
 
+
+def render_notes():
+    """📚 知識庫 tab 入口：radio 切換我的筆記 / 白話投資（只渲染選中來源）。
+
+    用 radio 而非 st.tabs：st.tabs 會同時渲染兩面板，隱藏面板的按鈕會干擾
+    互動（rerun 下 CRUD 按鈕點擊失效，2026-07-16 UI 測試實證）。
+    """
+    st.subheader("📚 知識庫")
+    src = st.radio("來源", options=[_SRC_NOTES, _SRC_BAIHUA],
+                   horizontal=True, key='kb_source', label_visibility='collapsed')
+    st.markdown("")
+    if src == _SRC_BAIHUA:
+        try:
+            from baihua_kb_view import render_baihua_kb
+            render_baihua_kb()
+        except Exception as e:  # 抓取模組出錯不連累筆記
+            st.error(f"白話投資知識庫載入失敗：{e}")
+    else:
+        _render_manual_notes()
+
+
+def _render_manual_notes():
     col_list, col_main = st.columns([1, 3])
 
     # ---------------- 左欄：新增 + 搜尋 + 列表 ----------------

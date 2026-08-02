@@ -110,18 +110,18 @@ def main():
                 radio_option_labels = page.locator(
                     "label[data-baseweb='radio']")
                 count = radio_option_labels.count()
-                if count == 6:
+                if count == 7:
                     log("step1_radio_count", "PASS", "%d radio options" % count)
                 else:
                     log("step1_radio_count", "FAIL",
-                        "expected 6, got %d" % count)
+                        "expected 7, got %d" % count)
 
-                # Click the notes option by finding the label containing "筆記"
+                # Click the knowledge-base option (label "📚 知識庫"; 2026-07-16 renamed from 筆記)
                 notes_clicked = False
                 for i in range(count):
                     lbl = radio_option_labels.nth(i)
                     txt = get_inner_text_safe(lbl)
-                    if "筆記" in txt:
+                    if "知識庫" in txt:
                         lbl.click()
                         notes_clicked = True
                         log("step1_click_notes", "PASS",
@@ -203,6 +203,45 @@ def main():
                         path=str(SCREENSHOT_DIR / "notes_tab_view_error.png"))
                 except Exception:
                     pass
+
+            # ---- 2b. 白話投資 KB source (radio): fetch button present, then back ----
+            def _click_radio_label(fragment):
+                labels = page.locator("label[data-baseweb='radio']")
+                for i in range(labels.count()):
+                    if fragment in get_inner_text_safe(labels.nth(i)):
+                        labels.nth(i).click()
+                        return True
+                return False
+
+            try:
+                if _click_radio_label("白話投資"):
+                    time.sleep(2)
+                    page.wait_for_load_state("networkidle", timeout=10000)
+                    body_bh = page.inner_text("body")
+                    has_fetch = "抓取新文章" in body_bh
+                    has_src = "白話投資" in body_bh
+                    if has_fetch and has_src:
+                        log("step2b_baihua_source", "PASS", "fetch button + source visible")
+                    else:
+                        log("step2b_baihua_source", "FAIL",
+                            "fetch_btn=%s src=%s" % (has_fetch, has_src))
+                    page.screenshot(path=str(SCREENSHOT_DIR / "kb_baihua_source.png"),
+                                    full_page=False)
+
+                    # switch back to 我的筆記 so later steps (edit/new/delete) work
+                    if _click_radio_label("我的筆記"):
+                        time.sleep(2)
+                        page.wait_for_load_state("networkidle", timeout=10000)
+                        back_ok = any(f in page.inner_text("body")
+                                      for f in ["雙鴻", "榮剛", "興富發"])
+                        log("step2b_back_to_notes", "PASS" if back_ok else "WARN",
+                            "notes visible again=%s" % back_ok)
+                    else:
+                        log("step2b_back_to_notes", "WARN", "我的筆記 radio not found")
+                else:
+                    log("step2b_baihua_source", "FAIL", "白話投資 radio not found")
+            except Exception as e:
+                log("step2b_baihua", "FAIL", str(e))
 
             # ---- 3. Click Edit -> editor mode -> Cancel ----
             try:
