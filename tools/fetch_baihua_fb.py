@@ -385,9 +385,34 @@ def _click_see_more(page) -> int:
 
 def _key_of(rec: dict) -> str:
     """以**內文雜湊**去重（貼文開頭穩定；permalink 關聯在登入版桌面 DOM 不可靠，
-    用它當 key 會把不同貼文誤併）。正規化去空白後取前 120 字雜湊。"""
+    用它當 key 會把不同貼文誤併）。正規化去空白後取前 120 字雜湊。
+
+    120 這個長度是刻意的、不要隨手調大：see-more 展開會讓文字**變長**，雜湊全文會讓
+    同一篇在展開前後產生不同 key 而變成兩筆。2026-08-02 實測 208 篇正規化後最短 172 字，
+    所以 120 安全地在截斷點之下；同時 120 / 200 / 400 / 800 字前綴下**全部零碰撞**。
+    真正的殘餘風險（開頭相同的系列文）由 `_same_post` + `_disambiguate` 偵測並分開保留。
+    """
     body = re.sub(r"\s+", "", rec.get("text", ""))[:120]
     return "tx:" + hashlib.sha1(body.encode("utf-8", "replace")).hexdigest()[:16]
+
+
+def _same_post(a: str | None, b: str | None) -> bool:
+    """兩段文字是否為「同一篇貼文的不同展開程度」。
+
+    see-more 只會把文字往後接長，所以同一篇的舊文字必是新文字的**前綴**（正規化去空白
+    後比較）。兩者在共同開頭之後分岔 = 不同貼文。
+    """
+    na = re.sub(r"\s+", "", a or "")
+    nb = re.sub(r"\s+", "", b or "")
+    if not na or not nb:
+        return True
+    return na.startswith(nb) or nb.startswith(na)
+
+
+def _disambiguate(key: str, text: str) -> str:
+    """碰撞時用全文雜湊擴充 key，讓兩篇都保得住。"""
+    body = re.sub(r"\s+", "", text or "")
+    return f"{key}#{hashlib.sha1(body.encode('utf-8', 'replace')).hexdigest()[:8]}"
 
 
 def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int,
@@ -436,6 +461,7 @@ def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int,
         wall_rounds = 0
         rounds_with_rows = 0
         rounds_done = 0
+        collision_keys: set[str] = set()
         for i in range(max_rounds):
             _dismiss_dialog(page)
             clicked = _click_see_more(page)
@@ -446,6 +472,16 @@ def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int,
             for r in rows:
                 k = _key_of(r)
                 prev = collected.get(k)
+                if prev is not None and not _same_post(prev.get("text"), r.get("text")):
+                    # 開頭 120 字相同、但內文在之後分岔 = 兩篇不同貼文（系列文常見），
+                    # 不是 see-more 展開。靜默合併會弄丟一篇，所以改標 key + 大聲說。
+                    k = _disambiguate(k, r.get("text", ""))
+                    prev = collected.get(k)
+                    if prev is None:
+                        collision_keys.add(k)
+                        log.warning("去重 key 碰撞：兩篇貼文開頭 120 字相同但內文分岔，"
+                                    "已分別保留（key=%s）。開頭：%r", k,
+                                    re.sub(r"\s+", "", r.get("text", ""))[:40])
                 # 保留最長 text（see-more 展開後會變長）
                 if prev is None:
                     collected[k] = {"id": k, "permalink": r.get("permalink"),
@@ -520,8 +556,11 @@ def do_scrape(headful: bool, logged_out: bool, max_stall: int, max_rounds: int,
     if wall_rounds:
         log.warning("有 %d/%d 輪偵測到登入牆跡象（仍抽到 %d 篇）—— 若篇數明顯偏少，"
                     "請重新登入後再抓一次", wall_rounds, rounds_done, len(collected))
+    if collision_keys:
+        log.warning("本輪有 %d 篇貼文的開頭 120 字與另一篇相同（已分開保留，未合併）",
+                    len(collision_keys))
 
-    _save(collected)
+    _save(collected, existing)
     return 4 if truncated else 0
 
 
@@ -571,7 +610,41 @@ def _load_existing(drop_corrupt: bool = False) -> dict[str, dict]:
     return out
 
 
-def _save(collected: dict[str, dict]) -> None:
+def _save(collected: dict[str, dict], existing: dict[str, dict] | None = None) -> None:
+    """落地 posts.jsonl。**新貼文標上遞增的 `batch`，這是時序的唯一線索。**
+
+    位置語意是「越前面越新」（FB feed 由上而下＝最新在前）。但增量抓取時新貼文是被
+    dict 插入序排到**尾端** -> 拿到最大 seq -> 在 INDEX 與 UI 清單沉到最底，被當成最舊
+    （2026-08-02 code review 第五節）。加重因子：實測 208 篇中 `date_label` 非空 0 筆、
+    `date_iso` 非空僅 4 篇，位置是唯一時序線索，人眼無法自我校正。
+
+    ⚠️ **不要照直覺把新貼文插到 JSONL 前端**：`build_baihua_kb.write_md` 開頭是
+    `for old in KB_DIR.glob(f"{seq:04d}_*.md"): old.unlink()`，而 `_needs` 會跳過已處理
+    貼文使舊檔不重新編號 —— 插前端會位移所有 seq，於是**刪掉別篇文章的檔案**。
+    正解是保留插入序（檔名穩定），另存單調遞增的 `batch`，由 build/view 以
+    `(batch desc, seq asc)` 排序。
+    """
+    existing = existing or {}
+    prev_max = 0
+    for r in existing.values():
+        try:
+            prev_max = max(prev_max, int(r.get("batch") or 0))
+        except (TypeError, ValueError):
+            pass
+    new_batch = prev_max + 1
+
+    fresh = 0
+    for key, rec in collected.items():
+        old = existing.get(key)
+        if old is not None and old.get("batch") is not None:
+            rec["batch"] = old["batch"]          # 既有貼文保留原批次
+        elif rec.get("batch") is None:
+            rec["batch"] = new_batch
+            fresh += 1
+    if fresh:
+        log.info("標記 %d 篇新貼文為 batch=%d（排序用：batch 越大越新）",
+                 fresh, new_batch)
+
     # 依 date_label 無法穩定排序（相對時間），保留插入序即可，下游會正規化日期
     rows = list(collected.values())
     tmp = POSTS_JSONL.with_suffix(".jsonl.tmp")
@@ -584,6 +657,7 @@ def _save(collected: dict[str, dict]) -> None:
         "count": len(rows),
         "with_permalink": sum(1 for r in rows if r.get("permalink")),
         "avg_text_len": round(sum(len(r.get("text", "")) for r in rows) / max(1, len(rows)), 1),
+        "max_batch": max((int(r.get("batch") or 0) for r in rows), default=0),
         "source": PAGE_URL,
     }
     MANIFEST.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")

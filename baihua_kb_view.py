@@ -125,8 +125,28 @@ def _fm_list(fm: dict, key: str) -> list:
     return [x.strip() for x in v.split(',') if x.strip()] if v else []
 
 
+def _article_order_key(path, fm: dict) -> tuple:
+    """排序鍵：批次新的在前，同批次內用檔名 NNNN_ 前綴升序。
+
+    檔名前綴＝抓取順序，而 FB feed 由上而下＝最新在前，所以同批次內升序就是新→舊。
+    但**跨批次不成立**：增量抓取的新貼文落在 JSONL 尾端會拿到最大前綴，純檔名排序會
+    把最新的文章排到最底（2026-08-02 code review 第五節）。`batch` 由
+    `fetch_baihua_fb._save` 寫入、`build_baihua_kb` 帶進 frontmatter。
+    舊檔沒有 batch 欄位 -> 視為 0，排在有批次標記的之後（它們確實比較舊）。
+    """
+    try:
+        batch = int(str(fm.get('batch', '0')).strip() or 0)
+    except ValueError:
+        batch = 0
+    return (-batch, path.name)
+
+
 def _list_articles() -> list:
-    """回 [(path, fm)]，依 date_iso 新→舊（無日期用檔名序墊底）。"""
+    """回 [(path, fm)]，依 (batch 新→舊, 檔名序) 排序。
+
+    刻意不用 date_iso 排序：實測 208 篇裡 date_iso 非空只有 4 篇、date_label 非空 0 筆，
+    位置是唯一可靠的時序線索。
+    """
     KB_DIR.mkdir(parents=True, exist_ok=True)
     out = []
     for p in KB_DIR.glob('*.md'):
@@ -137,8 +157,7 @@ def _list_articles() -> list:
         except Exception:
             fm = {}
         out.append((p, fm))
-    # 檔名 NNNN_ 前綴＝抓取順序＝新→舊（FB feed 由上而下＝最新在前，已驗證）。升序=最新在上。
-    out.sort(key=lambda t: t[0].name)
+    out.sort(key=lambda t: _article_order_key(t[0], t[1]))
     return out
 
 

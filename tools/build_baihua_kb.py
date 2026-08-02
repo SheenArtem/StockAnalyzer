@@ -230,6 +230,10 @@ def write_md(seq: int, rec: dict, meta: dict) -> Path:
         f"tickers: [{', '.join(str(x) for x in tickers)}]",
         f"source: {permalink}",
         f"raw_id: {rec.get('id','')}",
+        # 抓取批次（越大越新）。位置語意「越前面越新」只在單次全量抓取下成立；
+        # 增量抓取的新貼文會落在 JSONL 尾端拿到最大 seq，所以排序要用
+        # (batch desc, seq asc) 而不是純檔名。見 fetch_baihua_fb._save。
+        f"batch: {rec.get('batch') or 0}",
         "---",
         "",
         f"# {title}",
@@ -289,6 +293,7 @@ def process_one(seq: int, rec: dict, dry_run: bool) -> tuple[Optional[dict], Opt
         # 直接出現在知識庫頁面上，而 --render-only 也會把它們當真資料重繪
         # （2026-08-02 code review 第五節）。
         return {"seq": seq, "id": rec.get("id"), "file": _md_name(seq, meta),
+                "batch": rec.get("batch") or 0,
                 "title": meta.get("title"), "date_iso": meta.get("date_iso"),
                 "date_label": rec.get("date_label"), "themes": meta.get("themes") or [],
                 "one_liner": meta.get("one_liner", ""), "permalink": rec.get("permalink"),
@@ -299,6 +304,7 @@ def process_one(seq: int, rec: dict, dry_run: bool) -> tuple[Optional[dict], Opt
     _meta_path(rec).write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
     path = write_md(seq, rec, meta)
     return {"seq": seq, "id": rec.get("id"), "file": path.name,
+            "batch": rec.get("batch") or 0,
             "title": meta.get("title"), "date_iso": meta.get("date_iso"),
             "date_label": rec.get("date_label"), "themes": meta.get("themes") or [],
             "one_liner": meta.get("one_liner", ""), "permalink": rec.get("permalink"),
@@ -306,9 +312,18 @@ def process_one(seq: int, rec: dict, dry_run: bool) -> tuple[Optional[dict], Opt
 
 
 # ---------------------------------------------------------------- 索引
+def _order_key(r: dict) -> tuple:
+    """排序鍵：批次新的在前，同批次內用 seq 升序（＝FB feed 由上而下＝最新在前）。
+
+    純用 seq 只在「單次全量抓取」下正確。增量抓取的新貼文會落在 JSONL 尾端拿到最大
+    seq，純 seq 升序會把它們排到最底（位置語意是最舊）。`date_iso` 實測 208 篇只有
+    4 篇非空，不可靠，不用它排序。
+    """
+    return (-int(r.get("batch") or 0), r.get("seq", 0))
+
+
 def build_index(records: list[dict]) -> None:
-    # seq＝抓取順序＝新→舊（FB feed 最新在前）。升序＝最新在上。date_iso 多數缺值不可靠，不用它排序。
-    ordered = sorted(records, key=lambda r: r.get("seq", 0))
+    ordered = sorted(records, key=_order_key)
 
     lines = ["# 白話投資 知識庫 — 索引", "",
              f"共 {len(records)} 篇。來源：Facebook 粉專「白話投資」。", "",
@@ -330,7 +345,7 @@ def build_index(records: list[dict]) -> None:
     for th in sorted(by_theme, key=lambda k: -len(by_theme[k])):
         tlines.append(f"## {th}（{len(by_theme[th])} 篇）")
         tlines.append("")
-        for r in sorted(by_theme[th], key=lambda x: x.get("seq", 0)):
+        for r in sorted(by_theme[th], key=_order_key):
             d = r.get("date_iso") or r.get("date_label") or "-"
             tlines.append(f"- [{_norm_title(r.get('title'))}]({r['file']}) — {d}")
         tlines.append("")
