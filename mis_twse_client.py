@@ -30,7 +30,7 @@ import urllib3
 
 logger = logging.getLogger(__name__)
 
-# TWSE 憑證缺 SKI，已知問題（CLAUDE.md 列為 won't fix #3）
+# TWSE 憑證缺 SKI，已知問題（AGENTS.md 列為 won't fix #3）
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 _BASE_URL = 'https://mis.twse.com.tw/stock/api/getStockInfo.jsp'

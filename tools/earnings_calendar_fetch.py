@@ -6,7 +6,7 @@ post-validate → dedup → data/calendar/earnings_call.parquet
 設計原則 (user 2026-05-02 拍板):
 - LLM parse 路線（不寫 scraper），網站改版自動 adapt
 - 多源 fallback chain，新網站只加 1 行 SOURCES entry
-- Sonnet (per CLAUDE.md LLM 規範: news / metadata 萃取 = Sonnet 600s)
+- Sonnet (per docs/agent/llm-usage.md LLM 規範: news / metadata 萃取 = Sonnet 600s)
 
 Schema (data/calendar/earnings_call.parquet):
 - ticker: str (4 位數字台股 ticker)
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 _CLAUDE_CLI = shutil.which("claude") or "claude"
-CLAUDE_TIMEOUT = 600  # per CLAUDE.md LLM 規範
+CLAUDE_TIMEOUT = 600  # per docs/agent/llm-usage.md LLM 規範
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36")
@@ -150,7 +150,7 @@ JSON array, 開頭 `[` 結尾 `]`，無 markdown fence、無說明文字。
 def call_claude_extract(prompt: str) -> tuple[str, str | None]:
     """LLM call for earnings_calendar table extraction.
 
-    Uses Haiku (CLAUDE.md exemption: structured table extraction is Haiku's
+    Uses Haiku (AGENTS.md exemption: structured table extraction is Haiku's
     sweet spot, not Sonnet-level NLP reasoning). Sonnet timeout was 600s+
     when real-run repeated dry-run prompt; Haiku 5-10x faster and cheaper.
     """

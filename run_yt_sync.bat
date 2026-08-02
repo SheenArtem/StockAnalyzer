@@ -4,7 +4,7 @@ REM Stage 1: fetch YT transcripts (money100 + money_deploy)
 REM Stage 2: LLM extract to JSON
 REM Stage 3: build sector_tags_dynamic.parquet panel
 REM
-REM ASCII-only hard rule - NO CJK allowed (see CLAUDE.md)
+REM ASCII-only hard rule - NO CJK allowed (see AGENTS.md)
 
 cd /d "%~dp0"
 
@@ -36,7 +36,7 @@ if not "%EC2%"=="0" exit /b %EC2%
 if not "%EC3%"=="0" exit /b %EC3%
 exit /b 0
 
-REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+REM ISO-8601 timestamped log line; %~1 = message (see AGENTS.md ASCII-only rule)
 :log
 for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
 echo [%TS%] %~1 >> %LOG%

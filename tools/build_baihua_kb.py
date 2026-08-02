@@ -6,7 +6,7 @@
     data/baihua/kb/INDEX.md            # 全庫索引表（依日期）
     data/baihua/kb/THEMES.md           # 依主題分組地圖
 
-LLM 規範 (CLAUDE.md news/short-form): claude `--model sonnet --effort xhigh`
+LLM 規範 (docs/agent/llm-usage.md news/short-form): claude `--model sonnet --effort xhigh`
     `--output-format json`，timeout 600s。（本檔屬短文清洗/萃取，非 AI 報告。）
 
 增量：已在 kb/ 有對應 md 的貼文（依 raw id）預設跳過；--rebuild 全重建。

@@ -21,7 +21,7 @@ REM       Start in: C:\GIT\StockAnalyzer
 REM    5. Conditions: uncheck "Start only if on AC power"
 REM    6. Settings: check "Run task as soon as possible after missed"
 REM
-REM  NOTE: ASCII-only (no CJK) per CLAUDE.md BAT hard rule. CP950 cmd.exe
+REM  NOTE: ASCII-only (no CJK) per AGENTS.md BAT hard rule. CP950 cmd.exe
 REM        parses UTF-8 BAT badly and may silently corrupt exit codes.
 REM
 REM  Informational tier: weekly scoring NOT yet IC-validated. Output is
@@ -68,7 +68,7 @@ REM IMPORTANT: Stage 1 MUST succeed before Stage 2/3 run. If Stage 1
 REM fails (e.g. TWSE MI_INDEX outage -> universe too small),
 REM strong_stocks_weekly.json is NOT overwritten. Running Stage 2/3
 REM would silently regenerate last week's stale report with a fresh
-REM AI section, hiding the failure. Abort instead. (CLAUDE.md
+REM AI section, hiding the failure. Abort instead. (AGENTS.md
 REM Robustness: Fail loud, no swallowing.)
 REM ------------------------------------------------------------
 call :log "Stage 1 weekly_screener starting"
@@ -123,7 +123,7 @@ call :log "Weekly scanner finished (DISABLED no-op, exit=0)"
 echo. >> scanner_weekly.log
 exit /b 0
 
-REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+REM ISO-8601 timestamped log line; %~1 = message (see AGENTS.md ASCII-only rule)
 :log
 for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
 echo [%TS%] %~1 >> scanner_weekly.log

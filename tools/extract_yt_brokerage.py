@@ -11,7 +11,7 @@ Schema (top-level keys) — 跟電視節目 schema 平行但增加投顧獨有�
 - analyst_view / recommended_action / risk_warning (新增)
 - 沿用: themes_discussed / macro_views / mentions[ticker/name/sentiment/tag/thesis/confidence]
 
-LLM 規範: --model=sonnet + 600s timeout (CLAUDE.md News 解析規範)
+LLM 規範: --model=sonnet + 600s timeout (docs/agent/llm-usage.md News 解析規範)
 輸出: data_cache/yt_brokerage_extracts/<brokerage>/<analyst_key>/<date>_<video_id>.json
 
 CLI:
@@ -31,7 +31,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-# 重用既有 LLM utility (CLAUDE.md「避免 rework」原則)
+# 重用既有 LLM utility (docs/agent/llm-usage.md「避免 rework」原則)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from extract_yt_sector_tags import (  # noqa: E402
     call_claude,

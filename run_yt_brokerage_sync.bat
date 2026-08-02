@@ -5,7 +5,7 @@ REM Stage 2: extract_yt_brokerage.py --all (Claude Sonnet -> JSON)
 REM Stage 3: build_yt_brokerage_panel.py (JSON -> mention/video parquets)
 REM
 REM Integrated into run_scanner.bat as best-effort stage; standalone BAT kept as manual backup.
-REM ASCII-only hard rule (see CLAUDE.md) - NO CJK allowed in this file
+REM ASCII-only hard rule (see AGENTS.md) - NO CJK allowed in this file
 
 cd /d "%~dp0"
 
@@ -37,7 +37,7 @@ if not "%EC2%"=="0" exit /b %EC2%
 if not "%EC3%"=="0" exit /b %EC3%
 exit /b 0
 
-REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+REM ISO-8601 timestamped log line; %~1 = message (see AGENTS.md ASCII-only rule)
 :log
 for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
 echo [%TS%] %~1 >> %LOG%

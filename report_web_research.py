@@ -7,7 +7,7 @@ Sonnet 子代理 (WebSearch/WebFetch) 並行查證 -> 彙整成 [WEB_RESEARCH] b
 fail-soft:任何子代理失敗/逾時/查無資料,只略過該角度,不阻斷報告生成;
 全部失敗則回傳 ok=False,主報告改用系統內建數據照常生成。
 
-LLM 規範 (CLAUDE.md "Multi-agent debate / exploratory" 列):
+LLM 規範 (docs/agent/llm-usage.md "Multi-agent debate / exploratory" 列):
   Sonnet + --effort xhigh + --allowedTools "WebSearch,WebFetch" + 600s
 """
 
@@ -20,7 +20,7 @@ from ai_report import _CLAUDE_CLI
 
 logger = logging.getLogger(__name__)
 
-_SUBAGENT_TIMEOUT = 600  # CLAUDE.md LLM 規範:Claude 10 min
+_SUBAGENT_TIMEOUT = 600  # docs/agent/llm-usage.md LLM 規範:Claude 10 min
 
 # 研究角度:(key, 中文標題, TW query 提示, US query 提示)
 _ANGLES = [
@@ -73,7 +73,7 @@ def _run_one_angle(cli, angle, ticker, stock_name, is_us):
         result = subprocess.run(
             [cli, "-p",
              "--model", "sonnet",
-             "--effort", "xhigh",  # CLAUDE.md:fallback/子代理品質保證
+             "--effort", "xhigh",  # AGENTS.md:fallback/子代理品質保證
              "--allowedTools", "WebSearch,WebFetch",
              "--output-format", "text"],
             input=prompt,

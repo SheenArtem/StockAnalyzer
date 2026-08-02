@@ -30,7 +30,7 @@ REM  revenue by the 10th, so by 01:00 on the 11th all the new revenue is
 REM  in FinMind and the recompute picks it up. Running it monthly stops
 REM  c1_tilt_flags.parquet from going stale after fresh revenue is released.
 REM
-REM  ASCII-only hard rule - NO CJK allowed (see CLAUDE.md).
+REM  ASCII-only hard rule - NO CJK allowed (see AGENTS.md).
 REM ============================================================
 
 cd /d "%~dp0"
@@ -75,7 +75,7 @@ exit /b %EC%
 :skip_c1
 exit /b 0
 
-REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+REM ISO-8601 timestamped log line; %~1 = message (see AGENTS.md ASCII-only rule)
 :log
 for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
 echo [%TS%] %~1 >> %LOG%

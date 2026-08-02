@@ -16,7 +16,7 @@ REM  This BAT does NOT run "pip install" (a reboot must not
 REM  depend on the network). When you change requirements.txt,
 REM  run the normal run_app.bat once by hand to install.
 REM
-REM  ASCII-only (no CJK) per CLAUDE.md BAT hard rule. CP950
+REM  ASCII-only (no CJK) per AGENTS.md BAT hard rule. CP950
 REM  cmd.exe parses UTF-8 BAT badly and can silently corrupt
 REM  exit codes / cause silent scheduler failure.
 REM ============================================================
@@ -32,7 +32,7 @@ REM Guard: if port 8501 already has a LISTENER, the app is
 REM already up (manual run_app.bat, or a previous logon already
 REM started it). Do NOT launch a second instance - Streamlit
 REM would fail to bind 8501, silently drift to 8502, and leave
-REM two servers running. Skip and exit clean. (CLAUDE.md
+REM two servers running. Skip and exit clean. (AGENTS.md
 REM Robustness: fail loud / no silent duplicate state.)
 REM ------------------------------------------------------------
 netstat -ano | findstr "LISTENING" | findstr ":8501" >nul
@@ -56,7 +56,7 @@ call :log "streamlit process exited (code=%ERRORLEVEL%)"
 
 exit /b %ERRORLEVEL%
 
-REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+REM ISO-8601 timestamped log line; %~1 = message (see AGENTS.md ASCII-only rule)
 :log
 for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
 echo [%TS%] %~1 >> app_startup.log

@@ -111,7 +111,7 @@ REM Best-effort: failures do not fail the task. The 00:00 scanner run is
 REM the authoritative source of truth (TUE-SAT) and will pick up gaps.
 exit /b 0
 
-REM ISO-8601 timestamped log line; %~1 = message (see CLAUDE.md ASCII-only rule)
+REM ISO-8601 timestamped log line; %~1 = message (see AGENTS.md ASCII-only rule)
 :log
 for /f "delims=" %%i in ('python -c "import datetime;print(datetime.datetime.now().isoformat())"') do set TS=%%i
 echo [%TS%] %~1 >> taifex_afterclose.log

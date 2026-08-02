@@ -8,7 +8,7 @@
   4. watchlist            - 潛力觀察名單
   5. overall_risk         - 整體風險提醒
 
-LLM 規範 (CLAUDE.md): claude --model opus --allowedTools "*", timeout 600s
+LLM 規範 (docs/agent/llm-usage.md): claude --model opus --allowedTools "*", timeout 600s
   (與 ai_report.py / ai_report_pipeline.py 同屬 AI Report tier)
 
 新聞注入 (2026-05-14 加):

@@ -9,7 +9,7 @@ macro_compass_report.py -- 總經大盤風向 AI 報告產生器
   5. 報告必含「資料缺口建議」段，回頭指引下一輪要補哪些指標
   6. 存 data/macro_reports/YYYY-MM-DD_HHMMSS.html
 
-LLM 規範 (CLAUDE.md):
+LLM 規範 (docs/agent/llm-usage.md):
   - Claude: --model opus --allowedTools "WebSearch,WebFetch" (timeout 7200s/2h, 2026-06-16 由 600s 放寬)
   - Gemini: gemini-3.1-pro-preview (timeout 900s)
   - Council 統整: --model sonnet --allowedTools "WebSearch,WebFetch" (timeout 600s)
@@ -611,7 +611,7 @@ def call_claude_opus(prompt: str) -> tuple[bool, str]:
              "--effort", "xhigh",  # 2026-05-21: 必須 CLI 帶 (settings.json effortLevel 不影響 -p)
              # 2026-06-22: "*" 會讓 Opus 把「輸出 HTML 網頁」當 agentic 任務、自己用 Write
              # 寫檔到 data/macro_reports/，stdout 只回摘要 -> 驗證找不到 <html> 而失敗。
-             # 限縮為 WebSearch,WebFetch (= council 同款, 符合 CLAUDE.md LLM 規範表)：
+             # 限縮為 WebSearch,WebFetch (= council 同款, 符合 docs/agent/llm-usage.md LLM 規範表)：
              # 保留上網查證、移除寫檔能力，強制把完整 HTML 印到 stdout。
              "--allowedTools", "WebSearch,WebFetch",
              "--output-format", "text"],
@@ -971,7 +971,7 @@ def generate_report_html_local(progress_cb=None, user_focus: Optional[str] = Non
     渲染 -- 取代舊「要 Claude 直接生整頁 HTML」(會誘發 agentic 寫檔且每次樣式不穩)。
     手動 claude.ai 路 (build_prompt fmt="webpage") 不受影響，維持輸出 HTML 給 Artifact 預覽。
     user_focus: 使用者補充關注 / 提問，注入 [USER_FOCUS]，要求報告敘事優先回應。
-    LLM 規範 (CLAUDE.md Macro Compass)：Opus + effort xhigh + WebSearch/WebFetch，timeout 7200s/2h。
+    LLM 規範 (docs/agent/llm-usage.md Macro Compass)：Opus + effort xhigh + WebSearch/WebFetch，timeout 7200s/2h。
     """
     def _p(m):
         if progress_cb:

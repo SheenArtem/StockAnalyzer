@@ -39,7 +39,7 @@ sys.path.insert(0, str(REPO / "tools"))
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-# LLM 規範 (CLAUDE.md「Theme curation 3-agent」列)：Sonnet xhigh + WebSearch/WebFetch
+# LLM 規範 (docs/agent/llm-usage.md「Theme curation 3-agent」列)：Sonnet xhigh + WebSearch/WebFetch
 # --output-format json：claude -p 在長/慢輸出會 streaming 掉開頭 (實測 24-theme JSON 掉 {"themes":[ 首段)。
 # envelope 把整段 assistant 訊息 buffer 成單一 .result 物件最後一次吐出，無 head-loss。
 CLAUDE_MODEL_FLAG = '--model sonnet --effort xhigh --allowedTools "WebSearch,WebFetch" --output-format json'

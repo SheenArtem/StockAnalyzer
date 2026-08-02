@@ -15,7 +15,7 @@ REM
 REM Replaces: per-stock FinMind backfill loop (was ~39 min, now ~13 sec)
 REM Saves: 1954 FinMind requests / month (75% of monthly quota burn)
 REM
-REM ASCII-only hard rule - NO CJK allowed (see CLAUDE.md)
+REM ASCII-only hard rule - NO CJK allowed (see AGENTS.md)
 
 cd /d "%~dp0"
 

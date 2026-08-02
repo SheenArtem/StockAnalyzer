@@ -3,7 +3,7 @@
 抓 UDN money RSS direct + 鉅亨 cnyes JSON API（純專業財經媒體），餵 Claude
 Sonnet 自由萃 (theme, ticker_mentions, sentiment, tone, confidence) 結構化輸出。
 
-LLM 規範 (CLAUDE.md): Claude Sonnet `--model sonnet` + 600s timeout
+LLM 規範 (docs/agent/llm-usage.md): Claude Sonnet `--model sonnet` + 600s timeout
 
 Storage 三層架構 (News Initiative 2026-05 Phase 0 Commit 1, dual-write 過渡期):
 1. **Archive (cold, 永久 SoT)**: `data_cache/news_archive/YYYY-MM/articles.parquet`
