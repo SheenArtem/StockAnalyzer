@@ -5,6 +5,19 @@
 **Dependency**: B+E informational dashboard 已完工（commits 272446e + 4bed849 + d612b7c + c963378）
 **前一版**: 2026-05-08 早版只含 System 1 cross-asset stack；user reframe 後加 System 2 為優先
 
+> ⛔ **2026-08-02 update — 本 spec 有兩處通知/排程假設已不成立，讀「未來動作」段落前必看**：
+>
+> 1. **Discord 已於 2026-07-06 全數移除**（工具刪除、webhook 不存在）。本檔下文約 9 處
+>    「Discord push」都只是當時的設計，**不要照著接 webhook**；現行做法是把警報印進
+>    排程 log。所以「Integration: Banner v4 + Discord」那節與各觸發訊息範例都不可直接執行。
+> 2. **`run_taifex_signals_afterclose.bat` 只剩 TUE-SAT 16:30 一個 trigger**（2026-08-02
+>    實查 Windows 排程器）。第 31 行寫的「TUE-SAT 14:35/15:30/16:30」三重容錯，另兩個
+>    已不在排程器裡，System 2/3 的 daily check 失敗當天不會重試，只能靠當晚 00:00 的
+>    scanner 當隔日 backup。
+>
+> 兩個系統的 verdict（System 2 PARTIAL / System 3 recall 59%）與 informational tier
+> 定位不受影響，**刻意不改寫當時的結論與數字**。
+
 > ⚠️ **2026-05-10 update — 本 spec 範圍只含 System 1 + 2，System 3 以後 stages 由獨立 commits 落地，未在此 spec 內描述**：
 >
 > **System 3 (1w-1mo crash early-warning，commit pending)** — `tools/system3_daily_check.py` 第 6 stage of `run_taifex_signals_afterclose.bat`。Single feature `ma_dist_60` rolling-252d rank，Sharpe 0.898 / MDD -19.5% (vs B&H -31.6%)；recall 59% lead 22-30d。Verdict: 4 levels green/yellow/orange/red + 60d cooldown。詳 `reports/system3_phase34_portfolio.md`。
