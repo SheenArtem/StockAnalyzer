@@ -19,7 +19,12 @@ from typing import Optional
 
 import pandas as pd
 
-TDCC_1_5_DIR = Path("data_cache/tdcc/1-5")
+# 錨定到本檔位置，不用相對 cwd 的路徑。原本是 Path("data_cache/tdcc/1-5")，
+# 只要呼叫端的 cwd 不是 repo root，下面每個 .exists() / .glob() 都會回空，
+# 而 `format_shareholding_for_prompt` 回空字串**不是例外**（ai_report.py:334 的
+# logger.debug 只攔例外）—— 於是 AI 報告的 prompt 會靜默少掉整段股權結構，
+# 沒有任何錯誤或 log。2026-08-03 實測從別的 cwd 呼叫確實回空。
+TDCC_1_5_DIR = Path(__file__).resolve().parent / "data_cache" / "tdcc" / "1-5"
 
 # TDCC 持股分級定義（1-15 級距，16 差異，17 合計）
 LEVEL_LABELS = {
@@ -159,7 +164,19 @@ def large_pct_trend(stock_id: str, weeks: int = 4) -> list:
 
 
 def format_shareholding_for_prompt(stock_id: str) -> str:
-    """為 AI 報告 prompt 產生簡潔的股權結構描述字串。"""
+    """為 AI 報告 prompt 產生簡潔的股權結構描述字串。
+
+    ⚠️ 末尾的護欄字句是刻意的，不要拿掉。2026-08-03 IC 驗證
+    （`tools/tdcc_ic_validation.py`，60 週 × 311 檔固定宇宙，`reports/tdcc_ic_validation.md`）
+    結論是 **verdict D，30 次檢定 0 個過關**，其中「占比變動量」那一組 18 次檢定
+    **全不顯著且 decile 完全非單調** —— 而「大戶占比近 4 週趨勢」正是那個量。
+
+    純數字本身沒問題（結構描述有敘述價值），問題在它用最像訊號的格式（Δ 帶正負號）
+    呈現一個零預測力的量，而「大戶吃貨」是台股眾所皆知的說法 —— 不加護欄，LLM 幾乎
+    一定會讀成吃貨/出貨訊號並寫進論述。
+
+    護欄寫法比照 `[MACRO_CONTEXT]` 的既有慣例（給資料同時限定用途）。
+    """
     s = compute_summary(stock_id)
     if s is None:
         return ""
@@ -176,6 +193,15 @@ def format_shareholding_for_prompt(stock_id: str) -> str:
         delta = trend[-1][1] - trend[0][1]
         txt += (f"- 大戶占比近 {len(trend)} 週趨勢 ({trend[0][0]} -> {trend[-1][0]}): "
                 f"{seq} (Δ {delta:+.2f}pp)\n")
+    txt += (
+        "- ⚠️ 用途限定：以上為**股權結構現況描述，不是訊號**。本專案 2026-08-03 已對 "
+        "TDCC 因子做完 IC 驗證（60 週 × 311 檔），結論 D —— 尤其**占比的「變動量」對未來 "
+        "5/20/60 日報酬沒有預測力**（18 次檢定全不顯著、decile 非單調）。\n"
+        "  因此：**不得把大戶/巨鯨占比上升解讀為「吃貨/籌碼集中看多」，也不得把散戶占比"
+        "上升解讀為「散戶進場看空」**；不得用於評分、加減碼、進出場判斷。\n"
+        "  可以用的方式：僅作為「股權相對集中或分散」的中性背景敘述（例如流動性、"
+        "股價波動特性的說明）。\n"
+    )
     return txt
 
 
