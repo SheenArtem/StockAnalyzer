@@ -69,9 +69,6 @@ Desktop.ini
 data/ai_reports/
 data/macro_reports/
 
-# 白話投資 FB 知識庫（第三方粉專原文 + 產出，版權/個人用途，不推入公開 repo）
-# 工具程式碼 tools/fetch_baihua_fb.py / tools/build_baihua_kb.py 仍版控追蹤
-data/baihua/
 # 總經報告 JSON：正式輸出在 data/macro_reports/，reports/ 下為非正式位置產物
 reports/macro_report_*.json
 

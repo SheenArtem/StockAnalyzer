@@ -204,44 +204,7 @@ def main():
                 except Exception:
                     pass
 
-            # ---- 2b. 白話投資 KB source (radio): fetch button present, then back ----
-            def _click_radio_label(fragment):
-                labels = page.locator("label[data-baseweb='radio']")
-                for i in range(labels.count()):
-                    if fragment in get_inner_text_safe(labels.nth(i)):
-                        labels.nth(i).click()
-                        return True
-                return False
-
-            try:
-                if _click_radio_label("白話投資"):
-                    time.sleep(2)
-                    page.wait_for_load_state("networkidle", timeout=10000)
-                    body_bh = page.inner_text("body")
-                    has_fetch = "抓取新文章" in body_bh
-                    has_src = "白話投資" in body_bh
-                    if has_fetch and has_src:
-                        log("step2b_baihua_source", "PASS", "fetch button + source visible")
-                    else:
-                        log("step2b_baihua_source", "FAIL",
-                            "fetch_btn=%s src=%s" % (has_fetch, has_src))
-                    page.screenshot(path=str(SCREENSHOT_DIR / "kb_baihua_source.png"),
-                                    full_page=False)
-
-                    # switch back to 我的筆記 so later steps (edit/new/delete) work
-                    if _click_radio_label("我的筆記"):
-                        time.sleep(2)
-                        page.wait_for_load_state("networkidle", timeout=10000)
-                        back_ok = any(f in page.inner_text("body")
-                                      for f in ["雙鴻", "榮剛", "興富發"])
-                        log("step2b_back_to_notes", "PASS" if back_ok else "WARN",
-                            "notes visible again=%s" % back_ok)
-                    else:
-                        log("step2b_back_to_notes", "WARN", "我的筆記 radio not found")
-                else:
-                    log("step2b_baihua_source", "FAIL", "白話投資 radio not found")
-            except Exception as e:
-                log("step2b_baihua", "FAIL", str(e))
+            # (step 2b 白話投資來源測試已於 2026-08-03 隨功能移除)
 
             # ---- 3. Click Edit -> editor mode -> Cancel ----
             try:

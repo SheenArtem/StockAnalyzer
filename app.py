@@ -67,7 +67,7 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.caption("Version: v2026.08.02.3")
+    st.caption("Version: v2026.08.03.1")
 
     # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:
@@ -295,8 +295,8 @@ elif st.session_state.get('app_mode') == 'macro':
     from macro_dashboard import render_macro_dashboard
     render_macro_dashboard()
 
-# 知識庫 (2026-06-12 筆記→2026-07-16 升級)：我的筆記(本地 md CRUD) + 白話投資(粉專文章增量抓取)
-# 純本地檔案，無大盤 banner；白話投資抓取為子行程 (Playwright/claude CLI)
+# 知識庫 (2026-06-12 筆記→2026-07-16 升級；白話投資來源 2026-08-03 移除)：我的筆記(本地 md CRUD)
+# 純本地檔案，無大盤 banner
 elif st.session_state.get('app_mode') == 'notes':
     from notes_view import render_notes
     render_notes()

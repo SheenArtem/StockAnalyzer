@@ -19,7 +19,7 @@ git clone https://github.com/SheenArtem/StockAnalyzer.git
 cd StockAnalyzer
 
 pip install -r requirements.txt
-playwright install chromium      # PDF 印出 + 白話投資 FB 抓取 + UI 測試用
+playwright install chromium      # PDF 印出 + UI 測試用
 ```
 
 ### 3. 建立 `local/.env`
@@ -64,7 +64,7 @@ bat 或 `app.py` 的註解裡）。
 | 市場掃描 | `app.py` → 📡 | 排程 | 法人週榜 / 題材動能 / 新聞流量異常 |
 | AI 報告 | `app.py` → 📝 / `tools/auto_ai_reports.py` | 手動 | Claude Opus 深度分析；儀表板在 📝 tab（daily 排程已停用）|
 | 投資組合 | `app.py` → 💼 | 手動 | 手輸交易紀錄 → 持股 / 損益 / TWR；純本地不入版控 |
-| 知識庫 | `app.py` → 📚 | 手動 | 本地筆記 + 白話投資 FB 粉專知識庫 |
+| 知識庫 | `app.py` → 📚 | 手動 | 本地筆記（`data/notes/*.md`，零 DB）|
 | 題材策展 | `app.py` → 🎨 | 手動 | TW + US 多市場題材 |
 | 新聞題材 | `tools/news_theme_extract.py` | 排程 | UDN + cnyes RSS → Claude Sonnet 萃取 |
 | 籌碼面 | `chip_analysis.py` / `chip_history_dl.py` | 排程 | 三大法人 / 融資融券 / 借券 / 當沖 / TDCC |
