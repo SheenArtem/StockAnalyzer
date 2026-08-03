@@ -1,13 +1,13 @@
 ---
 name: mode-d-audit
-description: Use this skill when the user types `/mode-d-audit <ticker>` or `/audit <ticker>` to review a specific Mode D pick signal. Produces a structured audit verdict (thesis-ok / thesis-weak / thesis-broken) with reasoning, persisted to `data/latest/audits/<ticker>_<YYYYMMDD>.json` so the scanner Discord push can surface it. Manual trigger only — never auto-invoke per scanner run.
+description: Use this skill when the user types `/mode-d-audit <ticker>` or `/audit <ticker>` to review a specific Mode D pick signal. Produces a structured audit verdict (thesis-ok / thesis-weak / thesis-broken) with reasoning, persisted to `data/latest/audits/<ticker>_<YYYYMMDD>.json`. Manual trigger only — never auto-invoke per scanner run.
 ---
 
 # Mode D Pick Audit (Layer 5 AI Review)
 
 對 Mode D scanner 選出的 pick 做**signal 合理性審查**。由使用者手動觸發，
 人工下單哲學不變；scanner 若偵測到已有 audit 結果會 best-effort 整合進
-Discord push（Wave 3 #5 整合 capstone）。
+排程 log（原設計是 Discord push，**Discord 已於 2026-07-06 全數退役**）。
 
 ## 🚧 骨架 (Wave 0 #2a, 2026-04-25)
 
@@ -61,7 +61,7 @@ Wave 2 細化時用自己的反面論點審查框架（至少 3 點具體訊號�
   "audit_date": "2026-04-25",
   "scanner_scan_date": "2026-04-25",
   "verdict": "thesis-ok | thesis-weak | thesis-broken",
-  "verdict_short": "1 句話結論 (Discord 用)",
+  "verdict_short": "1 句話結論 (給 log / UI 用)",
   "dimensions": {
     "D1_mechanical": {"verdict": "ok | weak | broken", "reason": "..."},
     "D2_thesis":     {"verdict": "ok | weak | broken", "reason": "..."},
@@ -84,9 +84,8 @@ audit verdict。
 
 ### Step 5 — Scanner 整合 (Wave 3 capstone)
 
-`scanner_job.py` Discord push 時 best-effort 掃 `data/latest/audits/` 目
-錄，若目標 ticker 有當日 audit，附上 `verdict_short` 1 行在 pick 下方。
-**無 audit 不阻擋 push**（使用者可能還沒手動審，正常情況）。
+⚠️ **這步已不適用** —— 原設計是 `scanner_job.py` 在 Discord push 時 best-effort 掃 `data/latest/audits/`，把 `verdict_short` 附在 pick 下方；但 **Discord 已於 2026-07-06 全數退役**（警報改印排程 log），而 Mode D 本身 2026-05-26 起也是人工下單。
+audit JSON 照存（供人工與 UI 查閱），但**不要再去接 Discord 整合**。
 
 ---
 
