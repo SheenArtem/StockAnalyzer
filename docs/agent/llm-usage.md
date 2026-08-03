@@ -10,7 +10,7 @@
 | **Sector tag extract (YT VTT / batch)** | Claude | `--model sonnet` | `--effort xhigh` | — | 600s |
 | **Brokerage YT extract** (`tools/extract_yt_brokerage.py`) | codex GPT-5.5 (primary) + Claude Sonnet (fallback) | codex `-c model_reasoning_effort=medium` / claude `--model sonnet` | claude `--effort xhigh` | — | 600s |
 | **Multi-agent debate / exploratory** + **AI Report 研究階段** (`report_web_research.py`) | Claude | `--model sonnet` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | 600s |
-| **Macro Compass 第二視角** (`tools/macro_compass_report.py`) | Claude | `--model sonnet`/`opus` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | 7200s (2h) |
+| **Macro Compass** (`tools/macro_compass_report.py`) | Claude | 研究員 A `--model opus`；研究員 B（第二視角）+ council `--model sonnet` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch"` | A 7200s (2h) / B 900s / council 600s |
 | **Theme curation** (`tools/curate_themes_pipeline.py`) | Claude | `--model sonnet` | `--effort xhigh` | `--allowedTools "WebSearch,WebFetch" --output-format json` | 420s/單題材 |
 | **知識庫文章清洗** (`tools/build_baihua_kb.py`) | Claude | `--model sonnet` | `--effort xhigh` | `--output-format json` | 600s/單篇 |
 

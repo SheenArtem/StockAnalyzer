@@ -4,18 +4,18 @@ macro_compass_report.py -- 總經大盤風向 AI 報告產生器
 流程：
   1. 收集所有 panel 資料（FRED / breadth / systemic chip / sentiment / valuation）
   2. 組裝統一 context（含當前值 + 30 天歷史 + 百分位 + 警戒線）
-  3. 平行呼叫 Claude Opus + Gemini 3.1 Pro
+  3. 平行呼叫 Claude Opus + Claude Sonnet 第二視角（Gemini 已於 2026-05-20 退役，2026-08-03 拆除殘留路徑）
   4. Claude Sonnet council 統整為單一 HTML 報告
   5. 報告必含「資料缺口建議」段，回頭指引下一輪要補哪些指標
   6. 存 data/macro_reports/YYYY-MM-DD_HHMMSS.html
 
 LLM 規範 (docs/agent/llm-usage.md):
-  - Claude: --model opus --allowedTools "WebSearch,WebFetch" (timeout 7200s/2h, 2026-06-16 由 600s 放寬)
-  - Gemini: gemini-3.1-pro-preview (timeout 900s)
+  - 研究員 A: --model opus --allowedTools "WebSearch,WebFetch" (timeout 7200s/2h, 2026-06-16 由 600s 放寬)
+  - 研究員 B 第二視角: --model sonnet --effort xhigh --allowedTools "WebSearch,WebFetch" (timeout 900s)
   - Council 統整: --model sonnet --allowedTools "WebSearch,WebFetch" (timeout 600s)
 
 執行：
-  python tools/macro_compass_report.py [--no-gemini] [--no-claude]
+  python tools/macro_compass_report.py [--no-opus] [--no-second] [--no-council]
 """
 from __future__ import annotations
 
@@ -47,11 +47,10 @@ OUT_DIR = DATA / "macro_reports"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CLAUDE_CLI = shutil.which("claude") or "claude"
-GEMINI_CLI = shutil.which("gemini") or "gemini"
 
 CLAUDE_OPUS_TIMEOUT = 7200  # 2026-06-16 放寬至 2 小時 (原 600s 太短)
-CLAUDE_SONNET_TIMEOUT = 600
-GEMINI_TIMEOUT = 900
+CLAUDE_SONNET_TIMEOUT = 600   # council 統整
+CLAUDE_SECOND_TIMEOUT = 900   # 研究員 B 第二視角（承接原 Gemini 槽位的 900s）
 
 
 # ============================================================
@@ -987,45 +986,53 @@ def generate_report_html_local(progress_cb=None, user_focus: Optional[str] = Non
     return render_macro_html_from_json(out)
 
 
-def call_gemini(prompt: str) -> tuple[bool, str]:
-    """呼叫 Gemini CLI（gemini-3.1-pro-preview）。"""
-    logger.info("Calling Gemini 3.1 Pro (timeout=%ds)...", GEMINI_TIMEOUT)
+def call_claude_sonnet_second(prompt: str) -> tuple[bool, str]:
+    """研究員 B 第二視角：Claude Sonnet 獨立跑同一份 prompt。
+
+    Gemini 已於 2026-05-20 全面退役（CLI 停止支援），2026-08-03 拆除殘留路徑；
+    第二視角改由 Sonnet 承接 —— 與研究員 A (Opus) 同 prompt、不同模型，供 council 交叉比對。
+    """
+    logger.info("Calling Claude Sonnet second view (timeout=%ds)...", CLAUDE_SECOND_TIMEOUT)
     try:
         result = subprocess.run(
-            [GEMINI_CLI, "-p", prompt,
-             "-m", "gemini-3.1-pro-preview", "-y"],
+            [CLAUDE_CLI, "-p",
+             "--model", "sonnet",
+             "--effort", "xhigh",  # 必須 CLI 帶 (settings.json effortLevel 不影響 -p)
+             "--allowedTools", "WebSearch,WebFetch",
+             "--output-format", "text"],
+            input=prompt,
             capture_output=True,
             text=True,
-            timeout=GEMINI_TIMEOUT,
+            timeout=CLAUDE_SECOND_TIMEOUT,
             encoding='utf-8',
         )
         if result.returncode != 0:
-            return False, f"Gemini exit {result.returncode}: {result.stderr.strip()[:500]}"
+            return False, f"Sonnet(B) exit {result.returncode}: {result.stderr.strip()[:500]}"
         return True, result.stdout.strip()
     except subprocess.TimeoutExpired:
-        return False, f"Gemini timeout {GEMINI_TIMEOUT}s"
+        return False, f"Sonnet(B) timeout {CLAUDE_SECOND_TIMEOUT}s"
     except FileNotFoundError:
-        return False, "Gemini CLI not found"
+        return False, "Claude CLI not found"
 
 
-def call_claude_sonnet_council(claude_out: str, gemini_out: str, context: str) -> tuple[bool, str]:
-    """Council 統整：給 Sonnet 看兩家結果 → 統整出最終 HTML 報告。"""
+def call_claude_sonnet_council(opus_out: str, second_out: str, context: str) -> tuple[bool, str]:
+    """Council 統整：給 Sonnet 看兩位研究員的結果 → 統整出最終 HTML 報告。"""
     council_prompt = f"""你是研究 council 的主席。下面兩位研究員針對同一份 panel 各自產出了報告，請你統整出最終版。
 
 【原始 panel 摘要】
 {context[:3000]}
 
 【研究員 A: Claude Opus】
-{claude_out}
+{opus_out}
 
-【研究員 B: Gemini 3.1 Pro】
-{gemini_out}
+【研究員 B: Claude Sonnet 第二視角】
+{second_out}
 
 【你的任務】
-1. 整合兩家結論，明確指出「兩家共識點」與「分歧點 + 你的判讀」
+1. 整合兩位研究員結論，明確指出「共識點」與「分歧點 + 你的判讀」
 2. 以 5 段結構輸出最終 HTML：1. 風險定調 / 2. 情境推演 / 3. 訊號交叉驗證 / 4. 操作建議 / 5. **資料缺口與下一步**
 3. 最終 HTML body 只用 <h2>/<h3>/<p>/<ul>/<table>/<strong>/<em>，不要 <html>/<head>/<body> wrapper
-4. 在最開頭加一個 <div class="meta"> 寫「兩家共識度 X/10」
+4. 在最開頭加一個 <div class="meta"> 寫「兩位研究員共識度 X/10」
 5. 第 5 段必須具體列出 5-10 個建議補充的指標與資料源
 
 開始輸出 HTML body：
@@ -1089,14 +1096,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 {council_html}
 
 <details>
-  <summary><strong>原始 LLM 回答 (兩家研究員獨立產出)</strong></summary>
+  <summary><strong>原始 LLM 回答 (兩位研究員獨立產出)</strong></summary>
   <div class="agent-block">
     <h3>📘 Claude Opus</h3>
     <div>{claude_html}</div>
   </div>
   <div class="agent-block">
-    <h3>📗 Gemini 3.1 Pro</h3>
-    <div>{gemini_html}</div>
+    <h3>📗 Claude Sonnet（第二視角）</h3>
+    <div>{second_html}</div>
   </div>
 </details>
 
@@ -1155,50 +1162,50 @@ def _to_html_safe(text: str) -> str:
 #  主流程
 # ============================================================
 
-def run(use_claude: bool = True, use_gemini: bool = True, council: bool = True) -> Path:
+def run(use_opus: bool = True, use_second: bool = True, council: bool = True) -> Path:
     context = collect_context()
     prompt = build_prompt(context)
     logger.info("Prompt assembled: %d chars", len(prompt))
 
-    claude_ok, claude_out = (False, "(disabled)")
-    gemini_ok, gemini_out = (False, "(disabled)")
+    opus_ok, opus_out = (False, "(disabled)")
+    second_ok, second_out = (False, "(disabled)")
 
     # 平行呼叫
     threads = []
     results = {}
 
-    if use_claude:
-        def _run_claude():
-            results['claude'] = call_claude_opus(prompt)
-        t = threading.Thread(target=_run_claude)
+    if use_opus:
+        def _run_opus():
+            results['opus'] = call_claude_opus(prompt)
+        t = threading.Thread(target=_run_opus)
         t.start()
         threads.append(t)
 
-    if use_gemini:
-        def _run_gemini():
-            results['gemini'] = call_gemini(prompt)
-        t = threading.Thread(target=_run_gemini)
+    if use_second:
+        def _run_second():
+            results['second'] = call_claude_sonnet_second(prompt)
+        t = threading.Thread(target=_run_second)
         t.start()
         threads.append(t)
 
     for t in threads:
         t.join()
 
-    if 'claude' in results:
-        claude_ok, claude_out = results['claude']
-        logger.info("Claude result: ok=%s len=%d", claude_ok, len(claude_out))
-    if 'gemini' in results:
-        gemini_ok, gemini_out = results['gemini']
-        logger.info("Gemini result: ok=%s len=%d", gemini_ok, len(gemini_out))
+    if 'opus' in results:
+        opus_ok, opus_out = results['opus']
+        logger.info("Opus result: ok=%s len=%d", opus_ok, len(opus_out))
+    if 'second' in results:
+        second_ok, second_out = results['second']
+        logger.info("Sonnet(B) result: ok=%s len=%d", second_ok, len(second_out))
 
     # Council
-    if council and claude_ok and gemini_ok:
-        council_ok, council_out = call_claude_sonnet_council(claude_out, gemini_out, context)
+    if council and opus_ok and second_ok:
+        council_ok, council_out = call_claude_sonnet_council(opus_out, second_out, context)
     else:
-        # Fallback：哪家成功就用哪家當 council
-        council_ok = claude_ok or gemini_ok
-        council_out = claude_out if claude_ok else gemini_out
-        logger.warning("Skipping council (claude_ok=%s gemini_ok=%s)", claude_ok, gemini_ok)
+        # Fallback：哪位成功就用哪位當 council
+        council_ok = opus_ok or second_ok
+        council_out = opus_out if opus_ok else second_out
+        logger.warning("Skipping council (opus_ok=%s second_ok=%s)", opus_ok, second_ok)
 
     # HTML 組裝
     rid = datetime.now().strftime('%Y-%m-%d_%H%M%S')
@@ -1208,10 +1215,10 @@ def run(use_claude: bool = True, use_gemini: bool = True, council: bool = True) 
         rid=rid,
         council_html=_to_html_safe(council_out) if council_ok else
             f'<div style="color:red"><b>Council 失敗：</b>{council_out}</div>',
-        claude_html=_to_html_safe(claude_out) if claude_ok else
-            f'<div style="color:gray">Claude 不可用：{claude_out}</div>',
-        gemini_html=_to_html_safe(gemini_out) if gemini_ok else
-            f'<div style="color:gray">Gemini 不可用：{gemini_out}</div>',
+        claude_html=_to_html_safe(opus_out) if opus_ok else
+            f'<div style="color:gray">Opus 不可用：{opus_out}</div>',
+        second_html=_to_html_safe(second_out) if second_ok else
+            f'<div style="color:gray">Sonnet 第二視角不可用：{second_out}</div>',
     )
 
     out_path = OUT_DIR / f"{rid}.html"
@@ -1226,13 +1233,13 @@ def run(use_claude: bool = True, use_gemini: bool = True, council: bool = True) 
     meta = {
         'rid': rid,
         'datetime': datetime.now().isoformat(),
-        'claude_ok': claude_ok,
-        'gemini_ok': gemini_ok,
+        'opus_ok': opus_ok,
+        'second_ok': second_ok,
         'council_ok': council_ok,
         'context_chars': len(context),
         'prompt_chars': len(prompt),
-        'claude_chars': len(claude_out) if claude_ok else 0,
-        'gemini_chars': len(gemini_out) if gemini_ok else 0,
+        'opus_chars': len(opus_out) if opus_ok else 0,
+        'second_chars': len(second_out) if second_ok else 0,
     }
     (OUT_DIR / f"{rid}.meta.json").write_text(json.dumps(meta, indent=2), encoding='utf-8')
 
@@ -1241,8 +1248,8 @@ def run(use_claude: bool = True, use_gemini: bool = True, council: bool = True) 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--no-claude', action='store_true')
-    parser.add_argument('--no-gemini', action='store_true')
+    parser.add_argument('--no-opus', action='store_true', help='跳過研究員 A (Opus)')
+    parser.add_argument('--no-second', action='store_true', help='跳過研究員 B (Sonnet 第二視角)')
     parser.add_argument('--no-council', action='store_true')
     parser.add_argument('--export-prompt', action='store_true',
                         help='只匯出 prompt 供複製到 claude.ai，不呼叫本地 LLM')
@@ -1257,8 +1264,8 @@ def main():
         return
 
     out = run(
-        use_claude=not args.no_claude,
-        use_gemini=not args.no_gemini,
+        use_opus=not args.no_opus,
+        use_second=not args.no_second,
         council=not args.no_council,
     )
     sys.stdout.write(f"\n[OK] Report saved: {out}\n")

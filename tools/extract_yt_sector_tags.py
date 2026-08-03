@@ -1,9 +1,9 @@
 """
 E1 Stage 2: 從 YT VTT 萃取 ticker / sector tag / sentiment (JSON 結構化)
 
-Dual LLM (Gemini + Claude 備援):
-1. 主: Gemini CLI with gemini-3.1-pro-preview (長 context + 便宜)
-2. 備: Claude CLI Sonnet (若 Gemini 429/超時/JSON invalid 才用)
+LLM: Claude CLI Sonnet（單一路徑）。
+Gemini 已於 2026-05-20 全面退役（CLI 停止支援），殘留備援路徑 2026-08-03 拆除；
+勿再接回，規範見 docs/agent/llm-usage.md。
 
 Schema:
 - 每集 VTT → 一份 JSON (含 mentions[], themes_discussed[], guests[], macro_views)
@@ -17,7 +17,6 @@ CLI:
     python tools/extract_yt_sector_tags.py <vtt_path>                # 單檔
     python tools/extract_yt_sector_tags.py --all                     # 全部未處理 VTT
     python tools/extract_yt_sector_tags.py --show money_deploy       # 特定節目
-    python tools/extract_yt_sector_tags.py <vtt_path> --llm claude   # 強制用 Claude
 """
 from __future__ import annotations
 
@@ -35,8 +34,6 @@ VTT_ROOT = REPO / "data_cache" / "yt_transcripts"
 OUT_ROOT = REPO / "data_cache" / "yt_extracts"
 SECTOR_TAGS_FILE = REPO / "data" / "sector_tags_manual.json"
 
-GEMINI_MODEL = "gemini-3.1-pro-preview"  # LLM 規範 (2026-05-01)：Gemini 一律 3.1-pro-preview
-GEMINI_FALLBACK_MODEL = None  # None = default model
 CLAUDE_MODEL_FLAG = "--model=sonnet --effort xhigh"  # LLM 規範 (2026-05-01)：Sonnet + effort xhigh (2026-05-21 加)：投顧 YT A/B 顯示沒 reasoning budget 的 Sonnet 抓錯 ticker code (4958 vs 2344 華邦電) + 漏抓供應鏈個股；fallback 路徑必須維持品質故統一開 xhigh，速度退讓
 
 
@@ -163,38 +160,7 @@ def parse_vtt_filename(vtt_path: Path) -> dict:
     return {"date": date_iso, "video_id": video_id, "title": title}
 
 
-def call_gemini(prompt: str, vtt_text: str, model: str | None, timeout: int = 900) -> tuple[str, str | None]:  # 15 min per LLM 規範
-
-    """
-    VTT 透過 stdin 傳 (避開 CLI argv 長度上限)。
-    shell=True 必須：Windows 上 gemini CLI 是 gemini.cmd (npm global)，shell=False 找不到。
-    Prompt 用 env var 傳避免 shell 解引號地雷。
-    model=None → 用 default model (限流較鬆)。
-    """
-    import os
-    env = os.environ.copy()
-    env["YT_EXTRACT_PROMPT"] = prompt
-
-    model_flag = f"-m {model} " if model else ""
-    cmd = f'gemini {model_flag}-p "%YT_EXTRACT_PROMPT%" -y'
-
-    try:
-        result = subprocess.run(
-            cmd, input=vtt_text, capture_output=True, text=True, timeout=timeout,
-            encoding="utf-8", errors="replace", shell=True, env=env,
-        )
-    except subprocess.TimeoutExpired:
-        raise LLMTimeoutError(f"gemini CLI timeout after {timeout}s")
-
-    if result.returncode != 0:
-        err_msg = f"gemini exit {result.returncode}: {result.stderr[:500]}"
-        if is_token_exhausted(result.stderr or ""):
-            raise TokenExhaustedError(err_msg)
-        return result.stdout or "", err_msg
-    # 檢查 stderr 是否有配額警告（即使 exit=0）
-    if is_token_exhausted(result.stderr or ""):
-        raise TokenExhaustedError(f"gemini stderr quota: {result.stderr[:500]}")
-    return result.stdout, None
+# call_gemini removed 2026-08-03 — Gemini 於 2026-05-20 全面退役，勿再接回 (docs/agent/llm-usage.md)
 
 
 def call_claude(prompt: str, vtt_text: str, timeout: int = 600) -> tuple[str, str | None]:  # 10 min per LLM 規範
@@ -269,7 +235,7 @@ def validate_and_annotate(parsed: dict, known_tickers: dict[str, str]) -> dict:
     return parsed
 
 
-def extract(vtt_path: Path, prefer: str = "gemini", known_tickers: dict | None = None) -> dict:
+def extract(vtt_path: Path, known_tickers: dict | None = None) -> dict:
     """主 extract 流程: 讀 VTT -> LLM -> JSON 驗證."""
     if known_tickers is None:
         known_tickers = load_known_tickers()
@@ -292,15 +258,9 @@ def extract(vtt_path: Path, prefer: str = "gemini", known_tickers: dict | None =
         show_name=show_name, date=meta["date"], video_id=meta["video_id"], title=meta["title"],
     )
 
-    # 1. 主 LLM (token 用完由 caller sleep retry,不在此自動 fallback Gemini)
-    output, err = "", None
-    model_used = ""
-    if prefer == "gemini":
-        output, err = call_gemini(prompt, vtt_text, GEMINI_MODEL)
-        model_used = GEMINI_MODEL
-    else:
-        output, err = call_claude(prompt, vtt_text)
-        model_used = "claude-sonnet"
+    # 1. LLM (token 用完由 caller sleep retry)
+    output, err = call_claude(prompt, vtt_text)
+    model_used = "claude-sonnet"
 
     # 2. Parse JSON
     parsed = extract_json_from_output(output) if not err else None
@@ -313,7 +273,7 @@ def extract(vtt_path: Path, prefer: str = "gemini", known_tickers: dict | None =
             "date": meta["date"],
             "video_id": meta["video_id"],
             "title": meta["title"],
-            "error": "both LLMs failed to return valid JSON",
+            "error": "LLM failed to return valid JSON",
             "last_error": err,
             "extracted_at": datetime.now().isoformat(timespec="seconds"),
             "mentions": [],
@@ -395,8 +355,6 @@ def main():
     ap.add_argument("--all", action="store_true", help="處理全部未萃取的 VTT")
     ap.add_argument("--show", choices=["money100", "money_deploy"],
                     help="只處理特定節目")
-    ap.add_argument("--llm", choices=["gemini", "claude"], default="claude",
-                    help="優先 LLM (default claude,失敗自動 fallback Gemini). 2026-04-24 實測 Gemini (含 pro-preview) 不穩定遵守 JSON 指令傾向輸 markdown")
     ap.add_argument("--stdout", action="store_true", help="輸出到 stdout 不存檔 (debug)")
     ap.add_argument("--limit", type=int, default=None, help="限制處理 N 個 (test 用)")
     ap.add_argument("--token-retry-sleep-min", type=int, default=30,
@@ -430,7 +388,7 @@ def main():
         while True:
             attempt += 1
             try:
-                parsed = extract(vtt, prefer=args.llm, known_tickers=known_tickers)
+                parsed = extract(vtt, known_tickers=known_tickers)
                 break
             except TokenExhaustedError as e:
                 wake_at = datetime.now().timestamp() + sleep_sec
