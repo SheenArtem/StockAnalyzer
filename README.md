@@ -31,10 +31,11 @@ playwright install chromium      # 強勢股報告 PDF 印出用
 # 申請: https://finmindtrade.com/  (免費 600 req/hr)
 FINMIND_API_TOKEN=your_finmind_token_here
 
-# Discord Webhook (optional, 排程結果推播)
-# 建立: Discord 頻道 → 整合 → Webhooks → 新增 Webhook
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ```
+
+> Discord webhook 已於 2026-07-06 全數退役（`git grep DISCORD_WEBHOOK -- '*.py'` 零命中），
+> 排程結果與警報一律印進 `scanner.log` 等排程 log。**不要再設 `DISCORD_WEBHOOK_*`，
+> 也不要新寫 webhook 呼叫。**
 
 > ⚠️ 不要 commit `local/.env`。專案 `.gitignore` 已涵蓋 `local/`。
 

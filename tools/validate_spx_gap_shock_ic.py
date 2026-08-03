@@ -625,11 +625,11 @@ def write_report(summary, results, best_feat, best_horizon, verdict, gates, note
         md.append(f"- Add 8th stage to `system3_daily_check.py` named `spx_gap_alert`\n")
         md.append(f"- Compute: SPX 1d % from `data/macro/fred_panel.parquet` `sp500_close.pct_change()`\n")
         md.append(f"- Trigger: SPX 1d <= -1.5% yellow / <= -2.5% orange / <= -3.0% red\n")
-        md.append(f"- Push Discord on TW pre-open (08:30 TPE) with: SPX 1d %, expected TWII gap range (median+IQR from conditional table), conditional fwd_5d/20d MDD hit rate\n")
+        md.append(f"- Print to scheduler log on TW pre-open (08:30 TPE) with (Discord retired 2026-07-06): SPX 1d %, expected TWII gap range (median+IQR from conditional table), conditional fwd_5d/20d MDD hit rate\n")
         md.append(f"- **Do NOT auto-rebalance** -- gap-down can mean-revert within 5 days; treat as situational awareness for sizing/intraday\n")
         md.append(f"- Cooldown: 3 TD (shorter than MOVE/ma_dist_60 -- shock signal is concurrent, multiple closely-spaced triggers are real risk amplification, not noise)\n\n")
         md.append(f"**Complementarity vs S3-a (^MOVE)**: Jaccard = **{indep['jaccard']:.3f}** (extremely low). ")
-        md.append(f"Of 116 union alerts, only {indep['intersection_n']} fire on same day. SPX-only = {indep['spx_only_n']} days, MOVE-only = {indep['move_only_n']} days. The two signals catch entirely different shock TYPES: SPX = equity-led concurrent shocks (e.g. tariff exec orders, earnings disasters); MOVE = bond-vol-led leading shocks (e.g. Treasury repricing). **Both should be kept** -- recommend keeping S3-a (MOVE) and S3-b (SPX) as parallel informational stages with distinct Discord labels.\n\n")
+        md.append(f"Of 116 union alerts, only {indep['intersection_n']} fire on same day. SPX-only = {indep['spx_only_n']} days, MOVE-only = {indep['move_only_n']} days. The two signals catch entirely different shock TYPES: SPX = equity-led concurrent shocks (e.g. tariff exec orders, earnings disasters); MOVE = bond-vol-led leading shocks (e.g. Treasury repricing). **Both should be kept** -- recommend keeping S3-a (MOVE) and S3-b (SPX) as parallel informational stages with distinct log labels (Discord retired 2026-07-06).\n\n")
         md.append(f"**Caveat**: The shock label dates (COVID 2020-02-20 etc.) are subjective. SPX -2%+ days OCCUR throughout 2020-03 / 2022-09 / 2025-04 selloffs, the analysis confirms SPX shock is a reliable concurrent indicator but not anticipatory. Use this signal to prepare for TW open, not to pre-position cash.\n")
     else:
         md.append(f"`{best_feat}` FAIL SOP-12 and conditional lift insufficient. D-archive.\n\n")

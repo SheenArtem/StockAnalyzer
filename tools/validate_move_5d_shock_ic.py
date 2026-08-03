@@ -492,7 +492,8 @@ def write_report(summary, results, best_feat, best_horizon, verdict, gates, note
         md.append(f"- Add 7th stage to `system3_daily_check.py` named `move_shock_alert`\n")
         md.append(f"- Compute `move_5d_delta_zscore` daily (252d rolling baseline of 5d delta)\n")
         md.append(f"- Threshold: z >= 1.5 -> yellow / z >= 2.5 -> orange / z >= 3.0 -> red\n")
-        md.append(f"- Push Discord with current z, fwd_20d hit rate at this z bucket, and historical lift\n")
+        md.append(f"- Print to scheduler log with current z, fwd_20d hit rate at this z bucket, "
+                  f"and historical lift (Discord retired 2026-07-06)\n")
         md.append(f"- **Do NOT auto-rebalance** -- ^MOVE -> ^TWII transmission is indirect; treat as situational awareness only\n")
         md.append(f"- Cooldown: 60 days (same as System 3 ma_dist_60 yellow)\n\n")
         md.append(f"**Complementarity check (event study)**: At 2 of 3 known shocks (COVID 2020, Trump tariff 2025), ma_dist_60 yellow was NOT triggered in 60 TD lookback while MOVE z >= 1.5 fired with lead 15 and 2 TD. At Jackson Hole 2022 both fired but ma_dist_60 led by 1 TD vs MOVE 55 TD -- MOVE caught the prior June Treasury vol spike that ma_dist_60 missed. Bottom line: MOVE covers shock gaps that ma_dist_60 misses by design (slow rolling rank vs sharp delta), and OR-union of two signals should improve recall.\n\n")
