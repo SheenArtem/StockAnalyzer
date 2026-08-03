@@ -34,7 +34,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-ROOT = Path(r'C:/GIT/StockAnalyzer')
+ROOT = Path(__file__).resolve().parent.parent  # repo root
 CACHE = ROOT / 'data_cache'
 CHIP = CACHE / 'chip_history'
 REPORTS = ROOT / 'reports'

@@ -5,11 +5,13 @@ Generates: reports/banner_risk_score_calibration.md + .csv
 import json
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
-PANEL_PATH = 'C:/GIT/StockAnalyzer/reports/_history/2026_05_crash_predictor_closed/crash_predictor_tw_panel.parquet'
-REGIME_PATH = 'C:/GIT/StockAnalyzer/data/tracking/regime_log.jsonl'
-OUT_MD = 'C:/GIT/StockAnalyzer/reports/banner_risk_score_calibration.md'
-OUT_CSV = 'C:/GIT/StockAnalyzer/reports/banner_risk_score_calibration.csv'
+ROOT = Path(__file__).resolve().parent.parent  # repo root
+PANEL_PATH = ROOT / 'reports/_history/2026_05_crash_predictor_closed/crash_predictor_tw_panel.parquet'
+REGIME_PATH = ROOT / 'data/tracking/regime_log.jsonl'
+OUT_MD = ROOT / 'reports/banner_risk_score_calibration.md'
+OUT_CSV = ROOT / 'reports/banner_risk_score_calibration.csv'
 
 panel = pd.read_parquet(PANEL_PATH)
 lines = open(REGIME_PATH).readlines()

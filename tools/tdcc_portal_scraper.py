@@ -72,7 +72,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Config
 # ---------------------------------------------------------------------------
 BASE_URL = "https://www.tdcc.com.tw/portal/zh/smWeb/qryStock"
-OUT_DIR = Path("C:/GIT/StockAnalyzer/data_cache/tdcc/1-5")
+ROOT = Path(__file__).resolve().parent.parent  # repo root
+OUT_DIR = ROOT / "data_cache/tdcc/1-5"
 SCRATCH_DIR = OUT_DIR / "scratch"
 SLEEP_BETWEEN_STOCKS = 1.5   # seconds
 SESSION_REFRESH_EVERY = 200  # refresh GET every N stocks
@@ -327,7 +328,7 @@ def load_stock_ids_from_cache() -> list[str]:
         return totals["stock_id"].tolist()
 
     # Fallback: TDCC universe download
-    universe_path = Path("C:/GIT/StockAnalyzer/data_cache/backtest/universe_tw_full.parquet")
+    universe_path = ROOT / "data_cache/backtest/universe_tw_full.parquet"
     if universe_path.exists():
         uf = pd.read_parquet(universe_path)
         common = uf[uf.get("is_common_stock", pd.Series(True, index=uf.index))]

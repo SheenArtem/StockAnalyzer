@@ -49,7 +49,7 @@ from sklearn.preprocessing import StandardScaler
 
 warnings.filterwarnings('ignore')
 
-ROOT = Path(r'C:/GIT/StockAnalyzer')
+ROOT = Path(__file__).resolve().parent.parent  # repo root
 CACHE = ROOT / 'data_cache'
 BACKTEST = CACHE / 'backtest'
 CHIP = CACHE / 'chip_history'

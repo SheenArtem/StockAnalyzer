@@ -23,9 +23,9 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-SCREENSHOT_DIR = Path("C:/GIT/StockAnalyzer/reports/ui_test_screener_2026_04_30")
+APP_DIR = Path(__file__).resolve().parents[3]  # repo root（tools/_archive/manual_tests/ 上三層）
+SCREENSHOT_DIR = APP_DIR / "reports/ui_test_screener_2026_04_30"
 PORT = 8514
-APP_DIR = Path("C:/GIT/StockAnalyzer")
 
 
 def save(page, name):
