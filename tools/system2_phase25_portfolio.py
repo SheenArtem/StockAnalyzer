@@ -305,7 +305,11 @@ def main() -> None:
     L.append(f"- Sharpe(model) > Sharpe(best single feat): **{'PASS' if composite_better_than_single else 'FAIL'}** ({m_best_model['sharpe']:.3f} vs {m_D['sharpe']:.3f})")
     L.append("")
     if sharpe_pass and mdd_pass and composite_better_than_single:
-        L.append("**Overall: PASS** -- System 2 ready for production (banner v4 + Discord push).")
+        # 不寫「Discord push」—— Discord 已於 2026-07-06 全數退役（警報改印排程 log），
+        # 這行是產出到報告的字串，留著會宣稱一個不存在的通報管道。
+        L.append("**Overall: PASS** -- System 2 ready for production "
+                 "(banner v4 + 警報印排程 log)。⚠️ 實際 verdict 是 PARTIAL，"
+                 "本行只在三閘門全過時才會出現。")
     elif sharpe_pass or mdd_pass:
         L.append("**Overall: PARTIAL** -- informational tier (SOP-14) candidate; do not rebalance live.")
     else:
