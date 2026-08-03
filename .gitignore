@@ -24,6 +24,10 @@ tools/test_report_library_scroll_fix.py
 tools/test_report_library_ui.py
 
 # 一次性 audit 腳本（驗證後丟，結論寫進 memory）
+# ⚠️ 常設工具不要取名 audit_* —— 會被這條規則靜默吃掉，而「檔案在本機、測試也綠」
+# 完全看不出來（2026-08-03 踩到：reconcile_panel_vs_official 原名 audit_panel_vs_official，
+# commit 只進了測試檔沒進工具，乾淨 clone 上測試會 import 失敗）。
+# 常設的對帳／掃描工具用 reconcile_* / scan_* / verify_* 命名。
 tools/audit_*.py
 
 # Tools 暫存區（smoke test / batch staging / ad-hoc）

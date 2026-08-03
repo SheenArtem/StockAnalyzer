@@ -186,7 +186,7 @@ def _drop_thin_proxy_dates(proxy: pd.DataFrame,
     `ret_20d` 全落在 −1.4%~+11.1%（2016-06-04 由 >30% 的假值變成合理的 +9.2%）。
     只剩 `2016-09-10` 仍是 64.2% 會被擋 —— 它落在 **2016-08-22~10-03 那個 30 天的
     對帳異常窗口**內（每天 22~26% 的股票與官方對不上），所以回填時多數個股的還原係數
-    前後不一致而被跳過。範圍與證據詳 `tools/audit_panel_vs_official.py` 檔頭與
+    前後不一致而被跳過。範圍與證據詳 `tools/reconcile_panel_vs_official.py` 檔頭與
     `docs/agent/data-sources.md`。
     → **本函式從「症狀處理」退回成安全網**：根因（panel 缺資料）已除，但門檻保留，
     因為下一批缺資料不會有人先通知我們。
