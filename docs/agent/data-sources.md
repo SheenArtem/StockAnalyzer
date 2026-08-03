@@ -21,7 +21,8 @@ All features MUST follow the same priority to avoid data drift。實作細節（
 | Margin/ROE/ROA | TradingView Screener | — | TW + US unified |
 | 融資融券 (margin trading) | TWSE MI_MARGN ALL + TPEX margin_bal_result.php（全市場整批 by-date）| FinMind per-stock (legacy) | `chip_history_dl.py::download_margin`；TPEX 2026-06-29 由 FinMind 改官方整批，1 call/日 |
 | Day trade / holdings | FinMind | — | 無替代 (per-stock) |
-| News | Google News RSS + udn money RSS | — | `news_fetcher.py` / `tools/news_theme_extract.py` |
+| News (per-ticker) | Google News RSS | — | `news_fetcher.py` |
+| News (題材批次) | cnyes JSON API + udn money RSS | cnyes 失敗有 graceful degradation state | `tools/news_theme_extract.py`；三層 storage / 22 欄 schema / dual-write backup 見 Claude memory `project_news_pipeline` 與 `feedback_keep_backup_dual_write` |
 | Analyst consensus | yfinance | — | Target price / Forward EPS / rating |
 | Peer comparison | TWSE/TPEX PER + FinMind industry | — | `peer_comparison.py` |
 | TV-show YT mentions | yt-dlp auto-sub + Claude Sonnet | — | → `data/sector_tags_dynamic.parquet` |

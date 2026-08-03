@@ -1,6 +1,6 @@
 # StockAnalyzer
 
-台股 / 美股 交易分析系統。Streamlit UI + 排程 scanner + AI 報告 + 強勢股報告 PDF。
+台股 / 美股 交易分析系統。Streamlit UI + 排程 scanner + AI 報告。
 
 ---
 
@@ -10,7 +10,7 @@
 
 - **Python 3.13+**
 - **Windows 10/11**（排程依賴 Task Scheduler；`.bat` 啟動器；其他平台需自行調整）
-- **Claude CLI**（AI 報告必須）— 從 https://docs.anthropic.com/claude/docs/cli 安裝
+- **Claude CLI**（AI 報告必須）— 安裝方式見 https://code.claude.com/docs
 
 ### 2. 安裝依賴
 
@@ -19,7 +19,7 @@ git clone https://github.com/SheenArtem/StockAnalyzer.git
 cd StockAnalyzer
 
 pip install -r requirements.txt
-playwright install chromium      # 強勢股報告 PDF 印出用
+playwright install chromium      # PDF 印出 + 白話投資 FB 抓取 + UI 測試用
 ```
 
 ### 3. 建立 `local/.env`
@@ -62,7 +62,7 @@ bat 或 `app.py` 的註解裡）。
 | 個股分析 UI | `app.py` | 排程（開機自啟） | 技術 / 基本面 / 籌碼 / 同業 / AI 報告 |
 | 總經大盤風向 | `app.py` → 🧭 | 排程（面板日更） | 7 區塊；資料由 `run_macro_panels_*.bat` 產 |
 | 市場掃描 | `app.py` → 📡 | 排程 | 法人週榜 / 題材動能 / 新聞流量異常 |
-| AI 報告 | `tools/auto_ai_reports.py` | 手動 | Claude Opus 深度分析（daily 排程已停用）|
+| AI 報告 | `app.py` → 📝 / `tools/auto_ai_reports.py` | 手動 | Claude Opus 深度分析；儀表板在 📝 tab（daily 排程已停用）|
 | 投資組合 | `app.py` → 💼 | 手動 | 手輸交易紀錄 → 持股 / 損益 / TWR；純本地不入版控 |
 | 知識庫 | `app.py` → 📚 | 手動 | 本地筆記 + 白話投資 FB 粉專知識庫 |
 | 題材策展 | `app.py` → 🎨 | 手動 | TW + US 多市場題材 |
@@ -145,7 +145,7 @@ Scanner started
 | `run_c1_monthly.bat` | **未登記＋內部停用** | C1 regime tilt 拐點偵測；2026-05-30 排程工作已 Unregister，bat 第 64 行也加了 `goto skip_c1`。手動仍可跑 `python tools\compute_c1_tilt.py` |
 | `run_scanner_weekly.bat` | **未登記＋內部停用** | 強勢股週報；第 62 行無條件 `goto skip_weekly_all`，即使觸發也是 no-op |
 
-> ⚠️ 所有 `.bat` 必須 **pure ASCII**（CP950/UTF-8 衝突會讓排程靜默失敗）。pre-commit hook 會擋 CJK 字元。
+> ⚠️ 所有 `.bat` 必須 **pure ASCII + CRLF**（CP950/UTF-8 衝突會讓排程靜默失敗；LF-only 會讓 `goto` 以 byte-offset 跳錯行、誤跑 dead code）。pre-commit hook 會擋 CJK 與 lone-LF。
 
 ---
 
