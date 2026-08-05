@@ -109,6 +109,7 @@ Scanner started
 → RF-1 cache consistency check → Market regime 紀錄
 → Universe 價格更新 → TW breadth panel → Refresh backtest panels
 → 價格離群掃描 (panel 毀損偵測)
+→ 美股 cache 未完成 bar 掃描 (防回歸；盤中快照被當收盤)
 → 籌碼歷史 resume → 法說會行事曆 fetch
 → Scanner finished
 → verify_scan_stages 驗證
@@ -120,8 +121,10 @@ Scanner started
 
 > 「哪些 stage 必須真的跑完」的唯一權威是
 > [`tools/verify_scan_stages.py`](tools/verify_scan_stages.py) 的 `REQUIRED_STAGES`
-> （目前 16 個），它每晚比對 `scanner.log`。**改動排程鏈時要同步那份清單**，
+> （目前 17 個），它每晚比對 `scanner.log`。**改動排程鏈時要同步那份清單**，
 > 否則 stage 靜默失敗不會被任何後檢查發現。
+> `tests/test_scanner_fail_loud.py` 會對這份清單逐項 `parametrize`，驗證每個 marker
+> 都真的存在於 `run_scanner.bat` —— 漏接會直接紅在 pytest，不必靠人工對照。
 
 ### 其他排程 BAT
 
