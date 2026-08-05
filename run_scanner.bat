@@ -371,6 +371,32 @@ call :log "Panel outlier scan done (exit=%OUTLIER_EXIT%)"
 :skip_market_panels
 
 REM ------------------------------------------------------------
+REM US price cache unsettled-bar scan (added 2026-08-04).
+REM Intraday snapshots were landing in data_cache/*_price.csv as if they were
+REM closing bars, and the incremental update fetched only from the day AFTER
+REM the last cached row -- so a bad bar stayed pinned forever, never refetched.
+REM 475 files / 5951 rows were affected (MSFU 08-03 was off -1.7%, TSMX 07-28
+REM off -3.4% for six days). Write path fixed in e95745a; this stage is
+REM regression monitoring and should stay at 0 findings.
+REM
+REM Report only, NO --apply on purpose: auto-overwriting price data is too
+REM risky. A split misclassified as an unsettled bar fabricates a fake gap
+REM (DD briefly showed a +200% jump that way during the first repair pass).
+REM
+REM Placed AFTER :skip_market_panels because it reads data_cache CSVs, not the
+REM rebuilt panel -- it must still run when the market-panel block is skipped.
+REM Safe at 00:00 TW (= US midday): bars for the in-progress US session are no
+REM longer written to cache, so there is nothing unsettled to compare against.
+REM ------------------------------------------------------------
+REM Done-marker printed on BOTH paths, same reason as the panel scan above:
+REM exit=1 means it FOUND something, which is the scan working, not a failure.
+call :log "US cache bar scan starting"
+python tools\scan_unsettled_cache_bars.py --fail-on unsettled,split >> scanner.log 2>&1
+set UNSETTLED_EXIT=%ERRORLEVEL%
+if not "%UNSETTLED_EXIT%"=="0" call :log "[WARN] US cache bar scan FOUND ISSUES - see scanner.log"
+call :log "US cache bar scan done (exit=%UNSETTLED_EXIT%)"
+
+REM ------------------------------------------------------------
 REM Chip history institutional resume (daily).
 REM Added 2026-05-02: 5yr panel was one-shot backfill, no daily cron, so
 REM weekly_chip_report (BL-4) was using stale data (cap 4/15). Daily resume

@@ -126,6 +126,39 @@ top300 代理成分數回到 297~300 檔、`ret_20d` 全落在 −1.4%~+11.1%（
 - TradingView / Google News：in-memory 30min~1hr
 - `cache_manager.py` 有 `_cache_lock` 保執行緒安全
 
+### ⚠️ 未收盤定案的 bar 一律不寫 disk cache（2026-08-04 治本，`e95745a`）
+
+盤中抓到的當日 bar 是**未完成 bar**：Close 只是當下報價、Volume 只累積到當下。
+它一旦落地就永久有效 —— 增量更新只從 cache 最後一列往後續抓，那根壞 bar
+不會再被重抓修正。實例：`MSFU` 08-03 cache 收 35.84 / 量 6.85M，真實收盤
+36.47 / 量 11.84M；`TSMX` 07-28 差 -3.4% 躺了六天。全庫實測 **475 檔 / 5,951 列**
+受害，源頭是兩次在美股盤中跑的批次抓取。
+
+寫任何「抓價 → 存 cache」的程式碼時：
+
+1. **存盤前呼叫 `technical_analysis.drop_unsettled_bars(df, market)`**，當日未定案的列
+   只留在記憶體（供盤中顯示），不落地。同源原則見 `_try_intraday_quote_as_today_bar`
+   docstring。
+2. **收盤判定一律用市場當地時間**（`is_bar_settled`：美東 16:00 / 台北 13:30 + 15 分
+   結算緩衝）。**不可用本機時鐘** —— 台灣晚上正是美股盤中，本機日期還早一天。
+   `refresh_universe_prices` 也有一套盤中剔除（`:362`），用 `<13:35` 是**正確的**
+   （該工具只跑台股 `.TW`/`.TWO` 宇宙），但**不可照抄到含美股的路徑**。
+3. **增量起算日含 cache 最後一列**（`last_date` 而非 `last_date + 1`），壞列才有機會
+   被真收盤覆寫。順序有依賴：**第 1 點必須先成立，第 3 點才安全**，否則變成盤中值
+   反覆覆寫已定案收盤價。
+4. **量比價靈敏** —— 偵測未完成 bar 用成交量（只累積到抓取當下）比用收盤價可靠。
+5. ⚠️ **「cache 與資料源不符」不等於未完成 bar** —— 分割 / 分拆會讓 yfinance
+   **回溯調整整段歷史**，價量同時變，一樣觸發「量不足 + 價不符」。對分割股做
+   **部分列覆寫會製造假跳空**（`DD` 一度憑空 +200%）；分割股只能整檔
+   `force_update=True` 重抓。判別特徵：**連續多日同比例＝分割，單日隨機比例＝未完成 bar**。
+
+**防回歸監控**：`tools/scan_unsettled_cache_bars.py` 已接夜間鏈
+（`run_scanner.bat` 的 `US cache bar scan` stage，`--fail-on unsettled,split`），
+上面第 5 點的分割判別已寫成程式碼護欄（`classify()`，`tests/test_unsettled_cache_scan.py`
+釘住）。**夜間鏈刻意只報告不 `--apply`** —— 自動覆寫價格資料風險過高。
+治本後這個 stage 應長期回 0；一旦有發現，就是有新的寫入路徑繞過了防護。
+只掃美股，台股不掃的理由見該檔 docstring。
+
 ## TW vs US ticker detection
 
 - 純數字或含 `.TW` → TW (FinMind + TWSE/TPEX + TradingView)

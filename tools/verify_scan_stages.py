@@ -55,6 +55,11 @@ REQUIRED_STAGES = [
     # ⚠️ 這裡刻意**不要求 `(exit=0)`**：exit=1 代表「掃到毀損」，那是它正常工作而不是
     # stage 失敗，bat 也在兩條路徑都印同一行 done marker。
     ('Panel outlier scan done', r'\] Panel outlier scan done'),
+    # 2026-08-04 加：美股 price cache 未完成 bar 掃描（防回歸）。同樣**不要求
+    # `(exit=0)`** —— exit=1 是「掃到污染」，那是它正常工作。這個 marker 特別要緊：
+    # 原始 bug（475 檔 / 5,951 列盤中快照被當收盤釘死）之所以躺了三個月沒人發現，
+    # 就是因為沒有任何一道檢查會出聲。
+    ('US cache bar scan done', r'\] US cache bar scan done'),
     ('Chip history resume done', r'\] Chip history resume done'),
     ('News flow anomaly done', r'\] News flow anomaly done'),
     ('Theme momentum done', r'\] Theme momentum done'),
