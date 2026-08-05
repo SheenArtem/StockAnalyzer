@@ -341,6 +341,7 @@ from cache_manager import get_finmind_loader, get_tw_stock_info
 import datetime
 import functools
 import logging
+import warnings
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -411,6 +412,86 @@ def _try_intraday_quote_as_today_bar(raw_input):
     except Exception as e:
         logger.warning("mis.twse intraday fallback failed for %s: %s", raw_input, e)
         return None
+
+
+# 各市場日 K 的收盤定案時間（判斷一根 bar 能不能寫進 disk cache）。
+# buffer 給交易所 / 資料源結算用 —— 剛收盤那幾分鐘 yfinance 的量價還會微調。
+_MARKET_SESSION = {
+    'us': ('America/New_York', 16, 0),
+    'tw': ('Asia/Taipei', 13, 30),
+}
+_BAR_SETTLE_BUFFER_MIN = 15
+
+
+def _market_of(raw_input):
+    """純數字 -> 台股，其餘 -> 美股（沿用 load_and_resample 既有的代號慣例）。"""
+    core = str(raw_input).strip().replace('.TWO', '').replace('.TW', '')
+    return 'tw' if core.isdigit() else 'us'
+
+
+def is_bar_settled(bar_date, market='us', now=None):
+    """該根日 K 是否已收盤定案（＝可以安全寫進 disk cache）。
+
+    盤中抓到的當日 bar 是「未完成 bar」：Close 只是當下報價、Volume 只累積到當下。
+    它一旦落地就永久有效 —— 增量更新只從 cache 最後一列往後續抓，那根壞 bar
+    再也不會被重抓修正。2026-08-04 實測：MSFU 08-03 cache 收 35.84 / 量 6.85M，
+    真實收盤 36.47 / 量 11.84M（-1.7%）；TSMX 07-28 -3.4% 已躺六天。
+    比照 _try_intraday_quote_as_today_bar 的既有原則：partial bar 只進記憶體不落地。
+
+    以**市場當地時間**判斷，不能用本機時間 —— 台灣晚上正是美股盤中，
+    本機日期還比美東早一天，用本機時鐘會把盤中 bar 誤判成已定案。
+    now 可注入（tz-aware 或 naive 皆可）供測試。
+    """
+    if bar_date is None:
+        return False
+    tz_name, close_h, close_m = _MARKET_SESSION.get(market, _MARKET_SESSION['us'])
+    if now is not None:
+        now_local = now
+    else:
+        try:
+            from zoneinfo import ZoneInfo
+            now_local = datetime.datetime.now(ZoneInfo(tz_name))
+        except Exception as e:
+            # 沒有 tz database 可用時保守處理：只信「日期早於本機今天」的 bar
+            logger.warning("zoneinfo unavailable (%s), falling back to local date", e)
+            return bar_date < datetime.date.today()
+    if bar_date < now_local.date():
+        return True
+    if bar_date > now_local.date():
+        return False          # 時區錯位跑到未來，保守當成未定案
+    close_dt = now_local.replace(hour=close_h, minute=close_m,
+                                 second=0, microsecond=0)
+    return now_local >= close_dt + datetime.timedelta(minutes=_BAR_SETTLE_BUFFER_MIN)
+
+
+def drop_unsettled_bars(df, market='us', now=None):
+    """剔除尚未收盤定案的 bar，回 (可落地的 df, 被剔除的日期 list)。
+
+    只用在「寫入 disk cache 之前」；記憶體端仍保留當日 partial bar 供盤中顯示。
+    非日期索引列（yfinance 多層 header 殘留等）一律保留，交給既有清理邏輯處理。
+    """
+    if df is None or getattr(df, 'empty', True):
+        return df, []
+    try:
+        # 混雜非日期索引（yfinance 多層 header 殘留）時 pandas 會 warn 格式推斷失敗，
+        # errors='coerce' 已把它們變成 NaT 並在下方保留，warning 無實益。
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', UserWarning)
+            dates = pd.to_datetime(df.index, errors='coerce')
+    except Exception:
+        return df, []
+    keep, dropped = [], []
+    for d in dates:
+        if pd.isna(d):
+            keep.append(True)
+            continue
+        ok = is_bar_settled(d.date(), market, now=now)
+        keep.append(ok)
+        if not ok:
+            dropped.append(d.date())
+    if not dropped:
+        return df, []
+    return df.iloc[[i for i, k in enumerate(keep) if k]], dropped
 
 
 def fetch_from_finmind(stock_id, start_date=None, max_retries=3):
@@ -502,8 +583,10 @@ def load_and_resample(source, force_update=False):
             logger.info("Incremental update: %s (cache through %s)", raw_input, last_date.date())
             ticker_name = raw_input
             
-            # Start from next day
-            start_date_new = (last_date + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+            # 從 last_date 本身起算，不是隔天 —— cache 最後一列若是先前盤中寫入的
+            # 未完成 bar，這次會被重抓的真收盤覆寫（下方 concat 用 keep='last'）。
+            # 只 +1 天的話那根壞 bar 永遠落在抓取範圍外，不會自己好。多抓一天成本可忽略。
+            start_date_new = last_date.strftime('%Y-%m-%d')
             
             # Download only new data — 台股優先 FinMind，美股用 yfinance
             new_df = pd.DataFrame()
@@ -554,12 +637,19 @@ def load_and_resample(source, force_update=False):
                  logger.info("Incremental update done: +%d rows for %s", len(new_df), raw_input)
                  ticker_name = raw_input if raw_input.isdigit() else raw_input # Simple fix
                  if raw_input.isdigit():
-                      stock_meta = get_stock_info_smart(raw_input) 
+                      stock_meta = get_stock_info_smart(raw_input)
                  else:
                       stock_meta['name'] = ticker_name
 
-                 # Save merged Cache
-                 cm.save_cache(raw_input, df_day, 'price')
+                 # Save merged Cache —— 未收盤定案的 bar 不落地（df_day 仍保留供盤中顯示）。
+                 # 這裡對整段 df_day 過濾而非只過濾 new_df，順帶把先前盤中誤寫進 cache
+                 # 的當日壞 bar 一併清掉。
+                 df_for_disk, _unsettled = drop_unsettled_bars(df_day, _market_of(raw_input))
+                 if _unsettled:
+                     logger.info("Unsettled bar(s) not written to cache for %s: %s",
+                                 raw_input, [str(d) for d in _unsettled])
+                 if not df_for_disk.empty:
+                     cm.save_cache(raw_input, df_for_disk, 'price')
             else:
                  # FinMind/yfinance 都沒有 new bar — 盤中嘗試從 mis.twse 拼 today partial
                  today_bar = _try_intraday_quote_as_today_bar(raw_input)
@@ -617,9 +707,14 @@ def load_and_resample(source, force_update=False):
             # (美股必走 yfinance, cache miss 時 100% 觸發)。攤平成單層 OHLCV 欄名。
             if not df_day.empty and isinstance(df_day.columns, pd.MultiIndex):
                 df_day.columns = df_day.columns.get_level_values(0)
-            # [CACHE] Save to Cache
+            # [CACHE] Save to Cache —— 同增量路徑：盤中未定案的當日 bar 不落地
             if not df_day.empty:
-                 cm.save_cache(raw_input, df_day, 'price')
+                 df_for_disk, _unsettled = drop_unsettled_bars(df_day, _market_of(raw_input))
+                 if _unsettled:
+                     logger.info("Unsettled bar(s) not written to cache for %s: %s",
+                                 raw_input, [str(d) for d in _unsettled])
+                 if not df_for_disk.empty:
+                     cm.save_cache(raw_input, df_for_disk, 'price')
 
     # 情境 B: 傳入的是 CSV 資料 (DataFrame)
     elif isinstance(source, pd.DataFrame):
