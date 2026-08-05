@@ -2,6 +2,11 @@
 notes_view.py Playwright validation script (2026-06-12)
 Usage: python tools/test_notes_view.py
 Output: test_screenshots/notes_tab_*.png
+
+⚠️ 2026-08-05 修 flaky：本測試曾在同一個 commit 連跑兩次得到不同結果
+（一次 19 項全 PASS、一次 step3-5 四項 FAIL），一度被誤判成「筆記的編輯 /
+刪除功能壞了」。真因是等待邏輯與兩個假陽性判據，見 wait_script_idle()
+與 step4 / step5 的註解。
 """
 
 import subprocess
@@ -33,6 +38,74 @@ def get_inner_text_safe(loc):
         return ""
 
 
+# ====================================================================
+#  Streamlit rerun 等待 —— 本測試可信度的地基，別改回 networkidle
+# ====================================================================
+#
+# ⚠️ `page.wait_for_load_state("networkidle")` 對 Streamlit 完全無效：
+# rerun 的結果是走 WebSocket 推送的，不產生 HTTP request，所以 networkidle
+# 幾乎立刻就滿足 —— 等於沒等。原本真正在等的只有 `time.sleep(2)`，而實測
+# 點「編輯」後 textarea 要 1.83s 才出現，餘裕只剩 0.17s：機器稍慢就整批 FAIL，
+# 而畫面其實只是還在 rerun（截圖右上角有 "Stop"、整頁灰化），功能是好的。
+# 判據改用 Streamlit 自己的 <body data-test-script-state="running|notRunning">。
+
+_SCRIPT_STATE_JS = """() => {
+    const e = document.querySelector('[data-test-script-state]');
+    return e ? e.getAttribute('data-test-script-state') : null;
+}"""
+
+
+def _script_state(page):
+    return page.evaluate(_SCRIPT_STATE_JS)
+
+
+def assert_script_state_marker(page):
+    """啟動自檢：標記不存在就 fail loud，不要靜默退回 flaky。
+
+    若 Streamlit 改掉這個 DOM 契約，wait_script_idle() 會永遠立刻回傳 True，
+    測試看起來還是綠的 —— 那比紅的更危險，所以這裡直接炸。
+    """
+    state = _script_state(page)
+    if state is None:
+        raise RuntimeError(
+            "data-test-script-state marker missing: Streamlit changed its DOM "
+            "contract, so wait_script_idle() would silently no-op and this test "
+            "would go back to being flaky. Fix the selector before trusting any "
+            "result.")
+    return state
+
+
+def wait_script_idle(page, timeout=30.0, settle=0.4):
+    """等這一輪 rerun 真的跑完（含連續 rerun）。逾時回 False，不丟例外。"""
+    deadline = time.time() + timeout
+    # rerun 可能還沒起跑，先給一個短窗口等它進 running（沒進去就是已經跑完了）
+    enter_deadline = time.time() + 1.5
+    while time.time() < enter_deadline:
+        if _script_state(page) == "running":
+            break
+        time.sleep(0.05)
+    stable_since = None
+    while time.time() < deadline:
+        if _script_state(page) == "notRunning":
+            if stable_since is None:
+                stable_since = time.time()
+            elif time.time() - stable_since >= settle:
+                return True
+        else:
+            stable_since = None  # 又開始跑了（連續 rerun），重新計 settle
+        time.sleep(0.1)
+    return False
+
+
+def _port_in_use(port):
+    import socket
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
 def click_by_text_in_page(page, text, exact=False):
     """Find any element containing text and click it."""
     if exact:
@@ -48,6 +121,15 @@ def click_by_text_in_page(page, text, exact=False):
 def main():
     SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
+    # ⚠️ port 已被佔用時絕不能繼續：Streamlit 會因 port 衝突退出（stderr 被
+    # PIPE 吞掉，看不到），而下面的 create_connection 對「別人的」進程仍然
+    # 連得上 —— 測試會靜默地對錯誤的 app 跑完，給出無意義的紅或綠。
+    if _port_in_use(PORT):
+        raise RuntimeError(
+            "port %d is already in use. Kill the process holding it (or change "
+            "PORT) — otherwise this test silently runs against that app instead "
+            "of the one it just started." % PORT)
+
     print("[INFO] Starting Streamlit on port %d ..." % PORT)
     proc = subprocess.Popen(
         [sys.executable, "-m", "streamlit", "run", "app.py",
@@ -62,18 +144,22 @@ def main():
 
     try:
         print("[INFO] Waiting for Streamlit to start (max 90s)...")
-        import socket
         deadline = time.time() + 90
         while time.time() < deadline:
-            try:
-                with socket.create_connection(("127.0.0.1", PORT), timeout=1):
-                    print("[INFO] Port %d is open, waiting 5s more for app init..." % PORT)
-                    time.sleep(5)
-                    break
-            except (OSError, ConnectionRefusedError):
-                time.sleep(2)
+            # 進程提早死掉就別再空等 90s —— 原本會等滿後只印一行 ERROR 然後
+            # 繼續往下跑，後面每一項都 FAIL 卻看不出真因（stderr 全被吞了）。
+            if proc.poll() is not None:
+                err = (proc.stderr.read() or b"").decode("utf-8", "replace")
+                raise RuntimeError(
+                    "Streamlit exited early (code %s) without serving port %d.\n"
+                    "--- stderr tail ---\n%s" % (proc.returncode, PORT, err[-2000:]))
+            if _port_in_use(PORT):
+                print("[INFO] Port %d is open, waiting for first render..." % PORT)
+                break
+            time.sleep(2)
         else:
-            print("[ERROR] Streamlit did not start within 90s on port %d" % PORT)
+            raise RuntimeError(
+                "Streamlit did not open port %d within 90s" % PORT)
 
         from playwright.sync_api import sync_playwright
 
@@ -84,7 +170,13 @@ def main():
             # ---- 0. Load homepage ----
             try:
                 page.goto(f"http://localhost:{PORT}", timeout=60000)
+                # 首次載入是真的 HTTP 資源，networkidle 在這裡仍然有意義；
+                # 但「app 跑完了沒」一律看 data-test-script-state。
                 page.wait_for_load_state("networkidle", timeout=60000)
+                page.wait_for_selector("label[data-baseweb='radio']", timeout=60000)
+                assert_script_state_marker(page)
+                if not wait_script_idle(page, timeout=60.0):
+                    log("00_first_render", "WARN", "still running after 60s")
                 log("00_homepage_load", "PASS", "port %d OK" % PORT)
             except Exception as e:
                 log("00_homepage_load", "FAIL", str(e))
@@ -98,7 +190,6 @@ def main():
                 # Wait until at least one radio option label appears
                 page.wait_for_selector(
                     "label[data-baseweb='radio']", timeout=15000)
-                time.sleep(2)  # give Streamlit a moment to finish rendering
 
                 # Verify via JS evaluate first
                 js_count = page.evaluate("""() => {
@@ -139,16 +230,14 @@ def main():
                     else:
                         log("step1_click_notes", "FAIL", "no radio option labels found")
 
-                time.sleep(3)
-                page.wait_for_load_state("networkidle", timeout=15000)
+                if not wait_script_idle(page):
+                    log("step1_wait_idle", "WARN", "still running after 30s")
 
             except Exception as e:
                 log("step1_sidebar", "FAIL", str(e))
 
             # ---- 2. Notes list + view mode ----
             try:
-                time.sleep(2)
-
                 page_text = page.inner_text("body")
                 titles_found = 0
                 # Check for key fragments from note filenames
@@ -220,11 +309,13 @@ def main():
 
                 if edit_btn is not None:
                     edit_btn.click()
-                    time.sleep(2)
-                    page.wait_for_load_state("networkidle", timeout=10000)
+                    if not wait_script_idle(page):
+                        log("step3_wait_idle", "WARN", "still running after 30s")
 
-                    # Detect editor elements
-                    text_inputs = page.locator("[data-testid='stTextInput']")
+                    # Detect editor elements。標題輸入框要用 aria-label 精準定位 ——
+                    # 左欄搜尋框也是 stTextInput，光數數量會把它算進來。
+                    text_inputs = page.locator(
+                        "[data-testid='stTextInput'] input[aria-label='標題']")
                     textareas = page.locator("textarea")
                     save_found = False
                     cancel_found = False
@@ -241,14 +332,25 @@ def main():
 
                     ok_input = text_inputs.count() > 0
                     ok_textarea = textareas.count() > 0
+                    # 「編輯既有筆記」的定義是標題與內容都要帶進來 —— 只檢查
+                    # 元素存在的話，開成空白的新增編輯器也會過。
+                    title_val = (text_inputs.first.input_value()
+                                 if ok_input else "")
+                    body_val = (textareas.first.input_value()
+                                if ok_textarea else "")
+                    ok_prefill = bool(title_val.strip()) and bool(body_val.strip())
 
-                    if ok_input and ok_textarea and save_found and cancel_found:
+                    if ok_input and ok_textarea and save_found and cancel_found \
+                            and ok_prefill:
                         log("step3_editor_ui", "PASS",
-                            "title input + textarea + save + cancel all present")
+                            "editor prefilled (title=%r, %d chars body) "
+                            "+ save + cancel" % (title_val[:24], len(body_val)))
                     else:
                         log("step3_editor_ui", "FAIL",
-                            "input=%s textarea=%s save=%s cancel=%s" % (
-                                ok_input, ok_textarea, save_found, cancel_found))
+                            "input=%s textarea=%s save=%s cancel=%s prefill=%s "
+                            "(title=%r body_len=%d)" % (
+                                ok_input, ok_textarea, save_found, cancel_found,
+                                ok_prefill, title_val[:24], len(body_val)))
 
                     path_edit = str(SCREENSHOT_DIR / "notes_tab_edit.png")
                     page.screenshot(path=path_edit, full_page=False)
@@ -256,9 +358,14 @@ def main():
 
                     if cancel_btn_el is not None:
                         cancel_btn_el.click()
-                        time.sleep(2)
-                        page.wait_for_load_state("networkidle", timeout=10000)
-                        log("step3_cancel", "PASS", "cancel clicked, back to view mode")
+                        wait_script_idle(page)
+                        # 真的回到瀏覽模式才算過（編輯器的 textarea 要消失）
+                        if page.locator("textarea").count() == 0:
+                            log("step3_cancel", "PASS",
+                                "cancel clicked, back to view mode")
+                        else:
+                            log("step3_cancel", "FAIL",
+                                "cancel clicked but editor textarea still present")
                     else:
                         log("step3_cancel", "FAIL", "cancel button not found")
                 else:
@@ -285,30 +392,30 @@ def main():
 
                 if new_btn is not None:
                     new_btn.click()
-                    time.sleep(2)
-                    page.wait_for_load_state("networkidle", timeout=10000)
+                    if not wait_script_idle(page):
+                        log("step4_wait_idle", "WARN", "still running after 30s")
 
-                    # Check title input is empty
-                    text_inputs = page.locator("[data-testid='stTextInput'] input")
-                    empty_found = False
-                    for i in range(text_inputs.count()):
-                        inp = text_inputs.nth(i)
-                        try:
-                            aria = inp.get_attribute("aria-label") or ""
-                            val = inp.input_value()
-                            # The title input for a new note should be empty
-                            if "標題" in aria or (val == "" and i == 0):
-                                empty_found = True
-                                break
-                        except Exception:
-                            continue
+                    # ⚠️ 別用「第一個空的 input」當判據 —— 左欄搜尋框（2026-07-16
+                    # 加的）就是第一個而且永遠是空的，原本的
+                    # `"標題" in aria or (val == "" and i == 0)` 因此恆真，
+                    # 讓這項永遠假 PASS：即使「新增」根本沒點開編輯器也照樣綠。
+                    # 只認 aria-label='標題' 這個真正的標題輸入框。
+                    title_input = page.locator(
+                        "[data-testid='stTextInput'] input[aria-label='標題']")
+                    has_title = title_input.count() > 0
+                    title_val = title_input.first.input_value() if has_title else None
+                    textarea_val = (page.locator("textarea").first.input_value()
+                                    if page.locator("textarea").count() else None)
 
-                    if empty_found:
-                        log("step4_new_editor", "PASS", "empty editor present")
+                    if has_title and title_val == "" and textarea_val == "":
+                        log("step4_new_editor", "PASS",
+                            "blank editor: title and body both empty")
                     else:
-                        log("step4_new_editor", "WARN",
-                            "could not confirm empty title input (%d inputs found)"
-                            % text_inputs.count())
+                        log("step4_new_editor", "FAIL",
+                            "title_input=%s title=%r body=%r"
+                            % (has_title, title_val,
+                               (textarea_val or "")[:20] if textarea_val is not None
+                               else None))
 
                     path_new = str(SCREENSHOT_DIR / "notes_tab_new.png")
                     page.screenshot(path=path_new, full_page=False)
@@ -325,9 +432,12 @@ def main():
 
                     if cancel_btn2 is not None:
                         cancel_btn2.click()
-                        time.sleep(2)
-                        page.wait_for_load_state("networkidle", timeout=10000)
-                        log("step4_cancel", "PASS", "cancel new note OK")
+                        wait_script_idle(page)
+                        if page.locator("textarea").count() == 0:
+                            log("step4_cancel", "PASS", "cancel new note OK")
+                        else:
+                            log("step4_cancel", "FAIL",
+                                "cancel clicked but editor textarea still present")
                     else:
                         log("step4_cancel", "FAIL", "cancel button not found")
                 else:
@@ -355,17 +465,19 @@ def main():
 
                 if del_btn is not None:
                     del_btn.click()
-                    time.sleep(2)
-                    page.wait_for_load_state("networkidle", timeout=10000)
+                    if not wait_script_idle(page):
+                        log("step5_wait_idle", "WARN", "still running after 30s")
 
                     page_text2 = page.inner_text("body")
                     has_confirm_text = "確定刪除" in page_text2
-                    has_error_alert = page.locator(
-                        "[data-testid='stAlertMessage']").count() > 0
-                    # Also check baseweb notification
-                    if not has_error_alert:
-                        has_error_alert = page.locator(
-                            "[data-baseweb='notification']").count() > 0
+                    # Streamlit 1.52 用 stAlert / stAlertContainer；
+                    # 舊的 stAlertMessage 已不存在（2026-08-05 實測 count=0），
+                    # 留著只會讓這項掉進 WARN 分支。
+                    has_error_alert = any(
+                        page.locator(sel).count() > 0
+                        for sel in ("[data-testid='stAlert']",
+                                    "[data-testid='stAlertContainer']",
+                                    "[data-baseweb='notification']"))
 
                     # Check cancel button
                     cancel_btn3 = None
@@ -382,8 +494,9 @@ def main():
                             "red alert + confirm text visible")
                     elif has_confirm_text:
                         log("step5_delete_confirm", "WARN",
-                            "confirm text visible but stAlertMessage not detected "
-                            "(may use different selector)")
+                            "confirm text visible but no alert container matched "
+                            "(stAlert / stAlertContainer / baseweb notification "
+                            "all missing — Streamlit may have renamed them again)")
                     else:
                         log("step5_delete_confirm", "FAIL",
                             "confirm dialog not found")
@@ -392,19 +505,27 @@ def main():
                     page.screenshot(path=path_del, full_page=False)
                     log("step5_screenshot", "PASS", path_del)
 
-                    if cancel_btn3 is not None:
+                    # ⚠️ 這項不可只看「筆記還在不在」—— 筆記本來就沒被刪，所以
+                    # 就算確認對話從未出現、取消也從未點到，它照樣會 PASS。
+                    # 必須先確認確認對話真的出現過，再驗證取消把它收掉了。
+                    if not has_confirm_text:
+                        log("step5_cancel_delete", "FAIL",
+                            "skipped: confirm dialog never appeared, so there was "
+                            "nothing to cancel")
+                    elif cancel_btn3 is not None:
                         cancel_btn3.click()
-                        time.sleep(2)
-                        page.wait_for_load_state("networkidle", timeout=10000)
-                        # Verify note still exists
+                        wait_script_idle(page)
                         page_text3 = page.inner_text("body")
-                        still_has = any(f in page_text3 for f in ["雙鴻", "榮剛", "興富發"])
-                        if still_has:
+                        dialog_gone = "確定刪除" not in page_text3
+                        still_has = any(f in page_text3
+                                        for f in ["雙鴻", "榮剛", "興富發"])
+                        if dialog_gone and still_has:
                             log("step5_cancel_delete", "PASS",
-                                "note NOT deleted (still visible)")
+                                "confirm dialog dismissed, note NOT deleted")
                         else:
-                            log("step5_cancel_delete", "WARN",
-                                "cancelled but could not confirm note still exists")
+                            log("step5_cancel_delete", "FAIL",
+                                "dialog_gone=%s note_still_listed=%s"
+                                % (dialog_gone, still_has))
                     else:
                         log("step5_cancel_delete", "FAIL",
                             "cancel button not found - did NOT click delete confirm")
@@ -442,8 +563,8 @@ def main():
                         log("step6_click_individual", "FAIL",
                             "no radio labels found")
 
-                time.sleep(3)
-                page.wait_for_load_state("networkidle", timeout=20000)
+                if not wait_script_idle(page, timeout=60.0):
+                    log("step6_wait_idle", "WARN", "still running after 60s")
 
                 page_text4 = page.inner_text("body")
                 has_form = (
