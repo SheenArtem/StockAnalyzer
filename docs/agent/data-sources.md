@@ -161,20 +161,50 @@ top300 代理成分數回到 297~300 檔、`ret_20d` 全落在 −1.4%~+11.1%（
 
 ## TW vs US ticker detection
 
-- 純數字或含 `.TW` → TW (FinMind + TWSE/TPEX + TradingView)
-- 含字母 → US (Yahoo Finance + Finviz + TradingView)
+**唯一權威：`ticker_market.py`**（零依賴，任何模組都可 import）。
 
-### ⚠️ 台股主動型 ETF 會被 `isdigit()` 誤判成美股
+- `market_of(t)` / `is_tw(t)` / `is_us(t)` — 判準是「**數字開頭**」
+  → TW (FinMind + TWSE/TPEX + TradingView) / US (Yahoo + Finviz + TradingView)
+- `tw_core(t)` — 剝掉 `.TW` / `.TWO` 後綴（`.TWO` 先試，順序不可反）
+- `has_tw_suffix(t)` — 是否已是 yfinance 可直接用的台股符號
 
-`00981A` / `00982A` / `00983A` / `00991A` 這類**主動型 ETF** 代號帶字母後綴，
-`'00981A'.isdigit()` 回 **False** → 上面那條「含字母 → US」會把台股送去美股路徑。
+**不要再手寫 `ticker.isdigit()` 判市場。** 台股**主動型 ETF**（`00981A` / `00982A` /
+`00983A` / `00991A`）與槓桿反向 ETF（`00631L` / `00632R`）代號帶字母後綴，
+`'00981A'.isdigit()` 是 **False**，會把台股整批送去美股路徑。
 
-- **已修**：`technical_analysis._market_of()` 改用「**數字開頭**」判斷
-  （`core[:1].isdigit()`），未完成 bar 的收盤判定才會套台北 13:30 而非美東 16:00。
-- **未修（既有，範圍較大）**：`load_and_resample` 用 `raw_input.isdigit()` **選資料源**，
-  所以 `00981A` 走美股 yfinance（不加 `.TW`）而抓不到 —— 2026-08-05 實測
-  `force_update` 對它回 EMPTY，該檔 cache 無法更新。
-  同型寫法還散落在 `ai_report.py`（20+ 處 `is_us = not ticker.replace('.TW','').isdigit()`）、
-  `ai_report_pipeline.py`、`addon_factors.py`、`chip_analysis.py`。
-  後果是主動型 ETF 被當美股：台股專屬區塊（法人 / 融資 / 集保 / 月營收）整段拿不到。
-  **要改請一次改齊並加測試**，別只改一處。
+### 2026-08-05 已一次改齊（20 檔 / 89 處逐一分類）
+
+實測資料（判別修法是否真的可行）：FinMind **有** `00981A`（291 列，到 2026-08-04）；
+yfinance `00981A.TW` 可用、裸 `00981A` **404**；mis.twse 即時報價**不支援**主動型 ETF。
+
+修掉的兩個真實斷更／缺資料路徑：
+
+- `load_and_resample` 用它**選資料源** → `00981A` 走 yfinance 裸代號 404。
+- `tools/refresh_universe_prices.py` 用 stem 的 `.isdigit()` **挑要刷新的 CSV**
+  → 那檔**從來不在夜間名單內**。這才是斷更主因（`load_and_resample` 只在有人
+  打開該股票時才跑）。已改為呼叫 `tools/tw_universe.is_tw_ticker()`，兩邊口徑統一。
+  實測 `00981A_price.csv` 從 214 列 / 停在 2026-05-22 → 264 列 / 到 2026-08-04。
+
+其餘改齊的分流點：`ai_report.py`（20 處）、`ai_report_pipeline.py`、`chip_analysis.py`
+（原本連 `3324.TWO` 上櫃股都被回「非台股代號」）、`analysis_engine._detect_us_stock`、
+`fundamental_analysis`、`individual_view`（5 處）、`peer_comparison`、`portfolio_store`
+（持有主動型 ETF 時幣別/報價會走錯市場）、`news_fetcher`、`momentum_screener`、
+`value_screener`、`finviz_data` / `sec_edgar` / `us_stock_chip`（美股專用模組原本沒攔住）。
+
+### ⚠️ 刻意不改的三類（別「順手統一」）
+
+1. **`sid.isdigit() and len(sid) == 4`** —— 那是「只要 4 碼普通股、排除 ETF 與權證」，
+   不是市場判定（`momentum_screener` / `value_screener` / `screener_view`）。
+2. **月營收 / F-Score / ETF 同步買超因子的 `isdigit()` 守衛** —— ETF 沒有營收也沒有
+   F-Score，早退是對的（`addon_factors` ×2、`analysis_engine`、`position_monitor`）。
+   改成 `is_tw()` 只會讓 ETF 通過守衛後白查一趟。
+3. **`twse_api.py` 的 6 處批次報表列過濾** —— 那些餵大盤廣度／系統性籌碼**聚合**，
+   放 ETF 進去會污染統計（2026-08-02 才修過美股混入台股廣度）。
+
+### ⚠️ 未修的相鄰缺陷：`.TWO` cache key 被吃掉點號
+
+`cache_manager._get_path` 先 `replace('.TW','')` 再 `replace('.TWO','')`，所以
+`3324.TWO` 會寫成 `3324O_price.csv`。實測有 **99 個**這種檔，全部都有全數字兄弟檔
+（＝重複品），且自 2026-04-08 起沒再更新。`refresh_universe_prices._tw_cache_stems()`
+會偵測並**明確 log 略過幾個**，但沒有去修檔名 —— 改名會孤立既有檔案，屬另一件事。
+`ticker_market.tw_core()` 本身不犯這個順序錯誤（有測試釘住）。

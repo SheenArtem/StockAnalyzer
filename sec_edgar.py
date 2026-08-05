@@ -19,6 +19,8 @@ from typing import Dict, Optional, Any, List
 import requests
 import pandas as pd
 
+from ticker_market import is_tw
+
 logger = logging.getLogger(__name__)
 
 # SEC EDGAR 要求自訂 User-Agent
@@ -291,8 +293,9 @@ class SECEdgarAnalyzer:
         """
         ticker = ticker.upper().strip()
 
-        # 排除台股
-        if ticker.endswith('.TW') or ticker.endswith('.TWO') or ticker.isdigit():
+        # 排除台股（數字開頭）
+        # ⚠️ 原本三條件漏掉主動型 ETF `00981A`（無後綴且 isdigit() 為 False）。
+        if is_tw(ticker):
             return None, "SEC EDGAR 僅支援美股"
 
         try:

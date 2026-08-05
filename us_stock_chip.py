@@ -16,6 +16,8 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import logging
 
+from ticker_market import is_tw
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,8 +45,9 @@ class USStockChipAnalyzer:
         # 清理 ticker
         ticker = ticker.upper().strip()
         
-        # 排除台股代號
-        if ticker.endswith('.TW') or ticker.endswith('.TWO') or ticker.isdigit():
+        # 排除台股代號（數字開頭）
+        # ⚠️ 原本三條件漏掉主動型 ETF `00981A`（無後綴且 isdigit() 為 False）。
+        if is_tw(ticker):
             return None, "此功能僅支援美股代號"
         
         # 檢查快取

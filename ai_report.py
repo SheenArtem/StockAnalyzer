@@ -25,6 +25,13 @@ _CLAUDE_CLI = _find_claude_cli()
 import numpy as np
 import pandas as pd
 
+# ⚠️ 市場判定一律走 ticker_market（唯一權威）。本檔曾有 20 處
+# `is_us = ticker and not ticker.replace('.TW','').isdigit()`，害台股主動型 ETF
+# （`00981A` 的 isdigit() 是 False）被當美股，整份報告的台股專屬區塊
+# （法人 / 融資 / 集保 / 月營收）全部拿不到。刻意匯入 `is_tw` 而非 `is_us`：
+# 各函式內部的區域變數就叫 `is_us`，同名會變成 UnboundLocalError。
+from ticker_market import is_tw
+
 logger = logging.getLogger(__name__)
 
 # Prompt 模板路徑
@@ -366,7 +373,7 @@ def _build_fundamental_data(fund_data, ticker):
                 lines.append(f"{key}: {val}")
 
     # Piotroski F-Score + Altman Z-Score + ROIC/FCF
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     try:
         if is_us:
             from piotroski import calculate_fscore_us, calculate_zscore_us, calculate_extra_metrics_us
@@ -502,7 +509,7 @@ def _build_value_score(ticker, fund_data, df_day):
     try:
         from value_screener import ValueScreener
 
-        is_us = ticker and not ticker.replace('.TW', '').isdigit()
+        is_us = bool(ticker) and not is_tw(ticker)
         stock_id = ticker if is_us else ticker.replace('.TW', '')
 
         # 從現有數據組裝 market_row
@@ -589,7 +596,7 @@ def _build_forward_guidance_context(ticker, max_events: int = 4) -> str:
 
     Council BLOCKER #7: 此資料僅 informational, 不入 scanner 排序。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return "N/A (earnings_schema 目前只覆蓋台股)"
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
@@ -651,7 +658,7 @@ def _build_news_evidence_context(ticker, max_items: int = 5, lookback_days: int 
 
     Council BLOCKER #7: informational only, 不入 scanner 排序。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return ""
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
@@ -726,7 +733,7 @@ def _build_material_events_context(ticker, lookback_days: int = 90, max_items: i
 
     informational only, Council BLOCKER #7: 不入 scanner 排序。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return ""
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
@@ -784,7 +791,7 @@ def _build_theme_momentum_context(ticker, lookback_days: int = 7) -> str:
 
     informational only, Council BLOCKER #7: 不入 scanner 排序。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return ""
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
@@ -835,7 +842,7 @@ def _build_news_flow_alert_context(ticker, lookback_days: int = 14) -> str:
     讀 data/news/news_flow_anomaly.parquet, filter 該 ticker, 列近 N 天觸發
     過異常的紀錄。informational only, Council BLOCKER #7: 不入 scanner 排序。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return "N/A (news_flow_anomaly 目前只覆蓋台股)"
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
@@ -887,7 +894,7 @@ def _build_analyst_targets_context(ticker, days: int = 30, max_items: int = 10) 
     Outlier 防護：news 抽到的目標價偏離 yfinance mean > 30% → 標 [outlier] 但仍列。
     Council BLOCKER #7: informational only, 不入 scanner 排序。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return "N/A (analyst_targets 目前只覆蓋台股)"
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
@@ -955,7 +962,7 @@ def _build_earnings_calendar_context(ticker, past_n: int = 4, future_n: int = 1)
     用途：模型可據時序判斷「下次法說會 X 日，前 N 天不建議重押」這類 thesis。
     Source: moneylink (LLM extract)，未來可加 yahoo / wantgoo 等。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return "N/A (earnings_calendar 目前只覆蓋台股)"
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
@@ -1288,7 +1295,7 @@ def _build_analyst_consensus(ticker):
         import yfinance as yf
 
         # Determine proper Yahoo ticker
-        is_us = ticker and not ticker.replace('.TW', '').isdigit()
+        is_us = bool(ticker) and not is_tw(ticker)
         if is_us:
             yticker = ticker
         else:
@@ -1398,7 +1405,7 @@ def _build_theme_context(ticker):
     與 PEER_COMPARISON 互補：peer 是估值同業，theme 是 AI era catalyst 共振。
     一檔股票可同時跨多個 theme（如 2330=foundry+ai_chip+ai_packaging）。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         market = 'us'
         stock_id = ticker.strip().upper()
@@ -1535,7 +1542,7 @@ def _build_dcf_panel_context(ticker):
     """
     if not ticker:
         return "N/A (no ticker)"
-    is_us = not ticker.replace('.TW', '').isdigit()
+    is_us = not is_tw(ticker)
     if is_us:
         return "N/A (DCF panel 目前只支援台股 FinMind 來源)"
     stock_id = ticker.replace('.TW', '')
@@ -1560,7 +1567,7 @@ def _build_sentiment_context(ticker, chip_data=None):
     幫 LLM 判斷：個股當前是不是有獨立 catalyst (market 弱 + stock 強)
     或被大盤拖累 (market 強 + stock 弱)。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return "N/A (sentiment module 目前只支援台股)"
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
@@ -1613,7 +1620,7 @@ def _build_news_themes_context(ticker):
     Reader fallback to legacy: 新 path 不存在或讀取失敗時 fallback 舊 path,
     提供 graceful degradation (Robustness > cleanliness, 永久保留)。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return "N/A (news theme parquet 目前只覆蓋台股)"
     stock_id = ticker.replace('.TW', '').replace('.TWO', '').strip()
@@ -1680,7 +1687,7 @@ def _build_news_themes_context(ticker):
 
 def _build_peer_data(ticker, fund_data):
     """[PEER_COMPARISON] Peer industry comparison."""
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
 
     try:
         if is_us:
@@ -1750,7 +1757,7 @@ def _build_law_transcript_rag(ticker, fund_data=None):
     僅台股 (US 不支援)；similarity gate top-1 < 0.45 → 不帶進 prompt。
     Multi-query (forward guidance / 策略進展 / 風險) 提升 recall。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return "N/A (RAG 目前只覆蓋台股 top 300 法說會 PDFs)"
 
@@ -1824,7 +1831,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
     Returns:
         str: 完整 prompt (system + data)
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
 
     system_prompt = _load_system_prompt()
 
@@ -1875,7 +1882,7 @@ def assemble_prompt(ticker, report, chip_data, us_chip_data, fund_data, df_day):
                 stock_name = str(val)
                 break
 
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     stock_id = ticker.replace('.TW', '') if not is_us else ticker
 
     full_prompt = f"""{system_prompt}
@@ -1972,7 +1979,7 @@ def _build_macro_context(ticker):
     風險 severity，不供大盤多空喊話。重用現成 macro panel parquet (不重算/不重抓)。
     台股市場級資料 → 美股 (is_us) 略過回空字串。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     if is_us:
         return ''
     try:
@@ -2033,7 +2040,7 @@ def assemble_dashboard_prompt(ticker, report, chip_data, us_chip_data, fund_data
     user_focus: optional str — 使用者補充關注 / 提問，注入 [USER_FOCUS]，要求主代理在
                 敘事欄位優先回應（不得因此編造數字或違反 verbatim 價位規則）。
     """
-    is_us = ticker and not ticker.replace('.TW', '').isdigit()
+    is_us = bool(ticker) and not is_tw(ticker)
     system_prompt = _load_dashboard_prompt()
 
     data_sections = [

@@ -13,6 +13,8 @@ from html import unescape
 
 import requests
 
+from ticker_market import is_tw
+
 logger = logging.getLogger(__name__)
 
 _CACHE = {}
@@ -71,7 +73,9 @@ def fetch_stock_news(ticker, stock_name='', max_items=15, days=7):
     if cached is not None:
         return cached
 
-    is_us = not ticker.replace('.TW', '').replace('.TWO', '').isdigit()
+    # ⚠️ 判定走 ticker_market（數字開頭＝台股）。原本的「去後綴後全數字」會把
+    # 主動型 ETF `00981A` 判成美股，新聞查詢就用英文關鍵字打美股來源。
+    is_us = not is_tw(ticker)
 
     # Build search query
     if is_us:

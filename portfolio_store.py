@@ -22,6 +22,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from ticker_market import market_of, tw_core
+
 # 儲存位置（測試用 monkeypatch 覆寫 MANUAL_TRADES_DIR 即可，_store_file 動態組路徑）
 MANUAL_TRADES_DIR = Path(__file__).resolve().parent / 'data' / 'manual_trades'
 STORE_FILENAME = 'transactions.json'
@@ -49,20 +51,24 @@ def _store_file() -> Path:
 
 
 # ====================================================================
-#  代號 / 市場判別（沿用 ai_report.py 慣例：純數字=台股，含字母=美股）
+#  代號 / 市場判別（判定收斂到 ticker_market：數字開頭=台股，字母開頭=美股）
 # ====================================================================
 
 def detect_market(ticker: str) -> str:
-    """純數字（含 .TW/.TWO 後綴）-> 'tw'；含字母 -> 'us'。"""
-    core = str(ticker).upper().replace('.TWO', '').replace('.TW', '').strip()
-    return 'tw' if core.isdigit() else 'us'
+    """`'tw'` / `'us'`。
+
+    ⚠️ 原本是「去後綴後全數字」，會把台股主動型 ETF（`00981A`）與槓桿反向 ETF
+    （`00631L`）判成美股 —— 持有這類標的時，投資組合的幣別 / 報價來源 / 損益
+    全部會走錯市場。判準改為「數字開頭」。
+    """
+    return market_of(ticker)
 
 
 def normalize_ticker(ticker: str) -> str:
     """正規化代號：台股去 .TW/.TWO 存純代號；美股大寫。"""
     t = str(ticker).strip().upper()
     if detect_market(t) == 'tw':
-        return t.replace('.TWO', '').replace('.TW', '')
+        return tw_core(t)
     return t
 
 

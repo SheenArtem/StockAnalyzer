@@ -23,6 +23,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ticker_market import is_tw
+
 _CHECKPOINT_DIR = Path('data/.checkpoints')
 
 logger = logging.getLogger(__name__)
@@ -1613,7 +1615,9 @@ class ValueScreener:
 
         # Institutional accumulation
         # H7 (2026-04-23): 改用 chip_fetcher 共用 helper（與 momentum_screener 同邏輯不重複）
-        if self.config.get('include_chip', True) and stock_id.isdigit():
+        # ⚠️ 判定走 ticker_market（數字開頭＝台股）：原本的 isdigit() 會讓主動型
+        # ETF `00981A` 完全拿不到法人籌碼。
+        if self.config.get('include_chip', True) and is_tw(stock_id):
             from chip_fetcher import fetch_institutional_for_scan
             inst = fetch_institutional_for_scan(
                 stock_id,

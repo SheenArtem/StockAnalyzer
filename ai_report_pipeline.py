@@ -34,6 +34,8 @@ import time
 import traceback
 from typing import Callable, Optional
 
+from ticker_market import is_tw
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,7 +63,9 @@ def _load_report_inputs(ticker: str, progress_cb: Callable[[str], None]):
     # --- 2. Load chip data (TW or US) ---
     progress_cb("📥 載入籌碼資料...")
     chip_data, us_chip_data = None, None
-    if ticker.isdigit() or ticker.endswith('.TW'):
+    # ⚠️ 用 is_tw()（數字開頭）而非 `isdigit() or endswith('.TW')`：主動型 ETF
+    # `00981A` 兩個條件都不成立 → 台股籌碼整段被跳過；`.TWO` 上櫃股同樣漏掉。
+    if is_tw(ticker):
         try:
             from chip_analysis import ChipAnalyzer, ChipFetchError
             chip_data = ChipAnalyzer().fetch_chip(ticker, scan_mode=False)
@@ -196,7 +200,7 @@ def generate_one_report(
         if fmt == 'html' and with_research:
             try:
                 from report_web_research import run_web_research
-                _is_us = bool(ticker) and not ticker.replace('.TW', '').isdigit()
+                _is_us = bool(ticker) and not is_tw(ticker)
                 _stock_name = ''
                 if fund_data:
                     for _k in ['stock_name', 'Name', 'shortName']:

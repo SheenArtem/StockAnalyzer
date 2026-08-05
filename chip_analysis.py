@@ -4,6 +4,7 @@ import pandas as pd
 import datetime
 from typing import Dict, Optional, Tuple
 from cache_manager import get_finmind_loader
+from ticker_market import is_tw, tw_core
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +54,15 @@ class ChipAnalyzer:
         scan_mode=True: 只抓 institutional（評分用），跳過 margin/day_trading/
           shareholding/sbl（這些不計分，只是 UI 顯示）。節省 4 個 FinMind 呼叫/檔。
         """
-        # 確保是台股代號
-        if not ticker.endswith('.TW') and ticker.isdigit():
-             stock_id = ticker
-        elif ticker.endswith('.TW'):
-             stock_id = ticker.split('.')[0]
-        else:
+        # 確保是台股代號（數字開頭；.TW / .TWO 後綴一律剝掉）
+        # ⚠️ 原本是 `not ticker.endswith('.TW') and ticker.isdigit()`，兩個漏洞：
+        #    ① 主動型 ETF `00981A` 的 isdigit() 是 False → 落到 else 被判「非台股」，
+        #       整份籌碼（三大法人 / 融資融券 / 集保 / 借券）拿不到；
+        #    ② `'3324.TWO'.endswith('.TW')` 也是 False → 上櫃股同樣被拒。
+        #    TWSE 三大法人日報表本來就含 ETF，所以這裡不該把它們排除。
+        if not is_tw(ticker):
              return None, "非台股代號，無法抓取籌碼數據"
+        stock_id = tw_core(ticker)
 
         # [CACHE] Initialize Cache Manager
         from cache_manager import CacheManager

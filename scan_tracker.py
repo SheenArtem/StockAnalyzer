@@ -29,8 +29,11 @@ LATEST_DIR = Path('data/latest')
 # Benchmarks for Information Ratio (BM-b, 2026-04-14)
 # TW: 0050 大盤 beta + 00981A 主動型 ETF AI 主題代表（驗證是否只吃 AI beta）
 # US: SPY 大盤 beta + QQQ 科技 beta（驗證 AI 多頭）
-# 注意：00981A 需 .TW 後綴 yfinance 才能抓到（純字母數字混合非 isdigit，
-# load_and_resample 會落到美股 yfinance 路徑，直接用 00981A 會 404）。
+# 這裡保留 .TW 後綴是歷史遺留的 workaround：2026-08-05 之前 load_and_resample
+# 用 `raw_input.isdigit()` 選資料源，`00981A` 會落到美股 yfinance 路徑打裸代號
+# 而 404，只有加 .TW 才抓得到。該判定已改為 ticker_market.is_tw()（數字開頭），
+# 現在 '00981A' 與 '00981A.TW' 都會走台股路徑（FinMind 優先）且共用同一份
+# cache（_get_path 會剝掉後綴），所以留著後綴無害、改掉也可以。
 BENCHMARKS = {
     'tw': ['0050', '00981A.TW'],
     'us': ['SPY', 'QQQ'],

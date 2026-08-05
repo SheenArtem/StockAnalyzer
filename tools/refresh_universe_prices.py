@@ -39,6 +39,9 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
+
+from tools.tw_universe import is_tw_ticker  # noqa: E402  (需要先設好 sys.path)
+
 CACHE = REPO / "data_cache"
 # cache_manager 的 price CSV 欄位順序（Volume 在 Adj Close 之前）
 COLS = ["Open", "High", "Low", "Close", "Volume", "Adj Close"]
@@ -53,6 +56,37 @@ MAX_NO_OFFICIAL_GAP_DAYS = 14
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("refresh_universe_prices")
+
+
+def _tw_cache_stems(files):
+    """挑出「該日更的台股 cache stem」，並回報略過的數量。
+
+    ⚠️ 原本是 `stem.isdigit()`，把台股**主動型 ETF** 整批漏掉 —— `00981A` 的
+    `isdigit()` 是 False，於是 `00981A_price.csv` 從來不在夜間刷新名單內。
+    2026-08-05 實測它停在 2026-05-22（斷更兩個半月）；而 `load_and_resample`
+    只有在有人打開那檔股票時才跑，所以排程不修它就等於永遠不修。
+
+    台股判別沿用 `tools/tw_universe.is_tw_ticker`（regex `^\\d{4,6}[A-Z]?$`）——
+    那支就是為「data_cache 檔名的 TW / US 分流」寫的既有共用模組，比
+    `ticker_market.is_tw`（數字開頭，給帶後綴的**代號**用）更適合這裡。
+
+    ⚠️ 但光靠代號判別還不夠：`cache_manager._get_path` 先 replace('.TW') 再
+    replace('.TWO')，所以 `3324.TWO` 會被寫成 `3324O_price.csv` —— 那是壞掉的
+    cache key，不是真代號，拿 `3324O.TW` 去打 yfinance 只會整批 miss。
+    判別方式：這種 stem 一定「尾字是 O」且「去掉 O 之後的全數字 stem 也有 CSV」
+    （2026-08-05 實測 99/99 成立，而真正的 `00981A` 沒有 `00981` 兄弟檔）。
+    它們的內容本來就是全數字兄弟檔的重複品，跳過不會漏掉任何一檔股票。
+    """
+    stems = {f.name[:-len("_price.csv")] for f in files}
+    keep, skipped = [], []
+    for stem in sorted(stems):
+        if not is_tw_ticker(stem):
+            continue                      # 美股 CSV 由別的流程負責
+        if (stem.endswith('O') and stem[:-1].isdigit() and stem[:-1] in stems):
+            skipped.append(stem)          # `.TWO` 被吃掉點號的重複 key
+            continue
+        keep.append(stem)
+    return keep, skipped
 
 
 def _yf_batch(sids, suffix, start_date, chunk):
@@ -328,8 +362,11 @@ def main():
     args = ap.parse_args()
 
     files = sorted(CACHE.glob("*_price.csv"))
-    sids = [f.name[:-len("_price.csv")] for f in files
-            if f.name[:-len("_price.csv")].isdigit()]
+    sids, skipped_dup = _tw_cache_stems(files)
+    if skipped_dup:
+        # 不靜默 —— 略過了什麼要講清楚，否則「刷了 N 檔」會讀起來像全都涵蓋了
+        log.info("  skipping %d duplicate .TWO-mangled cache keys (e.g. %s)",
+                 len(skipped_dup), ", ".join(skipped_dup[:3]))
     if args.limit:
         sids = sids[:args.limit]
     log.info("Refreshing %d TW price CSVs via yfinance batch (chunk=%d)...",

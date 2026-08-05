@@ -20,6 +20,8 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
+from ticker_market import is_tw
+
 logger = logging.getLogger(__name__)
 
 CACHE_TTL = 60 * 30  # 30 分鐘
@@ -78,8 +80,10 @@ class FinvizAnalyzer:
         """
         ticker = ticker.upper().strip()
 
-        # 排除台股
-        if ticker.endswith('.TW') or ticker.endswith('.TWO') or ticker.isdigit():
+        # 排除台股（數字開頭）
+        # ⚠️ 原本三條件漏掉主動型 ETF：`00981A` 沒有 .TW/.TWO 後綴、isdigit() 也是
+        # False，於是被當美股送去 Finviz 白查一趟。
+        if is_tw(ticker):
             return None, "Finviz 僅支援美股"
 
         cache_key = f'finviz_{ticker}'

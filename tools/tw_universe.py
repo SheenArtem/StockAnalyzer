@@ -8,9 +8,16 @@
 台股廣度面板混入美股（含「台股休市但美股開盤」的整列純美股資料）。抽成共用模組
 避免再犯。
 
-註：`refresh_universe_prices.py` 另用 `.isdigit()` 決定要更新哪些 CSV（不含
-2891A 這類特別股），與本檔的 regex 口徑不同。那是「要去抓哪些股」的決策，與
-「已有的 CSV 哪些算台股」不同，暫不強行統一。
+2026-08-05：`refresh_universe_prices.py` 原本另用 `.isdigit()` 決定要更新哪些 CSV，
+口徑與本檔的 regex 不同 —— 後果是帶字母後綴的代號（`00981A` 主動型 ETF、`2891A`
+特別股）**從來不在夜間刷新名單內**，`00981A_price.csv` 因此斷更兩個半月。
+現已改為呼叫本檔的 `is_tw_ticker()`，兩邊口徑統一。
+
+⚠️ 本檔與 `ticker_market.py` 分工不同，不要互相取代：
+- 本檔 regex `^\\d{4,6}[A-Z]?$` 判的是「**data_cache 檔名**算不算台股」，刻意嚴格
+  （不吃 `.TW` 後綴，因為檔名裡本來就沒有）。
+- `ticker_market.market_of()` 判的是「**代號**屬於哪個市場」，用「數字開頭」且會
+  剝掉 `.TW` / `.TWO`，給資料源路由與報告分流用。
 """
 from __future__ import annotations
 

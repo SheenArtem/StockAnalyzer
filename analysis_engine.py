@@ -3,6 +3,8 @@ import numpy as np
 import logging
 import time
 
+from ticker_market import is_us
+
 from pattern_detection import (
     detect_morphology,
     detect_divergence,
@@ -231,26 +233,16 @@ class TechnicalAnalyzer:
         self._is_us_stock = self._detect_us_stock(ticker)
     
     def _detect_us_stock(self, ticker):
-        """
-        判斷是否為美股
+        """判斷是否為美股 —— 判定收斂到 `ticker_market.is_us()`（數字開頭＝台股）。
+
+        原本是「isdigit / .TW 後綴 / isalpha」三段式。主動型 ETF `00981A` 靠
+        最後的 `return False` 湊巧被判成台股（正確），但那是 fall-through 的意外
+        而非設計；同一套三段式在 `^VIX` 這種非字母開頭的美股符號上會反過來
+        誤判成台股。改用單一判準後兩者都對。
         """
         if not ticker:
             return False
-        
-        ticker = ticker.upper().strip()
-        
-        # 台股特徵: 數字或 .TW/.TWO 結尾
-        if ticker.isdigit():
-            return False
-        if ticker.endswith('.TW') or ticker.endswith('.TWO'):
-            return False
-        
-        # ADR 如 TSM 也算美股
-        # 其他英文代號視為美股
-        if ticker.replace('.', '').replace('-', '').isalpha():
-            return True
-        
-        return False
+        return is_us(ticker)
 
     @staticmethod
     def _safe_get(series, key, default=0):
@@ -346,6 +338,9 @@ class TechnicalAnalyzer:
             return alerts
 
         ticker = self.ticker.replace('.TW', '').replace('.TWO', '').strip()
+        # ⚠️ 這裡的「全數字」是**刻意**的，別改成 ticker_market.is_tw()：
+        # 本快照吃月營收，ETF 沒有營收，所以帶字母的主動型 / 槓桿反向 ETF
+        # （`00981A`、`00631L`）本來就該早退。同 addon_factors 的兩個因子。
         if not ticker.isdigit():
             return alerts
 

@@ -342,6 +342,11 @@ def analyze_revenue_catalyst(ticker, is_us_stock=False):
         return score, details
 
     ticker = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    # ⚠️ 這裡用「全數字」是**刻意**的，不要改成 ticker_market.is_tw()。
+    # 本因子吃的是月營收 —— ETF 沒有營收，所以帶字母後綴的主動型 ETF
+    # （`00981A`）與槓桿/反向 ETF（`00631L`）本來就該早退。用 is_tw() 會讓它們
+    # 通過守衛、白跑一趟 RevenueTracker 查詢後拿到空結果。
+    # （純數字的被動 ETF 如 `0050` 仍會漏進來，那是既有的不精確，不是本次範圍。）
     if not ticker.isdigit():
         return score, details
 
@@ -392,6 +397,9 @@ def analyze_etf_signal(ticker, is_us_stock=False):
         return score, details
 
     ticker = ticker.replace('.TW', '').replace('.TWO', '').strip()
+    # ⚠️ 同 analyze_revenue_catalyst：「全數字」是**刻意**的，別換成 is_tw()。
+    # 本因子問的是「多檔主動型 ETF 是否同步買超**這檔個股**」——
+    # 對 ETF 自己問這件事沒有意義，`00981A` 早退才對。
     if not ticker.isdigit():
         return score, details
 

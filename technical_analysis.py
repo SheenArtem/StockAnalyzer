@@ -16,6 +16,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pattern_recognition import identify_patterns
+from ticker_market import market_of, is_tw, tw_core
 
 
 def calculate_volume_profile(df, days=120, bins=50):
@@ -356,11 +357,13 @@ def get_stock_info_smart(ticker):
     """
     meta = {'name': ticker, 'sector': '', 'currency': 'TWD'}
 
-    # 清洗 Ticker 取得純數字代號
-    stock_id = ticker.split('.')[0] if '.' in ticker else ticker
+    # 清洗 Ticker 取得純代號（去 .TW / .TWO 後綴）
+    stock_id = tw_core(ticker)
 
-    # 1. 如果是台股 (數字)，嘗試從對照表取得中文名稱/產業
-    if stock_id.isdigit():
+    # 1. 如果是台股（數字開頭），嘗試從對照表取得中文名稱/產業
+    #    ⚠️ 不可用 stock_id.isdigit()：主動型 ETF `00981A` 會被判成美股，
+    #    幣別掛成 USD 且拿不到中文名／產業。
+    if is_tw(stock_id):
         try:
             info = get_tw_stock_info()
             if info is not None:
@@ -384,15 +387,21 @@ class FinMindRateLimitError(Exception):
 
 def _try_intraday_quote_as_today_bar(raw_input):
     """盤中時段嘗試從 mis.twse 拿即時報價，組成 OHLCV today partial bar。
-    僅針對純數字 ticker (台股)；非交易時段 / 美股 / mis.twse 失敗都回 None。
-    回傳的 df 不該被寫入 disk cache（partial bar 還會變動，污染收盤資料）。"""
-    if not raw_input.isdigit():
+
+    僅針對台股（數字開頭）；非交易時段 / 美股 / mis.twse 失敗都回 None。
+    回傳的 df 不該被寫入 disk cache（partial bar 還會變動，污染收盤資料）。
+
+    改用 `is_tw()` + `tw_core()` 而非 `raw_input.isdigit()`：後者讓 `2330.TW`
+    這種帶後綴的台股也拿不到盤中 bar。⚠️ 主動型 ETF（`00981A`）雖然判定為台股，
+    但 2026-08-05 實測 mis.twse **沒有**它的報價（回 None）—— 那是資料源的限制，
+    這裡會安靜回 None，不是 bug。"""
+    if not is_tw(raw_input):
         return None
     try:
         from mis_twse_client import is_tw_trading_hours, get_quote as mis_get_quote
         if not is_tw_trading_hours():
             return None
-        q = mis_get_quote(raw_input)
+        q = mis_get_quote(tw_core(raw_input))
         if q is None:
             return None
         price = q['price']
@@ -426,17 +435,12 @@ _BAR_SETTLE_BUFFER_MIN = 15
 def _market_of(raw_input):
     """**數字開頭** -> 台股，字母開頭 -> 美股。
 
-    用「數字開頭」而非「全數字」是刻意的：台股**主動型 ETF** 代號帶字母後綴
-    （`00981A`、`00982A`…），`'00981A'.isdigit()` 是 False。用全數字判斷會把它
-    當成美股，收盤時間就套到美東 16:00 —— 台股 13:30 收盤後的四個半小時裡，
-    已定案的 bar 會被誤判成「還沒收盤」而不寫入 cache。
-
-    ⚠️ `load_and_resample` 本身仍用 `raw_input.isdigit()` 選資料源，所以 `00981A`
-    會走美股 yfinance 路徑（不加 `.TW` 後綴）而抓不到資料 —— 那是本函式範圍外的
-    既有問題，2026-08-05 實測 `force_update` 對它回 EMPTY。
+    判定邏輯已收斂到 `ticker_market.market_of()`（唯一權威，零依賴）；這裡保留
+    本名是因為既有呼叫點與測試都用它。用「數字開頭」而非「全數字」是刻意的：
+    台股**主動型 ETF** 代號帶字母後綴（`00981A`、`00982A`…），
+    `'00981A'.isdigit()` 是 False，用全數字判斷會把它當成美股。
     """
-    core = str(raw_input).strip().replace('.TWO', '').replace('.TW', '')
-    return 'tw' if core[:1].isdigit() else 'us'
+    return market_of(raw_input)
 
 
 def is_bar_settled(bar_date, market='us', now=None):
@@ -609,15 +613,20 @@ def load_and_resample(source, force_update=False):
             start_dt_parsed = datetime.datetime.strptime(start_date_new, '%Y-%m-%d').date()
             yf_would_error = start_dt_parsed > today_utc
             try:
-                if raw_input.isdigit():
+                # ⚠️ 用 is_tw()（數字開頭）而非 raw_input.isdigit()：主動型 ETF
+                # `00981A` 的 isdigit() 是 False，會掉進美股分支用裸代號打 yfinance
+                # → Yahoo 404，且增量只從 cache 尾端往後抓，那檔 cache 永遠不會更新。
+                # FinMind / yfinance 都吃**不帶後綴**的核心代號，所以一律傳 tw_core()。
+                if is_tw(raw_input):
+                     tw_id = tw_core(raw_input)
                      # 台股: FinMind 優先 (格式乾淨，無多層 header 問題)
-                     new_df = fetch_from_finmind(raw_input, start_date=start_date_new)
+                     new_df = fetch_from_finmind(tw_id, start_date=start_date_new)
                      if new_df.empty and not yf_would_error:
                          # Fallback: yfinance
-                         try_ticker = f"{raw_input}.TW"
+                         try_ticker = f"{tw_id}.TW"
                          new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False, timeout=30)
                          if new_df.empty:
-                             try_ticker = f"{raw_input}.TWO"
+                             try_ticker = f"{tw_id}.TWO"
                              new_df = yf.download(try_ticker, start=start_date_new, interval='1d', progress=False, auto_adjust=False, timeout=30)
                 elif not yf_would_error:
                      # 美股: yfinance
@@ -645,8 +654,8 @@ def load_and_resample(source, force_update=False):
                  df_day.sort_index(inplace=True)
                  
                  logger.info("Incremental update done: +%d rows for %s", len(new_df), raw_input)
-                 ticker_name = raw_input if raw_input.isdigit() else raw_input # Simple fix
-                 if raw_input.isdigit():
+                 ticker_name = raw_input
+                 if is_tw(raw_input):
                       stock_meta = get_stock_info_smart(raw_input)
                  else:
                       stock_meta['name'] = ticker_name
@@ -679,34 +688,36 @@ def load_and_resample(source, force_update=False):
                  
         if df_day.empty: # Either status="miss" or partial failed catastrophically
             # Cache Miss - Start Download
-            # 1. 如果是純數字，啟動智慧判斷序列
-            if raw_input.isdigit():
+            # 1. 如果是台股（數字開頭，含主動型 ETF），啟動智慧判斷序列
+            #    ⚠️ 不可用 raw_input.isdigit()：`00981A` 會掉到美股分支打裸代號 → 404。
+            if is_tw(raw_input):
+                tw_id = tw_core(raw_input)
                 # 台股: FinMind 優先 (格式乾淨、穩定、免費 20 年資料)
-                logger.info("Downloading %s (FinMind first)", raw_input)
-                df_day = fetch_from_finmind(raw_input)
+                logger.info("Downloading %s (FinMind first)", tw_id)
+                df_day = fetch_from_finmind(tw_id)
                 ticker_name = raw_input
 
                 if df_day.empty:
                     # Fallback 1: yfinance .TW (上市)
-                    try_ticker = f"{raw_input}.TW"
-                    logger.info("FinMind empty for %s, trying %s via yfinance", raw_input, try_ticker)
+                    try_ticker = f"{tw_id}.TW"
+                    logger.info("FinMind empty for %s, trying %s via yfinance", tw_id, try_ticker)
                     df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)
                     if not df_day.empty:
                         ticker_name = try_ticker
 
                 if df_day.empty:
                     # Fallback 2: yfinance .TWO (上櫃)
-                    try_ticker = f"{raw_input}.TWO"
+                    try_ticker = f"{tw_id}.TWO"
                     logger.info("Trying %s via yfinance", try_ticker)
                     df_day = yf.download(try_ticker, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)
                     if not df_day.empty:
                         ticker_name = try_ticker
-                    
+
                 # 取得台股中文資訊
                 stock_meta = get_stock_info_smart(ticker_name)
-    
+
             else:
-                # 2. 非純數字 (如 TSM, AAPL)，直接透過 yfinance
+                # 2. 美股 (如 TSM, AAPL)，直接透過 yfinance
                 ticker_name = raw_input
                 logger.info("Downloading %s via yfinance", ticker_name)
                 df_day = yf.download(ticker_name, period='10y', interval='1d', progress=False, auto_adjust=False, timeout=30)

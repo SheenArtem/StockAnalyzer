@@ -17,6 +17,8 @@ import logging
 import pandas as pd
 import streamlit as st
 
+from ticker_market import is_tw
+
 from fundamental_analysis import (
     get_financial_statements,
     get_fundamentals,
@@ -152,7 +154,7 @@ def render_individual():
 
             # 2. 台股籌碼
             chip_data = None
-            if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
+            if source and isinstance(source, str) and is_tw(source):
                 try:
                     status_text.info(f"⏳ 正在分析 {display_ticker} (技術+籌碼)...")
                     chip_data = get_chip_data_cached(source, is_force)
@@ -259,7 +261,7 @@ def render_individual():
             
             # [NEW] 美股籌碼數據預載
             us_chip_data = None
-            if source and isinstance(source, str) and not source.isdigit() and not source.endswith('.TW'):
+            if source and isinstance(source, str) and not is_tw(source):
                 with st.spinner("📊 載入美股籌碼..."):
                     try:
                         from us_stock_chip import USStockChipAnalyzer
@@ -492,7 +494,7 @@ def render_individual():
         try:
             from market_sentiment import render_sentiment_divergence_block
             stock_id_clean = (target_ticker or '').replace('.TW', '').replace('.TWO', '').strip()
-            if stock_id_clean and stock_id_clean.isdigit():
+            if stock_id_clean and is_tw(stock_id_clean):
                 with st.expander("🌡️ 情緒對比 (市場 vs 個股)", expanded=False):
                     render_sentiment_divergence_block(stock_id_clean, chip_data=chip_data)
         except Exception as _e:
@@ -648,7 +650,7 @@ def render_individual():
 
             st.markdown("---")
             # 寬鬆判斷：只要是字串且 (含TW 或 純數字) 都嘗試顯示籌碼
-            if source and isinstance(source, str) and ("TW" in source or source.isdigit()):
+            if source and isinstance(source, str) and is_tw(source):
                  # 嘗試抓取籌碼數據
                  try:
                      loading_msg = st.empty()
@@ -1062,7 +1064,7 @@ def render_individual():
                      st.error(f"❌ 發生錯誤: {e}")
             
             # === 美股籌碼分析 ===
-            elif source and isinstance(source, str) and not source.isdigit() and not source.endswith('.TW'):
+            elif source and isinstance(source, str) and not is_tw(source):
                 try:
                     st.markdown("### 🇺🇸 美股籌碼分析 (US Stock Chip Analysis)")
                     
@@ -1330,7 +1332,7 @@ def render_individual():
              # Extract pure stock ID
              stock_id_pure = display_ticker.split('.')[0] if '.' in display_ticker else display_ticker
              
-             if stock_id_pure.isdigit():
+             if is_tw(stock_id_pure):
                  # A. Monthly Revenue
                  rev_df = get_revenue_history(stock_id_pure)
                  if not rev_df.empty:
@@ -1541,7 +1543,11 @@ def render_individual():
             st.markdown("#### 📊 除權息行事曆 & 月營收追蹤")
             stock_id_clean = display_ticker.split('.')[0] if '.' in display_ticker else display_ticker
 
-            if not stock_id_clean.isdigit():
+            # ⚠️ 用 is_tw()（數字開頭）而非 isdigit()：主動型 ETF `00981A` 本來就是
+            # 台股，原本會顯示「僅支援台股」這句與事實相反的訊息，並把**適用**的
+            # 除權息資料一起藏掉（ETF 有配息，只是沒有月營收 —— 月營收那段自己有
+            # 空資料保護）。
+            if not is_tw(stock_id_clean):
                 st.info("除息/營收分析僅支援台股")
             else:
                 try:

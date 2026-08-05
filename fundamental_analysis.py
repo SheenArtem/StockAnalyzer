@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 import logging
 from cache_manager import get_finmind_loader
+from ticker_market import is_tw, tw_core, has_tw_suffix
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +34,10 @@ def _get_tradingview_fundamentals(ticker):
     try:
         from tradingview_screener import Query, Column
 
-        # Determine market
-        clean = ticker.replace('.TW', '').replace('.TWO', '')
-        is_us = not clean.isdigit()
+        # Determine market —— 判定走 ticker_market（數字開頭＝台股）。
+        # 原本 `not clean.isdigit()` 會把主動型 ETF `00981A` 送去 america 市場查。
+        clean = tw_core(ticker)
+        is_us = not is_tw(ticker)
 
         market = 'america' if is_us else 'taiwan'
         search_name = ticker if is_us else clean
@@ -93,23 +95,21 @@ def get_fundamentals(ticker):
         # Ticker Correction for Taiwan Stocks
         # yfinance needs "2330.TW", but user might input "2330"
         search_ticker = ticker
-        if ticker.isdigit():
+        # 台股要補 .TW 給 yfinance；已帶後綴的不要重複加。
+        # ⚠️ 原本是 `ticker.isdigit()`，主動型 ETF `00981A` 補不到後綴，
+        # yfinance 用裸代號直接 404（實測）。
+        if is_tw(ticker) and not has_tw_suffix(ticker):
             search_ticker = f"{ticker}.TW"
-            
+
         stock = yf.Ticker(search_ticker)
         info = stock.info
         
         # 判斷是否為台股 (FinMind 支援)
-        is_tw_stock = False
-        stock_id = ""
-        
-        if ticker.isdigit(): # e.g. 2330
-            is_tw_stock = True
-            stock_id = ticker
-        elif ".TW" in ticker.upper(): # e.g. 2330.TW
-            stock_id = ticker.split('.')[0]
-            if stock_id.isdigit():
-                 is_tw_stock = True
+        # ⚠️ 原本是「isdigit 或 '.TW' in ticker 且去後綴後 isdigit」三段式，
+        # 主動型 ETF `00981A` 兩段都不成立 → is_tw_stock 留 False，FinMind 那段
+        # 台股資料整段跳過。判定收斂到 ticker_market。
+        is_tw_stock = is_tw(ticker)
+        stock_id = tw_core(ticker) if is_tw_stock else ""
         
         # Helper to safely get value or 'N/A'
         def get_val(key, fmt="{:.2f}"):

@@ -514,7 +514,10 @@ def check_single_position(pos, history=None, today_str=None):
     if t is not None:
         triggers.append(t)
 
-    # 6. 月營收 + F-Score（台股：純數字 stock_id）
+    # 6. 月營收 + F-Score（台股個股）
+    # ⚠️ 這裡的「全數字」是**刻意**的，別改成 ticker_market.is_tw()：月營收與
+    # Piotroski F-Score 對 ETF 都不存在，帶字母的主動型 / 槓桿反向 ETF
+    # （`00981A`、`00631L`）本來就該跳過。同 addon_factors / analysis_engine。
     if stock_id.isdigit():
         t = _check_revenue_yoy_neg2(stock_id)
         if t is not None:

@@ -19,6 +19,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ticker_market import is_tw
+
 logger = logging.getLogger(__name__)
 
 # ================================================================
@@ -501,6 +503,8 @@ class MomentumScreener:
         if tv_data:
             # 先濾掉 ETF (00**) / 特別股 (2881A 等帶字母) / 權證 (6 位代號)
             # 否則 Top 300 會被特別股等灌水佔名額（TradingView 把母公司 MC 全灌到每個 ticker）
+            # ⚠️ 這裡的「全數字 + 4 碼 + 不以 0 開頭」是**刻意**要排除 ETF 與
+            # 權證，不是市場判定，別換成 ticker_market.is_tw()（那會把 ETF 放進來）。
             tv_clean = {
                 sid: d for sid, d in tv_data.items()
                 if sid.isdigit() and len(sid) == 4 and not sid.startswith('0')
@@ -1020,7 +1024,9 @@ class MomentumScreener:
         # 3. Optionally fetch chip data
         chip_data = None
         us_chip_data = None
-        is_us = not stock_id.isdigit()
+        # ⚠️ 判定走 ticker_market（數字開頭＝台股）。原本的 isdigit() 會把主動型
+        # ETF `00981A` 判成美股 → 台股籌碼整段跳過、改抓美股籌碼。
+        is_us = not is_tw(stock_id)
 
         if is_us:
             if self.config.get('us_include_chip', False):

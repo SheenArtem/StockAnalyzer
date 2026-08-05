@@ -25,6 +25,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ticker_market import market_of
+
 logger = logging.getLogger(__name__)
 
 _CACHE = {}
@@ -98,9 +100,11 @@ MANUAL_PEER_OVERRIDE = _expand_groups(_PEER_GROUPS)
 # Multi-theme index — 從 sector_tags_manual.json 載入 (lazy)
 # ============================================================
 def _detect_market(stock_id):
-    """純數字 (含 .TW/.TWO) → tw；含字母 → us。"""
-    s = str(stock_id).replace('.TW', '').replace('.TWO', '').strip()
-    return 'tw' if s.isdigit() else 'us'
+    """`'tw'` / `'us'` —— 數字開頭即台股（判定收斂到 ticker_market）。
+
+    ⚠️ 原本是「去後綴後全數字」，主動型 ETF `00981A` 會被判成美股。
+    """
+    return market_of(stock_id)
 
 
 def _load_theme_index_market(market):
