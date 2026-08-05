@@ -163,3 +163,18 @@ top300 代理成分數回到 297~300 檔、`ret_20d` 全落在 −1.4%~+11.1%（
 
 - 純數字或含 `.TW` → TW (FinMind + TWSE/TPEX + TradingView)
 - 含字母 → US (Yahoo Finance + Finviz + TradingView)
+
+### ⚠️ 台股主動型 ETF 會被 `isdigit()` 誤判成美股
+
+`00981A` / `00982A` / `00983A` / `00991A` 這類**主動型 ETF** 代號帶字母後綴，
+`'00981A'.isdigit()` 回 **False** → 上面那條「含字母 → US」會把台股送去美股路徑。
+
+- **已修**：`technical_analysis._market_of()` 改用「**數字開頭**」判斷
+  （`core[:1].isdigit()`），未完成 bar 的收盤判定才會套台北 13:30 而非美東 16:00。
+- **未修（既有，範圍較大）**：`load_and_resample` 用 `raw_input.isdigit()` **選資料源**，
+  所以 `00981A` 走美股 yfinance（不加 `.TW`）而抓不到 —— 2026-08-05 實測
+  `force_update` 對它回 EMPTY，該檔 cache 無法更新。
+  同型寫法還散落在 `ai_report.py`（20+ 處 `is_us = not ticker.replace('.TW','').isdigit()`）、
+  `ai_report_pipeline.py`、`addon_factors.py`、`chip_analysis.py`。
+  後果是主動型 ETF 被當美股：台股專屬區塊（法人 / 融資 / 集保 / 月營收）整段拿不到。
+  **要改請一次改齊並加測試**，別只改一處。
