@@ -205,3 +205,116 @@ def test_refresh_universe_prices_keeps_mangled_key_without_sibling():
     keep, skipped = RUP._tw_cache_stems([Path('00631O_price.csv')])
     assert '00631O' in keep
     assert skipped == []
+
+
+# --------------------------------------------- 台股指數符號（finding F4）
+
+@pytest.mark.parametrize('sym', ['^TWII', '^TWOII', '^twii'])
+def test_tw_index_symbols_are_tw(sym):
+    """`^` 開頭不是數字開頭，台股指數必須列舉才不會被判成美股。
+
+    釘住 2026-08-05 審查的 finding F4：`_detect_us_stock('^TWII')` 一度由 False
+    翻成 True，害 analysis_engine 的 HMM regime 改用 ^GSPC 建模。
+    """
+    assert market_of(sym) == 'tw', sym
+    assert is_tw(sym) is True
+
+
+@pytest.mark.parametrize('sym', ['^VIX', '^GSPC', '^SOX', '^IXIC'])
+def test_us_index_symbols_stay_us(sym):
+    """美股指數必須留在美股 —— 舊的三段式判定反而把它們誤判成台股。"""
+    assert market_of(sym) == 'us', sym
+
+
+def test_analysis_engine_index_regime_market():
+    """HMM regime 選 ^TWII 還是 ^GSPC 取決於 _detect_us_stock。"""
+    from analysis_engine import TechnicalAnalyzer
+    assert TechnicalAnalyzer._detect_us_stock(None, '^TWII') is False
+    assert TechnicalAnalyzer._detect_us_stock(None, '^GSPC') is True
+
+
+# ------------------------------- ai_report 的 20 處分流（finding F5）
+
+def test_ai_report_has_no_isdigit_market_detection():
+    """`ai_report.py` 曾有 20 處 `is_us = ticker and not ...isdigit()`。
+
+    那 20 處沒有任何行為測試（審查 finding F5），而它們決定整份報告要不要組
+    台股專屬區塊。這裡守住「不可退回 isdigit 判市場」這條線 —— 便宜但能擋退化。
+    """
+    from pathlib import Path
+    import ai_report
+    src = Path(ai_report.__file__).read_text(encoding='utf-8')
+    code = '\n'.join(l for l in src.splitlines()
+                     if not l.lstrip().startswith('#'))
+    assert "replace('.TW', '').isdigit()" not in code, \
+        'ai_report.py 又出現 isdigit() 市場判定'
+    assert 'from ticker_market import' in code, \
+        'ai_report.py 沒有匯入 ticker_market'
+    # 20 處分流全部改用 is_tw()，數量本身也釘住（少掉就是有人改回去了）
+    assert code.count('not is_tw(ticker)') >= 20, \
+        '預期至少 20 處 is_tw() 分流，實得 %d' % code.count('not is_tw(ticker)')
+
+
+@pytest.mark.parametrize('mod_name', ['ai_report_pipeline', 'chip_analysis',
+                                      'momentum_screener', 'value_screener',
+                                      'news_fetcher', 'peer_comparison',
+                                      'portfolio_store', 'individual_view',
+                                      'fundamental_analysis'])
+def test_routing_modules_import_ticker_market(mod_name):
+    """所有做市場分流的模組都必須走共用判定，不可自帶一份。"""
+    import importlib
+    from pathlib import Path
+    mod = importlib.import_module(mod_name)
+    src = Path(mod.__file__).read_text(encoding='utf-8')
+    assert 'from ticker_market import' in src, \
+        '%s 沒有匯入 ticker_market' % mod_name
+
+
+# ------------- load_and_resample 資料源分支（斷更根因，finding F5）
+
+@pytest.mark.parametrize('ticker,expect_tw_source', [
+    ('00981A', True),       # 主動型 ETF —— 原本掉到美股分支打裸代號 404
+    ('00981A.TW', True),
+    ('2330', True),
+    ('3324.TWO', True),
+    ('AAPL', False),
+    ('MSFU', False),
+])
+def test_load_and_resample_picks_tw_source(ticker, expect_tw_source, monkeypatch):
+    """釘住真正的斷更根因：資料源分支選錯就永遠抓不到。
+
+    ⚠️ 不觸網 —— 把 FinMind 與 yfinance 都換成記錄呼叫的替身。這是原本只有
+    一次性 end-to-end、沒有常設測試的地方（審查 finding F5）。
+    驗的是「台股有沒有走 FinMind、且拿到的是**去後綴**的核心代號」。
+    """
+    import pandas as pd
+    import technical_analysis as ta
+
+    calls = {'finmind': [], 'yf': []}
+
+    def fake_finmind(stock_id, start_date=None):
+        calls['finmind'].append(stock_id)
+        return pd.DataFrame()          # 空 -> 讓它往下走 fallback
+
+    def fake_yf_download(sym, *a, **k):
+        calls['yf'].append(sym)
+        return pd.DataFrame()
+
+    monkeypatch.setattr(ta, 'fetch_from_finmind', fake_finmind)
+    monkeypatch.setattr(ta.yf, 'download', fake_yf_download)
+    # 強制走 cache miss 路徑，不讀既有 cache
+    monkeypatch.setattr(ta, '_try_intraday_quote_as_today_bar', lambda x: None)
+
+    ta.load_and_resample(ticker, force_update=True)
+
+    if expect_tw_source:
+        assert calls['finmind'], '%s 沒走 FinMind（台股 primary）' % ticker
+        core = calls['finmind'][0]
+        assert '.TW' not in core.upper(), \
+            'FinMind 拿到帶後綴的代號 %r' % core
+        assert all(s.endswith(('.TW', '.TWO')) for s in calls['yf']), \
+            'yfinance fallback 應該帶台股後綴，實得 %r' % calls['yf']
+    else:
+        assert not calls['finmind'], '%s 不該打 FinMind' % ticker
+        assert calls['yf'] and calls['yf'][0] == ticker, \
+            '美股應該用原代號打 yfinance，實得 %r' % calls['yf']

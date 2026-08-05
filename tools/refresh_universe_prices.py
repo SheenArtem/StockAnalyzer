@@ -75,7 +75,14 @@ def _tw_cache_stems(files):
     cache key，不是真代號，拿 `3324O.TW` 去打 yfinance 只會整批 miss。
     判別方式：這種 stem 一定「尾字是 O」且「去掉 O 之後的全數字 stem 也有 CSV」
     （2026-08-05 實測 99/99 成立，而真正的 `00981A` 沒有 `00981` 兄弟檔）。
-    它們的內容本來就是全數字兄弟檔的重複品，跳過不會漏掉任何一檔股票。
+
+    ⚠️ **這裡略過它們，是因為拿它們去打 yfinance 一定 miss，不是因為它們沒用。**
+    本 docstring 初版寫「內容是兄弟檔的重複品」，2026-08-05 獨立審查（finding F1）
+    實測推翻：**85/99 的 `*O` 檔比兄弟檔更長**、14 個更短、0 個一樣長；而且
+    `tw_universe.is_tw_ticker` 的 regex 會 match 它們，`ohlcv_tw.parquet` 把它們當
+    **獨立 ticker** 收了 **368,292 列**（與兄弟檔並存＝同一檔股票算兩次）。
+    所以：**略過 ≠ 可以刪**。刪檔會讓 panel 少 368k 列。詳見
+    `docs/agent/data-sources.md` 的同名段落。
     """
     stems = {f.name[:-len("_price.csv")] for f in files}
     keep, skipped = [], []

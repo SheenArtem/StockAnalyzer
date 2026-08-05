@@ -25,6 +25,14 @@ yfinance `00981A.TW` 可用、裸 `00981A` 404；mis.twse 即時報價**不支�
 # （`cache_manager._get_path` 就是踩到這個順序，才生出 `3324O_price.csv` 這種檔名）。
 _TW_SUFFIXES = ('.TWO', '.TW')
 
+# 台股指數符號：`^` 開頭所以不是「數字開頭」，必須列舉。
+# 2026-08-05 審查抓到的退化（finding F4）：舊的三段式判定靠 fall-through 讓
+# `^TWII` 湊巧回台股，換成「數字開頭」後它變成美股 → `analysis_engine` 的 HMM
+# regime 會改用 `^GSPC` 建模（本應用 `^TWII`）。只在個股 tab 手打指數代號才踩到。
+# ⚠️ 只放台股指數。`^VIX` / `^GSPC` / `^SOX` / `^IXIC` 是美股，維持判成美股 ——
+# 那幾個在舊的三段式下反而被誤判成台股，是這次一併修好的。
+_TW_INDEX_SYMBOLS = frozenset({'^TWII', '^TWOII'})
+
 
 def tw_core(ticker):
     """去掉 `.TW` / `.TWO` 後綴後的純代號：`'00981A.TW'` -> `'00981A'`。"""
@@ -42,8 +50,19 @@ def has_tw_suffix(ticker):
 
 
 def market_of(ticker):
-    """`'tw'` / `'us'` —— 數字開頭即台股。空字串視為美股（沿用既有行為）。"""
-    return 'tw' if tw_core(ticker)[:1].isdigit() else 'us'
+    """`'tw'` / `'us'` —— 數字開頭即台股。空字串視為美股（沿用既有行為）。
+
+    ⚠️ **範圍限定 TW / US**（本專案的產品範圍）。判準是「數字開頭」，所以其他
+    以數字開頭的境外代號會被歸成台股 —— 例如港股 `0700.HK`、日股 `7203.T`
+    （`tw_core` 不認識這些後綴，不會剝掉）。2026-08-05 審查列為 finding F3：
+    舊的「全數字」寫法反而會把它們判成美股而剛好能走 yfinance。
+    全 repo grep 過 `.HK` / `.T` / `7203` / `0700` **零命中**，所以刻意不加
+    分支去處理沒有呼叫者的情境；真要支援第三個市場時，這裡是唯一要動的地方。
+    """
+    core = tw_core(ticker)
+    if core.upper() in _TW_INDEX_SYMBOLS:
+        return 'tw'
+    return 'tw' if core[:1].isdigit() else 'us'
 
 
 def is_tw(ticker):

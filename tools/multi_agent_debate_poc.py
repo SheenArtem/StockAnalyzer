@@ -252,8 +252,14 @@ def run_pipeline(ticker: str, rounds: int = 2,
         from analysis_engine import TechnicalAnalyzer
         from fundamental_analysis import get_fundamentals
         from ai_report import assemble_prompt
+        from ticker_market import market_of
 
-        is_tw = ticker.replace('.TW', '').replace('.TWO', '').isdigit()
+        # ⚠️ 原本是 `ticker.replace('.TW','').replace('.TWO','').isdigit()`，兩個問題：
+        # 主動型 ETF `00981A` 的 isdigit() 是 False（會被當美股），且 replace 順序
+        # 讓 `3324.TWO` 變成 `3324O`。判定收斂到 ticker_market。
+        # 這裡用 market_of 而非 import is_tw —— 區域變數就叫 is_tw，同名會
+        # UnboundLocalError（同 ai_report.py 用 is_tw 不用 is_us 的理由）。
+        is_tw = market_of(ticker) == 'tw'
 
         # 1. Price data
         _figs, _errs, df_week, df_day, _meta = plot_dual_timeframe(ticker, force_update=False)
