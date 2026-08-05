@@ -424,9 +424,19 @@ _BAR_SETTLE_BUFFER_MIN = 15
 
 
 def _market_of(raw_input):
-    """純數字 -> 台股，其餘 -> 美股（沿用 load_and_resample 既有的代號慣例）。"""
+    """**數字開頭** -> 台股，字母開頭 -> 美股。
+
+    用「數字開頭」而非「全數字」是刻意的：台股**主動型 ETF** 代號帶字母後綴
+    （`00981A`、`00982A`…），`'00981A'.isdigit()` 是 False。用全數字判斷會把它
+    當成美股，收盤時間就套到美東 16:00 —— 台股 13:30 收盤後的四個半小時裡，
+    已定案的 bar 會被誤判成「還沒收盤」而不寫入 cache。
+
+    ⚠️ `load_and_resample` 本身仍用 `raw_input.isdigit()` 選資料源，所以 `00981A`
+    會走美股 yfinance 路徑（不加 `.TW` 後綴）而抓不到資料 —— 那是本函式範圍外的
+    既有問題，2026-08-05 實測 `force_update` 對它回 EMPTY。
+    """
     core = str(raw_input).strip().replace('.TWO', '').replace('.TW', '')
-    return 'tw' if core.isdigit() else 'us'
+    return 'tw' if core[:1].isdigit() else 'us'
 
 
 def is_bar_settled(bar_date, market='us', now=None):

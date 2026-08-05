@@ -92,6 +92,23 @@ def test_market_of():
     assert ta._market_of('BRK-B') == 'us'
 
 
+@pytest.mark.parametrize('ticker', ['00981A', '00982A', '00981A.TW'])
+def test_market_of_active_etf_is_tw(ticker):
+    """台股主動型 ETF 代號帶字母後綴，`isdigit()` 會回 False。
+
+    2026-08-05 實測踩到：用全數字判斷會把 `00981A` 當美股，於是台股 13:30 收盤後
+    到美東 16:00 之間，已定案的 bar 被誤判成未收盤而不寫入 cache。
+    """
+    assert ta._market_of(ticker) == 'tw'
+
+
+def test_active_etf_bar_settled_uses_tw_close():
+    """回歸：`00981A` 在台股 14:00（已過 13:30+15min）必須算定案。"""
+    now = datetime.datetime(2026, 8, 4, 14, 0)
+    mkt = ta._market_of('00981A')
+    assert ta.is_bar_settled(datetime.date(2026, 8, 4), mkt, now=now) is True
+
+
 # ====================================================================
 #  A-2. drop_unsettled_bars
 # ====================================================================
