@@ -25,6 +25,7 @@ All features MUST follow the same priority to avoid data drift。實作細節（
 | News (題材批次) | cnyes JSON API + udn money RSS | cnyes 失敗有 graceful degradation state | `tools/news_theme_extract.py`；三層 storage / 22 欄 schema / dual-write backup 見 Claude memory `project_news_pipeline` 與 `feedback_keep_backup_dual_write` |
 | Analyst consensus | yfinance | — | Target price / Forward EPS / rating |
 | Peer comparison | TWSE/TPEX PER + FinMind industry | — | `peer_comparison.py` |
+| 公司行為（還原係數用）| 除權息／現金增資：FinMind `taiwan_stock_dividend_result`（逐檔）<br>減資：**TWSE `TWTAUU` + TPEX `bulletin/revivt` 官方**（全市場各 1 次呼叫）<br>面額變更：FinMind `taiwan_stock_split_price`（全市場 1 次呼叫）| 除權息 `reference_price` 壞掉時用 `stock_and_cache_dividend` 反推 | `tools/build_corporate_actions.py`。⚠️ **減資不可以用 FinMind `taiwan_stock_capital_reduction_reference_price`**（價格對、**日期會壞**）。細節見下方專節 |
 | TV-show YT mentions | yt-dlp auto-sub + Claude Sonnet | — | → `data/sector_tags_dynamic.parquet` |
 | Brokerage YT mentions | yt-dlp manual-sub + codex + Sonnet fallback | — | 獨立 pipeline，**不接 AI 報告**（合規）|
 
@@ -118,6 +119,113 @@ top300 代理成分數回到 297~300 檔、`ret_20d` 全落在 −1.4%~+11.1%（
 
 **回填不可以直接塞官方原始價** —— CSV 存的是還原價，細節與作法見
 `tools/backfill_panel_gaps.py` 檔頭的四點說明。
+
+## 公司行為事件表（還原係數的唯一來源，2026-08-10）
+
+`tools/build_corporate_actions.py` → `data_cache/backtest/corporate_actions_tw.parquet`
+（`data_cache/` 已 gitignore，不入版控）。
+
+**為什麼是事件表而不是 `Adj Close` 欄**：把還原係數**存起來**的作法已經失敗過 ——
+1,965 個台股 CSV 裡可判定的 1,034 檔只有 **262 檔（25.3%）健康**，772 檔的係數中途
+往下掉（舊列停在舊基準、新列是新基準），成因是夜間增量只 append 新列，而資料源
+每次除權息會回溯調整整段歷史。事件是不可變的歷史事實，**算出來的係數不會過期**。
+
+### 四層來源與呼叫成本
+
+| 層 | 來源 | 呼叫數 | 涵蓋起點 |
+|---|---|---|---|
+| 除權息／現金增資 | FinMind `taiwan_stock_dividend_result` | **每檔 1**（全市場 ≈1,965 ＝ 3.3h @600/hr）| 全歷史 |
+| 減資（上市）| `https://www.twse.com.tw/rwd/zh/reducation/TWTAUU` | **1** | 2011-01-25 |
+| 減資（上櫃）| `https://www.tpex.org.tw/www/zh-tw/bulletin/revivt` | **1** | 2013-01-16 |
+| 面額變更 | FinMind `taiwan_stock_split_price` | **1** | 2019-09-09 |
+
+後三層是**全市場一次抓完**，所以它們沒有、也不需要逐檔續跑狀態。
+
+⚠️ **兩個官方端點的日期參數格式不一樣，而且都要驗回音**：
+TWSE 吃 `startDate=YYYYMMDD&endDate=YYYYMMDD`（**早於 2011-01-01 直接拒絕**，
+回「查詢開始日期小於100年1月1日」）；TPEX **只認斜線** `startDate=YYYY/MM/DD`
+（緊湊格式回「參數錯誤」），而裸 `date=` 參數**完全被忽略**、永遠回今天的窗口 ——
+就是本文件前面那個「拿請求的日期當資料日期是錯的」同型陷阱。
+兩支 fetcher 都會比對 payload 自報的區間，對不上就 raise。
+
+### 還原係數公式
+
+```
+factor = reference_price / before_price                          # 主要（三種事件通用）
+factor = (before_price - stock_and_cache_dividend) / before_price # 除權息層的 fallback
+```
+
+fallback 只在 `reference_price` 正好等於 `before_price`（＝ FinMind 沒填）
+**且**確實有價值調整時啟用。**壞掉比率實測：上市 2.3% / 上櫃 7.5%**（上櫃是 3 倍）。
+第二式在 `reference_price` 正常的事件上 132/133（99.2%）精確重現，
+且正是官方 `TWT49U` 滿足的恆等式；**現金增資也適用**。
+
+⚠️ **判準是 `stock_and_cache_dividend != 0`，不是 `> 0`**（2026-08-10 round-2 審查 F1）。
+「權值+息值」**可以是負的** —— 認購價**高於**市價的現金增資就是，此時官方參考價
+比前一日收盤**高**、係數 > 1。用 `> 0` 會讓這種事件靜默落回 factor 1.0 且
+source 標成 `reference`：既沒還原，又假稱用了真實參考價，連拿 source 欄稽核都找不到。
+官方 `TWT49U` 實查的三筆：`1312` 2026-06-11（13.20→13.40）、
+`1735` 2013-01-07（12.60→12.73）、`1464` 2011-09-15（9.47→9.63）。
+
+減資的 `factor > 1`（參考價高於前價），面額變更的 `factor` 可小到 0.1。
+所以合法範圍是 **0.05 ~ 50**，不是直覺的 0.2 ~ 5 ——
+實測極值：面額變更 10 元改 1 元 = 0.100（`6548`）、彌補虧損減資 = 40.03（`5364`）。
+
+### ⚠️ 減資為什麼不用 FinMind（實測結論，別再試）
+
+FinMind 有 `taiwan_stock_capital_reduction_reference_price`，抽 24 檔 / 41 筆事件
+對官方逐筆比對：**價格 38/38 完全吻合，但日期會壞**，而壞日期是最致命的一種 ——
+係數被套到錯的區間，且完全沒有跡象：
+
+- `2327` 2022 年那次出現**兩列**（10/21 與 10/31，價格一字不差），官方只有 10/31。
+  照單全收 = 1.2468 的係數乘兩次 = 憑空 **+55%**。
+- `2412` 官方 2011-01-25、FinMind 記成 **2011-10-25**（差 9 個月）。
+- `3018` 官方 2023-11-27、FinMind 記成 **2023-11-11**（**星期六**，不是交易日）。
+
+官方兩張表是全市場各 1 次呼叫（vs 1,965 次）又是權威來源，沒有理由用它；
+而且它在抽樣的 24 檔裡**沒有任何一筆早於官方視窗**，所以也補不了歷史深度缺口。
+
+### 續跑語義（改這支工具前必讀）
+
+- 合併是 **append-only**：既有列永遠獲勝（`keep='first'`），`--refetch-all`
+  只能補「缺的事件」，**不能修既有列**。
+  **唯一例外**：既有列的 `factor` 是 NaN 時會讓給新抓到的可用係數 ——
+  NaN 不帶任何資訊，卻會永久佔住那個 key 且沒有修復路徑。
+  三個來源層現在都會在寫入前丟掉算不出係數的列（原本只有減資層會）。
+- 續跑的完成判定**只看除權息來源的列**（`reference` / `fallback` / `unusable`）。
+  拿「股票在不在表裡」當判據會壞掉 —— 全市場層會讓沒抓過除權息的股票也出現在表中，
+  那些股票的除權息就永遠補不到了。
+- 全市場層用**完整 universe** 過濾，不是用續跑後的待辦清單（同一個理由）。
+- **三個市場層的順序是刻意的**：面額變更（FinMind）排在逐檔除權息**之後**。
+  FinMind 免費層對「不帶 `data_id` 的全市場查詢」回 400 `Your level is register`，
+  SDK 變成 `KeyError('data')`，`cache_manager` 再一律當成額度爆掉並
+  **negative-cache 300 秒（行程層級）**。市場層排前面的話，這個誤判會讓整輪除權息
+  一筆都不跑卻回報「再跑一次即可續跑」，而且等多久都不會好。
+- **`--limit N` 不會分頁**：切片在續跑過濾**之前**，永遠是同樣的前 N 檔。
+  那 N 檔抓完後再跑只會得到 0 筆新事件。回補要跑全市場。
+- Exit code：`0` 跑完 / `1` 拒絕寫入（除權息來源疑似整個壞掉，或既有表讀不出來
+  且搬不走）/ **`3` 逐檔層被 FinMind 額度打斷**（已寫入的完整、但還沒抓完，
+  再跑一次即續跑）。
+  ⚠️ exit code 只描述**逐檔層**。三個市場層任一失敗都只 log.error 後繼續、
+  **不改 exit code**（它們每跑一次都全量重抓，沒有續跑進度可言）——
+  所以 exit 0 不等於三層都成功，要判斷得看 log。
+- ⚠️ **官方減資表自己就有重複列**：`TWTAUU` 2011-01-01~2026-08-10 的 392 列裡有
+  4 個 `(代號, 恢復買賣日期)` 重複、共 5 個多餘列。3 組只差公司名稱（無害），
+  但 **`3536` 104/03/20 出現三次且不一致** —— 第一列的「除權參考價」是 `--`、
+  另兩列是 13.06。交給 payload 順序決定會得到 2.02584 而不是正確的 1.98480。
+  工具用明確偏好去重（有除權參考價的那列勝），不一致時 log.warning。
+
+### 已宣告的涵蓋邊界（接 panel 前必讀）
+
+1. **減資只回溯到 2011-01-25（上市）／2013-01-16（上櫃）**，官方端點給不出更早的。
+   panel 歷史從 **2006** 開始 → 2006~2010（上市）／2006~2012（上櫃）的減資**沒涵蓋**，
+   那段期間的還原序列在減資日仍會留著假跳空。
+2. **面額變更只回溯到 2019-09-09**（FinMind 資料集起點，全市場合計 32 筆）。
+3. **上櫃除權息的歷史深度沒有跨源驗過** —— TPEX 官方只給得出約兩週的窗口。
+4. **還原後除權息當天仍有 +0.46% 的殘餘正向漂移**，無法用現有測試分辨是過度校正
+   還是台股的填權息傾向。
+5. ⚠️ **官方原始價序列有 `close == 0.00` 的停牌列**（`1529` / `1472` 各 4/40 列）。
+   `raw × factor` 不會修掉它，消費端必須先剔除非正值收盤再算報酬。
 
 ## Cache Strategy
 
