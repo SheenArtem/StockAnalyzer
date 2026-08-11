@@ -583,12 +583,20 @@ def _replace_with_retry(tmp_path, path, attempts=3, delay=0.3):
             time.sleep(delay)
 
 
-def load_existing():
+def load_existing(dry_run=False):
     """讀既有表，回 `(DataFrame, ok)`。
 
     讀不出來時**先把壞檔改名保留**（`.corrupt-<timestamp>`）再重新開始 ——
     直接「starting fresh」會讓稍後那次成功的寫入把可能還救得回來的位元組蓋掉。
     搬不走就整個放棄（回 `(None, False)`），寧可什麼都不寫。
+
+    ⚠️ `dry_run=True` 時**不改名**（2026-08-10 round-3 審查 R3-2）：
+    `--dry-run` 對外宣稱「什麼都不寫」，是拿來冒煙測試的，但改名發生在讀取階段、
+    比 `args.dry_run` 那個判斷更早，於是一次「只想看看會發生什麼」的執行
+    會把既有表改成 `.corrupt-<ts>`，還要人工改回檔名。位元組不會掉
+    （F10 那條「開不了檔就拒寫」仍然成立），但那是操作者不會預期的副作用。
+    改成只報告：照樣往下走完整流程（回空表 ＝ 忠實模擬真跑會做的事），
+    只是不動檔案系統。
 
     ⚠️ 「讀不到」與「內容壞掉」要先分辨（2026-08-10 round-2 審查 F10）：
     檔案鎖、防毒掃描、另一個同時在跑的實例都會讓 `read_parquet` 拋例外，
@@ -616,6 +624,11 @@ def load_existing():
                       "untouched and the resume state survives.",
                       type(open_err).__name__, open_err, e)
             return None, False
+        if dry_run:
+            log.warning("existing table unreadable (%s) -- DRY RUN, so it is left in "
+                        "place; a real run would move it aside as %s.corrupt-<ts> and "
+                        "start fresh", e, OUT_PATH.name)
+            return _empty_events(), True
         aside = OUT_PATH.with_name('%s.corrupt-%s'
                                    % (OUT_PATH.name, time.strftime('%Y%m%d-%H%M%S')))
         try:
@@ -644,7 +657,9 @@ def main():
     ap.add_argument('--start-date', default='2000-01-01',
                     help='earliest event date to request')
     ap.add_argument('--dry-run', action='store_true',
-                    help='do everything except write the parquet')
+                    help='do everything except write the parquet. Touches no file at '
+                         'all: an unreadable existing table is reported but NOT moved '
+                         'aside as .corrupt-<ts> (a real run would quarantine it).')
     ap.add_argument('--sleep', type=float, default=0.0,
                     help='seconds to sleep between stocks')
     ap.add_argument('--refetch-all', action='store_true',
@@ -674,7 +689,7 @@ def main():
              len(universe), args.start_date, end_date,
              "  [DRY RUN]" if args.dry_run else "")
 
-    existing, ok = load_existing()
+    existing, ok = load_existing(args.dry_run)
     if not ok:
         return 1
 
@@ -848,16 +863,29 @@ def main():
     #     所以再加一個判準：這一輪問的是不是「一大批沒抓過的股票」——
     #     待辦清單要佔宇宙一半以上（首建或回補進行中）。全市場抓完之後
     #     todo 只剩約 4%，這道閘門就自動退場。
+    #
+    #  ⚠️ 閘門要數的是「**沒收成**」不只是「回空」（2026-08-10 round-3 審查 R3-1）：
+    #     上面那個 except 分支把非額度例外記進 `stats['error']`，**不是**
+    #     `stats['no_events']`。所以只看 `no_events` 的話，「整批股票每一檔都拋
+    #     非額度例外」仍然回 exit 0 —— SDK 方法改名（`AttributeError`）、
+    #     斷網（`ConnectionError`）、例外型別改名讓 `'Quota' in name` 失效，
+    #     都是這一類。資料不會壞（合併是只新增的）、續跑狀態也不受影響，
+    #     但排程只看 exit code ＝ 整個來源死掉卻回報成功，正是 AGENTS.md
+    #     列為 SERIOUS 的「吞 exit code」。
+    #     ⚠️ `bulk_run` 一定要保留：例行續跑本來就會有零星錯誤，
+    #     少了它會把偶發的單檔失敗誤報成來源死亡。
     # ------------------------------------------------------------------ #
     processed = stats['ok'] + stats['no_events'] + stats['error']
+    fruitless = stats['no_events'] + stats['error']
     bulk_run = len(todo) >= max(FAIL_LOUD_MIN_STOCKS, 0.5 * len(universe))
-    if bulk_run and stats['ok'] == 0 and stats['no_events'] >= FAIL_LOUD_MIN_STOCKS:
-        log.error("processed %d of %d to-do stocks (universe %d) and EVERY one of them "
-                  "returned zero dividend events -- the source is almost certainly "
-                  "broken (expired/downgraded token, dataset rename, or an upstream "
-                  "200-with-no-rows), not %d genuinely dividend-free stocks. "
-                  "Refusing to write.", processed, len(todo), len(universe),
-                  stats['no_events'])
+    if bulk_run and stats['ok'] == 0 and fruitless >= FAIL_LOUD_MIN_STOCKS:
+        log.error("processed %d of %d to-do stocks (universe %d) and NOT ONE of them "
+                  "yielded a dividend event (%d returned zero rows, %d raised) -- the "
+                  "source is almost certainly broken (expired/downgraded token, dataset "
+                  "or SDK method rename, or an upstream 200-with-no-rows), not %d "
+                  "genuinely dividend-free stocks. Refusing to write.",
+                  processed, len(todo), len(universe),
+                  stats['no_events'], stats['error'], fruitless)
         return 1
 
     if args.dry_run:

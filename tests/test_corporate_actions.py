@@ -837,6 +837,59 @@ class TestMainFailureHandling:
         assert len(loader.asked) == 21
         assert rc == 0
 
+    def test_a_source_that_raises_on_every_stock_refuses_to_write(self, rig):
+        """審查 R3-1：閘門要數「沒收成」，不能只數「回空」。
+
+        非額度例外走的是 `stats['error']`，**不是** `stats['no_events']` ——
+        所以只看 `no_events` 的話，「整批股票每一檔都拋例外」（SDK 方法改名、
+        斷網、例外型別改名讓 `'Quota' in name` 失效）仍然回 exit 0，
+        排程只看 exit code 就會當成成功。這是 AGENTS.md 列為 SERIOUS 的吞 exit code。
+        """
+        stems = ['%04d' % (1100 + i) for i in range(25)] + ['2327']
+        rig.universe(*stems)
+        loader = _FakeLoader(dividend_error=ValueError('SDK method renamed'))
+        assert rig.run(loader, twse_rows=[TWSE_2327]) == 1
+        assert len(loader.asked) == 26                 # 每一檔都問過、每一檔都炸
+        # 跟「回空」那條一樣：拒絕寫入，即使這裡本來有一筆合法的減資可寫
+        assert not rig.out.exists()
+
+    def test_a_routine_rerun_with_scattered_errors_still_succeeds(self, rig):
+        """選擇性，釘住 R3-1 修法裡的 `bulk_run` 條件。
+
+        例行續跑本來就會有零星錯誤（單檔逾時、上游偶發 5xx）。少了 `bulk_run`，
+        把 `error` 加進閘門之後這些偶發失敗就會被誤報成「來源死亡」。
+        這裡待辦 21 檔（超過門檻 20）但只佔宇宙 21%，全部拋例外也必須維持 exit 0。
+        """
+        stems = ['%04d' % (1100 + i) for i in range(100)]
+        rig.universe(*stems)
+        rig.seed([_row(s, '2020-06-01', 0.97, source=SRC_REFERENCE) for s in stems[:79]])
+        loader = _FakeLoader(dividend_error=ValueError('transient upstream 502'))
+        rc = rig.run(loader)
+        assert len(loader.asked) == 21
+        assert rc == 0
+        assert len(rig.table()) == 79                  # 既有列原封不動留著
+
+    def test_a_bulk_backfill_tolerates_genuinely_event_free_stocks(self, rig):
+        """選擇性，釘住 R3-1 修法裡的 `stats['ok'] == 0` 條件。
+
+        全市場首建**本來就**會有一批股票真的沒有除權息（docstring 記為約 4%），
+        再加上零星錯誤，`fruitless` 輕鬆超過門檻 20 —— 但那是正常的，
+        因為絕大多數股票有收成。少了 `ok == 0`，一次跑完約 1,900 檔的回補
+        會在最後一刻 exit 1 拒絕寫入，3.3 小時的 FinMind 額度整批丟掉。
+
+        2026-08-11 負向對照抓到的：把 `ok == 0` 拿掉時，原本 6 個突變裡
+        只有這一種**存活**（既有測試全綠），所以補這一條。
+        """
+        ok_stems = ['%04d' % (1100 + i) for i in range(40)]
+        dry_stems = ['%04d' % (1200 + i) for i in range(20)]
+        rig.universe(*(ok_stems + dry_stems))
+        divs = {s: _finmind_dividends([('2021-07-01', 50.0, 48.0, 2.0)])
+                for s in ok_stems}
+        loader = _FakeLoader(dividends=divs)
+        assert rig.run(loader) == 0                    # 首建、bulk、20 檔零事件 = 正常
+        assert len(loader.asked) == 60
+        assert len(rig.table()) == 40                  # 有收成的那批照樣寫進去
+
     def test_par_value_failure_does_not_starve_the_dividend_loop(self, rig):
         """審查 F5：面額變更層（FinMind、全市場）必須排在逐檔層**之後**。
 
@@ -917,6 +970,24 @@ class TestMainExistingTableHandling:
         assert rig.out.is_dir()                             # 原封不動
         assert not list(rig.out.parent.glob('*.corrupt-*'))
         assert loader.asked == []                           # 連額度都沒開始燒
+
+    def test_dry_run_reports_a_corrupt_table_without_quarantining_it(self, rig):
+        """審查 R3-2：`--dry-run` 宣稱不寫檔，就不可以動檔案系統。
+
+        改名發生在**讀取**階段，比 `args.dry_run` 那個判斷更早，所以原本
+        「只想看看會發生什麼」的冒煙測試會把既有表改成 `.corrupt-<ts>`，
+        還要人工改回檔名。位元組不會掉（F10 那條仍成立），但那是意外的副作用。
+
+        對照組是同一節第一個測試：**真跑**時照樣要改名（那條不可以跟著變綠）。
+        """
+        rig.universe('1101')
+        rig.out.parent.mkdir(parents=True, exist_ok=True)
+        rig.out.write_bytes(b'this is definitely not a parquet file')
+        loader = _FakeLoader(dividends={'1101': _DIV_1101})
+        assert rig.run(loader, argv=['--dry-run']) == 0
+        assert not list(rig.out.parent.glob('*.corrupt-*'))     # 沒有隔離檔
+        # 原檔還在原地、位元組一個沒動
+        assert rig.out.read_bytes() == b'this is definitely not a parquet file'
 
 
 class TestUnusableRowsAreDropped:
