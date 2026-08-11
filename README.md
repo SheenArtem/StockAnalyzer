@@ -140,7 +140,7 @@ Scanner started
 | `run_macro_panels_evening.bat` | **TUE-SAT 17:30** | 法人合計 / 期貨法人 / AAII / TW LEI / 估值 / 當日 breadth |
 | `run_taifex_signals_afterclose.bat` | **TUE-SAT 16:30** | 期交所盤後訊號。**刻意只有這一個 trigger**（2026-08-02 拍板，原 14:35 + 15:30 + 16:30 三重容錯已簡化掉）。已知代價：archiver 失敗當天不重試，靠當晚 00:00 的 scanner 當隔日 backup |
 | `run_tdcc_weekly.bat` | **週六 08:00** | TDCC 集保 + 籌碼 margin/short_sale 補抓 |
-| `run_bulk_revenue_monthly.bat` | **每月 11 日 00:30** | 月營收下載（10 號公布，11 號抓才拿得到當月）|
+| `run_bulk_revenue_monthly.bat` | **每月 15 日 00:30** | 月營收下載（10 號公布，但 mopsfin CSV 要 11 號稍晚才換期，15 號留 4 天餘裕）|
 | `run_app.bat` | 手動 | 啟動 Streamlit UI（有視窗，開發用）|
 | `run_yt_sync.bat` / `run_yt_brokerage_sync.bat` | 手動 | YT 影片 / 投顧頻道同步 |
 | `run_news_intraday.bat` | 手動 | 盤中新聞監控（Intraday Disable，等需要再啟）|

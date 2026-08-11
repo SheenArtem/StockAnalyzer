@@ -1,9 +1,21 @@
 @echo off
 REM Bulk monthly revenue update via mopsfin CSV (Cache 3-layer Layer 2)
-REM Suggested schedule: 11th of each month, 00:30 (before run_c1_monthly.bat at 01:00)
+REM Schedule: 15th of each month, 00:30.
 REM
-REM Why 11th: Taiwan listed companies must publish last-month revenue by 10th,
-REM so by 11th 00:30 all new monthly revenue data is in mopsfin CSV.
+REM Why the 15th and NOT the 11th: the statutory deadline is the 10th, but the
+REM mopsfin bulk CSV does not switch to the new period until later on the 11th.
+REM Measured twice: 2026-07-11 00:30 and 2026-08-11 00:30 both still returned the
+REM previous period (the 2026-07-11 run wrote nothing yet still exited 0, before
+REM the staleness gate existed); 2026-07-14 20:20 and 2026-08-11 21:59 both
+REM returned the new one. The 15th leaves 4 days of margin.
+REM
+REM The CSV holds only the CURRENT period (no history), but keeps it until the
+REM next month's deadline, so the 15th is still well inside the window. Missing
+REM the window costs a per-stock FinMind refetch (~1960 requests, ~3.3h at
+REM 600 req/hr) instead of 2 HTTP requests.
+REM
+REM (run_c1_monthly.bat was referenced here as the 01:00 follow-up; it has been
+REM disabled since 2026-05-30 and its scheduled task was unregistered.)
 REM
 REM What this does:
 REM   1. Fetch SII + OTC bulk monthly revenue (2 HTTP requests, ~1954 stocks)
