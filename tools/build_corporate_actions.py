@@ -103,6 +103,7 @@ Exit code（給 .bat / 排程判讀用；本工具目前是手動執行）
 import argparse
 import logging
 import os
+import re
 import sys
 import time
 import warnings
@@ -129,10 +130,17 @@ SRC_FALLBACK = 'fallback'
 SRC_UNUSABLE = 'unusable'
 SRC_REDUCTION = 'capital_reduction'
 SRC_PAR_VALUE = 'par_value_change'
+SRC_TWSE_EXRIGHT = 'twse_exright'
 
 # 只有這三種是「逐檔抓」的產物。續跑的完成判定**只能**看它們 ——
 # 全市場層（減資／面額變更）會讓沒抓過除權息的股票也出現在表裡，
 # 拿「股票在不在表中」當判據會讓那些股票的除權息永遠補不到。
+#
+# ⚠️ `SRC_TWSE_EXRIGHT` 也**刻意不在這裡面**，理由同上但更隱蔽：官方 `TWT49U`
+# 只涵蓋 `--sync-recent` 查的那個小區間（幾天），不是該股票的全歷史。把它算進
+# 「除權息已完成」，會讓一檔從沒被 FinMind 逐檔抓過、卻剛好在增量窗口內配息的
+# 股票被永久標記為完成，於是它 2000~今天的歷史除權息**再也不會被抓** ——
+# 那正是這個增量模式要修的病，只是換個方向重現一次。
 DIVIDEND_SOURCES = frozenset({SRC_REFERENCE, SRC_FALLBACK, SRC_UNUSABLE})
 
 # 「資料源整個壞掉」的 fail-loud 門檻：至少要問過這麼多檔、而且一筆事件都沒有，
@@ -162,6 +170,25 @@ TWSE_REDUCTION_URL = 'https://www.twse.com.tw/rwd/zh/reducation/TWTAUU'
 TPEX_REDUCTION_URL = 'https://www.tpex.org.tw/www/zh-tw/bulletin/revivt'
 # TWSE 端點對更早的起始日直接回「查詢開始日期小於100年1月1日，請重新查詢!」
 TWSE_REDUCTION_MIN_DATE = '2011-01-01'
+
+# --- 官方除權息行事曆（增量模式 `--sync-recent` 用，各 1 次呼叫）---
+# TWSE 這支**自帶算 factor 需要的三個欄位**，所以上市的除權息完全不必燒 FinMind 額度。
+# TPEX 那支只有股利金額、沒有前收盤價與參考價，只能當「有哪些事件」的訊號。
+TWSE_EXRIGHT_URL = 'https://www.twse.com.tw/rwd/zh/exRight/TWT49U'
+TPEX_EXRIGHT_PREPOST_URL = 'https://www.tpex.org.tw/openapi/v1/tpex_exright_prepost'
+
+_TWSE_EXRIGHT_FIELDS = {'date': '資料日期', 'stock_id': '股票代號',
+                        'before': '除權息前收盤價', 'reference': '除權息參考價',
+                        'value_cut': '權值+息值'}
+_TPEX_EXRIGHT_DATE_KEY = 'ExRrightsExDividendDate'
+_TPEX_EXRIGHT_ID_KEY = 'SecuritiesCompanyCode'
+
+# 「這段期間沒有事件」與「查詢被拒絕」是兩件事，TWSE 卻都放在 `stat` 裡。
+# 空窗口的實測回應：stat='很抱歉，沒有符合條件的資料!'，而且 **fields / data /
+# strDate / endDate 一個鍵都沒有**。把它當失敗的話，只要遇到一段真的沒有除權息的
+# 日子（農曆年長假最典型），排程就會**每天**報一次假警報 —— 而誤報久了就沒人看，
+# 真正的來源故障也會被一起忽略。
+_TWSE_NO_DATA_STAT = '沒有符合條件的資料'
 
 # 欄位用**名字**定位不用位置：兩個市場欄名不同，而且改版時要吵不要靜默錯位。
 _TWSE_RED_FIELDS = {'date': '恢復買賣日期', 'stock_id': '股票代號',
@@ -411,10 +438,25 @@ def _to_float(x):
         return np.nan
 
 
+_ROC_CJK_DATE_RE = re.compile(r'^(\d{2,3})年(\d{1,2})月(\d{1,2})日$')
+
+
 def _roc_to_iso(value):
-    """民國日期轉西元。吃 `111/10/31`（TWSE）與 `1150630`（TPEX）兩種寫法。"""
+    """民國日期轉西元。三種官方寫法都吃：
+
+    - `111/10/31`   —— TWSE 減資表 `TWTAUU`
+    - `1150630`     —— TPEX（緊湊，無分隔）
+    - `115年08月03日` —— TWSE 除權息計算結果表 `TWT49U`
+
+    ⚠️ 第三種是 2026-08-11 實查補上的。同一個機構的兩張表用不同的日期格式，
+    照著減資表的經驗猜會解析錯（`115年08月03日` 沒有 `/`，會掉進緊湊分支被切成
+    `115年08` / `月0` / `3日` 而拋例外）。
+    """
     s = str(value).strip()
-    if '/' in s:
+    m_cjk = _ROC_CJK_DATE_RE.match(s)
+    if m_cjk:
+        y, m, d = m_cjk.groups()
+    elif '/' in s:
         y, m, d = s.split('/')
     else:
         y, m, d = s[:-4], s[-4:-2], s[-2:]
@@ -547,6 +589,99 @@ def fetch_reductions_tpex(session, start_date, end_date):
                                      _TPEX_RED_FIELDS)
 
 
+def fetch_exright_twse(session, start_date, end_date):
+    """上市除權除息計算結果表（`TWT49U`）。一次呼叫拿全市場全區間。
+
+    **這張表自帶 `除權息前收盤價` / `除權息參考價` / `權值+息值`**，也就是
+    `derive_factor` 需要的全部輸入 —— 所以上市的除權息可以零 FinMind 額度取得。
+    跨源正確性在 2026-08-10 驗過：2025 全年官方 1,338 筆 / 972 檔，抽 40 檔對
+    FinMind 比對，雙向獨有 0 筆、前價與參考價最大偏差 0.0000。
+
+    ⚠️ 回傳的 source 是 `SRC_TWSE_EXRIGHT`，**不是** `reference`/`fallback` ——
+    刻意不進 `DIVIDEND_SOURCES`，理由見那個常數的註解（會讓該股票被誤判成
+    「全歷史除權息已抓過」）。
+    """
+    params = {'startDate': str(start_date).replace('-', ''),
+              'endDate': str(end_date).replace('-', ''),
+              'response': 'json'}
+    j = session.get(TWSE_EXRIGHT_URL, params=params, timeout=60).json()
+    stat = str(j.get('stat', ''))
+    # ⚠️ 先分辨「沒有事件」再判失敗（2026-08-11 實測補上）。空窗口回的是
+    # `很抱歉，沒有符合條件的資料!` 且整包沒有 fields/data/strDate/endDate，
+    # 所以下面那兩道檢查也一定會炸 —— 必須在它們之前就回空。
+    # 只認這一種訊息，其餘非 OK 照樣 raise（例如減資表那個「查詢開始日期小於
+    # 100年1月1日」就必須繼續是錯誤，不能被當成空窗口吞掉）。
+    if _TWSE_NO_DATA_STAT in stat:
+        log.info("  TWSE ex-right: official reports no events in %s..%s",
+                 start_date, end_date)
+        return _empty_events()
+    if stat.upper() != 'OK':
+        raise RuntimeError('TWSE 除權息表拒絕查詢: %s' % stat)
+    # 同一條硬規則：日期以 payload 自報值為準，端點沒吃我們的區間就當它壞了。
+    if (str(j.get('strDate')) != params['startDate']
+            or str(j.get('endDate')) != params['endDate']):
+        raise RuntimeError('TWSE 除權息表沒有採用請求的區間: 要 %s~%s 回 %s~%s'
+                           % (params['startDate'], params['endDate'],
+                              j.get('strDate'), j.get('endDate')))
+    fields = j.get('fields')
+    missing = [n for n in _TWSE_EXRIGHT_FIELDS.values() if n not in (fields or [])]
+    if missing:
+        raise RuntimeError('官方除權息表欄位不見了: %s (實際 fields=%s)'
+                           % (missing, fields))
+    idx = {k: fields.index(n) for k, n in _TWSE_EXRIGHT_FIELDS.items()}
+    out = []
+    for r in j.get('data') or []:
+        before = _to_float(r[idx['before']])
+        reference = _to_float(r[idx['reference']])
+        value_cut = _to_float(r[idx['value_cut']])
+        factor, _src = derive_factor(before, reference, value_cut)
+        out.append({'stock_id': str(r[idx['stock_id']]).strip(),
+                    'date': _roc_to_iso(r[idx['date']]),
+                    'before_price': before,
+                    'reference_price': reference,
+                    'value_cut': value_cut,
+                    'factor': factor,
+                    'source': SRC_TWSE_EXRIGHT})
+    df = pd.DataFrame(out, columns=COLS)
+    return _drop_unusable(df, 'twse exright %s..%s' % (start_date, end_date))
+
+
+def fetch_exright_calendar_tpex(session, end_date):
+    """上櫃除權息**行事曆**（OpenAPI）。只回 `(stock_id, date)`，沒有價格。
+
+    ⚠️ 這支端點**不吃任何參數**，永遠回一個固定的近期窗口，所以**無法做區間
+    回音驗證** —— 這是它與其他三個官方 fetcher 的關鍵差異，不要照抄那套檢查。
+    能驗的只有「日期解析得出來」與「不是未來」。
+
+    ⚠️ 它是 pre+post（預告 ＋ 已實現）。**未來日期的事件還沒發生**，價格也還不存在，
+    收進來只會變成一筆算不出 factor 的垃圾列 —— 一律剔除，等它真的發生再說。
+    實測 payload 還混著 `ExRrightsExDividendDate` 為 `'0'` 的列，同樣剔除。
+    """
+    rows = session.get(TPEX_EXRIGHT_PREPOST_URL, timeout=60).json()
+    if not isinstance(rows, list):
+        raise RuntimeError('TPEX 除權息行事曆回傳的不是列表: %s' % type(rows).__name__)
+    cutoff = pd.Timestamp(end_date)
+    out, skipped_future, skipped_bad = [], 0, 0
+    for r in rows:
+        raw_date = str(r.get(_TPEX_EXRIGHT_DATE_KEY, '')).strip()
+        sid = str(r.get(_TPEX_EXRIGHT_ID_KEY, '')).strip()
+        if not sid or not raw_date or len(raw_date) < 6:
+            skipped_bad += 1
+            continue
+        try:
+            d = _roc_to_iso(raw_date)
+        except (ValueError, TypeError):
+            skipped_bad += 1
+            continue
+        if d > cutoff:
+            skipped_future += 1
+            continue
+        out.append({'stock_id': sid, 'date': d})
+    log.info("  TPEX calendar: %d usable rows (%d not yet effective, %d unparseable)",
+             len(out), skipped_future, skipped_bad)
+    return pd.DataFrame(out, columns=['stock_id', 'date'])
+
+
 def fetch_par_value_changes(dl, start_date):
     """面額變更（FinMind `taiwan_stock_split_price`）。全市場一次呼叫。
 
@@ -642,6 +777,153 @@ def load_existing(dry_run=False):
         return _empty_events(), True
 
 
+def _merge_and_report(existing, fetched):
+    """`merge_events` ＋ 它那幾行報表。兩個模式共用，語義只有這一份實作。"""
+    merged, mstats = merge_events(existing, fetched)
+    if mstats['dropped_out_of_range']:
+        log.warning("  dropped %d fetched events with out-of-range factor "
+                    "(outside %.2f..%.2f)", mstats['dropped_out_of_range'],
+                    FACTOR_MIN, FACTOR_MAX)
+    if mstats['collisions']:
+        log.warning("  %d (stock_id,date) collisions -- existing row kept: %s",
+                    mstats['collisions'], ", ".join(mstats['collision_keys']))
+    if mstats['repaired_nan']:
+        log.info("  repaired %d existing rows whose factor was NaN (a fetched row with "
+                 "a usable factor replaced them)", mstats['repaired_nan'])
+    log.info("table: %d events / %d stocks (%+d events vs existing)",
+             len(merged), merged['stock_id'].nunique() if len(merged) else 0,
+             mstats['added'])
+    if len(merged):
+        log.info("  by source: %s", merged['source'].value_counts().to_dict())
+    return merged, mstats
+
+
+def _write_table(merged, dry_run):
+    """唯一的寫入點。兩個模式共用 —— 持久化行為只有這一份實作。"""
+    if dry_run:
+        log.info("DRY RUN -- not writing %s", OUT_PATH)
+        return
+    if not len(merged):
+        return
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = OUT_PATH.with_name(f'.{OUT_PATH.name}.{os.getpid()}.tmp')
+    try:
+        merged.to_parquet(tmp, index=False)
+        _replace_with_retry(tmp, OUT_PATH)
+        log.info("wrote %s", OUT_PATH)
+    finally:
+        Path(tmp).unlink(missing_ok=True)
+
+
+def sync_recent(args, universe, uni_set, existing, end_date, dl_factory=None):
+    """增量模式：用官方行事曆補上「已經發生、但表裡沒有」的除權息。
+
+    **修的是續跑語義的結構性缺口。** 逐檔層一旦把某檔標記為「除權息已抓過」，
+    它**未來新發生**的事件就永遠補不到 —— 因為 FinMind 當天入庫會落後，而續跑
+    看的是「這檔在不在表裡」不是「這一天在不在表裡」。實證（2026-08-11）：官方
+    行事曆顯示當天有 5 筆除權息（`00940`/`2892`/`5880`/`6005`/`6958`），5 檔全部
+    已在表中 ＝ 全部被續跑跳過 ＝ 那 5 筆永遠補不到，除非重跑全庫 3.3 小時。
+
+    兩個市場的成本結構不同，所以走不同的路：
+
+    - **上市**：`TWT49U` 自帶前收盤價／參考價／權值+息值 -> 直接算 factor 入表，
+      **零 FinMind 呼叫**。
+    - **上櫃**：行事曆只有「哪一檔、哪一天」，價格要另外拿 -> 只對「表裡缺這一天」
+      的那幾檔叫 FinMind，量極小（每天通常 0~數檔）。
+
+    回 `(exit_code, merged)`。`merged` 給測試用。
+    """
+    start_date = (pd.Timestamp(end_date)
+                  - pd.Timedelta(days=args.sync_recent)).strftime('%Y-%m-%d')
+    log.info("sync-recent: official ex-right calendar %s..%s (%d days back)",
+             start_date, end_date, args.sync_recent)
+
+    sess = official_session()
+    fetched_parts = []
+    twse_ok = tpex_ok = False
+
+    # 「表裡已經有這一天」的鍵。兩個市場共用 —— 這個模式只補**缺的**，
+    # 已有的一律不送進 merge：窗口內絕大多數事件本來就在表裡，全部送進去會讓
+    # 每天例行執行都刷出幾十筆 collision 警告，真正該注意的碰撞反而被淹掉。
+    have = (set(zip(existing['stock_id'].astype(str), pd.to_datetime(existing['date'])))
+            if len(existing) else set())
+
+    def _only_missing(df):
+        if not len(df):
+            return df
+        keep = [(sid, dt) not in have for sid, dt in zip(df['stock_id'], df['date'])]
+        return df[keep]
+
+    # --- 上市：官方表直接給得出 factor ---------------------------------- #
+    try:
+        ev = fetch_exright_twse(sess, start_date, end_date)
+        mine = ev[ev['stock_id'].isin(uni_set)]
+        fresh = _only_missing(mine)
+        log.info("TWSE ex-right: %d events (%d in universe, %d already in table, "
+                 "%d missing -> adding)",
+                 len(ev), len(mine), len(mine) - len(fresh), len(fresh))
+        if len(fresh):
+            log.info("  adding: %s", ", ".join(
+                '%s@%s' % (r['stock_id'], str(r['date'])[:10])
+                for _, r in fresh.iterrows()))
+        fetched_parts.append(fresh)
+        twse_ok = True
+    except Exception as e:
+        log.error("TWSE ex-right calendar FAILED (%s: %s)",
+                  type(e).__name__, str(e)[:160])
+
+    # --- 上櫃：行事曆只給「有哪些事件」，缺的才去 FinMind 拿價格 --------- #
+    tpex_missing_ids = []
+    try:
+        cal = fetch_exright_calendar_tpex(sess, end_date)
+        cal = cal[cal['stock_id'].isin(uni_set)]
+        cal = cal[cal['date'] >= pd.Timestamp(start_date)]
+        tpex_ok = True
+        missing = _only_missing(cal)
+        tpex_missing_ids = sorted(missing['stock_id'].unique())
+        log.info("TPEX ex-right: %d events in universe, %d already in table, "
+                 "%d missing -> %d stocks to fetch",
+                 len(cal), len(cal) - len(missing), len(missing),
+                 len(tpex_missing_ids))
+        if tpex_missing_ids:
+            log.info("  missing: %s", ", ".join(
+                '%s@%s' % (r['stock_id'], str(r['date'])[:10])
+                for _, r in missing.iterrows()))
+    except Exception as e:
+        log.error("TPEX ex-right calendar FAILED (%s: %s)",
+                  type(e).__name__, str(e)[:160])
+
+    # fail loud：兩個官方來源都掛掉時這個模式什麼也做不了，不可回 0
+    # （AGENTS.md 把「吞 exit code」列為 SERIOUS）。
+    if not twse_ok and not tpex_ok:
+        log.error("both official ex-right calendars failed -- nothing could be "
+                  "checked. Refusing to report success.")
+        return 1, existing
+
+    if tpex_missing_ids:
+        dl = (dl_factory or get_finmind_loader)()
+        for sid in tpex_missing_ids:
+            try:
+                # 逐檔層本來就抓全歷史，這裡沿用 —— 合併是只新增的，
+                # 多抓到的舊事件正好把該檔的歷史補齊，不會覆寫既有列。
+                ev = fetch_events(dl, sid, args.start_date)
+            except Exception as e:
+                log.warning("  %s: %s: %s", sid, type(e).__name__, str(e)[:80])
+                continue
+            if len(ev):
+                fetched_parts.append(ev)
+            if args.sleep:
+                time.sleep(args.sleep)
+
+    fetched = (pd.concat([p for p in fetched_parts if len(p)], ignore_index=True)
+               if any(len(p) for p in fetched_parts) else _empty_events())
+    log.info("sync-recent fetched %d candidate events", len(fetched))
+
+    merged, _mstats = _merge_and_report(existing, fetched)
+    _write_table(merged, args.dry_run)
+    return 0, merged
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -672,6 +954,18 @@ def main():
     ap.add_argument('--skip-market-wide', action='store_true',
                     help='skip the market-wide layers (capital reductions, par-value '
                          'changes) and only fetch per-stock dividends')
+    ap.add_argument('--sync-recent', type=int, default=0, metavar='DAYS',
+                    help='INCREMENTAL mode: instead of the per-stock backfill, ask the '
+                         'official ex-right calendars what happened in the last DAYS '
+                         'days and add whatever the table is missing. This exists '
+                         'because the resume filter is per-STOCK, not per-DATE: once a '
+                         'stock has any dividend row it is skipped forever, so events '
+                         'that happen AFTER it was fetched can never be picked up '
+                         '(FinMind lags by a day, so the nightly path misses them). '
+                         'Cost: 1 TWSE call + 1 TPEX call, plus one FinMind call per '
+                         'OTC stock whose event is missing (usually 0-3/day). Listed '
+                         '(TWSE) events need no FinMind call at all. '
+                         'Run this daily; use the full mode for backfills.')
     args = ap.parse_args()
     _setup_logging()
 
@@ -692,6 +986,10 @@ def main():
     existing, ok = load_existing(args.dry_run)
     if not ok:
         return 1
+
+    if args.sync_recent:
+        code, _merged = sync_recent(args, universe, uni_set, existing, end_date)
+        return code
 
     fetched_parts = []
     quota_hit = False
@@ -827,23 +1125,7 @@ def main():
     fetched = pd.concat([p for p in fetched_parts if len(p)], ignore_index=True) \
         if any(len(p) for p in fetched_parts) else _empty_events()
 
-    merged, mstats = merge_events(existing, fetched)
-    if mstats['dropped_out_of_range']:
-        log.warning("  dropped %d fetched events with out-of-range factor "
-                    "(outside %.2f..%.2f)", mstats['dropped_out_of_range'],
-                    FACTOR_MIN, FACTOR_MAX)
-    if mstats['collisions']:
-        log.warning("  %d (stock_id,date) collisions -- existing row kept: %s",
-                    mstats['collisions'], ", ".join(mstats['collision_keys']))
-    if mstats['repaired_nan']:
-        log.info("  repaired %d existing rows whose factor was NaN (a fetched row with "
-                 "a usable factor replaced them)", mstats['repaired_nan'])
-
-    log.info("table: %d events / %d stocks (%+d events vs existing)",
-             len(merged), merged['stock_id'].nunique() if len(merged) else 0,
-             mstats['added'])
-    if len(merged):
-        log.info("  by source: %s", merged['source'].value_counts().to_dict())
+    merged, mstats = _merge_and_report(existing, fetched)
 
     # ------------------------------------------------------------------ #
     #  fail loud：問了一大批「還沒抓過」的股票卻一筆事件都沒有 ＝ 資料源壞了
@@ -888,17 +1170,7 @@ def main():
                   stats['no_events'], stats['error'], fruitless)
         return 1
 
-    if args.dry_run:
-        log.info("DRY RUN -- not writing %s", OUT_PATH)
-    elif len(merged):
-        OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        tmp = OUT_PATH.with_name(f'.{OUT_PATH.name}.{os.getpid()}.tmp')
-        try:
-            merged.to_parquet(tmp, index=False)
-            _replace_with_retry(tmp, OUT_PATH)
-            log.info("wrote %s", OUT_PATH)
-        finally:
-            Path(tmp).unlink(missing_ok=True)
+    _write_table(merged, args.dry_run)
 
     if quota_hit:
         log.warning("stopped early on quota -- re-run to continue "

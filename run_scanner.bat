@@ -339,6 +339,42 @@ if not "%BREADTH_EXIT%"=="0" (
     call :log "TW breadth panel done (exit=0)"
 )
 
+REM ------------------------------------------------------------
+REM Corporate-actions incremental sync (added 2026-08-11).
+REM
+REM Why this exists: the resume filter in build_corporate_actions is
+REM per-STOCK, not per-DATE. Once a stock has any dividend row it is skipped
+REM forever, so events happening AFTER it was fetched can never be picked up
+REM -- and FinMind lags a day, so the nightly path always misses same-day
+REM events. Proven 2026-08-11: all 5 of that day's ex-right events were
+REM missing from the table while all 5 stocks were already in it (= all
+REM skipped). Without this stage the gap accumulates forever; the only other
+REM fix is --refetch-all, which re-runs the whole 3.3h market backfill.
+REM
+REM Cost: 1 TWSE call + 1 TPEX call, plus one FinMind call per OTC stock
+REM with a gap (measured 0-3/day). Listed events need NO FinMind call at all
+REM because TWT49U carries the before/reference/value-cut columns itself.
+REM
+REM MUST run BEFORE refresh_backtest_panels: the event table is that panel's
+REM upstream once cumulative_factor is wired in (Path B, see
+REM docs/agent/data-sources.md).
+REM
+REM Best-effort: a flaky official endpoint must not break the nightly chain.
+REM But the done-marker is printed ONLY on the exit=0 path, so a PERSISTENT
+REM failure is caught by verify_scan_stages. This is deliberately UNLIKE the
+REM panel outlier scan (which prints on both paths because its exit=1 means
+REM "found something" = working). Here exit=1 means both official calendars
+REM failed = a real failure that nobody would otherwise see.
+REM ------------------------------------------------------------
+call :log "Corporate actions sync starting"
+python tools\build_corporate_actions.py --sync-recent 10 >> scanner.log 2>&1
+set CORPACT_EXIT=%ERRORLEVEL%
+if not "%CORPACT_EXIT%"=="0" (
+    call :log "[WARN] Corporate actions sync FAILED exit=%CORPACT_EXIT%"
+) else (
+    call :log "Corporate actions sync done (exit=0)"
+)
+
 call :log "Refresh backtest panels starting"
 python tools\refresh_backtest_panels.py >> scanner.log 2>&1
 set BACKTEST_PANELS_EXIT=%ERRORLEVEL%

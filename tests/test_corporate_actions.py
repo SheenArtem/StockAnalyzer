@@ -12,6 +12,7 @@
    這些是 contract 列名的保證，沒有測試釘住的話一次 refactor 就能靜默退化。
 4. 官方減資表的解析 —— 欄名定位、已公告未生效列要丟掉、端點沒吃日期區間要吵。
 """
+import argparse
 import sys
 
 import numpy as np
@@ -422,6 +423,21 @@ class TestRocDate:
         assert _roc_to_iso('1150630') == pd.Timestamp('2026-06-30')
         assert _roc_to_iso('1020116') == pd.Timestamp('2013-01-16')
 
+    def test_twse_exright_cjk_format(self):
+        """`TWT49U` 用的是第三種寫法，跟同機構的減資表**不一樣**。
+
+        沒有這一支的話，`115年08月03日` 會掉進緊湊分支被切成
+        `115年08`/`月0`/`3日` 而拋 ValueError —— 增量模式整個抓不到東西。
+        """
+        assert _roc_to_iso('115年08月03日') == pd.Timestamp('2026-08-03')
+        assert _roc_to_iso('115年8月3日') == pd.Timestamp('2026-08-03')
+        assert _roc_to_iso('99年12月31日') == pd.Timestamp('2010-12-31')
+
+    def test_all_three_formats_agree_on_the_same_day(self):
+        """三種寫法指同一天時必須解出同一個 Timestamp（格式差異不可影響結果）。"""
+        assert (_roc_to_iso('115/08/03') == _roc_to_iso('1150803')
+                == _roc_to_iso('115年08月03日') == pd.Timestamp('2026-08-03'))
+
 
 # 官方 payload 的真實形狀（欄位順序照抄實際回應）
 TWSE_FIELDS = ['恢復買賣日期', '股票代號', '名稱', '停止買賣前收盤價格', '恢復買賣參考價',
@@ -728,8 +744,8 @@ class _Rig:
         self.out.parent.mkdir(parents=True, exist_ok=True)
         _frame(rows).to_parquet(self.out, index=False)
 
-    def run(self, loader, twse_rows=(), tpex_rows=(), argv=()):
-        self.session = _FakeOfficialSession(twse_rows, tpex_rows)
+    def run(self, loader, twse_rows=(), tpex_rows=(), argv=(), session=None):
+        self.session = session or _FakeOfficialSession(twse_rows, tpex_rows)
         self.mp.setattr(bca, 'get_finmind_loader', lambda: loader)
         self.mp.setattr(bca, 'official_session', lambda: self.session)
         self.mp.setattr(sys, 'argv', ['build_corporate_actions.py'] + list(argv))
@@ -1030,3 +1046,314 @@ class TestUnusableRowsAreDropped:
         df = fetch_events(dl, '6541', '2000-01-01')
         assert len(df) == 1
         assert df.iloc[0]['source'] == SRC_FALLBACK
+
+
+# --------------------------------------------------------------------------- #
+#  增量模式（`--sync-recent`）：官方除權息行事曆
+#
+#  這一段釘的是續跑語義的結構性缺口：逐檔層的完成判定是 per-STOCK 不是 per-DATE，
+#  所以一檔股票只要有過任何除權息列就永遠被跳過，它**之後**新發生的事件再也補不到
+#  （FinMind 當天入庫落後，夜間路徑必然錯過）。2026-08-11 實證：官方當天 5 筆除權息
+#  全部不在表內，而那幾檔全都已在表中 ＝ 全部被跳過。
+# --------------------------------------------------------------------------- #
+
+# 逐格照抄 2026-08-11 實際回應（欄位順序照 payload）
+TWSE_EXRIGHT_FIELDS = [
+    '資料日期', '股票代號', '股票名稱', '除權息前收盤價', '除權息參考價', '權值+息值',
+    '權/息', '漲停價格', '跌停價格', '開盤競價基準', '減除股利參考價', '詳細資料',
+    '最近一次申報資料 季別/日期', '最近一次申報每股 (單位)淨值',
+    '最近一次申報每股 (單位)盈餘']
+TWSE_EXRIGHT_1465 = ['115年08月03日', '1465', '偉全', '12.70', '12.40', '0.300000',
+                     '息', '13.60', '11.20', '12.40', '12.40', '1465,20260803',
+                     '115年第1季', '15.15', '0.27']
+TWSE_EXRIGHT_2892 = ['115年08月11日', '2892', '第一金', '29.40', '28.30', '1.100000',
+                     '息', '31.10', '25.50', '28.30', '28.30', '2892,20260811',
+                     '115年第1季', '20.00', '1.00']
+
+
+def _twse_exright_payload(rows, start='20260804', end='20260811', stat='OK',
+                          fields=None):
+    return {'stat': stat, 'strDate': start, 'endDate': end,
+            'fields': TWSE_EXRIGHT_FIELDS if fields is None else fields,
+            'data': list(rows)}
+
+
+def _tpex_cal_row(date, stock_id, cash='1.00000000'):
+    """OpenAPI `tpex_exright_prepost` 的一列（本工具會讀的鍵 ＋ 幾個鄰居）。"""
+    return {'ExRrightsExDividendDate': date, 'SecuritiesCompanyCode': stock_id,
+            'CompanyName': 'X', 'ExRrightsExDividend': '除息',
+            'StockDividendRatio': '0.00000000', 'CashDividend': cash}
+
+
+class _FakeCalendarSession:
+    """增量模式兩個端點的替身。TWSE 照實回音；TPEX 那支**不吃參數**（真品如此）。"""
+
+    def __init__(self, twse_payload=None, tpex_rows=None,
+                 twse_error=None, tpex_error=None):
+        self._twse_payload = twse_payload
+        self._tpex_rows = tpex_rows if tpex_rows is not None else []
+        self._twse_error = twse_error
+        self._tpex_error = tpex_error
+        self.calls = []
+
+    def get(self, url, params=None, timeout=None):
+        self.calls.append((url, params))
+        if 'exRight' in url:
+            if self._twse_error:
+                raise self._twse_error
+            payload = self._twse_payload
+            if payload is None:
+                payload = _twse_exright_payload([], params['startDate'],
+                                                params['endDate'])
+            return _FakeResp(payload)
+        if self._tpex_error:
+            raise self._tpex_error
+        return _FakeResp(self._tpex_rows)
+
+
+class TestExRightCalendarParsing:
+    def test_twse_rows_become_events_with_a_derived_factor(self):
+        sess = _FakeCalendarSession(_twse_exright_payload([TWSE_EXRIGHT_1465]))
+        df = bca.fetch_exright_twse(sess, '2026-08-04', '2026-08-11')
+
+        assert len(df) == 1
+        row = df.iloc[0]
+        assert row['stock_id'] == '1465'
+        assert row['date'] == pd.Timestamp('2026-08-03')
+        assert row['before_price'] == pytest.approx(12.70)
+        assert row['reference_price'] == pytest.approx(12.40)
+        assert row['factor'] == pytest.approx(12.40 / 12.70)
+
+    def test_twse_rows_are_tagged_with_their_own_source(self):
+        """必須是 `twse_exright`，不能混進 `reference`/`fallback`。
+
+        那兩個值屬於 `DIVIDEND_SOURCES` ＝ 續跑的完成判據。官方表只涵蓋查詢的
+        那幾天、不是全歷史，標成 `reference` 會讓一檔從沒被逐檔抓過、卻剛好在
+        增量窗口內配息的股票被永久標記完成，它的歷史除權息就再也抓不到 ——
+        那正是這個模式要修的病，只是換個方向重現一次。
+        """
+        sess = _FakeCalendarSession(_twse_exright_payload([TWSE_EXRIGHT_1465]))
+        df = bca.fetch_exright_twse(sess, '2026-08-04', '2026-08-11')
+
+        assert df.iloc[0]['source'] == bca.SRC_TWSE_EXRIGHT
+        assert bca.SRC_TWSE_EXRIGHT not in bca.DIVIDEND_SOURCES
+
+    def test_twse_rejects_a_window_it_did_not_echo(self):
+        sess = _FakeCalendarSession(_twse_exright_payload([TWSE_EXRIGHT_1465],
+                                                          start='20260101',
+                                                          end='20260102'))
+        with pytest.raises(RuntimeError, match='沒有採用請求的區間'):
+            bca.fetch_exright_twse(sess, '2026-08-04', '2026-08-11')
+
+    def test_an_empty_window_is_success_not_failure(self):
+        """「這段期間沒有除權息」不是故障。
+
+        ⚠️ 實測（2026-08-11）空窗口的回應是 `很抱歉，沒有符合條件的資料!`，而且
+        **fields / data / strDate / endDate 一個鍵都沒有**（所以回音檢查與欄位檢查
+        也一定會炸）。把它當失敗的話，只要遇上一段真的沒有除權息的日子
+        （農曆年長假最典型），排程就會**每天**報一次假警報 —— 誤報久了沒人看，
+        真的故障也會被一起忽略。
+        """
+        sess = _FakeCalendarSession({'stat': '很抱歉，沒有符合條件的資料!'})
+        df = bca.fetch_exright_twse(sess, '2026-12-01', '2026-12-05')
+
+        assert len(df) == 0
+        assert list(df.columns) == COLS
+
+    def test_a_genuine_refusal_still_raises(self):
+        """只有「沒有符合條件的資料」那一種算空窗口，其他非 OK 一律照舊 raise。
+
+        對照組取自減資表真實會回的訊息 —— 那個必須繼續是錯誤，
+        不能被「空窗口」這條新路徑一起吞掉。
+        """
+        sess = _FakeCalendarSession(
+            {'stat': '查詢開始日期小於100年1月1日，請重新查詢!'})
+        with pytest.raises(RuntimeError, match='拒絕查詢'):
+            bca.fetch_exright_twse(sess, '2010-01-01', '2010-01-05')
+
+    def test_twse_raises_when_a_field_disappears(self):
+        """欄位用名字定位，改版就要吵 —— 靜默錯位會寫進錯的價格。"""
+        broken = [f for f in TWSE_EXRIGHT_FIELDS if f != '除權息參考價']
+        sess = _FakeCalendarSession(_twse_exright_payload([TWSE_EXRIGHT_1465],
+                                                          fields=broken))
+        with pytest.raises(RuntimeError, match='欄位不見了'):
+            bca.fetch_exright_twse(sess, '2026-08-04', '2026-08-11')
+
+    def test_twse_survives_reordered_fields(self):
+        """欄位順序倒過來但名字還在 -> 照樣正確（位置定位會在這裡壞掉）。
+
+        這是 round-1 那個「11 種突變只有它全綠」的同型缺口：兩張表剛好共用欄位
+        順序時，只比對兩個市場驗不到錯位。
+        """
+        order = list(reversed(range(len(TWSE_EXRIGHT_FIELDS))))
+        fields = [TWSE_EXRIGHT_FIELDS[i] for i in order]
+        row = [TWSE_EXRIGHT_1465[i] for i in order]
+        sess = _FakeCalendarSession(_twse_exright_payload([row], fields=fields))
+
+        df = bca.fetch_exright_twse(sess, '2026-08-04', '2026-08-11')
+        assert df.iloc[0]['stock_id'] == '1465'
+        assert df.iloc[0]['factor'] == pytest.approx(12.40 / 12.70)
+
+    def test_tpex_calendar_drops_events_that_have_not_happened_yet(self):
+        """那支端點是 pre+post。未來事件的價格還不存在，收進來只會是垃圾列。"""
+        sess = _FakeCalendarSession(tpex_rows=[
+            _tpex_cal_row('1150803', '3306'),     # 已發生
+            _tpex_cal_row('1150811', '3390'),     # 當天
+            _tpex_cal_row('1150831', '9999'),     # 還沒發生
+        ])
+        df = bca.fetch_exright_calendar_tpex(sess, '2026-08-11')
+
+        assert sorted(df['stock_id']) == ['3306', '3390']
+
+    def test_tpex_calendar_skips_unparseable_rows_instead_of_crashing(self):
+        """實測 payload 混著 `ExRrightsExDividendDate == '0'` 的列。"""
+        sess = _FakeCalendarSession(tpex_rows=[
+            _tpex_cal_row('0', '1111'),
+            _tpex_cal_row('', '2222'),
+            {'SecuritiesCompanyCode': '3333'},        # 完全沒有日期鍵
+            _tpex_cal_row('1150803', ''),             # 沒有代號
+            _tpex_cal_row('1150803', '3306'),         # 唯一好的
+        ])
+        df = bca.fetch_exright_calendar_tpex(sess, '2026-08-11')
+
+        assert list(df['stock_id']) == ['3306']
+
+    def test_tpex_calendar_raises_when_the_payload_shape_changes(self):
+        sess = _FakeCalendarSession(tpex_rows={'unexpected': 'dict'})
+        with pytest.raises(RuntimeError, match='不是列表'):
+            bca.fetch_exright_calendar_tpex(sess, '2026-08-11')
+
+
+class TestSyncRecent:
+    """增量模式的行為契約。"""
+
+    def _args(self, days=7, dry_run=False, sleep=0.0, start='2000-01-01'):
+        return argparse.Namespace(sync_recent=days, dry_run=dry_run, sleep=sleep,
+                                  start_date=start)
+
+    def _run(self, rig, args, universe, existing, session, loader):
+        rig.mp.setattr(bca, 'official_session', lambda: session)
+        return bca.sync_recent(args, list(universe), set(universe), existing,
+                               '2026-08-11', dl_factory=lambda: loader)
+
+    def test_adds_a_listed_event_without_spending_any_finmind_call(self, rig):
+        """上市那條路必須零 FinMind —— 官方表自帶算 factor 的三個欄位。"""
+        existing = _frame([_row('2892', '2025-08-07', 0.97)])
+        loader = _FakeLoader()
+        code, merged = self._run(
+            rig, self._args(), ['2892'], existing,
+            _FakeCalendarSession(_twse_exright_payload([TWSE_EXRIGHT_2892])), loader)
+
+        assert code == 0
+        assert loader.asked == []          # 一次都沒問 FinMind
+        added = merged[merged['date'] == pd.Timestamp('2026-08-11')]
+        assert len(added) == 1
+        assert added.iloc[0]['stock_id'] == '2892'
+        assert added.iloc[0]['source'] == bca.SRC_TWSE_EXRIGHT
+        assert added.iloc[0]['factor'] == pytest.approx(28.30 / 29.40)
+
+    def test_does_not_resend_events_the_table_already_has(self, rig):
+        """已有的不重送 —— 否則每天例行執行都刷出幾十筆 collision 警告，
+        真正該注意的碰撞會被淹掉。"""
+        existing = _frame([_row('2892', '2026-08-11', 0.9628)])
+        loader = _FakeLoader()
+        code, merged = self._run(
+            rig, self._args(), ['2892'], existing,
+            _FakeCalendarSession(_twse_exright_payload([TWSE_EXRIGHT_2892])), loader)
+
+        assert code == 0
+        assert len(merged) == len(existing)
+        assert merged.iloc[0]['source'] == SRC_REFERENCE   # 既有列原封不動
+
+    def test_already_present_events_never_reach_the_merge(self, rig, monkeypatch):
+        """已在表中的事件**不可以送進 merge**。
+
+        ⚠️ 這一條不能用「合併結果對不對」來驗，突變測試證實過：把重複的送進去，
+        merge 是 append-only、既有列本來就會勝，**結果一模一樣**
+        （`fresh = mine` 這個突變讓當時 93 個測試全部照樣綠）。
+        真正被破壞的是 collision 警告的用途 —— 窗口內幾十筆既有事件每天撞一次，
+        真正該注意的碰撞就被淹在噪音裡。所以這裡直接攔 `merge_events`，
+        驗的是「送進去的是什麼」而不是「出來的是什麼」。
+        """
+        seen = {}
+        real_merge = bca.merge_events
+
+        def spy(existing, fetched):
+            seen['fetched'] = fetched.copy()
+            return real_merge(existing, fetched)
+
+        monkeypatch.setattr(bca, 'merge_events', spy)
+        existing = _frame([_row('2892', '2026-08-11', 0.9628)])
+        code, _merged = self._run(
+            rig, self._args(), ['2892'], existing,
+            _FakeCalendarSession(_twse_exright_payload([TWSE_EXRIGHT_2892])),
+            _FakeLoader())
+
+        assert code == 0
+        assert len(seen['fetched']) == 0
+
+    def test_otc_gap_triggers_exactly_one_finmind_call_per_missing_stock(self, rig):
+        """上櫃行事曆沒有價格，缺的那幾檔才去 FinMind 拿 —— 不是整批重抓。"""
+        existing = _frame([_row('3390', '2025-07-01', 0.98),
+                           _row('4580', '2025-07-01', 0.99)])
+        session = _FakeCalendarSession(
+            _twse_exright_payload([]),
+            tpex_rows=[_tpex_cal_row('1150811', '3390'),   # 表裡沒有 -> 要補
+                       _tpex_cal_row('1150701', '4580')],  # 不在窗口內
+        )
+        loader = _FakeLoader(dividends={'3390': _finmind_dividends(
+            [('2026-08-11', 20.0, 19.5, 0.5)])})
+        code, merged = self._run(rig, self._args(days=3), ['3390', '4580'],
+                                 existing, session, loader)
+
+        assert code == 0
+        assert loader.asked == ['3390']
+        assert len(merged[(merged['stock_id'] == '3390')
+                          & (merged['date'] == pd.Timestamp('2026-08-11'))]) == 1
+
+    def test_universe_filter_keeps_out_of_universe_symbols_out(self, rig):
+        """官方表含 ETF／特別股（實測 `00940`、`2348A`、`00953B`）。宇宙是照
+        price CSV 長出來的，沒有價格序列就沒有還原對象 —— 與既有減資層同一個過濾器。
+        """
+        etf_row = list(TWSE_EXRIGHT_2892)
+        etf_row[1] = '00940'
+        loader = _FakeLoader()
+        code, merged = self._run(
+            rig, self._args(), ['2892'], bca._empty_events(),
+            _FakeCalendarSession(
+                _twse_exright_payload([TWSE_EXRIGHT_2892, etf_row])), loader)
+
+        assert code == 0
+        assert set(merged['stock_id']) == {'2892'}
+
+    def test_returns_nonzero_when_both_official_calendars_fail(self, rig):
+        """兩個來源都掛掉時這個模式什麼都沒檢查到，回 0 就是吞 exit code
+        （AGENTS.md 列為 SERIOUS）。"""
+        code, _merged = self._run(
+            rig, self._args(), ['2892'], bca._empty_events(),
+            _FakeCalendarSession(twse_error=RuntimeError('twse down'),
+                                 tpex_error=RuntimeError('tpex down')),
+            _FakeLoader())
+
+        assert code == 1
+
+    def test_one_calendar_failing_still_lets_the_other_through(self, rig):
+        """單邊掛掉不該讓另一邊白跑（兩個市場是獨立來源）。"""
+        code, merged = self._run(
+            rig, self._args(), ['2892'], bca._empty_events(),
+            _FakeCalendarSession(_twse_exright_payload([TWSE_EXRIGHT_2892]),
+                                 tpex_error=RuntimeError('tpex down')),
+            _FakeLoader())
+
+        assert code == 0
+        assert len(merged) == 1
+
+    def test_dry_run_writes_nothing(self, rig):
+        code, merged = self._run(
+            rig, self._args(dry_run=True), ['2892'], bca._empty_events(),
+            _FakeCalendarSession(_twse_exright_payload([TWSE_EXRIGHT_2892])),
+            _FakeLoader())
+
+        assert code == 0
+        assert len(merged) == 1          # 算出來了
+        assert not rig.out.exists()      # 但沒落地

@@ -48,6 +48,12 @@ REQUIRED_STAGES = [
     # macro_dashboard 的 Market Breadth 會靜靜地一直看舊資料（同一輪 diff 已替另外
     # 兩個 stage 加了 (exit=0) marker，唯獨漏掉 breadth）。
     ('TW breadth panel done', r'\] TW breadth panel done \(exit=0\)'),
+    # 2026-08-11 加：公司行為事件表的增量同步。**要求 `(exit=0)`** —— 這支的 exit=1
+    # 代表「兩個官方行事曆都失敗」＝ 真的沒查到任何東西，跟下面 outlier scan 那種
+    # 「exit=1 是掃到問題＝正常工作」不一樣，所以失敗時 marker 不該出現。
+    # 它修的是「續跑判定是 per-STOCK 不是 per-DATE」那個缺口：沒有這個 stage，
+    # 每天新發生的除權息都補不到，而且會**永久**累積（實證 2026-08-11 漏 5 筆）。
+    ('Corporate actions sync done', r'\] Corporate actions sync done \(exit=0\)'),
     ('Refresh backtest panels done', r'\] Refresh backtest panels done \(exit=0\)'),
     # 2026-08-02 加：價格離群掃描。跟 breadth 同樣是 best-effort（找到問題只印 [WARN]，
     # 不擋 scanner），所以更需要 marker —— 沒有的話「掃描本身沒跑」與「掃描跑了沒發現」
