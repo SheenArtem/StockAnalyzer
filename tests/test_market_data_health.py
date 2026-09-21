@@ -207,6 +207,30 @@ def test_official_overlay_replaces_same_day_yahoo_row():
     assert pd.isna(row['Adj Close'])
 
 
+def test_official_date_caps_yahoo_preload_stamped_as_weekend():
+    """午夜的 Yahoo 預載列可能標成前一個 UTC 日期，不能領先官方交易日。
+
+    2026-09-21（一）00:02 實例：官方最新是 09-18（五），Yahoo 卻讓 1,549 檔
+    出現有量的 09-20（日）列，舊碼只剔除「今天 09-21」所以完全沒擋到。
+    """
+    data = {}
+    for sid in ('2330', '2317'):
+        data[sid] = pd.DataFrame({
+            'Open': [100.0, 100.0], 'High': [105.0, 110.0],
+            'Low': [99.0, 90.0], 'Close': [104.0, 104.0],
+            'Volume': [2_000_000.0, 500_000.0],
+            'Adj Close': [103.0, 104.0],
+        }, index=pd.to_datetime(['2026-09-18', '2026-09-20']))
+
+    result = RUP._cap_batch_to_official_date(
+        data, pd.Timestamp('2026-09-18'))
+    latest, _, _ = RUP._market_date_health(result, expected_count=2)
+
+    assert latest == pd.Timestamp('2026-09-18')
+    assert all(pd.Timestamp('2026-09-20') not in frame.index
+               for frame in result.values())
+
+
 def test_refresh_summary_fails_on_partial_coverage():
     with pytest.raises(RuntimeError, match='only 799/1000'):
         RUP._validate_refresh_summary(799, 1000, fail=0)
@@ -241,6 +265,10 @@ def test_freshness_uses_official_trading_day_not_calendar_days():
     # 落後官方交易日 -> 必須 raise
     with pytest.raises(RuntimeError, match='behind the official trading day'):
         RUP._validate_market_freshness(pd.Timestamp('2026-02-10'), official, target)
+
+    # 官方已證實最新一場是 2/11，批次裡更晚的日期只能是預載／錯標列。
+    with pytest.raises(RuntimeError, match='ahead of the official trading day'):
+        RUP._validate_market_freshness(pd.Timestamp('2026-02-15'), official, target)
 
 
 def test_freshness_tolerates_long_holiday_when_official_unavailable():

@@ -226,6 +226,41 @@ def _merge_official_overlay(data, official_date, official):
     return data
 
 
+def _cap_batch_to_official_date(data, official_date):
+    """Discard incoming rows later than the payload-verified official EOD date.
+
+    Yahoo can publish a preloaded TW bar before the market opens and label it with
+    the preceding UTC date.  At 00:00 Monday in Taipei, for example, the row may
+    be stamped Sunday rather than Monday.  Removing only ``today`` therefore does
+    not catch it, and a sufficiently broad preload can pass the coverage gate.
+
+    The official TWSE/TPEX cross-section is the authority for the production
+    market date.  This filter only touches the current network batch; existing
+    cache history is never deleted here.
+    """
+    if official_date is None:
+        return data
+
+    cutoff = pd.Timestamp(official_date).normalize()
+    affected = dropped = 0
+    for sid, frame in list(data.items()):
+        if frame is None or frame.empty:
+            continue
+        dates = pd.to_datetime(frame.index).normalize()
+        keep = dates <= cutoff
+        removed = int((~keep).sum())
+        if removed:
+            data[sid] = frame.loc[keep].copy()
+            affected += 1
+            dropped += removed
+    if dropped:
+        log.warning(
+            "Discarded %d post-official incoming rows across %d stocks; "
+            "payload-verified latest trading day is %s",
+            dropped, affected, cutoff.date())
+    return data
+
+
 def _market_date_health(data, expected_count):
     """Return (healthy latest date, unhealthy dates, coverage stats)."""
     rows = []
@@ -345,6 +380,10 @@ def _validate_market_freshness(healthy_date, official_date, target_date):
             raise RuntimeError(
                 f"batch latest healthy date {healthy_date.date()} is behind the official "
                 f"trading day {official_date.date()}")
+        if healthy_date > official_date:
+            raise RuntimeError(
+                f"batch latest healthy date {healthy_date.date()} is ahead of the official "
+                f"trading day {official_date.date()}")
         return
     # 官方 lookback 內找不到任何交易日：市場休市（長假）或官方端點掛掉。
     # 兩者都不該誤報，但也不能無上限放行 —— 台股最長連假（春節）約 12 個日曆天。
@@ -402,6 +441,7 @@ def main():
         target_date -= pd.Timedelta(days=1)
     official_date, official = _official_daily_overlay(sids, target_date)
     data = _merge_official_overlay(data, official_date, official)
+    data = _cap_batch_to_official_date(data, official_date)
 
     # 2b. 防呆：盤中 (TW 收盤 13:30) 手動/早班執行時 yfinance 會回當日「未完成」盤中 bar，
     #     臨時收盤價會被寫進 CSV 污染當日資料。排程都在收盤後跑不受影響；此處只擋手動早跑。
