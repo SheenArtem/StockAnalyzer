@@ -433,17 +433,33 @@ if not "%UNSETTLED_EXIT%"=="0" call :log "[WARN] US cache bar scan FOUND ISSUES 
 call :log "US cache bar scan done (exit=%UNSETTLED_EXIT%)"
 
 REM ------------------------------------------------------------
-REM Chip history institutional resume (daily).
+REM Chip history resume (daily): institutional + margin + short_sale.
 REM Added 2026-05-02: 5yr panel was one-shot backfill, no daily cron, so
 REM weekly_chip_report (BL-4) was using stale data (cap 4/15). Daily resume
 REM keeps institutional fresh for BL-4 at ~5-10s per run.
-REM margin / short_sale resume moved to run_tdcc_weekly.bat (TPEX FinMind
-REM per-stock fallback is too slow for daily: 12 days = 3.6h per dataset).
-REM Best-effort: failures do not affect scanner exit.
+REM
+REM 2026-08-27: margin + short_sale moved BACK here from run_tdcc_weekly.bat.
+REM   They sat on the weekly slot only because TPEX went through FinMind
+REM   per-stock (913 stocks x 1.2s = ~18min per dataset). Both now use TPEX
+REM   by-date batch endpoints -- margin_bal_result.php (since 2026-06-29) and
+REM   margin_sbl_result.php (2026-08-27, reconciled 809/809 = 100% against the
+REM   FinMind-sourced rows) -- so a full resume run is ~13s, not ~18min.
+REM   Weekly cadence had left both up to 3 trading days behind while
+REM   TWSE/TPEX publish daily. Scanner runs 00:00, past the ~21:00 release,
+REM   so each run picks up the previous trading day.
+REM Best-effort: failures do not affect scanner exit, but each is logged.
 REM ------------------------------------------------------------
 call :log "Chip history resume starting"
 python tools\chip_history_dl.py --dataset institutional --resume >> scanner.log 2>&1
-call :log "Chip history resume done"
+set CHIP_INST_EXIT=%ERRORLEVEL%
+python tools\chip_history_dl.py --dataset margin --resume >> scanner.log 2>&1
+set CHIP_MARGIN_EXIT=%ERRORLEVEL%
+python tools\chip_history_dl.py --dataset short_sale --resume >> scanner.log 2>&1
+set CHIP_SBL_EXIT=%ERRORLEVEL%
+call :log "Chip history resume done (inst=%CHIP_INST_EXIT% margin=%CHIP_MARGIN_EXIT% short_sale=%CHIP_SBL_EXIT%)"
+if not "%CHIP_INST_EXIT%"=="0" call :log "[WARN] chip institutional resume FAILED exit=%CHIP_INST_EXIT%"
+if not "%CHIP_MARGIN_EXIT%"=="0" call :log "[WARN] chip margin resume FAILED exit=%CHIP_MARGIN_EXIT%"
+if not "%CHIP_SBL_EXIT%"=="0" call :log "[WARN] chip short_sale resume FAILED exit=%CHIP_SBL_EXIT%"
 
 REM ------------------------------------------------------------
 REM Earnings calendar fetch (News Initiative Phase 1 #2).

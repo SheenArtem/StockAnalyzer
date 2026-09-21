@@ -8,10 +8,10 @@ Output:     data_cache/chip_history/*.parquet (long format)
 
 Endpoint strategy per dataset:
   institutional  -- TWSE T86 ALL (batch/date) + TPEX batch  [~1250 trading days x 1 API call]
-  margin         -- TWSE MI_MARGN ALL (batch/date) [TWSE only]; TPEX stocks -> FinMind fallback
+  margin         -- TWSE MI_MARGN ALL (batch/date) + TPEX margin_bal batch  [1 API call/date each]
   day_trading    -- FinMind per-stock (no TWSE/TPEX all-market batch exists)
   shareholding   -- FinMind per-stock (no TWSE/TPEX batch exists)
-  short_sale     -- TWSE TWT93U (batch/date) [TWSE only]; TPEX stocks -> FinMind fallback
+  short_sale     -- TWSE TWT93U (batch/date) + TPEX margin_sbl batch  [1 API call/date each]
 
 Usage:
     python tools/chip_history_dl.py                             # all datasets, full 5yr
@@ -479,6 +479,71 @@ def _fetch_shortsale_twse_one_day(dt: datetime) -> list:
     return records
 
 
+# ---- short_sale (TPEX OTC ALL, by-date batch) ----
+# TPEX 信用額度總量管制餘額表 batch endpoint. Returns all OTC credit-eligible
+# stocks in one call, replacing the FinMind per-stock path (913 stocks x 1.2s).
+# That per-stock cost was the sole reason margin/short_sale sat on the weekly
+# schedule instead of the daily one -- see run_scanner.bat.
+#
+# Field positions (verified 2026-08-27 against margin_sbl_result.php d=115/08/21,
+# reconciled 809/809 = 100% on all six numeric columns vs the FinMind-sourced
+# rows already in short_sale.parquet):
+#   0 股票代號 1 股票名稱
+#   [融券]  2 前日餘額  3 賣出  4 買進  5 現券  6 當日餘額  7 限額
+#   [借券]  8 前日餘額  9 當日賣出  10 當日還券  11 當日調整數額  12 當日餘額
+#          13 次一營業日可借券賣出限額  14 備註
+#
+# Positional access only, deliberately: this table has DUPLICATE field names
+# ('前日餘額' and '當日餘額' each appear twice, once per section), so a
+# name-keyed lookup silently returns the 融券 column where 借券 was meant.
+def _fetch_shortsale_tpex_one_day(dt: datetime) -> list:
+    """Fetch TPEX all-market short sale / SBL for one date (batch, like TWSE)."""
+    roc_date = _tpex_date(dt)
+    url = "https://www.tpex.org.tw/web/stock/margin_trading/margin_sbl/margin_sbl_result.php"
+    params = {"l": "zh-tw", "o": "json", "d": roc_date}
+    time.sleep(_TWSE_REQUEST_INTERVAL)
+    data = _fetch_json(url, params)
+    if not data:
+        return []
+
+    rows = data.get("aaData", [])
+    if not rows:
+        tables = data.get("tables", [])
+        if tables and isinstance(tables[0], dict):
+            rows = tables[0].get("data", [])
+    if not rows:
+        return []
+
+    records = []
+    for row in rows:
+        if len(row) < 13:
+            continue
+        sid = str(row[0]).strip()
+        # 4-digit filter is intentional (matches _fetch_margin_tpex_one_day):
+        # the table also lists ETFs (006201 / 00679B / 00411A) that are not in
+        # the stock universe this panel serves.
+        if not sid.isdigit() or len(sid) != 4:
+            continue
+        try:
+            records.append({
+                "date": dt.strftime("%Y-%m-%d"),
+                "stock_id": sid,
+                # SBL borrowing (借券賣出)
+                "sbl_balance":   _safe_int(row[12]),
+                "sbl_sell":      _safe_int(row[9]),
+                "sbl_return":    _safe_int(row[10]),
+                "sbl_adjust":    _safe_int(row[11]),
+                # Margin short sale (融券賣出) - same table
+                "ms_sell":       _safe_int(row[3]),
+                "ms_buy":        _safe_int(row[4]),
+                "ms_balance":    _safe_int(row[6]),
+                "market": "tpex",
+            })
+        except Exception:
+            continue
+    return records
+
+
 # ============================================================
 # FinMind per-stock helpers
 # ============================================================
@@ -769,38 +834,21 @@ def download_short_sale(dates: list, universe: pd.DataFrame, tpex_ids: set, dl,
         _flush(dataset, buffer, key_cols)
         buffer = []
 
-    # Phase 2: TPEX stocks via FinMind
-    logger.info("[short_sale] Phase 2/2: TPEX stocks via FinMind (%d stocks)", len(tpex_ids))
-    start_str = dates[0].strftime("%Y-%m-%d")
-    end_str   = dates[-1].strftime("%Y-%m-%d")
-
-    for j, sid in enumerate(sorted(tpex_ids)):
-        raw = _finmind_call(dl, "taiwan_daily_short_sale_balances",
-                            stock_id=sid, start_date=start_str, end_date=end_str)
-        if raw.empty:
-            fallback_count += 1
-            continue
-        if "date" not in raw.columns:
-            fallback_count += 1
-            continue
-        recs = []
-        for _, row in raw.iterrows():
-            recs.append({
-                "date": str(row["date"])[:10],
-                "stock_id": sid,
-                "sbl_balance": int(row["SBLShortSalesCurrentDayBalance"]) if "SBLShortSalesCurrentDayBalance" in raw.columns and pd.notna(row["SBLShortSalesCurrentDayBalance"]) else 0,
-                "sbl_sell":    int(row["SBLShortSalesShortSales"])         if "SBLShortSalesShortSales"         in raw.columns and pd.notna(row["SBLShortSalesShortSales"])         else 0,
-                "sbl_return":  int(row["SBLShortSalesReturns"])            if "SBLShortSalesReturns"            in raw.columns and pd.notna(row["SBLShortSalesReturns"])            else 0,
-                "sbl_adjust":  int(row["SBLShortSalesAdjustments"])        if "SBLShortSalesAdjustments"        in raw.columns and pd.notna(row["SBLShortSalesAdjustments"])        else 0,
-                "ms_sell":     int(row["MarginShortSalesShortSales"])       if "MarginShortSalesShortSales"       in raw.columns and pd.notna(row["MarginShortSalesShortSales"])       else 0,
-                "ms_buy":      int(row["MarginShortSalesShortCovering"])    if "MarginShortSalesShortCovering"    in raw.columns and pd.notna(row["MarginShortSalesShortCovering"])    else 0,
-                "ms_balance":  int(row["MarginShortSalesCurrentDayBalance"]) if "MarginShortSalesCurrentDayBalance" in raw.columns and pd.notna(row["MarginShortSalesCurrentDayBalance"]) else 0,
-                "market": "tpex",
-            })
-        buffer.extend(recs)
-        fallback_count += 1
-
-        if (j + 1) % buffer_cap == 0 and buffer:
+    # Phase 2: TPEX batch by date (margin_sbl_result.php ALL, like TWSE)
+    # Was FinMind per-stock (913 stocks x 1.2s) until 2026-08-27; the batch
+    # endpoint reconciled 809/809 = 100% against those rows on 2026-08-21, so
+    # the per-stock path is gone. tpex_ids/dl are no longer used here and are
+    # kept only for caller signature stability -- same as download_margin.
+    logger.info("[short_sale] Phase 2/2: TPEX batch (%d dates)", len(dates))
+    for i, dt in enumerate(dates):
+        recs = _fetch_shortsale_tpex_one_day(dt)
+        if recs:
+            buffer.extend(recs)
+            ok_days += 1
+        else:
+            logger.warning("[short_sale] No TPEX data for %s", dt.strftime("%Y-%m-%d"))
+            fail_days += 1
+        if (i + 1) % buffer_cap == 0 and buffer:
             _flush(dataset, buffer, key_cols)
             buffer = []
 

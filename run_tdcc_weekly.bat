@@ -45,16 +45,20 @@ if not "%CHIP_EXIT%"=="0" (
 )
 
 REM ============================================================
-REM  Chip history margin / short_sale weekly resume.
-REM  Added 2026-05-02: daily cron only runs institutional (5-10s); margin
-REM  and short_sale go through TPEX FinMind per-stock fallback (913 stocks
-REM  x 1.2s = ~18min per trading day) so weekly batch is the right slot.
-REM  Best-effort: failures do not affect TDCC weekly exit.
+REM  Chip history margin / short_sale: MOVED to run_scanner.bat (daily)
+REM  on 2026-08-27. Nothing runs here anymore.
+REM
+REM  They lived on this weekly slot since 2026-05-02 for one reason only:
+REM  TPEX stocks went through FinMind per-stock (913 stocks x 1.2s =
+REM  ~18min per dataset), which is too slow for a daily chain. Both now
+REM  use TPEX by-date batch endpoints -- margin_bal_result.php (2026-06-29)
+REM  and margin_sbl_result.php (2026-08-27) -- so a full resume run is ~13s.
+REM
+REM  Weekly cadence had left both up to 3 trading days behind while TWSE
+REM  and TPEX publish daily. Do NOT re-add them here: a second --resume
+REM  per week is wasted requests, and the daily chain already covers the
+REM  Saturday catch-up.
 REM ============================================================
-call :log "Chip history margin/short_sale resume started"
-python tools/chip_history_dl.py --dataset margin --resume >> tdcc_weekly.log 2>&1
-python tools/chip_history_dl.py --dataset short_sale --resume >> tdcc_weekly.log 2>&1
-call :log "Chip history margin/short_sale resume done"
 
 REM Foreign holding ratio for the 23 TW0050_FIXED_UNIVERSE tickers that
 REM systemic_chip Group A foreign_holding uses. These *_shareholding_chip.csv rode in
