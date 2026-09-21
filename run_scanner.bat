@@ -32,6 +32,9 @@ cd /d C:\GIT\StockAnalyzer
 REM Force UTF-8 for Python I/O (prevents cp950 UnicodeDecodeError on emoji output)
 set PYTHONIOENCODING=utf-8
 
+REM Task Scheduler may not inherit the per-user CLI install directory.
+if exist "%USERPROFILE%\.local\bin\claude.exe" set "PATH=%USERPROFILE%\.local\bin;%PATH%"
+
 REM 2026-04-20: MOPS WAF banned local IP; --no-mops CLI flag forced FinMind path.
 REM 2026-05-02: removed --no-mops; 2026-05-05 scanner hang 8h18m -> circuit breaker
 REM rewrite (commit 8012241) + sticky-disable 3 trips/day.
