@@ -67,33 +67,34 @@ for _key in ('df_week_cache', 'df_day_cache', 'force_update_cache', 'fund_cache'
 
 # 側邊欄
 with st.sidebar:
-    st.caption("Version: v2026.08.03.1")
+    st.caption("Version: v2026.10.28.1")
 
     # 初始化 ticker_input session state（其他模式切回個股時要有預設值）
     if 'ticker_input' not in st.session_state:
         st.session_state['ticker_input'] = '2330'
 
-    # Mode toggle: 個股分析 / 市場掃描 / AI 報告 / 總經大盤風向
+    # Mode toggle: 投資組合（預設）/ 個股分析 / 市場掃描 / AI 報告 / 總經大盤風向
     # brokerage_yt 從 UI 移除（節省 LLM quota）
     # 強勢股報告仍停用 (Opus 6/15 後改 SDK Credit pool)
     # 2026-05-23: 'screener' (自動選股 QM/Value/Mode D) 從 UI 移除 — daily scheduler 已停
     # (commit 56dcc6c)，UI 顯示會 stale。
+    # 2026-10-28: 'notes' (知識庫) 與 'curation' (題材策展) 從 UI 移除，'portfolio' 移至最前作為預設。
     # 復原方式：把對應 mode 名加回 _mode_options + idx_map (render handler/label 保留為死代碼)
-    _mode_options = ['individual', 'market_scan', 'ai_reports', 'macro', 'notes', 'curation', 'portfolio']
-    _mode_labels = {'individual': '📈 個股分析', 'screener': '🔍 自動選股',
+    _mode_options = ['portfolio', 'individual', 'market_scan', 'ai_reports', 'macro']
+    _mode_labels = {'portfolio': '💼 投資組合',
+                    'individual': '📈 個股分析', 'screener': '🔍 自動選股',
                     'market_scan': '📡 市場掃描', 'ai_reports': '📝 AI 報告',
                     'strong_stocks': '🌟 強勢股報告',
                     'macro': '🧭 總經大盤風向',
                     'brokerage_yt': '📺 投顧追蹤',
                     'notes': '📚 知識庫',
-                    'curation': '🎨 題材策展',
-                    'portfolio': '💼 投資組合'}
-    _current_mode = st.session_state.get('app_mode', 'analysis')
-    _mode_idx_map = {'market_scan': 1, 'ai_reports': 2, 'macro': 3,
-                     'notes': 4, 'curation': 5, 'portfolio': 6}
+                    'curation': '🎨 題材策展'}
+    _current_mode = st.session_state.get('app_mode', 'portfolio')
+    _mode_idx_map = {'portfolio': 0, 'analysis': 1, 'individual': 1,
+                     'market_scan': 2, 'ai_reports': 3, 'macro': 4}
     if st.session_state.get('mode_radio') not in (None, *_mode_options):
         st.session_state.pop('mode_radio', None)
-    # 預設 (analysis / individual) 對應 individual 在順序中的位置 = 0
+    # 預設對應 portfolio 在順序中的位置 = 0
     _mode_idx = _mode_idx_map.get(_current_mode, 0)
     app_mode = st.radio(
         "功能模式",
@@ -104,8 +105,10 @@ with st.sidebar:
         horizontal=True,
         label_visibility="collapsed",
     )
-    # screener (自動選股) 2026-05-23 從 UI 移除；session_state 設回 analysis
-    if app_mode == 'market_scan':
+    # screener / notes / curation 從 UI 移除；未匹配選項對應 individual -> analysis
+    if app_mode == 'portfolio':
+        st.session_state['app_mode'] = 'portfolio'
+    elif app_mode == 'market_scan':
         st.session_state['app_mode'] = 'market_scan'
     elif app_mode == 'ai_reports':
         st.session_state['app_mode'] = 'ai_reports'
@@ -119,8 +122,6 @@ with st.sidebar:
         st.session_state['app_mode'] = 'notes'
     elif app_mode == 'curation':
         st.session_state['app_mode'] = 'curation'
-    elif app_mode == 'portfolio':
-        st.session_state['app_mode'] = 'portfolio'
     else:
         st.session_state['app_mode'] = 'analysis'
 
@@ -295,22 +296,17 @@ elif st.session_state.get('app_mode') == 'macro':
     from macro_dashboard import render_macro_dashboard
     render_macro_dashboard()
 
-# 知識庫 (2026-06-12 筆記→2026-07-16 升級；白話投資來源 2026-08-03 移除)：我的筆記(本地 md CRUD)
-# 純本地檔案，無大盤 banner
-elif st.session_state.get('app_mode') == 'notes':
-    from notes_view import render_notes
-    render_notes()
+# 知識庫 2026-10-28 從 UI 移除（保留 notes_view.py 與本地 data/notes/*.md）
+# 復原：把以下三行 elif 取消註解 + app_mode 'notes' 加回 _mode_options 與 _mode_idx_map
+# elif st.session_state.get('app_mode') == 'notes':
+#     from notes_view import render_notes
+#     render_notes()
 
-# 題材策展 (2026-06-23)：多市場 TW/US 半自動策展，按鈕背景觸發 + REVIEW gate，無大盤 banner
-elif st.session_state.get('app_mode') == 'curation':
-    from curation_view import render_curation
-    render_curation()
-
-# 投資組合 (2026-07-01)：本地 data/manual_trades/transactions.json 逐筆交易 CRUD +
-# 即時查價（台股 mis.twse 批次 / 美股 Yahoo v8）+ 分市場損益績效，無 LLM、無大盤 banner
-elif st.session_state.get('app_mode') == 'portfolio':
-    from portfolio_view import render_portfolio
-    render_portfolio()
+# 題材策展 2026-10-28 從 UI 移除（保留 curation_view.py 與 curate_themes_pipeline.py）
+# 復原：把以下三行 elif 取消註解 + app_mode 'curation' 加回 _mode_options 與 _mode_idx_map
+# elif st.session_state.get('app_mode') == 'curation':
+#     from curation_view import render_curation
+#     render_curation()
 
 # 投顧追蹤 2026-05-22 從 UI 移除（節省 codex/Sonnet LLM quota）
 # 復原：把以下三行 elif 取消註解 + app_mode 'brokerage_yt' 加回 _mode_options
@@ -318,10 +314,16 @@ elif st.session_state.get('app_mode') == 'portfolio':
 #     from brokerage_view import render_brokerage_yt
 #     render_brokerage_yt()
 
-else:
-    # 個股分析（預設 tab）：輸入表單 + 分析結果都在 individual_view 內
+elif st.session_state.get('app_mode') == 'analysis':
+    # 個股分析：輸入表單 + 分析結果都在 individual_view 內
     from individual_view import render_individual
     render_individual()
+
+else:
+    # 投資組合（預設 tab，2026-10-28 起移至最前）：本地 data/manual_trades/transactions.json
+    # 逐筆交易 CRUD + 即時查價（台股 mis.twse 批次 / 美股 Yahoo v8）+ 分市場損益績效，無 LLM、無大盤 banner
+    from portfolio_view import render_portfolio
+    render_portfolio()
 
 # ====================================================================
 #  填入大盤儀表板 Banner（延後渲染，讓主內容先顯示）

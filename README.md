@@ -63,9 +63,9 @@ bat 或 `app.py` 的註解裡）。
 | 總經大盤風向 | `app.py` → 🧭 | 排程（面板日更） | 7 區塊；資料由 `run_macro_panels_*.bat` 產 |
 | 市場掃描 | `app.py` → 📡 | 排程 | 法人週榜 / 題材動能 / 新聞流量異常 |
 | AI 報告 | `app.py` → 📝 / `tools/auto_ai_reports.py` | 手動 | Claude Opus 深度分析；儀表板在 📝 tab（daily 排程已停用）|
-| 投資組合 | `app.py` → 💼 | 手動 | 手輸交易紀錄 → 持股 / 損益 / TWR；純本地不入版控 |
-| 知識庫 | `app.py` → 📚 | 手動 | 本地筆記（`data/notes/*.md`，零 DB）|
-| 題材策展 | `app.py` → 🎨 | 手動 | TW + US 多市場題材 |
+| 投資組合 | `app.py` → 💼（預設） | 手動 | 手輸交易紀錄 → 持股 / 損益 / TWR；純本地不入版控 |
+| 知識庫 | `app.py` → 📚 | 停用 | 已從 `_mode_options` 移除（`notes_view.py` 與本地 `data/notes/*.md` 保留）|
+| 題材策展 | `app.py` → 🎨 | 停用 | 已從 `_mode_options` 移除（`curation_view.py` / `curate_themes_pipeline.py` 保留）|
 | 新聞題材 | `tools/news_theme_extract.py` | 排程 | UDN + cnyes RSS → Claude Sonnet 萃取 |
 | 籌碼面 | `chip_analysis.py` / `chip_history_dl.py` | 排程 | 三大法人 / 融資融券 / 借券 / 當沖 / TDCC |
 | QM 品質選股 | `scanner_job.py --mode qm` | 停用 | F-Score 50% + 體質 30% + 趨勢 20%；2026-05-23 起 informational |

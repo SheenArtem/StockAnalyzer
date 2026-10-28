@@ -235,17 +235,19 @@ def _render_summary(by_market, day_pnl_by_market):
         with col:
             st.markdown(f"##### {_MARKET_LABEL.get(mkt, mkt)}")
             mv = s['market_value']
+            cost = s['cost']
             unreal = s['unrealized_pnl']
             ret = s['return_pct']
-            m1, m2 = st.columns(2)
+            m1, m2, m3 = st.columns(3)
             m1.metric("總市值", f"{mv:,.2f}")
-            m2.metric("未實現損益", f"{unreal:+,.2f}",
+            m2.metric("總成本", f"{cost:,.2f}")
+            m3.metric("未實現損益", f"{unreal:+,.2f}",
                       delta=(f"{ret:+.2%}" if ret is not None else None),
                       delta_color='inverse')  # 台股慣例紅漲
-            m3, m4 = st.columns(2)
+            m4, m5, _ = st.columns(3)
             day = day_pnl_by_market.get(mkt)
-            m3.metric("當日損益", f"{day:+,.2f}" if day is not None else "—")
-            m4.metric("已實現損益", f"{s['realized_pnl']:+,.2f}")
+            m4.metric("當日損益", f"{day:+,.2f}" if day is not None else "—")
+            m5.metric("已實現損益", f"{s['realized_pnl']:+,.2f}")
             if s['has_missing_price']:
                 st.caption("⚠️ 部分持股缺現價，市值/損益未計入該檔")
 
